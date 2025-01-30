@@ -3,6 +3,7 @@ use crate::error::WormTongueError;
 use crate::tongues::openai::types::OpenAIModels;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[pyclass]
@@ -97,8 +98,8 @@ pub struct Message {
 #[pymethods]
 impl Message {
     #[new]
-    #[pyo3(signature = (role, content, name=None))]
-    pub fn new(role: String, content: String, name: Option<String>) -> Self {
+    #[pyo3(signature = (role, content=vec![], name=None))]
+    pub fn new(role: String, content: Vec<Content>, name: Option<String>) -> Self {
         Message {
             role,
             content,
@@ -118,6 +119,14 @@ pub struct OpenAIPrompt {
 
     #[pyo3(get)]
     pub model: String,
+
+    pub store: bool,
+
+    pub reasoning_effort: String,
+
+    pub metadata: HashMap<String, String>,
+
+    pub frequency_penalty: i32,
 }
 
 #[pymethods]
@@ -132,8 +141,13 @@ impl OpenAIPrompt {
         }
     }
 
-    pub fn add_message(&mut self, role: String, content: String) {
-        self.messages.push(Message { role, content });
+    #[pyo3(signature = (role, content, name=None))]
+    pub fn add_message(&mut self, role: String, content: Vec<Content>, name: Option<String>) {
+        self.messages.push(Message {
+            role,
+            content,
+            name,
+        });
     }
 
     #[setter]
@@ -170,5 +184,28 @@ impl Default for OpenAIPrompt {
             temperature: 0.7,
             model: OpenAIModels::Gpt4o.to_string(),
         }
+    }
+}
+
+impl OpenAIPrompt {
+    pub fn validate_metadata(metadata: &HashMap<String, String>) -> PyResult<()> {
+        if metadata.len() > 16 {
+            return Err(WormTongueError::new_err(
+                "metadata may not exceed 16 key-value pairs",
+            ));
+        }
+        for (key, value) in metadata {
+            if key.len() > 64 {
+                return Err(WormTongueError::new_err(
+                    "metadata keys cannot exceed 64 characters",
+                ));
+            }
+            if value.len() > 512 {
+                return Err(WormTongueError::new_err(
+                    "metadata values cannot exceed 512 characters",
+                ));
+            }
+        }
+        Ok(())
     }
 }
