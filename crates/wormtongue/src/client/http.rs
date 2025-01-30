@@ -3,11 +3,29 @@ use crate::error::HttpError;
 
 use reqwest::Response;
 use reqwest::{header::HeaderMap, Client};
+use std::env;
 
 use serde_json::Value;
 
 const TIMEOUT_SECS: u64 = 30;
 const REDACTED: &str = "REDACTED";
+
+#[derive(Debug, Clone)]
+pub struct HTTPConfig {
+    pub url: String,
+    pub token: String,
+}
+
+impl HTTPConfig {
+    pub fn new() -> Self {
+        let url =
+            env::var("WORMTONGUE_URL").unwrap_or_else(|_| "http://localhost:8000".to_string());
+
+        let token = env::var("WORMTONGUE_API_KEY").unwrap_or_else(|_| REDACTED.to_string());
+
+        HTTPConfig { url, token }
+    }
+}
 
 /// Create a new HTTP client that can be shared across different clients
 pub fn build_http_client() -> Result<Client, HttpError> {
@@ -21,21 +39,21 @@ pub fn build_http_client() -> Result<Client, HttpError> {
 #[derive(Debug, Clone)]
 pub struct HTTPClient {
     client: Client,
+    pub config: HTTPConfig,
 }
 
 impl HTTPClient {
-    pub async fn new() -> Result<Self, HttpError> {
+    pub async fn new(config: &HTTPConfig) -> Result<Self, HttpError> {
         let client = build_http_client()?;
 
-        let api_client = HTTPClient { client };
-
-        Ok(api_client)
+        Ok(HTTPClient {
+            client,
+            config: config.clone(),
+        })
     }
 
     async fn request(
         self,
-        url: &str,
-        bearer_token: &str,
         request_type: RequestType,
         body_params: Option<Value>,
         query_string: Option<String>,
@@ -46,15 +64,15 @@ impl HTTPClient {
         let response = match request_type {
             RequestType::Get => {
                 let url = if let Some(query_string) = query_string {
-                    format!("{}?{}", url, query_string)
+                    format!("{}?{}", self.config.url, query_string)
                 } else {
-                    url.to_string()
+                    self.config.url.to_string()
                 };
 
                 self.client
                     .get(url)
                     .headers(headers)
-                    .bearer_auth(&bearer_token)
+                    .bearer_auth(&self.config.bearer_token)
                     .send()
                     .await
                     .map_err(|e| {
@@ -63,10 +81,10 @@ impl HTTPClient {
             }
             RequestType::Post => self
                 .client
-                .post(url)
+                .post(&self.config.url)
                 .headers(headers)
                 .json(&body_params)
-                .bearer_auth(&bearer_token)
+                .bearer_auth(&self.config.bearer_token)
                 .send()
                 .await
                 .map_err(|e| {
@@ -79,8 +97,6 @@ impl HTTPClient {
 
     pub async fn request_with_retry(
         &mut self,
-        url: &str,
-        bearer_token: &str,
         request_type: RequestType,
         body_params: Option<Value>,
         query_params: Option<String>,
@@ -97,8 +113,6 @@ impl HTTPClient {
             let client = self.clone();
             response = client
                 .request(
-                    url,
-                    bearer_token,
                     request_type.clone(),
                     body_params.clone(),
                     query_params.clone(),
