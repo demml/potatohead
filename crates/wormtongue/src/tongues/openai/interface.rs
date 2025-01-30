@@ -1,10 +1,9 @@
 use crate::client::{ClientURL, HTTPConfig};
-use crate::error::{TongueError, WormTongueError};
+use crate::error::TongueError;
 use crate::tongues::base::Tongue;
 use crate::tongues::openai::{Message, OpenAIClient, OpenAIPrompt};
 use pyo3::prelude::*;
 use std::env;
-use tracing::{debug, instrument};
 
 fn resolve_url(url: Option<String>) -> String {
     url.or_else(|| env::var("WORMTONGUE_URL").ok())
