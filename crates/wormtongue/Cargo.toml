@@ -21,6 +21,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 pyo3 = { workspace = true }
 tracing = { workspace = true }
+worm-macros = { workspace = true }
 
 [profile.release]
 lto = "fat"

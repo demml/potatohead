@@ -110,6 +110,28 @@ impl Message {
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ResponseSchema {
+    pub name: String,
+    pub schema: String,
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct JsonSchema {
+    pub schema: String,
+    pub name: String,
+    pub strict: bool,
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ResponseFormat {
+    pub r#type: String,
+    pub json_schema: JsonSchema,
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct OpenAIPrompt {
     #[pyo3(get, set)]
     pub messages: Vec<Message>,
@@ -147,17 +169,17 @@ pub struct OpenAIPrompt {
     #[pyo3(get)]
     pub modalities: Vec<String>,
 
-    // not implemented pub prediction
-
-    // not implemented pub audio
     #[pyo3(get)]
     pub presence_penalty: i32,
+
+    #[pyo3(get)]
+    pub response_format: Option<ResponseFormat>,
 }
 
 #[pymethods]
 impl OpenAIPrompt {
     #[new]
-    #[pyo3(signature = (model = OpenAIModels::Gpt4o.as_str(), temperature = 0.7,  messages = vec![], store=false, reasoning_effort="medium", metadata=None, frequency_penalty=0, logit_bias=false, top_logprobs=None, max_completion_tokens=None, n=1, modalities=vec!["text".to_string()], presence_penalty=0))]
+    #[pyo3(signature = (model = OpenAIModels::Gpt4o.as_str(), temperature = 0.7,  messages = vec![], store=false, reasoning_effort="medium", metadata=None, frequency_penalty=0, logit_bias=false, top_logprobs=None, max_completion_tokens=None, n=1, modalities=vec!["text".to_string()], presence_penalty=0, response_schema=None))]
     pub fn new(
         model: &str,
         temperature: f32,
@@ -172,7 +194,22 @@ impl OpenAIPrompt {
         n: i32,
         modalities: Vec<String>,
         presence_penalty: i32,
+        response_schema: Option<ResponseSchema>,
     ) -> PyResult<Self> {
+        let mut response_format: Option<ResponseFormat> = None;
+
+        // if response_schema is provided, validate it
+        if let Some(schema) = response_schema {
+            response_format = Some(ResponseFormat {
+                r#type: "json_schema".to_string(),
+                json_schema: JsonSchema {
+                    schema: schema.schema,
+                    name: schema.name,
+                    strict: true,
+                },
+            });
+        }
+
         // if metadata is provided, validate it
         if let Some(metadata) = &metadata {
             OpenAIPrompt::validate_metadata(metadata)?;
@@ -192,6 +229,7 @@ impl OpenAIPrompt {
             n,
             modalities,
             presence_penalty,
+            response_format,
         })
     }
 
@@ -202,16 +240,6 @@ impl OpenAIPrompt {
             content,
             name,
         });
-    }
-
-    #[setter]
-    pub fn set_temperature(&mut self, temperature: f32) {
-        self.temperature = temperature;
-    }
-
-    #[setter]
-    pub fn model(&mut self, model: String) {
-        self.model = model;
     }
 
     pub fn __str__(&self) -> String {
@@ -247,6 +275,7 @@ impl Default for OpenAIPrompt {
             n: 1,
             modalities: vec!["text".to_string()],
             presence_penalty: 0,
+            response_format: None,
         }
     }
 }
