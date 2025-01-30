@@ -7,16 +7,103 @@ use std::path::PathBuf;
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TextContent {
+    pub content: String,
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ImageContent {
+    pub url: String,
+    pub detail: String,
+}
+
+#[pymethods]
+impl ImageContent {
+    #[new]
+    #[pyo3(signature = (url, detail="auto"))]
+    pub fn new(url: String, detail: &str) -> Self {
+        ImageContent {
+            url,
+            detail: detail.to_string(),
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AudioContent {
+    pub data: String,
+    pub format: String,
+}
+
+#[pymethods]
+impl AudioContent {
+    #[new]
+    #[pyo3(signature = (data, format="mp3"))]
+    pub fn new(data: String, format: &str) -> Self {
+        AudioContent {
+            data,
+            format: format.to_string(),
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Content {
+    Text(TextContent),
+    Image(ImageContent),
+    Audio(AudioContent),
+}
+
+#[pymethods]
+impl Content {
+    #[staticmethod]
+    #[pyo3(signature = (content))]
+    pub fn text(content: &str) -> Self {
+        Content::Text(TextContent {
+            content: content.to_string(),
+        })
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (url, detail="auto"))]
+    pub fn image(url: &str, detail: &str) -> Self {
+        Content::Image(ImageContent {
+            url: url.to_string(),
+            detail: detail.to_string(),
+        })
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (data, format="mp3"))]
+    pub fn naudio(data: &str, format: &str) -> Self {
+        Content::Audio(AudioContent {
+            data: data.to_string(),
+            format: format.to_string(),
+        })
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
     pub role: String,
-    pub content: String,
+    pub content: Vec<Content>,
+    pub name: Option<String>,
 }
 
 #[pymethods]
 impl Message {
     #[new]
-    pub fn new(role: String, content: String) -> Self {
-        Message { role, content }
+    #[pyo3(signature = (role, content, name=None))]
+    pub fn new(role: String, content: String, name: Option<String>) -> Self {
+        Message {
+            role,
+            content,
+            name,
+        }
     }
 }
 

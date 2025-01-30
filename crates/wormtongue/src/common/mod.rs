@@ -1,8 +1,8 @@
 use crate::error::TongueError;
-use chrono::{NaiveDateTime, Utc};
+use chrono::Utc;
 use colored_json::{Color, ColorMode, ColoredFormatter, PrettyFormatter, Styler};
-use core::time;
-use serde::Serialize;
+use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub struct Utils {}
@@ -89,4 +89,23 @@ impl FileName {
             FileName::Prompt => format!("prompt_{}", now),
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Status {
+    InProgress,
+    Completed,
+    Failed,
+    NotStarted,
+}
+
+#[pyclass(eq)]
+#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
+pub enum InteractionType {
+    Image,
+    Vision,
+    Test,
+    Voice,
+    Batch,
+    Embedding,
 }

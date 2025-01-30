@@ -1,4 +1,5 @@
 use crate::client::{ClientURL, HTTPConfig};
+use crate::common::Status;
 use crate::error::TongueError;
 use crate::tongues::base::Tongue;
 use crate::tongues::openai::{Message, OpenAIClient, OpenAIPrompt};
@@ -24,6 +25,8 @@ pub struct OpenAI {
 
     #[pyo3(get)]
     pub prompt: OpenAIPrompt,
+
+    pub status: Status,
 }
 
 #[pymethods]
@@ -43,7 +46,14 @@ impl OpenAI {
 
         let prompt = prompt.unwrap_or_default();
 
-        Ok((Self { client, prompt }, Tongue {}))
+        Ok((
+            Self {
+                client,
+                prompt,
+                status: Status::NotStarted,
+            },
+            Tongue {},
+        ))
     }
 
     #[setter]
@@ -65,6 +75,16 @@ impl OpenAI {
         messages: Vec<Message>,
     ) -> PyResult<()> {
         self.prompt = OpenAIPrompt::new(model.as_str(), temperature, messages);
+        Ok(())
+    }
+
+    pub fn start_conversation(&mut self) -> PyResult<()> {
+        self.status = Status::InProgress;
+        Ok(())
+    }
+
+    pub fn end_conversation(&mut self) -> PyResult<()> {
+        self.status = Status::Completed;
         Ok(())
     }
 }
