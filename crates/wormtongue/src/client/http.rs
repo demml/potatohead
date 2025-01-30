@@ -55,7 +55,7 @@ pub struct BaseHTTPClient {
 }
 
 impl BaseHTTPClient {
-    pub async fn new(config: HTTPConfig, auth_strategy: AuthStrategy) -> Result<Self, HttpError> {
+    pub fn new(config: HTTPConfig, auth_strategy: AuthStrategy) -> Result<Self, HttpError> {
         let client = build_http_client()?;
         Ok(Self {
             client,
@@ -156,7 +156,7 @@ impl ClaudeClient {
             name: "x-api-key".to_string(),
             value: config.token.clone(),
         };
-        let client = BaseHTTPClient::new(config, auth).await?;
+        let client = BaseHTTPClient::new(config, auth)?;
         Ok(Self(client))
     }
 }

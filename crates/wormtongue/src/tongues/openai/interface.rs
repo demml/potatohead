@@ -27,14 +27,13 @@ pub struct OpenAI {
 impl OpenAI {
     #[new]
     #[pyo3(signature = (url=None, api_key=None))]
-    pub fn new(url: Option<String>, api_key: Option<&str>) -> PyResult<Self> {
+    pub fn new(url: Option<String>, api_key: Option<&str>) -> PyResult<(Self, Tongue)> {
         let url = resolve_url(url);
         let api_key = resolve_api_key(api_key)?;
+        let config = HTTPConfig::new(url, api_key);
 
-        let mut config = HTTPConfig::new(url, api_key);
+        let client = OpenAIClient::new(config)?;
 
-        let client =
-            OpenAIClient::new(config).map_err(|e| WormTongueError::Error(e.to_string()))?;
-        OpenAI { client }
+        Ok((Self { client }, Tongue {}))
     }
 }

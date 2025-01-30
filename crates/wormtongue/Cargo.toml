@@ -12,6 +12,8 @@ license = "MIT"
 description = "Standardized interface for working with LLM client"
 
 [dependencies]
+chrono = { workspace = true }
+colored_json = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

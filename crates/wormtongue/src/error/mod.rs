@@ -17,11 +17,32 @@ pub enum TongueError {
 
     #[error("Missing API Key")]
     MissingAPIKey,
+
+    #[error(transparent)]
+    HttpError(#[from] HttpError),
+
+    #[error("Failed to serialize string")]
+    SerializeError,
+
+    #[error("Failed to deserialize string")]
+    DeSerializeError,
+
+    #[error("Failed to create path")]
+    CreatePathError,
+
+    #[error("Failed to get parent path")]
+    GetParentPathError,
+
+    #[error("Failed to create directory")]
+    CreateDirectoryError,
+
+    #[error("Failed to write to file")]
+    WriteError,
 }
 
 impl From<TongueError> for PyErr {
     fn from(err: TongueError) -> PyErr {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(err.to_string())
+        PyErr::new::<WormTongueError, _>(err.to_string())
     }
 }
 

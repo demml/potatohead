@@ -17,7 +17,8 @@ repository = "https://github.com/demml/wormtongue"
 
 [workspace.dependencies]
 wormtongue = { path = "crates/wormtongue" }
-
+chrono ={ version = "0.*", features = ["serde"] }
+colored_json = "*"
 futures = "0.*"
 pyo3 = { version = ">=0.23.3, <1.0.0", features = ["chrono", "anyhow", "extension-module"] }
 reqwest = { version = "0.12.*", features = ["json", "stream", "rustls-tls", "rustls-tls-native-roots", "blocking" ], default-features = false }
