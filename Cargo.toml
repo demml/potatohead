@@ -1,0 +1,40 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/*",
+  "py-wormtongue",
+]
+default-members = [
+  "crates/*",
+]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["demml <support@demmlai.com>"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/demml/wormtongue"
+
+[workspace.dependencies]
+wormtongue = { path = "crates/wormtongue" }
+
+futures = "0.*"
+pyo3 = { version = ">=0.23.3, <1.0.0", features = ["chrono", "anyhow", "extension-module"] }
+reqwest = { version = "0.12.*", features = ["json", "stream", "multipart", "rustls-tls", "rustls-tls-native-roots", "json" ], default-features = false }
+rusty-logging="0.*"
+serde = { version = "1.*", features = ["derive"] }
+serde_json = "1.*"
+thiserror = "1.*"
+tokio = { version = "1.*", features = ["rt", "rt-multi-thread", "macros"] }
+tracing = "0.*"
+tracing-subscriber = {version = "0.*", features = ["json", "time"]}
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+opt-level = 3
+
+[profile.release-no-lto]
+inherits = "release"
+lto = false
