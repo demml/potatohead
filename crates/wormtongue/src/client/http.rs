@@ -1,11 +1,10 @@
 use crate::client::types::RequestType;
 use crate::error::HttpError;
 
-use reqwest::RequestBuilder;
-use reqwest::Response;
-use reqwest::{header::HeaderMap, Client};
+use reqwest::blocking::Response;
+use reqwest::blocking::{Client as BlockingClient, RequestBuilder};
+use reqwest::header::HeaderMap;
 use serde_json::Value;
-use std::env;
 
 const TIMEOUT_SECS: u64 = 30;
 const REDACTED: &str = "REDACTED";
@@ -17,19 +16,15 @@ pub struct HTTPConfig {
 }
 
 impl HTTPConfig {
-    pub fn new() -> Self {
-        let url =
-            env::var("WORMTONGUE_URL").unwrap_or_else(|_| "http://localhost:8000".to_string());
-
-        let token = env::var("WORMTONGUE_API_KEY").unwrap_or_else(|_| REDACTED.to_string());
-
+    pub fn new(url: String, token: String) -> Self {
         HTTPConfig { url, token }
     }
 }
 
 /// Create a new HTTP client that can be shared across different clients
-pub fn build_http_client() -> Result<Client, HttpError> {
-    let client_builder = Client::builder().timeout(std::time::Duration::from_secs(TIMEOUT_SECS));
+pub fn build_http_client() -> Result<BlockingClient, HttpError> {
+    let client_builder =
+        BlockingClient::builder().timeout(std::time::Duration::from_secs(TIMEOUT_SECS));
     let client = client_builder
         .build()
         .map_err(|e| HttpError::Error(format!("Failed to create client with error: {}", e)))?;
@@ -43,7 +38,7 @@ pub enum AuthStrategy {
 }
 
 pub trait LLMClient {
-    async fn request_with_retry(
+    fn request_with_retry(
         &mut self,
         request_type: RequestType,
         body_params: Option<Value>,
@@ -54,7 +49,7 @@ pub trait LLMClient {
 
 #[derive(Debug, Clone)]
 pub struct BaseHTTPClient {
-    client: Client,
+    client: BlockingClient,
     pub config: HTTPConfig,
     auth_strategy: AuthStrategy,
 }
@@ -76,7 +71,7 @@ impl BaseHTTPClient {
         }
     }
 
-    pub async fn request(
+    pub fn request(
         &self,
         request_type: RequestType,
         body_params: Option<Value>,
@@ -97,7 +92,6 @@ impl BaseHTTPClient {
                 let authenticated_builder = self.apply_auth(builder);
                 authenticated_builder
                     .send()
-                    .await
                     .map_err(|e| HttpError::Error(format!("Failed to send request: {}", e)))?
             }
             RequestType::Post => {
@@ -109,7 +103,6 @@ impl BaseHTTPClient {
                     authenticated_builder
                 }
                 .send()
-                .await
                 .map_err(|e| HttpError::Error(format!("Failed to send request: {}", e)))?
             }
         };
@@ -117,7 +110,7 @@ impl BaseHTTPClient {
         Ok(response)
     }
 
-    pub async fn request_with_retry(
+    pub fn request_with_retry(
         &mut self,
         request_type: RequestType,
         body_params: Option<Value>,
@@ -140,7 +133,7 @@ impl BaseHTTPClient {
                     query_params.clone(),
                     headers.clone(),
                 )
-                .await;
+                .map_err(|e| HttpError::Error(format!("Failed to send request with error: {}", e)));
 
             if response.is_ok() || attempts >= max_attempts {
                 break;
@@ -169,7 +162,7 @@ impl ClaudeClient {
 }
 
 impl LLMClient for ClaudeClient {
-    async fn request_with_retry(
+    fn request_with_retry(
         &mut self,
         request_type: RequestType,
         body_params: Option<Value>,
@@ -178,6 +171,5 @@ impl LLMClient for ClaudeClient {
     ) -> Result<Response, HttpError> {
         self.0
             .request_with_retry(request_type, body_params, query_params, headers)
-            .await
     }
 }

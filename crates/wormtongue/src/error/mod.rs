@@ -14,6 +14,9 @@ pub enum HttpError {
 pub enum TongueError {
     #[error("Error: {0}")]
     Error(String),
+
+    #[error("Missing API Key")]
+    MissingAPIKey,
 }
 
 impl From<TongueError> for PyErr {
