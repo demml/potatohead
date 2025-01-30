@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Debug, Clone)]
 pub enum RequestType {
     Get,
@@ -13,8 +15,14 @@ pub enum ClientURL {
 impl ClientURL {
     pub fn as_str(&self) -> &str {
         match self {
-            ClientURL::OpenAI => "openai",
-            ClientURL::Anthropic => "anthropic",
+            ClientURL::OpenAI => "https://api.openai.com",
+            ClientURL::Anthropic => "https://api.anthropic.com",
         }
+    }
+}
+
+impl Display for ClientURL {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }

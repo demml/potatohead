@@ -1,11 +1,11 @@
 use crate::client::types::RequestType;
 use crate::error::HttpError;
 
+use reqwest::RequestBuilder;
 use reqwest::Response;
 use reqwest::{header::HeaderMap, Client};
-use std::env;
-
 use serde_json::Value;
+use std::env;
 
 const TIMEOUT_SECS: u64 = 30;
 const REDACTED: &str = "REDACTED";
@@ -37,23 +37,47 @@ pub fn build_http_client() -> Result<Client, HttpError> {
 }
 
 #[derive(Debug, Clone)]
-pub struct HTTPClient {
-    client: Client,
-    pub config: HTTPConfig,
+pub enum AuthStrategy {
+    Bearer(String),
+    Header { name: String, value: String },
 }
 
-impl HTTPClient {
-    pub async fn new(config: &HTTPConfig) -> Result<Self, HttpError> {
-        let client = build_http_client()?;
+pub trait LLMClient {
+    async fn request_with_retry(
+        &mut self,
+        request_type: RequestType,
+        body_params: Option<Value>,
+        query_params: Option<String>,
+        headers: Option<HeaderMap>,
+    ) -> Result<Response, HttpError>;
+}
 
-        Ok(HTTPClient {
+#[derive(Debug, Clone)]
+pub struct BaseHTTPClient {
+    client: Client,
+    pub config: HTTPConfig,
+    auth_strategy: AuthStrategy,
+}
+
+impl BaseHTTPClient {
+    pub async fn new(config: HTTPConfig, auth_strategy: AuthStrategy) -> Result<Self, HttpError> {
+        let client = build_http_client()?;
+        Ok(Self {
             client,
-            config: config.clone(),
+            config,
+            auth_strategy,
         })
     }
 
-    async fn request(
-        self,
+    fn apply_auth(&self, builder: RequestBuilder) -> RequestBuilder {
+        match &self.auth_strategy {
+            AuthStrategy::Bearer(token) => builder.bearer_auth(token),
+            AuthStrategy::Header { name, value } => builder.header(name, value),
+        }
+    }
+
+    pub async fn request(
+        &self,
         request_type: RequestType,
         body_params: Option<Value>,
         query_string: Option<String>,
@@ -69,27 +93,25 @@ impl HTTPClient {
                     self.config.url.to_string()
                 };
 
-                self.client
-                    .get(url)
-                    .headers(headers)
-                    .bearer_auth(&self.config.bearer_token)
+                let builder = self.client.get(url).headers(headers);
+                let authenticated_builder = self.apply_auth(builder);
+                authenticated_builder
                     .send()
                     .await
-                    .map_err(|e| {
-                        HttpError::Error(format!("Failed to send request with error: {}", e))
-                    })?
+                    .map_err(|e| HttpError::Error(format!("Failed to send request: {}", e)))?
             }
-            RequestType::Post => self
-                .client
-                .post(&self.config.url)
-                .headers(headers)
-                .json(&body_params)
-                .bearer_auth(&self.config.bearer_token)
+            RequestType::Post => {
+                let builder = self.client.post(&self.config.url).headers(headers);
+                let authenticated_builder = self.apply_auth(builder);
+                if let Some(params) = body_params {
+                    authenticated_builder.json(&params)
+                } else {
+                    authenticated_builder
+                }
                 .send()
                 .await
-                .map_err(|e| {
-                    HttpError::Error(format!("Failed to send request with error: {}", e))
-                })?,
+                .map_err(|e| HttpError::Error(format!("Failed to send request: {}", e)))?
+            }
         };
 
         Ok(response)
@@ -129,5 +151,33 @@ impl HTTPClient {
             .map_err(|e| HttpError::Error(format!("Failed to send request with error: {}", e)))?;
 
         Ok(response)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ClaudeClient(BaseHTTPClient);
+
+impl ClaudeClient {
+    pub async fn new(config: HTTPConfig) -> Result<Self, HttpError> {
+        let auth = AuthStrategy::Header {
+            name: "x-api-key".to_string(),
+            value: config.token.clone(),
+        };
+        let client = BaseHTTPClient::new(config, auth).await?;
+        Ok(Self(client))
+    }
+}
+
+impl LLMClient for ClaudeClient {
+    async fn request_with_retry(
+        &mut self,
+        request_type: RequestType,
+        body_params: Option<Value>,
+        query_params: Option<String>,
+        headers: Option<HeaderMap>,
+    ) -> Result<Response, HttpError> {
+        self.0
+            .request_with_retry(request_type, body_params, query_params, headers)
+            .await
     }
 }
