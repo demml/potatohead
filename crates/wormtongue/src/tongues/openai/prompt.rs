@@ -120,25 +120,79 @@ pub struct OpenAIPrompt {
     #[pyo3(get)]
     pub model: String,
 
+    #[pyo3(get)]
     pub store: bool,
 
+    #[pyo3(get)]
     pub reasoning_effort: String,
 
-    pub metadata: HashMap<String, String>,
+    #[pyo3(get)]
+    pub metadata: Option<HashMap<String, String>>,
 
+    #[pyo3(get)]
     pub frequency_penalty: i32,
+
+    #[pyo3(get)]
+    pub logit_bias: bool,
+
+    #[pyo3(get)]
+    pub top_logprobs: Option<i32>,
+
+    #[pyo3(get)]
+    pub max_completion_tokens: Option<i32>,
+
+    #[pyo3(get)]
+    pub n: i32,
+
+    #[pyo3(get)]
+    pub modalities: Vec<String>,
+
+    // not implemented pub prediction
+
+    // not implemented pub audio
+    #[pyo3(get)]
+    pub presence_penalty: i32,
 }
 
 #[pymethods]
 impl OpenAIPrompt {
     #[new]
-    #[pyo3(signature = (model = OpenAIModels::Gpt4o.as_str(), temperature = 0.7,  messages = vec![]))]
-    pub fn new(model: &str, temperature: f32, messages: Vec<Message>) -> Self {
-        OpenAIPrompt {
+    #[pyo3(signature = (model = OpenAIModels::Gpt4o.as_str(), temperature = 0.7,  messages = vec![], store=false, reasoning_effort="medium", metadata=None, frequency_penalty=0, logit_bias=false, top_logprobs=None, max_completion_tokens=None, n=1, modalities=vec!["text".to_string()], presence_penalty=0))]
+    pub fn new(
+        model: &str,
+        temperature: f32,
+        messages: Vec<Message>,
+        store: bool,
+        reasoning_effort: &str,
+        metadata: Option<HashMap<String, String>>,
+        frequency_penalty: i32,
+        logit_bias: bool,
+        top_logprobs: Option<i32>,
+        max_completion_tokens: Option<i32>,
+        n: i32,
+        modalities: Vec<String>,
+        presence_penalty: i32,
+    ) -> PyResult<Self> {
+        // if metadata is provided, validate it
+        if let Some(metadata) = &metadata {
+            OpenAIPrompt::validate_metadata(metadata)?;
+        }
+
+        Ok(OpenAIPrompt {
             messages,
             temperature,
             model: model.to_string(),
-        }
+            store,
+            reasoning_effort: reasoning_effort.to_string(),
+            metadata,
+            frequency_penalty,
+            logit_bias,
+            top_logprobs,
+            max_completion_tokens,
+            n,
+            modalities,
+            presence_penalty,
+        })
     }
 
     #[pyo3(signature = (role, content, name=None))]
@@ -183,6 +237,16 @@ impl Default for OpenAIPrompt {
             messages: Vec::new(),
             temperature: 0.7,
             model: OpenAIModels::Gpt4o.to_string(),
+            store: false,
+            reasoning_effort: "medium".to_string(),
+            metadata: None,
+            frequency_penalty: 0,
+            logit_bias: false,
+            top_logprobs: None,
+            max_completion_tokens: None,
+            n: 1,
+            modalities: vec!["text".to_string()],
+            presence_penalty: 0,
         }
     }
 }

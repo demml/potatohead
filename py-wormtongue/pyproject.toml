@@ -38,7 +38,6 @@ target-version = ['py312']
 include = '\.pyi?$'
 
 [tool.pylint.MASTER]
-ignore-paths = ["python/wormtongue/utils/comparison/*"]
 load-plugins = ["pylint.extensions.docparams"]
 ignore-patterns = ["tests/*"]
 
