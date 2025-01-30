@@ -7,7 +7,6 @@ use reqwest::header::HeaderMap;
 use serde_json::Value;
 
 const TIMEOUT_SECS: u64 = 30;
-const REDACTED: &str = "REDACTED";
 
 #[derive(Debug, Clone)]
 pub struct HTTPConfig {
@@ -55,8 +54,12 @@ pub struct BaseHTTPClient {
 }
 
 impl BaseHTTPClient {
-    pub fn new(config: HTTPConfig, auth_strategy: AuthStrategy) -> Result<Self, HttpError> {
-        let client = build_http_client()?;
+    pub fn new(
+        config: HTTPConfig,
+        auth_strategy: AuthStrategy,
+        client: Option<BlockingClient>, // this is optional so that we can clone the client
+    ) -> Result<Self, HttpError> {
+        let client = client.unwrap_or(build_http_client()?);
         Ok(Self {
             client,
             config,
@@ -151,12 +154,15 @@ impl BaseHTTPClient {
 pub struct ClaudeClient(BaseHTTPClient);
 
 impl ClaudeClient {
-    pub async fn new(config: HTTPConfig) -> Result<Self, HttpError> {
+    pub async fn new(
+        config: HTTPConfig,
+        client: Option<BlockingClient>,
+    ) -> Result<Self, HttpError> {
         let auth = AuthStrategy::Header {
             name: "x-api-key".to_string(),
             value: config.token.clone(),
         };
-        let client = BaseHTTPClient::new(config, auth)?;
+        let client = BaseHTTPClient::new(config, auth, client)?;
         Ok(Self(client))
     }
 }

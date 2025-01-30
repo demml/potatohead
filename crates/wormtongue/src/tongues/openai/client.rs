@@ -2,6 +2,7 @@ use crate::client::RequestType;
 use crate::client::{AuthStrategy, BaseHTTPClient, HTTPConfig, LLMClient};
 use crate::error::HttpError;
 use crate::error::TongueError;
+use reqwest::blocking::Client;
 use reqwest::blocking::Response;
 use reqwest::header::HeaderMap;
 use serde_json::Value;
@@ -10,9 +11,9 @@ use serde_json::Value;
 pub struct OpenAIClient(BaseHTTPClient);
 
 impl OpenAIClient {
-    pub fn new(config: HTTPConfig) -> Result<Self, TongueError> {
+    pub fn new(config: HTTPConfig, client: Option<Client>) -> Result<Self, TongueError> {
         let auth = AuthStrategy::Bearer(config.token.clone());
-        let client = BaseHTTPClient::new(config, auth)?;
+        let client = BaseHTTPClient::new(config, auth, client)?;
         Ok(Self(client))
     }
 }
@@ -20,6 +21,7 @@ impl OpenAIClient {
 impl LLMClient for OpenAIClient {
     fn request_with_retry(
         &mut self,
+
         request_type: RequestType,
         body_params: Option<Value>,
         query_params: Option<String>,

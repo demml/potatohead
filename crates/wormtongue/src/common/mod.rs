@@ -100,11 +100,12 @@ pub enum Status {
 }
 
 #[pyclass(eq)]
-#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Debug, Serialize, Deserialize, Clone, Default)]
 pub enum InteractionType {
     Image,
     Vision,
-    Test,
+    #[default]
+    Text,
     Voice,
     Batch,
     Embedding,

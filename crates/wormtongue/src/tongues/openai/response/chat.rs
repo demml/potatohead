@@ -1,4 +1,5 @@
 use crate::tongues::openai::pricing::OpenAIApiPricing;
+use crate::tongues::openai::response::types::TokenCount;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -113,17 +114,4 @@ pub struct CompletionTokenDetails {
 
     #[serde(default)]
     pub rejected_prediction_tokens: u32,
-}
-
-#[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct TokenCount {
-    #[serde(default)]
-    pub input_tokens: u32,
-
-    #[serde(default)]
-    pub cached_tokens: u32,
-
-    #[serde(default)]
-    pub output_tokens: u32,
 }

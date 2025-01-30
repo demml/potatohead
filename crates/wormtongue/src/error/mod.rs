@@ -38,6 +38,9 @@ pub enum TongueError {
 
     #[error("Failed to write to file")]
     WriteError,
+
+    #[error("Unsupported interaction type")]
+    UnsupportedInteractionType,
 }
 
 impl From<TongueError> for PyErr {
