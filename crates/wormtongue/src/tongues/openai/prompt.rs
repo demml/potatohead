@@ -36,8 +36,13 @@ pub struct OpenAIPrompt {
 #[pymethods]
 impl OpenAIPrompt {
     #[new]
-    fn new() -> Self {
-        Self::default()
+    #[pyo3(signature = (model = OpenAIModels::Gpt4o.as_str(), temperature = 0.7,  messages = vec![]))]
+    pub fn new(model: &str, temperature: f32, messages: Vec<Message>) -> Self {
+        OpenAIPrompt {
+            messages,
+            temperature,
+            model: model.to_string(),
+        }
     }
 
     pub fn add_message(&mut self, role: String, content: String) {

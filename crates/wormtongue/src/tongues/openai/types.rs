@@ -39,3 +39,19 @@ impl std::fmt::Display for OpenAIModels {
         write!(f, "{}", self.as_str())
     }
 }
+
+#[pyclass(eq)]
+#[derive(Debug, PartialEq, Clone)]
+pub enum OpenAIEndpoints {
+    Chat,
+    Batch,
+}
+
+impl OpenAIEndpoints {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            OpenAIEndpoints::Chat => "v1/chat/completions",
+            OpenAIEndpoints::Batch => "v1/batches",
+        }
+    }
+}
