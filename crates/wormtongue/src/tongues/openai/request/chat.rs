@@ -221,6 +221,32 @@ pub struct PredictionContent {
     #[pyo3(get)]
     pub content: MessageContent,
 }
+#[pymethods]
+impl PredictionContent {
+    #[new]
+    #[pyo3(signature = (r#type, content))]
+    fn new(r#type: String, content: &Bound<'_, PyAny>) -> PyResult<Self> {
+        if content.is_instance_of::<PyString>() {
+            let content = content
+                .extract::<String>()
+                .map_err(|e| WormTongueError::new_err(e))?;
+            return Ok(Self {
+                r#type,
+                content: MessageContent::Text(content),
+            });
+        } else if content.is_instance_of::<PyList>() {
+            let content = content
+                .extract::<Vec<MessageContentPart>>()
+                .map_err(|e| WormTongueError::new_err(e))?;
+            return Ok(Self {
+                r#type,
+                content: MessageContent::Parts(content),
+            });
+        } else {
+            return Err(WormTongueError::new_err("Invalid content type"));
+        }
+    }
+}
 
 #[pyclass]
 #[derive(Serialize, Deserialize, Clone)]
