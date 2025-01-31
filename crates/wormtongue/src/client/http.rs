@@ -38,7 +38,7 @@ pub enum AuthStrategy {
 
 pub trait LLMClient {
     fn request_with_retry(
-        &mut self,
+        &self,
         request_type: RequestType,
         body_params: Option<Value>,
         query_params: Option<String>,
@@ -114,7 +114,7 @@ impl BaseHTTPClient {
     }
 
     pub fn request_with_retry(
-        &mut self,
+        &self,
         request_type: RequestType,
         body_params: Option<Value>,
         query_params: Option<String>,
@@ -169,7 +169,7 @@ impl ClaudeClient {
 
 impl LLMClient for ClaudeClient {
     fn request_with_retry(
-        &mut self,
+        &self,
         request_type: RequestType,
         body_params: Option<Value>,
         query_params: Option<String>,

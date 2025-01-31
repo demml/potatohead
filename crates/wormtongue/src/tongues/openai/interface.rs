@@ -33,7 +33,7 @@ impl OpenAIInterface {
         Ok((Self { client, prompt }, Tongue {}))
     }
 
-    pub fn send(&mut self) -> PyResult<()> {
+    pub fn send(&self) -> PyResult<()> {
         let body = self.prompt.request.to_json()?;
         self.client
             .request_with_retry(RequestType::Post, Some(body), None, None)
