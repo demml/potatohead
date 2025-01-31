@@ -2,6 +2,7 @@ pub mod client;
 pub mod interface;
 pub mod pricing;
 pub mod prompt;
+pub mod request;
 pub mod response;
 pub mod types;
 

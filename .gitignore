@@ -71,3 +71,4 @@ test_scripts/
 
 # Pyenv
 .python-version
+crates/wormtongue/src/tongues/openai/response/openai.yaml
