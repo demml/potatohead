@@ -436,3 +436,12 @@ pub struct ChatCompletionTool {
     #[pyo3(get, set)]
     pub function: FunctionObject,
 }
+
+#[pymethods]
+impl ChatCompletionTool {
+    #[new]
+    #[pyo3(signature = (r#type, function))]
+    fn new(r#type: String, function: FunctionObject) -> Self {
+        Self { r#type, function }
+    }
+}
