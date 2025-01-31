@@ -363,6 +363,15 @@ pub struct ChatCompletionStreamOptions {
     include_usage: bool,
 }
 
+#[pymethods]
+impl ChatCompletionStreamOptions {
+    #[new]
+    #[pyo3(signature = (include_usage))]
+    fn new(include_usage: bool) -> Self {
+        Self { include_usage }
+    }
+}
+
 #[pyclass]
 #[derive(Serialize, Deserialize, Clone)]
 pub struct FunctionObject {
@@ -380,6 +389,27 @@ pub struct FunctionObject {
 
 #[pymethods]
 impl FunctionObject {
+    #[new]
+    #[pyo3(signature = (name, description = None, parameters = None, strict = false))]
+    fn new(
+        name: String,
+        description: Option<String>,
+        parameters: Option<String>,
+        strict: bool,
+    ) -> Self {
+        let parameters = match parameters {
+            Some(parameters) => Some(serde_json::from_str(&parameters).unwrap()),
+            None => None,
+        };
+
+        Self {
+            name,
+            description,
+            parameters,
+            strict,
+        }
+    }
+
     #[getter]
     pub fn get_parameters(&self) -> PyResult<Option<String>> {
         match &self.parameters {
