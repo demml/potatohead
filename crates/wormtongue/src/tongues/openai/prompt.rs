@@ -1,10 +1,8 @@
-use crate::common::{FileName, Utils};
+use crate::common::{FileName, PromptType, Utils};
 use crate::error::WormTongueError;
 use crate::tongues::openai::request::{Message, OpenAIRequest};
-use crate::tongues::openai::types::OpenAIModels;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[pyclass]
@@ -12,6 +10,9 @@ use std::path::PathBuf;
 pub struct OpenAIPrompt {
     #[pyo3(get, set)]
     pub request: OpenAIRequest,
+
+    #[pyo3(get)]
+    pub prompt_type: PromptType,
 }
 
 #[pymethods]
@@ -21,16 +22,13 @@ impl OpenAIPrompt {
     pub fn new(request: &OpenAIRequest) -> PyResult<Self> {
         Ok(Self {
             request: request.clone(),
+            prompt_type: PromptType::OpenAI,
         })
     }
 
     #[pyo3(signature = (message))]
     pub fn add_message(&mut self, message: Message) {
-        self.messages.push(Message {
-            role,
-            content,
-            name,
-        });
+        self.request.add_message(message);
     }
 
     pub fn __str__(&self) -> String {
@@ -53,43 +51,8 @@ impl OpenAIPrompt {
 impl Default for OpenAIPrompt {
     fn default() -> Self {
         Self {
-            messages: Vec::new(),
-            temperature: 0.7,
-            model: OpenAIModels::Gpt4o.to_string(),
-            store: false,
-            reasoning_effort: "medium".to_string(),
-            metadata: None,
-            frequency_penalty: 0,
-            logit_bias: false,
-            top_logprobs: None,
-            max_completion_tokens: None,
-            n: 1,
-            modalities: vec!["text".to_string()],
-            presence_penalty: 0,
-            response_format: None,
+            request: OpenAIRequest::default(),
+            prompt_type: PromptType::OpenAI,
         }
-    }
-}
-
-impl OpenAIPrompt {
-    pub fn validate_metadata(metadata: &HashMap<String, String>) -> PyResult<()> {
-        if metadata.len() > 16 {
-            return Err(WormTongueError::new_err(
-                "metadata may not exceed 16 key-value pairs",
-            ));
-        }
-        for (key, value) in metadata {
-            if key.len() > 64 {
-                return Err(WormTongueError::new_err(
-                    "metadata keys cannot exceed 64 characters",
-                ));
-            }
-            if value.len() > 512 {
-                return Err(WormTongueError::new_err(
-                    "metadata values cannot exceed 512 characters",
-                ));
-            }
-        }
-        Ok(())
     }
 }

@@ -35,3 +35,9 @@ impl OpenAIRequest {
         }
     }
 }
+
+impl Default for OpenAIRequest {
+    fn default() -> Self {
+        OpenAIRequest::Chat(CreateChatCompletionRequest::default())
+    }
+}
