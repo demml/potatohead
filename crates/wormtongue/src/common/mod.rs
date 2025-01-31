@@ -106,3 +106,15 @@ pub enum PromptType {
     OpenAICompatible,
     Claude,
 }
+
+#[pyclass(eq)]
+#[derive(PartialEq, Debug, Serialize, Deserialize, Clone, Default)]
+pub enum InteractionType {
+    Image,
+    Vision,
+    #[default]
+    Text,
+    Voice,
+    Batch,
+    Embedding,
+}
