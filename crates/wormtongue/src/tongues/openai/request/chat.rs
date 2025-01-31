@@ -1,4 +1,4 @@
-use crate::error::WormTongueError;
+use crate::{error::WormTongueError, tongues::openai::response};
 use pyo3::{
     prelude::*,
     types::{PyList, PyString},
@@ -257,6 +257,15 @@ pub struct AudioParameters {
     pub format: String,
 }
 
+#[pymethods]
+impl AudioParameters {
+    #[new]
+    #[pyo3(signature = (voice, format))]
+    fn new(voice: String, format: String) -> Self {
+        Self { voice, format }
+    }
+}
+
 #[pyclass]
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(untagged)]
@@ -264,6 +273,30 @@ pub enum ResponseFormat {
     Text(ResponseFormatText),
     JsonObject(ResponseFormatJsonObject),
     JsonSchema(ResponseFormatJsonSchema),
+}
+
+#[pymethods]
+impl ResponseFormat {
+    #[new]
+    #[pyo3(signature = (response_format))]
+    fn new(response_format: &Bound<'_, PyAny>) -> PyResult<Self> {
+        if response_format.is_instance_of::<ResponseFormatText>() {
+            let response_format = response_format.extract::<ResponseFormatText>().unwrap();
+            return Ok(Self::Text(response_format));
+        } else if response_format.is_instance_of::<ResponseFormatJsonObject>() {
+            let response_format = response_format
+                .extract::<ResponseFormatJsonObject>()
+                .unwrap();
+            return Ok(Self::JsonObject(response_format));
+        } else if response_format.is_instance_of::<ResponseFormatJsonSchema>() {
+            let response_format = response_format
+                .extract::<ResponseFormatJsonSchema>()
+                .unwrap();
+            return Ok(Self::JsonSchema(response_format));
+        } else {
+            return Err(WormTongueError::new_err("Invalid response format"));
+        }
+    }
 }
 
 #[pyclass]
