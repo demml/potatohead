@@ -1,5 +1,6 @@
-use crate::client::HTTPConfig;
-use crate::common::InteractionType;
+use crate::client::http::LLMClient;
+use crate::client::{HTTPConfig, RequestType};
+use crate::error::TongueError;
 use crate::tongues::base::Tongue;
 use crate::tongues::openai::types::{resolve_api_key, resolve_url};
 use crate::tongues::openai::{OpenAIClient, OpenAIPrompt};
@@ -8,68 +9,53 @@ use reqwest::blocking::Client as BlockingClient;
 
 #[pyclass(extends=Tongue, subclass)]
 #[derive(Clone)]
-pub struct OpenAI {
+pub struct OpenAIInterface {
     pub client: OpenAIClient,
 
     #[pyo3(get)]
     pub prompt: OpenAIPrompt,
-
-    #[pyo3(get)]
-    pub interaction_type: InteractionType,
 }
 
 #[pymethods]
-impl OpenAI {
+impl OpenAIInterface {
     #[new]
-    #[pyo3(signature = (url=None, api_key=None, prompt=None, interaction_type=None))]
+    #[pyo3(signature = (prompt, url=None, api_key=None))]
     pub fn py_new(
+        prompt: OpenAIPrompt,
         url: Option<String>,
         api_key: Option<&str>,
-        prompt: Option<OpenAIPrompt>,
-        interaction_type: Option<InteractionType>,
     ) -> PyResult<(Self, Tongue)> {
-        let interaction_type = interaction_type.unwrap_or_default();
-        let url = resolve_url(url, &interaction_type)?;
+        let url = resolve_url(url, &prompt.prompt_type)?;
         let api_key = resolve_api_key(&url, api_key)?;
         let config = HTTPConfig::new(url, api_key);
         let client = OpenAIClient::new(config, None)?;
-        let prompt = prompt.unwrap_or_default();
 
-        Ok((
-            Self {
-                client,
-                prompt,
-                interaction_type,
-            },
-            Tongue {},
-        ))
+        Ok((Self { client, prompt }, Tongue {}))
+    }
+
+    pub fn send(&mut self) -> PyResult<()> {
+        let body = self.prompt.request.to_json()?;
+        self.client
+            .request_with_retry(RequestType::Post, Some(body), None, None)
+            .unwrap();
+        Ok(())
     }
 }
 
 // Implementing a rust-specific constructor that will allow us to pass a client
 // Between different interfaces.
-impl OpenAI {
+impl OpenAIInterface {
     pub fn new(
+        prompt: OpenAIPrompt,
         url: Option<String>,
         api_key: Option<&str>,
-        prompt: Option<OpenAIPrompt>,
-        interaction_type: Option<InteractionType>,
         client: Option<BlockingClient>,
-    ) -> PyResult<(Self, Tongue)> {
-        let interaction_type = interaction_type.unwrap_or_default();
-        let url = resolve_url(url, &interaction_type)?;
+    ) -> Result<Self, TongueError> {
+        let url = resolve_url(url, &prompt.prompt_type)?;
         let api_key = resolve_api_key(&url, api_key)?;
         let config = HTTPConfig::new(url, api_key);
         let client = OpenAIClient::new(config, client)?;
-        let prompt = prompt.unwrap_or_default();
 
-        Ok((
-            Self {
-                client,
-                prompt,
-                interaction_type,
-            },
-            Tongue {},
-        ))
+        Ok(Self { client, prompt })
     }
 }

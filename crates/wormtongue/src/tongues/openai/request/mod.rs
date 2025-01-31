@@ -1,10 +1,10 @@
 pub mod chat;
 
+use crate::error::{TongueError, WormTongueError};
 pub use chat::*;
-
-use crate::error::WormTongueError;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[pyclass]
 #[derive(Serialize, Deserialize, Clone)]
@@ -32,6 +32,16 @@ impl OpenAIRequest {
     pub fn add_message(&mut self, message: Message) {
         match self {
             OpenAIRequest::Chat(chat) => chat.messages.push(message),
+        }
+    }
+
+    pub fn to_json(&self) -> Result<Value, TongueError> {
+        match self {
+            OpenAIRequest::Chat(chat) => {
+                let val =
+                    serde_json::to_value(chat).map_err(|e| TongueError::Error(e.to_string()))?;
+                Ok(val)
+            }
         }
     }
 }

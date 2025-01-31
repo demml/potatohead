@@ -38,13 +38,13 @@ pub struct Message {
 impl Message {
     #[new]
     #[pyo3(signature = (role, content))]
-    fn new(role: String, content: &Bound<'_, PyAny>) -> PyResult<Self> {
+    pub fn py_new(role: &str, content: &Bound<'_, PyAny>) -> PyResult<Self> {
         if content.is_instance_of::<PyString>() {
             let content = content
                 .extract::<String>()
                 .map_err(|e| WormTongueError::new_err(e))?;
             return Ok(Self {
-                role,
+                role: role.to_string(),
                 content: MessageContent::Text(content),
             });
         } else if content.is_instance_of::<PyList>() {
@@ -52,11 +52,20 @@ impl Message {
                 .extract::<Vec<MessageContentPart>>()
                 .map_err(|e| WormTongueError::new_err(e))?;
             return Ok(Self {
-                role,
+                role: role.to_string(),
                 content: MessageContent::Parts(content),
             });
         } else {
             return Err(WormTongueError::new_err("Invalid content type"));
+        }
+    }
+}
+
+impl Message {
+    pub fn new(role: &str, content: MessageContent) -> Self {
+        Self {
+            role: role.to_string(),
+            content,
         }
     }
 }

@@ -1,5 +1,5 @@
 use crate::client::ClientURL;
-use crate::common::InteractionType;
+use crate::common::PromptType;
 use crate::error::TongueError;
 use pyo3::prelude::*;
 use std::env;
@@ -62,18 +62,18 @@ impl OpenAIEndpoints {
 
 pub fn resolve_url(
     url: Option<String>,
-    interaction_type: &InteractionType,
+    interaction_type: &PromptType,
 ) -> Result<String, TongueError> {
     let url = url
         .or_else(|| env::var("WORMTONGUE_URL").ok())
         .unwrap_or_else(|| ClientURL::OpenAI.as_str().to_string());
 
     match interaction_type {
-        InteractionType::Text => Ok(format!("{}/v1/chat/completions", url)),
-        InteractionType::Image => Ok(format!("{}/v1/images/generations", url)),
-        InteractionType::Voice => Ok(format!("{}/v1/audio/speech", url)),
-        InteractionType::Batch => Ok(format!("{}/v1/batches", url)),
-        InteractionType::Embedding => Ok(format!("{}/v1/embeddings", url)),
+        PromptType::Text => Ok(format!("{}/v1/chat/completions", url)),
+        PromptType::Image => Ok(format!("{}/v1/images/generations", url)),
+        PromptType::Voice => Ok(format!("{}/v1/audio/speech", url)),
+        PromptType::Batch => Ok(format!("{}/v1/batches", url)),
+        PromptType::Embedding => Ok(format!("{}/v1/embeddings", url)),
         _ => Err(TongueError::UnsupportedInteractionType),
     }
 }

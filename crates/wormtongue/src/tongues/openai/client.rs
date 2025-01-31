@@ -21,7 +21,6 @@ impl OpenAIClient {
 impl LLMClient for OpenAIClient {
     fn request_with_retry(
         &mut self,
-
         request_type: RequestType,
         body_params: Option<Value>,
         query_params: Option<String>,

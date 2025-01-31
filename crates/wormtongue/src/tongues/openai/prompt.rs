@@ -20,9 +20,13 @@ impl OpenAIPrompt {
     #[new]
     #[pyo3(signature = (request))]
     pub fn new(request: &OpenAIRequest) -> PyResult<Self> {
+        let prompt_type = match request {
+            OpenAIRequest::Chat(_) => PromptType::Text,
+        };
+
         Ok(Self {
             request: request.clone(),
-            prompt_type: PromptType::OpenAI,
+            prompt_type,
         })
     }
 
@@ -50,9 +54,13 @@ impl OpenAIPrompt {
 
 impl Default for OpenAIPrompt {
     fn default() -> Self {
+        let request = OpenAIRequest::default();
+        let prompt_type = match request {
+            OpenAIRequest::Chat(_) => PromptType::Text,
+        };
         Self {
-            request: OpenAIRequest::default(),
-            prompt_type: PromptType::OpenAI,
+            request,
+            prompt_type,
         }
     }
 }
