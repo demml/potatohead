@@ -339,6 +339,23 @@ pub enum StopSequences {
     Multiple(Vec<String>),
 }
 
+#[pymethods]
+impl StopSequences {
+    #[new]
+    #[pyo3(signature = (stop))]
+    fn new(stop: &Bound<'_, PyAny>) -> PyResult<Self> {
+        if stop.is_instance_of::<PyString>() {
+            let stop = stop.extract::<String>().unwrap();
+            return Ok(Self::Single(stop));
+        } else if stop.is_instance_of::<PyList>() {
+            let stop = stop.extract::<Vec<String>>().unwrap();
+            return Ok(Self::Multiple(stop));
+        } else {
+            return Err(WormTongueError::new_err("Invalid stop sequence"));
+        }
+    }
+}
+
 #[pyclass]
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ChatCompletionStreamOptions {
