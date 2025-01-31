@@ -1,4 +1,5 @@
-use crate::{error::WormTongueError, tongues::openai::response};
+use crate::common::Utils;
+use crate::error::WormTongueError;
 use pyo3::{
     prelude::*,
     types::{PyList, PyString},
@@ -151,7 +152,7 @@ impl CreateChatCompletionRequest {
         tool_choice = None,
         user = None
     ))]
-    fn new(
+    fn py_new(
         model: String,
         messages: Vec<Message>,
         store: Option<bool>,
@@ -209,6 +210,16 @@ impl CreateChatCompletionRequest {
             tool_choice,
             user,
         }
+    }
+
+    pub fn __str__(&self) -> String {
+        // serialize the struct to a string
+        Utils::__str__(self)
+    }
+
+    pub fn model_dump_json(&self) -> String {
+        // serialize the struct to a string
+        Utils::__json__(self)
     }
 }
 
@@ -443,5 +454,101 @@ impl ChatCompletionTool {
     #[pyo3(signature = (r#type, function))]
     fn new(r#type: String, function: FunctionObject) -> Self {
         Self { r#type, function }
+    }
+}
+
+impl CreateChatCompletionRequest {
+    pub fn new(
+        model: String,
+        messages: Vec<Message>,
+        store: Option<bool>,
+        reasoning_effort: Option<String>,
+        metadata: Option<HashMap<String, String>>,
+        frequency_penalty: Option<f64>,
+        logit_bias: Option<HashMap<String, i32>>,
+        logprobs: Option<bool>,
+        top_logprobs: Option<i32>,
+        max_tokens: Option<i32>,
+        max_completion_tokens: Option<i32>,
+        n: Option<i32>,
+        modalities: Option<Vec<String>>,
+        prediction: Option<PredictionContent>,
+        audio: Option<AudioParameters>,
+        presence_penalty: Option<f64>,
+        response_format: Option<ResponseFormat>,
+        seed: Option<i64>,
+        service_tier: Option<String>,
+        stop: Option<StopSequences>,
+        stream: Option<bool>,
+        stream_options: Option<ChatCompletionStreamOptions>,
+        temperature: Option<f64>,
+        top_p: Option<f64>,
+        tools: Option<Vec<ChatCompletionTool>>,
+        tool_choice: Option<String>,
+        user: Option<String>,
+    ) -> Self {
+        Self {
+            model,
+            messages,
+            store,
+            reasoning_effort,
+            metadata,
+            frequency_penalty,
+            logit_bias,
+            logprobs,
+            top_logprobs,
+            max_tokens,
+            max_completion_tokens,
+            n,
+            modalities,
+            prediction,
+            audio,
+            presence_penalty,
+            response_format,
+            seed,
+            service_tier,
+            stop,
+            stream,
+            stream_options,
+            temperature,
+            top_p,
+            tools,
+            tool_choice,
+            user,
+        }
+    }
+}
+
+impl Default for CreateChatCompletionRequest {
+    fn default() -> Self {
+        Self {
+            model: "gpt-4o".to_string(),
+            messages: vec![],
+            store: None,
+            reasoning_effort: None,
+            metadata: None,
+            frequency_penalty: None,
+            logit_bias: None,
+            logprobs: None,
+            top_logprobs: None,
+            max_tokens: None,
+            max_completion_tokens: None,
+            n: Some(1),
+            modalities: None,
+            prediction: None,
+            audio: None,
+            presence_penalty: None,
+            response_format: None,
+            seed: None,
+            service_tier: None,
+            stop: None,
+            stream: None,
+            stream_options: None,
+            temperature: Some(1.0),
+            top_p: Some(1.0),
+            tools: None,
+            tool_choice: None,
+            user: None,
+        }
     }
 }
