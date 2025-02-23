@@ -10,16 +10,16 @@ use serde_json::Value;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum OpenAIRequest {
-    Chat(CreateChatCompletionRequest),
+    Chat(ChatCompletionRequest),
 }
 
 #[pymethods]
 impl OpenAIRequest {
     #[new]
     pub fn py_new(request: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if request.is_instance_of::<CreateChatCompletionRequest>() {
+        if request.is_instance_of::<ChatCompletionRequest>() {
             let extracted = request
-                .extract::<CreateChatCompletionRequest>()
+                .extract::<ChatCompletionRequest>()
                 .map_err(|e| WormTongueError::new_err(e))?;
             return Ok(OpenAIRequest::Chat(extracted));
         } else {
@@ -48,6 +48,6 @@ impl OpenAIRequest {
 
 impl Default for OpenAIRequest {
     fn default() -> Self {
-        OpenAIRequest::Chat(CreateChatCompletionRequest::default())
+        OpenAIRequest::Chat(ChatCompletionRequest::default())
     }
 }

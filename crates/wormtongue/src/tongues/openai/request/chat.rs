@@ -72,7 +72,7 @@ impl Message {
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct CreateChatCompletionRequest {
+pub struct ChatCompletionRequest {
     #[pyo3(get, set)]
     pub model: String,
     #[pyo3(get, set)]
@@ -130,7 +130,7 @@ pub struct CreateChatCompletionRequest {
 }
 
 #[pymethods]
-impl CreateChatCompletionRequest {
+impl ChatCompletionRequest {
     #[new]
     #[pyo3(signature = (
         model,
@@ -466,7 +466,7 @@ impl ChatCompletionTool {
     }
 }
 
-impl CreateChatCompletionRequest {
+impl ChatCompletionRequest {
     pub fn new(
         model: String,
         messages: Vec<Message>,
@@ -528,7 +528,7 @@ impl CreateChatCompletionRequest {
     }
 }
 
-impl Default for CreateChatCompletionRequest {
+impl Default for ChatCompletionRequest {
     fn default() -> Self {
         Self {
             model: "gpt-4o".to_string(),
