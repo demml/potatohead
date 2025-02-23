@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum OpenAIRequest {
     Chat(CreateChatCompletionRequest),
@@ -16,7 +16,7 @@ pub enum OpenAIRequest {
 #[pymethods]
 impl OpenAIRequest {
     #[new]
-    pub fn py_new(request: Bound<'_, PyAny>) -> PyResult<Self> {
+    pub fn py_new(request: &Bound<'_, PyAny>) -> PyResult<Self> {
         if request.is_instance_of::<CreateChatCompletionRequest>() {
             let extracted = request
                 .extract::<CreateChatCompletionRequest>()

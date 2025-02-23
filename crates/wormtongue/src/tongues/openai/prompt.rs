@@ -1,36 +1,42 @@
-use crate::common::{FileName, PromptType, Utils};
 use crate::error::WormTongueError;
+use crate::tongues::common::{FileName, PromptType, TongueType, Utils};
 use crate::tongues::openai::request::{Message, OpenAIRequest};
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct OpenAIPrompt {
     #[pyo3(get, set)]
     pub request: OpenAIRequest,
 
     #[pyo3(get)]
     pub prompt_type: PromptType,
+
+    #[pyo3(get)]
+    pub tongue_type: TongueType,
 }
 
 #[pymethods]
 impl OpenAIPrompt {
     #[new]
     #[pyo3(signature = (request))]
-    pub fn new(request: &OpenAIRequest) -> PyResult<Self> {
+    pub fn new(request: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let request = OpenAIRequest::py_new(request)?;
         let prompt_type = match request {
             OpenAIRequest::Chat(_) => PromptType::Text,
         };
+        let tongue_type = TongueType::OpenAI;
 
         Ok(Self {
-            request: request.clone(),
+            request,
             prompt_type,
+            tongue_type,
         })
     }
 
-    #[pyo3(signature = (message))]
+    #[pyo3(signature = (message), name="add_message")]
     pub fn add_message(&mut self, message: Message) {
         self.request.add_message(message);
     }
@@ -61,6 +67,7 @@ impl Default for OpenAIPrompt {
         Self {
             request,
             prompt_type,
+            tongue_type: TongueType::OpenAI,
         }
     }
 }

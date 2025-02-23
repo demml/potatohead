@@ -12,11 +12,23 @@ const TIMEOUT_SECS: u64 = 30;
 pub struct HTTPConfig {
     pub url: String,
     pub token: String,
+    pub organization: Option<String>,
+    pub project: Option<String>,
 }
 
 impl HTTPConfig {
-    pub fn new(url: String, token: String) -> Self {
-        HTTPConfig { url, token }
+    pub fn new(
+        url: String,
+        token: String,
+        organization: Option<String>,
+        project: Option<String>,
+    ) -> Self {
+        HTTPConfig {
+            url,
+            token,
+            organization,
+            project,
+        }
     }
 }
 
@@ -42,7 +54,6 @@ pub trait LLMClient {
         request_type: RequestType,
         body_params: Option<Value>,
         query_params: Option<String>,
-        headers: Option<HeaderMap>,
     ) -> Result<Response, HttpError>;
 }
 
@@ -51,12 +62,14 @@ pub struct BaseHTTPClient {
     client: BlockingClient,
     pub config: HTTPConfig,
     auth_strategy: AuthStrategy,
+    headers: HeaderMap,
 }
 
 impl BaseHTTPClient {
     pub fn new(
         config: HTTPConfig,
         auth_strategy: AuthStrategy,
+        headers: HeaderMap,
         client: Option<BlockingClient>, // this is optional so that we can clone the client
     ) -> Result<Self, HttpError> {
         let client = client.unwrap_or(build_http_client()?);
@@ -64,6 +77,7 @@ impl BaseHTTPClient {
             client,
             config,
             auth_strategy,
+            headers,
         })
     }
 
@@ -79,10 +93,8 @@ impl BaseHTTPClient {
         request_type: RequestType,
         body_params: Option<Value>,
         query_string: Option<String>,
-        headers: Option<HeaderMap>,
     ) -> Result<Response, HttpError> {
-        let headers = headers.unwrap_or_default();
-
+        let headers = self.headers.clone();
         let response = match request_type {
             RequestType::Get => {
                 let url = if let Some(query_string) = query_string {
@@ -118,7 +130,6 @@ impl BaseHTTPClient {
         request_type: RequestType,
         body_params: Option<Value>,
         query_params: Option<String>,
-        headers: Option<HeaderMap>,
     ) -> Result<Response, HttpError> {
         // this will attempt to send a request. If the request fails, it will refresh the token and try again. If it fails all 3 times it will return an error
         let mut attempts = 0;
@@ -134,7 +145,6 @@ impl BaseHTTPClient {
                     request_type.clone(),
                     body_params.clone(),
                     query_params.clone(),
-                    headers.clone(),
                 )
                 .map_err(|e| HttpError::Error(format!("Failed to send request with error: {}", e)));
 
@@ -162,7 +172,8 @@ impl ClaudeClient {
             name: "x-api-key".to_string(),
             value: config.token.clone(),
         };
-        let client = BaseHTTPClient::new(config, auth, client)?;
+        let headers = HeaderMap::new();
+        let client = BaseHTTPClient::new(config, auth, headers, client)?;
         Ok(Self(client))
     }
 }
@@ -173,9 +184,8 @@ impl LLMClient for ClaudeClient {
         request_type: RequestType,
         body_params: Option<Value>,
         query_params: Option<String>,
-        headers: Option<HeaderMap>,
     ) -> Result<Response, HttpError> {
         self.0
-            .request_with_retry(request_type, body_params, query_params, headers)
+            .request_with_retry(request_type, body_params, query_params)
     }
 }

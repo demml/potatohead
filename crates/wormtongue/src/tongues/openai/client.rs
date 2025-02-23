@@ -13,6 +13,7 @@ pub struct OpenAIClient(BaseHTTPClient);
 impl OpenAIClient {
     pub fn new(config: HTTPConfig, client: Option<Client>) -> Result<Self, TongueError> {
         let auth = AuthStrategy::Bearer(config.token.clone());
+        let headers = HeaderMap::new();
         let client = BaseHTTPClient::new(config, auth, client)?;
         Ok(Self(client))
     }

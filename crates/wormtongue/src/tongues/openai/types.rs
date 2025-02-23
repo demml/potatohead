@@ -1,6 +1,6 @@
 use crate::client::ClientURL;
-use crate::common::PromptType;
 use crate::error::TongueError;
+use crate::tongues::common::PromptType;
 use pyo3::prelude::*;
 use std::env;
 
@@ -61,10 +61,11 @@ impl OpenAIEndpoints {
 }
 
 pub fn resolve_url(
-    url: Option<String>,
+    url: Option<&str>,
     interaction_type: &PromptType,
 ) -> Result<String, TongueError> {
     let url = url
+        .map(|s| s.to_string())
         .or_else(|| env::var("WORMTONGUE_URL").ok())
         .unwrap_or_else(|| ClientURL::OpenAI.as_str().to_string());
 

@@ -1,5 +1,5 @@
-use crate::common::Utils;
 use crate::error::WormTongueError;
+use crate::tongues::common::Utils;
 use pyo3::{
     prelude::*,
     types::{PyList, PyString},
@@ -9,7 +9,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum MessageContent {
     Text(String),
@@ -17,7 +17,7 @@ pub enum MessageContent {
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MessageContentPart {
     #[pyo3(get, set)]
     pub r#type: String,
@@ -26,7 +26,7 @@ pub struct MessageContentPart {
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
     #[pyo3(get, set)]
     pub role: String,
@@ -71,7 +71,7 @@ impl Message {
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CreateChatCompletionRequest {
     #[pyo3(get, set)]
     pub model: String,
@@ -233,7 +233,7 @@ impl CreateChatCompletionRequest {
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PredictionContent {
     #[pyo3(get)]
     pub r#type: String,
@@ -269,7 +269,7 @@ impl PredictionContent {
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AudioParameters {
     #[pyo3(get, set)]
     pub voice: String,
@@ -287,7 +287,7 @@ impl AudioParameters {
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum ResponseFormat {
     Text(ResponseFormatText),
@@ -320,21 +320,21 @@ impl ResponseFormat {
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ResponseFormatText {
     #[pyo3(get)]
     pub r#type: String,
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ResponseFormatJsonObject {
     #[pyo3(get)]
     pub r#type: String,
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JsonSchema {
     pub schema: Value,
     pub name: String,
@@ -342,7 +342,7 @@ pub struct JsonSchema {
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ResponseFormatJsonSchema {
     #[pyo3(get)]
     pub r#type: String,
@@ -352,7 +352,7 @@ pub struct ResponseFormatJsonSchema {
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum StopSequences {
     Single(String),
@@ -377,7 +377,7 @@ impl StopSequences {
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatCompletionStreamOptions {
     #[pyo3(get)]
     include_usage: bool,
@@ -393,7 +393,7 @@ impl ChatCompletionStreamOptions {
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FunctionObject {
     #[pyo3(get, set)]
     pub name: String,
@@ -448,7 +448,7 @@ impl FunctionObject {
 }
 
 #[pyclass]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatCompletionTool {
     #[pyo3(get)]
     pub r#type: String,
