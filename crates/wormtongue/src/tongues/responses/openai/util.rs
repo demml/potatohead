@@ -1,6 +1,6 @@
 use crate::error::WormTongueError;
 use crate::tongues::responses::openai::chat::ChatCompletion;
-use crate::tongues::responses::openai::structured::{parse_chat_completion, ParsedChatCompletion};
+use crate::tongues::responses::openai::structured::parse_chat_completion;
 use pyo3::{prelude::*, IntoPyObjectExt};
 use reqwest::blocking::Response;
 

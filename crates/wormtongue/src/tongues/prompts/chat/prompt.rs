@@ -45,6 +45,7 @@ impl ChatPrompt {
         let model = model.to_string();
 
         // If response_format is provided, check if it is a pydantic BaseModel
+
         let response_format = response_format
             .map(|format| convert_pydantic_to_json_schema(py, format))
             .transpose()?;
