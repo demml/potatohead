@@ -91,7 +91,7 @@ impl BaseHTTPClient {
     pub fn request(
         &self,
         request_type: RequestType,
-        body_params: Option<Value>,
+        body: Option<Value>,
         query_string: Option<String>,
     ) -> Result<Response, HttpError> {
         let headers = self.headers.clone();
@@ -112,8 +112,8 @@ impl BaseHTTPClient {
             RequestType::Post => {
                 let builder = self.client.post(&self.config.url).headers(headers);
                 let authenticated_builder = self.apply_auth(builder);
-                if let Some(params) = body_params {
-                    authenticated_builder.json(&params)
+                if let Some(body) = body {
+                    authenticated_builder.json(&body)
                 } else {
                     authenticated_builder
                 }

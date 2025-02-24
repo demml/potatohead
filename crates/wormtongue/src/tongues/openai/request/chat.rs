@@ -10,28 +10,13 @@ use std::collections::HashMap;
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(untagged)]
-pub enum MessageContent {
-    Text(String),
-    Parts(Vec<MessageContentPart>),
-}
-
-#[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct MessageContentPart {
-    #[pyo3(get, set)]
-    pub r#type: String,
-    #[pyo3(get, set)]
-    pub text: String,
-}
-
-#[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
     #[pyo3(get, set)]
     pub role: String,
     #[pyo3(get, set)]
-    pub content: MessageContent,
+    pub content: String,
+
+    next_param: usize,
 }
 
 #[pymethods]
@@ -39,33 +24,38 @@ impl Message {
     #[new]
     #[pyo3(signature = (role, content))]
     pub fn py_new(role: &str, content: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if content.is_instance_of::<PyString>() {
-            let content = content
-                .extract::<String>()
-                .map_err(|e| WormTongueError::new_err(e))?;
-            return Ok(Self {
-                role: role.to_string(),
-                content: MessageContent::Text(content),
-            });
-        } else if content.is_instance_of::<PyList>() {
-            let content = content
-                .extract::<Vec<MessageContentPart>>()
-                .map_err(|e| WormTongueError::new_err(e))?;
-            return Ok(Self {
-                role: role.to_string(),
-                content: MessageContent::Parts(content),
-            });
-        } else {
-            return Err(WormTongueError::new_err("Invalid content type"));
-        }
+        content
+            .is_instance_of::<PyString>()
+            .then(|| content.extract::<String>())
+            .map_or_else(
+                || Err(WormTongueError::new_err("Content type must be a string")),
+                |result| {
+                    result
+                        .map(|content| Self {
+                            role: role.to_string(),
+                            content,
+                            next_param: 0,
+                        })
+                        .map_err(WormTongueError::new_err)
+                },
+            )
+    }
+
+    // Python-facing bind method
+    pub fn bind(&mut self, value: &str) -> PyResult<()> {
+        let placeholder = format!("${}", self.next_param);
+        self.content = self.content.replace(&placeholder, value);
+        self.next_param += 1;
+        Ok(())
     }
 }
 
 impl Message {
-    pub fn new(role: &str, content: MessageContent) -> Self {
+    pub fn new(role: &str, content: String) -> Self {
         Self {
             role: role.to_string(),
             content,
+            next_param: 0,
         }
     }
 }
@@ -99,8 +89,6 @@ pub struct ChatCompletionRequest {
     pub n: Option<i32>,
     #[pyo3(get, set)]
     pub modalities: Option<Vec<String>>,
-    #[pyo3(get, set)]
-    pub prediction: Option<PredictionContent>,
     #[pyo3(get, set)]
     pub audio: Option<AudioParameters>,
     #[pyo3(get, set)]
@@ -146,7 +134,6 @@ impl ChatCompletionRequest {
         max_completion_tokens = None,
         n = Some(1),
         modalities = None,
-        prediction = None,
         audio = None,
         presence_penalty = None,
         response_format = None,
@@ -175,7 +162,6 @@ impl ChatCompletionRequest {
         max_completion_tokens: Option<i32>,
         n: Option<i32>,
         modalities: Option<Vec<String>>,
-        prediction: Option<PredictionContent>,
         audio: Option<AudioParameters>,
         presence_penalty: Option<f64>,
         response_format: Option<ResponseFormat>,
@@ -204,7 +190,6 @@ impl ChatCompletionRequest {
             max_completion_tokens,
             n,
             modalities,
-            prediction,
             audio,
             presence_penalty,
             response_format,
@@ -229,42 +214,6 @@ impl ChatCompletionRequest {
     pub fn model_dump_json(&self) -> String {
         // serialize the struct to a string
         Utils::__json__(self)
-    }
-}
-
-#[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PredictionContent {
-    #[pyo3(get)]
-    pub r#type: String,
-
-    #[pyo3(get)]
-    pub content: MessageContent,
-}
-#[pymethods]
-impl PredictionContent {
-    #[new]
-    #[pyo3(signature = (r#type, content))]
-    fn new(r#type: String, content: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if content.is_instance_of::<PyString>() {
-            let content = content
-                .extract::<String>()
-                .map_err(|e| WormTongueError::new_err(e))?;
-            return Ok(Self {
-                r#type,
-                content: MessageContent::Text(content),
-            });
-        } else if content.is_instance_of::<PyList>() {
-            let content = content
-                .extract::<Vec<MessageContentPart>>()
-                .map_err(|e| WormTongueError::new_err(e))?;
-            return Ok(Self {
-                r#type,
-                content: MessageContent::Parts(content),
-            });
-        } else {
-            return Err(WormTongueError::new_err("Invalid content type"));
-        }
     }
 }
 
@@ -481,7 +430,6 @@ impl ChatCompletionRequest {
         max_completion_tokens: Option<i32>,
         n: Option<i32>,
         modalities: Option<Vec<String>>,
-        prediction: Option<PredictionContent>,
         audio: Option<AudioParameters>,
         presence_penalty: Option<f64>,
         response_format: Option<ResponseFormat>,
@@ -510,7 +458,6 @@ impl ChatCompletionRequest {
             max_completion_tokens,
             n,
             modalities,
-            prediction,
             audio,
             presence_penalty,
             response_format,
@@ -544,7 +491,6 @@ impl Default for ChatCompletionRequest {
             max_completion_tokens: None,
             n: Some(1),
             modalities: None,
-            prediction: None,
             audio: None,
             presence_penalty: None,
             response_format: None,

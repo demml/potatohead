@@ -1,10 +1,9 @@
 use crate::error::WormTongueError;
-use crate::tongues::common::{prompt, FileName, PromptType, TongueType, Utils};
-use crate::tongues::openai::request::{Message, OpenAIRequest};
+use crate::tongues::common::{pyobject_to_json, FileName, PromptType, TongueType, Utils};
+use crate::tongues::openai::request::OpenAIRequest;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::path::PathBuf;
 
 #[pyclass]
@@ -31,31 +30,64 @@ impl OpenAIPrompt {
         raw_request: Option<&Bound<'_, PyDict>>,
         prompt_type: Option<PromptType>,
     ) -> PyResult<Self> {
-        let request = match request {
-            Some(request) => Some(request.extract::<OpenAIRequest>()?),
-            None => None,
-        };
-
-        let prompt_type = match request {
-            Some(request) => match request {
+        // Extract the request and raw_request from the Python objects
+        let request = request.map(|r| OpenAIRequest::py_new(r)).transpose()?;
+        let raw_json = raw_request.map(|dict| pyobject_to_json(dict)).transpose()?;
+        let prompt_type = request
+            .as_ref()
+            .map(|r| match r {
                 OpenAIRequest::Chat(_) => PromptType::Text,
-            },
-            None => prompt_type.unwrap_or(PromptType::Text),
-        };
-
+            })
+            .unwrap_or_else(|| prompt_type.unwrap_or(PromptType::Text));
         let tongue_type = TongueType::OpenAI;
 
         Ok(Self {
             request,
             prompt_type,
             tongue_type,
-            raw: raw_request.map(|r| r.to_object()),
+            raw_request: raw_json,
         })
     }
 
-    #[pyo3(signature = (message), name="add_message")]
-    pub fn add_message(&mut self, message: Message) {
-        self.request.add_message(message);
+    pub fn build_raw_request(&mut self) -> PyResult<String> {
+        // Build the request from the raw JSON
+        if let Some(raw) = &self.raw_request {
+            Ok(raw.to_string())
+        } else {
+            Err(WormTongueError::new_err("No raw request found"))
+        }
+    }
+
+    #[pyo3(signature = (context=None))]
+    pub fn build_request(
+        &mut self,
+        context: Option<Vec<Vec<String>>>,
+    ) -> PyResult<serde_json::Value> {
+        let request = self
+            .request
+            .as_mut()
+            .ok_or(WormTongueError::new_err("No request found"))?;
+
+        match (&self.prompt_type, request) {
+            (PromptType::Text, OpenAIRequest::Chat(chat)) => {
+                let mut chat = chat.clone();
+
+                if let Some(context) = context {
+                    // Zip messages with their corresponding context if available
+                    for (message, ctx) in chat.messages.iter_mut().zip(context.iter()) {
+                        // Apply each context string to the message
+                        for value in ctx {
+                            message.bind(value)?;
+                        }
+                    }
+                }
+
+                Ok(chat.model_dump_json())
+            }
+            _ => Err(WormTongueError::new_err(
+                "Unsupported prompt type or request type",
+            )),
+        }
     }
 
     pub fn __str__(&self) -> String {
@@ -77,14 +109,11 @@ impl OpenAIPrompt {
 
 impl Default for OpenAIPrompt {
     fn default() -> Self {
-        let request = OpenAIRequest::default();
-        let prompt_type = match request {
-            OpenAIRequest::Chat(_) => PromptType::Text,
-        };
         Self {
-            request,
-            prompt_type,
+            request: None,
+            prompt_type: PromptType::Text,
             tongue_type: TongueType::OpenAI,
+            raw_request: None,
         }
     }
 }
