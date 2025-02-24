@@ -1,80 +1,53 @@
+use crate::client::http::LLMClient;
+use crate::client::{OpenAIClient, OpenAIConfig, RequestType, TongueClient};
 use crate::error::WormTongueError;
-use crate::OpenAIPrompt;
-use crate::{tongues::common::TongueType, tongues::openai::OpenAIInterface};
+use crate::tongues::prompts::chat::ChatPrompt;
 use pyo3::prelude::*;
-use tracing::{debug, info, instrument};
+use pyo3::IntoPyObjectExt;
 
-#[derive(Debug, Clone)]
-pub enum Interface {
-    OpenAI(OpenAIInterface),
-}
+use super::responses::openai::chat::CompletionResponse;
 
 #[pyclass]
 #[derive(Debug)]
 pub struct Tongue {
-    pub interface: Interface,
-
-    pub prompt: PyObject,
+    client: TongueClient,
 }
 
 #[pymethods]
 impl Tongue {
     #[new]
-    #[pyo3(signature = (prompt, url=None, api_key=None, organization=None, project=None))]
-    pub fn new(
-        prompt: &Bound<'_, PyAny>,
-        url: Option<&str>,
-        api_key: Option<&str>,
-        organization: Option<&str>,
-        project: Option<&str>,
-    ) -> PyResult<Self> {
-        let tongue_type = prompt
-            .getattr("tongue_type")
-            .map_err(|e| WormTongueError::new_err(e))?
-            .extract::<TongueType>()?;
-
-        match tongue_type {
-            TongueType::OpenAI => {
-                let rust_prompt = prompt.extract::<OpenAIPrompt>()?;
-                let interface =
-                    OpenAIInterface::new(&rust_prompt, url, api_key, organiation, project, None)?;
-
-                return Ok(Self {
-                    interface: Interface::OpenAI(interface),
-                    prompt: prompt.clone().unbind(),
-                });
-            }
-            _ => Err(WormTongueError::new_err("Invalid tongue type")),
+    #[pyo3(signature = (config))]
+    pub fn new(config: &Bound<'_, PyAny>) -> PyResult<Self> {
+        // if config is subclass of OpenAIConfig then create OpenAIClient
+        if config.is_instance_of::<OpenAIConfig>() {
+            let config = config.extract::<OpenAIConfig>()?;
+            let client = OpenAIClient::new(config)?;
+            let tongue_client = TongueClient::OpenAI(client);
+            return Ok(Self {
+                client: tongue_client,
+            });
         }
+
+        Err(WormTongueError::new_err("Invalid config type"))
     }
 
-    #[getter]
-    pub fn get_prompt<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        Ok(self.prompt.bind(py).clone())
-    }
+    pub fn speak(&self, py: Python, request: ChatPrompt) -> PyResult<PyObject> {
+        match &self.client {
+            TongueClient::OpenAI(client) => {
+                // build the body of the request
 
-    #[instrument(skip(self))]
-    pub fn send(&self) -> PyResult<String> {
-        debug!("Sending message");
-        match &self.interface {
-            Interface::OpenAI(interface) => {
-                let response = interface.send()?;
-                let response: serde_json::Value = response
-                    .json()
+                let response = client
+                    .request_with_retry(RequestType::Post, Some(request.to_open_ai_spec()), None)
+                    .map_err(|e| {
+                        WormTongueError::new_err(format!("Failed to make request: {}", e))
+                    })?;
+
+                let key = response
+                    .json::<CompletionResponse>()
                     .map_err(|e| WormTongueError::new_err(e.to_string()))?;
-                Ok(response.to_string())
+
+                Ok(key.into_py_any(py)?)
             }
         }
-    }
-
-    pub fn add_message(&mut self, message: &Bound<'_, PyAny>) -> PyResult<()> {
-        match &mut self.interface {
-            Interface::OpenAI(interface) => {
-                let message = message.extract()?;
-                interface.prompt.add_message(message);
-            }
-        }
-
-        Ok(())
     }
 }

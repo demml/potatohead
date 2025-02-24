@@ -62,22 +62,15 @@ pub struct BaseHTTPClient {
     client: BlockingClient,
     pub config: HTTPConfig,
     auth_strategy: AuthStrategy,
-    headers: HeaderMap,
 }
 
 impl BaseHTTPClient {
-    pub fn new(
-        config: HTTPConfig,
-        auth_strategy: AuthStrategy,
-        headers: HeaderMap,
-        client: Option<BlockingClient>, // this is optional so that we can clone the client
-    ) -> Result<Self, HttpError> {
-        let client = client.unwrap_or(build_http_client()?);
+    pub fn new(config: HTTPConfig, auth_strategy: AuthStrategy) -> Result<Self, HttpError> {
+        let client = build_http_client()?;
         Ok(Self {
-            client,
             config,
             auth_strategy,
-            headers,
+            client,
         })
     }
 
@@ -94,7 +87,6 @@ impl BaseHTTPClient {
         body: Option<Value>,
         query_string: Option<String>,
     ) -> Result<Response, HttpError> {
-        let headers = self.headers.clone();
         let response = match request_type {
             RequestType::Get => {
                 let url = if let Some(query_string) = query_string {
@@ -103,14 +95,14 @@ impl BaseHTTPClient {
                     self.config.url.to_string()
                 };
 
-                let builder = self.client.get(url).headers(headers);
+                let builder = self.client.get(url);
                 let authenticated_builder = self.apply_auth(builder);
                 authenticated_builder
                     .send()
                     .map_err(|e| HttpError::Error(format!("Failed to send request: {}", e)))?
             }
             RequestType::Post => {
-                let builder = self.client.post(&self.config.url).headers(headers);
+                let builder = self.client.post(&self.config.url);
                 let authenticated_builder = self.apply_auth(builder);
                 if let Some(body) = body {
                     authenticated_builder.json(&body)
@@ -164,16 +156,13 @@ impl BaseHTTPClient {
 pub struct ClaudeClient(BaseHTTPClient);
 
 impl ClaudeClient {
-    pub async fn new(
-        config: HTTPConfig,
-        client: Option<BlockingClient>,
-    ) -> Result<Self, HttpError> {
+    pub async fn new(config: HTTPConfig) -> Result<Self, HttpError> {
         let auth = AuthStrategy::Header {
             name: "x-api-key".to_string(),
             value: config.token.clone(),
         };
-        let headers = HeaderMap::new();
-        let client = BaseHTTPClient::new(config, auth, headers, client)?;
+
+        let client = BaseHTTPClient::new(config, auth)?;
         Ok(Self(client))
     }
 }

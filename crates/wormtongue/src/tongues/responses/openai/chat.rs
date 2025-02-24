@@ -1,5 +1,5 @@
-use crate::tongues::openai::response::pricing::OpenAIApiPricing;
-use crate::tongues::openai::response::types::TokenCount;
+use crate::tongues::responses::openai::pricing::OpenAIApiPricing;
+use crate::tongues::responses::openai::types::TokenCount;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 

@@ -1,4 +1,4 @@
-use crate::tongues::openai::response::TokenCount;
+use crate::tongues::responses::openai::types::TokenCount;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
