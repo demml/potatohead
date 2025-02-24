@@ -129,6 +129,10 @@ impl ChatPrompt {
     pub fn __str__(&self) -> String {
         Utils::__str__(self)
     }
+
+    pub fn open_ai_spec(&self) -> String {
+        Utils::__str__(self.to_open_ai_spec())
+    }
 }
 
 impl ChatPrompt {
@@ -146,6 +150,13 @@ impl ChatPrompt {
                         spec_obj.insert(key.clone(), value.clone());
                     }
                 }
+            }
+        }
+
+        // if response_format exists, merge it into the spec
+        if let Some(format) = &self.response_format {
+            if let Some(spec_obj) = spec.as_object_mut() {
+                spec_obj.insert("response_format".to_string(), format.clone());
             }
         }
 

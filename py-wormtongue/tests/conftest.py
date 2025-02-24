@@ -13,4 +13,3 @@ print(str(CalendarEvent.__name__))
 
 
 from wormtongue.openai import CreateChatRequest
-from wormtongue import  
