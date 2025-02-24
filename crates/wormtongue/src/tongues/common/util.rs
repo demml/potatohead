@@ -1,5 +1,5 @@
-use crate::error::TongueError;
-use colored_json::{Color, ColorMode, ColoredFormatter, PrettyFormatter, Styler};
+use crate::error::{TongueError, WormTongueError};
+use colored_json::{Color, ColorMode, ColoredFormatter, Paint, PrettyFormatter, Styler};
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString, PyTuple};
 use serde::Serialize;
@@ -131,4 +131,25 @@ pub fn pyobject_to_json(obj: &Bound<'_, PyAny>) -> PyResult<Value> {
 
         Ok(Value::String(obj_str))
     }
+}
+
+pub fn convert_pydantic_to_json_schema(py: Python, model: &Bound<'_, PyAny>) -> PyResult<Value> {
+    // check if model is a subclass of pydantic.BaseModel
+    let pydantic_basemodel = py.import("pydantic")?.getattr("BaseModel")?;
+    if !model.is_instance(&pydantic_basemodel)? {
+        return Err(WormTongueError::new_err(
+            "Model is not a subclass of pydantic.BaseModel",
+        ));
+    }
+
+    let schema = model.call_method0("json_schema")?;
+    let name = model.getattr("__name__")?.extract::<String>()?;
+    Ok(json!({
+        "type": "json_schema",
+        "json_schema": {
+            "schema": pyobject_to_json(&schema)?,
+            "name": name,
+            "strict": true,
+        },
+    }))
 }

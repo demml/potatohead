@@ -116,7 +116,7 @@ pub struct Choice {
     pub message: ChatCompletionMessage,
 }
 
-#[pyclass]
+#[pyclass(subclass)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ChatCompletion {
     #[pyo3(get)]

@@ -1,5 +1,7 @@
 use crate::error::WormTongueError;
-use crate::tongues::common::{pyobject_to_json, PromptType};
+use crate::tongues::common::{
+    convert_pydantic_to_json_schema, pyobject_to_json, PromptType, Utils,
+};
 pub use crate::tongues::prompts::chat::Message;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -16,22 +18,25 @@ pub struct ChatPrompt {
     messages: Vec<Message>,
 
     #[pyo3(get)]
+    pub prompt_type: PromptType,
+
+    pub response_format: Option<Value>,
+
     original_messages: Vec<Message>,
 
     pub additional_data: Option<Value>,
-
-    #[pyo3(get)]
-    pub prompt_type: PromptType,
 }
 
 #[pymethods]
 impl ChatPrompt {
     #[new]
-    #[pyo3(signature = (model, messages, additional_data=None))]
+    #[pyo3(signature = (model, messages, additional_data=None, response_format=None))]
     pub fn new(
+        py: Python,
         model: &str,
         messages: Vec<Message>,
         additional_data: Option<&Bound<'_, PyDict>>,
+        response_format: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Self> {
         let raw_json = additional_data
             .map(|dict| pyobject_to_json(dict))
@@ -39,13 +44,33 @@ impl ChatPrompt {
         let prompt_type = PromptType::Text;
         let model = model.to_string();
 
+        // If response_format is provided, check if it is a pydantic BaseModel
+        let response_format = response_format
+            .map(|format| convert_pydantic_to_json_schema(py, format))
+            .transpose()?;
+
         Ok(Self {
             model,
             prompt_type,
             messages: messages.clone(),  // Working copy
             original_messages: messages, // Original state
             additional_data: raw_json,
+            response_format,
         })
+    }
+
+    #[getter]
+    pub fn additional_data(&self) -> Option<String> {
+        self.additional_data
+            .clone()
+            .map(|data| Utils::__json__(data))
+    }
+
+    #[getter]
+    pub fn response_format(&self) -> Option<String> {
+        self.response_format
+            .clone()
+            .map(|format| Utils::__json__(format))
     }
 
     #[getter]
@@ -98,6 +123,10 @@ impl ChatPrompt {
             message.reset_binding();
         }
         Ok(())
+    }
+
+    pub fn __str__(&self) -> String {
+        Utils::__str__(self)
     }
 }
 

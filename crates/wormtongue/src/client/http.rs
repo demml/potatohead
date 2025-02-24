@@ -3,7 +3,7 @@ use crate::error::HttpError;
 
 use reqwest::blocking::Response;
 use reqwest::blocking::{Client as BlockingClient, RequestBuilder};
-use reqwest::header::HeaderMap;
+use reqwest::header::{self, HeaderMap};
 use serde_json::Value;
 
 const TIMEOUT_SECS: u64 = 30;
@@ -51,9 +51,11 @@ pub enum AuthStrategy {
 pub trait LLMClient {
     fn request_with_retry(
         &self,
+        route: String,
         request_type: RequestType,
         body_params: Option<Value>,
         query_params: Option<String>,
+        headers: Option<HeaderMap>,
     ) -> Result<Response, HttpError>;
 }
 
@@ -83,27 +85,31 @@ impl BaseHTTPClient {
 
     pub fn request(
         &self,
+        route: String,
         request_type: RequestType,
         body: Option<Value>,
         query_string: Option<String>,
+        headers: Option<HeaderMap>,
     ) -> Result<Response, HttpError> {
+        let headers = headers.unwrap_or_else(HeaderMap::new);
         let response = match request_type {
             RequestType::Get => {
                 let url = if let Some(query_string) = query_string {
-                    format!("{}?{}", self.config.url, query_string)
+                    format!("{}/{}?{}", self.config.url, route, query_string)
                 } else {
                     self.config.url.to_string()
                 };
 
                 let builder = self.client.get(url);
-                let authenticated_builder = self.apply_auth(builder);
+                let authenticated_builder = self.apply_auth(builder).headers(headers);
                 authenticated_builder
                     .send()
                     .map_err(|e| HttpError::Error(format!("Failed to send request: {}", e)))?
             }
             RequestType::Post => {
-                let builder = self.client.post(&self.config.url);
-                let authenticated_builder = self.apply_auth(builder);
+                let full_url = format!("{}/{}", self.config.url, route);
+                let builder = self.client.post(&full_url);
+                let authenticated_builder = self.apply_auth(builder).headers(headers);
                 if let Some(body) = body {
                     authenticated_builder.json(&body)
                 } else {
@@ -119,9 +125,11 @@ impl BaseHTTPClient {
 
     pub fn request_with_retry(
         &self,
+        route: String,
         request_type: RequestType,
         body_params: Option<Value>,
         query_params: Option<String>,
+        headers: Option<HeaderMap>,
     ) -> Result<Response, HttpError> {
         // this will attempt to send a request. If the request fails, it will refresh the token and try again. If it fails all 3 times it will return an error
         let mut attempts = 0;
@@ -134,9 +142,11 @@ impl BaseHTTPClient {
             let client = self.clone();
             response = client
                 .request(
+                    route.clone(),
                     request_type.clone(),
                     body_params.clone(),
                     query_params.clone(),
+                    headers.clone(),
                 )
                 .map_err(|e| HttpError::Error(format!("Failed to send request with error: {}", e)));
 
@@ -170,11 +180,13 @@ impl ClaudeClient {
 impl LLMClient for ClaudeClient {
     fn request_with_retry(
         &self,
+        route: String,
         request_type: RequestType,
         body_params: Option<Value>,
         query_params: Option<String>,
+        headers: Option<HeaderMap>,
     ) -> Result<Response, HttpError> {
         self.0
-            .request_with_retry(request_type, body_params, query_params)
+            .request_with_retry(route, request_type, body_params, query_params, headers)
     }
 }

@@ -6,6 +6,7 @@ use crate::error::TongueError;
 use crate::tongues::common::PromptType;
 use pyo3::prelude::*;
 use reqwest::blocking::Response;
+use reqwest::header::HeaderMap;
 use serde_json::Value;
 use std::env;
 
@@ -115,11 +116,13 @@ impl OpenAIClient {
 impl LLMClient for OpenAIClient {
     fn request_with_retry(
         &self,
+        route: String,
         request_type: RequestType,
         body_params: Option<Value>,
         query_params: Option<String>,
+        headers: Option<HeaderMap>,
     ) -> Result<Response, HttpError> {
         self.0
-            .request_with_retry(request_type, body_params, query_params)
+            .request_with_retry(route, request_type, body_params, query_params, headers)
     }
 }
