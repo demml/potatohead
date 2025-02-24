@@ -35,7 +35,6 @@ impl Tongue {
                 // build the body of the request
 
                 let route = self.client.resolve_route(&request.prompt_type)?;
-
                 let response = client
                     .request_with_retry(
                         route,
@@ -47,10 +46,6 @@ impl Tongue {
                     .map_err(|e| {
                         WormTongueError::new_err(format!("Failed to make request: {}", e))
                     })?;
-
-                let key = response
-                    .json::<CompletionResponse>()
-                    .map_err(|e| WormTongueError::new_err(e.to_string()))?;
 
                 Ok(key.into_py_any(py)?)
             }
