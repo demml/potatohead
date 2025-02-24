@@ -3,16 +3,6 @@ use crate::tongues::responses::openai::chat::{ChatCompletion, CompletionUsage};
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 
-//{
-//    name = response_format.__name__
-//    "type": "json_schema",
-//    "json_schema": {
-//        "schema": model.json_schema(),
-//        "name": name,
-//        "strict": True,
-//    },
-//
-
 #[pyclass]
 pub struct ParsedChatCompletionMessage {
     #[pyo3(get)]
@@ -64,9 +54,10 @@ pub struct ParsedChatCompletion {
 
 pub fn parse_chat_completion<'py>(
     py: Python<'py>,
-    chat: ChatCompletion,
+    chat: &ChatCompletion,
     response_format: &Bound<'py, PyAny>,
 ) -> PyResult<Bound<'py, PyAny>> {
+    let cloned_chat = chat.clone();
     let parsed = chat
         .choices
         .iter()
@@ -91,14 +82,14 @@ pub fn parse_chat_completion<'py>(
         })
         .collect::<PyResult<Vec<ParsedChoice>>>()
         .map(|choices| ParsedChatCompletion {
-            id: chat.id,
+            id: cloned_chat.id,
             choices,
             created: chat.created,
-            model: chat.model,
-            object: chat.object,
-            service_tier: chat.service_tier,
-            system_fingerprint: chat.system_fingerprint,
-            usage: chat.usage,
+            model: cloned_chat.model,
+            object: cloned_chat.object,
+            service_tier: cloned_chat.service_tier,
+            system_fingerprint: cloned_chat.system_fingerprint,
+            usage: cloned_chat.usage,
         })?;
 
     Ok(parsed.into_bound_py_any(py)?)
