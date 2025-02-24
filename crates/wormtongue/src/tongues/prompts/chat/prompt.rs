@@ -1,11 +1,9 @@
 use crate::error::WormTongueError;
-use crate::tongues::common::{pyobject_to_json, FileName, PromptType, TongueType, Utils};
-use crate::tongues::openai::request::OpenAIRequest;
+use crate::tongues::common::{pyobject_to_json, PromptType};
 pub use crate::tongues::prompts::chat::Message;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone)]
