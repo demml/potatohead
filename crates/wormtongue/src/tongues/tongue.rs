@@ -5,8 +5,6 @@ use crate::tongues::prompts::chat::ChatPrompt;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 
-use super::responses::openai::chat::CompletionResponse;
-
 #[pyclass]
 #[derive(Debug)]
 pub struct Tongue {
@@ -36,8 +34,16 @@ impl Tongue {
             TongueClient::OpenAI(client) => {
                 // build the body of the request
 
+                let route = self.client.resolve_route(&request.prompt_type)?;
+
                 let response = client
-                    .request_with_retry(RequestType::Post, Some(request.to_open_ai_spec()), None)
+                    .request_with_retry(
+                        route,
+                        RequestType::Post,
+                        Some(request.to_open_ai_spec()),
+                        None,
+                        None,
+                    )
                     .map_err(|e| {
                         WormTongueError::new_err(format!("Failed to make request: {}", e))
                     })?;

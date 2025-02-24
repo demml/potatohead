@@ -5,15 +5,6 @@ use pyo3::prelude::*;
 
 #[pyclass]
 pub enum Response {
-    OpenAIChat(CompletionResponse),
+    OpenAIChat(ChatCompletion),
 }
 
-#[pymethods]
-impl Response {
-    #[getter]
-    pub fn response(&self) -> Option<&CompletionResponse> {
-        match self {
-            Response::OpenAIChat(chat) => Some(chat),
-        }
-    }
-}

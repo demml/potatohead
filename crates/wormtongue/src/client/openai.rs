@@ -35,8 +35,8 @@ pub fn resolve_url(url: Option<&str>) -> Result<String, TongueError> {
     Ok(url)
 }
 
-pub fn resolve_route(url: &str, interaction_type: &PromptType) -> Result<String, TongueError> {
-    match interaction_type {
+pub fn resolve_route(url: &str, prompt_type: &PromptType) -> Result<String, TongueError> {
+    match prompt_type {
         PromptType::Text => Ok(format!("{}/v1/chat/completions", url)),
         PromptType::Image => Ok(format!("{}/v1/images/generations", url)),
         PromptType::Voice => Ok(format!("{}/v1/audio/speech", url)),
@@ -124,5 +124,9 @@ impl LLMClient for OpenAIClient {
     ) -> Result<Response, HttpError> {
         self.0
             .request_with_retry(route, request_type, body_params, query_params, headers)
+    }
+
+    fn url(&self) -> &str {
+        self.0.config.url.as_str()
     }
 }

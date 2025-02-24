@@ -3,10 +3,10 @@ use crate::error::HttpError;
 
 use reqwest::blocking::Response;
 use reqwest::blocking::{Client as BlockingClient, RequestBuilder};
-use reqwest::header::{self, HeaderMap};
+use reqwest::header::HeaderMap;
 use serde_json::Value;
 
-const TIMEOUT_SECS: u64 = 30;
+const TIMEOUT_SECS: u64 = 60;
 
 #[derive(Debug, Clone)]
 pub struct HTTPConfig {
@@ -57,6 +57,8 @@ pub trait LLMClient {
         query_params: Option<String>,
         headers: Option<HeaderMap>,
     ) -> Result<Response, HttpError>;
+
+    fn url(&self) -> &str;
 }
 
 #[derive(Debug, Clone)]
@@ -95,7 +97,7 @@ impl BaseHTTPClient {
         let response = match request_type {
             RequestType::Get => {
                 let url = if let Some(query_string) = query_string {
-                    format!("{}/{}?{}", self.config.url, route, query_string)
+                    format!("{route}?{query_string}")
                 } else {
                     self.config.url.to_string()
                 };
@@ -107,8 +109,7 @@ impl BaseHTTPClient {
                     .map_err(|e| HttpError::Error(format!("Failed to send request: {}", e)))?
             }
             RequestType::Post => {
-                let full_url = format!("{}/{}", self.config.url, route);
-                let builder = self.client.post(&full_url);
+                let builder = self.client.post(&route);
                 let authenticated_builder = self.apply_auth(builder).headers(headers);
                 if let Some(body) = body {
                     authenticated_builder.json(&body)
@@ -188,5 +189,9 @@ impl LLMClient for ClaudeClient {
     ) -> Result<Response, HttpError> {
         self.0
             .request_with_retry(route, request_type, body_params, query_params, headers)
+    }
+
+    fn url(&self) -> &str {
+        self.0.config.url.as_str()
     }
 }
