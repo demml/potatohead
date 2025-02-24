@@ -1,5 +1,5 @@
 use crate::error::{TongueError, WormTongueError};
-use colored_json::{Color, ColorMode, ColoredFormatter, Paint, PrettyFormatter, Styler};
+use colored_json::{Color, ColorMode, ColoredFormatter, PrettyFormatter, Styler};
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString, PyTuple};
 use serde::Serialize;

@@ -4,7 +4,6 @@ use crate::error::WormTongueError;
 use crate::tongues::prompts::chat::ChatPrompt;
 use crate::tongues::responses::openai::parse_openai_response;
 use pyo3::prelude::*;
-use pyo3::IntoPyObjectExt;
 
 #[pyclass]
 #[derive(Debug)]
