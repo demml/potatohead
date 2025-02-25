@@ -71,4 +71,4 @@ test_scripts/
 
 # Pyenv
 .python-version
-crates/potatohead/src/tongues/openai/response/openai.yaml
+crates/potatohead/src/potatohead/openai/response/openai.yaml

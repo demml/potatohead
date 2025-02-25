@@ -1,5 +1,5 @@
 use crate::common::{convert_pydantic_to_json_schema, pyobject_to_json, PromptType, Utils};
-use crate::error::potatoheadError;
+use crate::error::PotatoHeadError;
 pub use crate::mouth::prompts::chat::Message;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -84,7 +84,7 @@ impl ChatPrompt {
 
             Ok(())
         } else {
-            Err(potatoheadError::new_err(format!(
+            Err(PotatoHeadError::new_err(format!(
                 "Message index {} out of bounds",
                 index
             )))

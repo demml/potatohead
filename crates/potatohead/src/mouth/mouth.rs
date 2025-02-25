@@ -1,6 +1,6 @@
 use crate::client::http::LLMClient;
 use crate::client::{ApiClient, OpenAIClient, OpenAIConfig, RequestType};
-use crate::error::potatoheadError;
+use crate::error::PotatoHeadError;
 use crate::mouth::prompts::chat::ChatPrompt;
 use crate::mouth::responses::openai::parse_openai_response;
 use pyo3::prelude::*;
@@ -20,13 +20,11 @@ impl Mouth {
         if config.is_instance_of::<OpenAIConfig>() {
             let config = config.extract::<OpenAIConfig>()?;
             let client = OpenAIClient::new(config)?;
-            let tongue_client = ApiClient::OpenAI(client);
-            return Ok(Self {
-                client: tongue_client,
-            });
+            let client = ApiClient::OpenAI(client);
+            return Ok(Self { client: client });
         }
 
-        Err(potatoheadError::new_err("Invalid config type"))
+        Err(PotatoHeadError::new_err("Invalid config type"))
     }
 
     #[pyo3(signature = (request,  response_format=None))]
@@ -50,7 +48,7 @@ impl Mouth {
                         None,
                     )
                     .map_err(|e| {
-                        potatoheadError::new_err(format!("Failed to make request: {}", e))
+                        PotatoHeadError::new_err(format!("Failed to make request: {}", e))
                     })?;
 
                 parse_openai_response(py, response, response_format)

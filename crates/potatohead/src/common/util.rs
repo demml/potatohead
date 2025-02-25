@@ -1,4 +1,4 @@
-use crate::error::{TongueError, potatoheadError};
+use crate::error::{PotatoError, PotatoHeadError};
 use colored_json::{Color, ColorMode, ColoredFormatter, PrettyFormatter, Styler};
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString, PyTuple};
@@ -41,26 +41,26 @@ impl Utils {
         model: T,
         path: Option<PathBuf>,
         filename: &str,
-    ) -> Result<(), TongueError>
+    ) -> Result<(), PotatoError>
     where
         T: Serialize,
     {
         // serialize the struct to a string
-        let json = serde_json::to_string_pretty(&model).map_err(|_| TongueError::SerializeError)?;
+        let json = serde_json::to_string_pretty(&model).map_err(|_| PotatoError::SerializeError)?;
 
         // check if path is provided
         let write_path = if path.is_some() {
-            let mut new_path = path.ok_or(TongueError::CreatePathError)?;
+            let mut new_path = path.ok_or(PotatoError::CreatePathError)?;
 
             // ensure .json extension
             new_path.set_extension("json");
 
             if !new_path.exists() {
                 // ensure path exists, create if not
-                let parent_path = new_path.parent().ok_or(TongueError::GetParentPathError)?;
+                let parent_path = new_path.parent().ok_or(PotatoError::GetParentPathError)?;
 
                 std::fs::create_dir_all(parent_path)
-                    .map_err(|_| TongueError::CreateDirectoryError)?;
+                    .map_err(|_| PotatoError::CreateDirectoryError)?;
             }
 
             new_path
@@ -68,7 +68,7 @@ impl Utils {
             PathBuf::from(filename)
         };
 
-        std::fs::write(write_path, json).map_err(|_| TongueError::WriteError)?;
+        std::fs::write(write_path, json).map_err(|_| PotatoError::WriteError)?;
 
         Ok(())
     }
@@ -148,7 +148,7 @@ pub fn convert_pydantic_to_json_schema(py: Python, model: &Bound<'_, PyAny>) -> 
         .downcast::<PyBool>()?
         .is_true()
     {
-        return Err(potatoheadError::new_err(
+        return Err(PotatoHeadError::new_err(
             "Model is not a subclass of pydantic BaseModel",
         ));
     }

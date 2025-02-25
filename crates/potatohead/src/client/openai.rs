@@ -3,7 +3,7 @@ use crate::client::RequestType;
 use crate::client::{AuthStrategy, BaseHTTPClient, HTTPConfig, LLMClient};
 use crate::common::PromptType;
 use crate::error::HttpError;
-use crate::error::TongueError;
+use crate::error::PotatoError;
 use pyo3::prelude::*;
 use reqwest::blocking::Response;
 use reqwest::header::HeaderMap;
@@ -26,7 +26,7 @@ impl OpenAIEndpoints {
     }
 }
 
-pub fn resolve_url(url: Option<&str>) -> Result<String, TongueError> {
+pub fn resolve_url(url: Option<&str>) -> Result<String, PotatoError> {
     let url = url
         .map(|s| s.to_string())
         .or_else(|| env::var("potatohead_URL").ok())
@@ -35,25 +35,25 @@ pub fn resolve_url(url: Option<&str>) -> Result<String, TongueError> {
     Ok(url)
 }
 
-pub fn resolve_route(url: &str, prompt_type: &PromptType) -> Result<String, TongueError> {
+pub fn resolve_route(url: &str, prompt_type: &PromptType) -> Result<String, PotatoError> {
     match prompt_type {
         PromptType::Chat => Ok(format!("{}/v1/chat/completions", url)),
         PromptType::Image => Ok(format!("{}/v1/images/generations", url)),
         PromptType::Voice => Ok(format!("{}/v1/audio/speech", url)),
         PromptType::Batch => Ok(format!("{}/v1/batches", url)),
         PromptType::Embedding => Ok(format!("{}/v1/embeddings", url)),
-        _ => Err(TongueError::UnsupportedInteractionType),
+        _ => Err(PotatoError::UnsupportedInteractionType),
     }
 }
 
-pub fn resolve_api_key(url: &str, api_key: Option<&str>) -> Result<String, TongueError> {
+pub fn resolve_api_key(url: &str, api_key: Option<&str>) -> Result<String, PotatoError> {
     let api_key = api_key
         .map(|s| s.to_string())
         .or_else(|| env::var("potatohead_API_KEY").ok());
 
     // if url contains ClientURL::OpenAI.as_str() and api_key is None, return error
     if url.contains(ClientURL::OpenAI.as_str()) && api_key.is_none() {
-        return Err(TongueError::MissingAPIKey);
+        return Err(PotatoError::MissingAPIKey);
     }
 
     Ok(api_key.unwrap())
@@ -105,7 +105,7 @@ impl OpenAIConfig {
 pub struct OpenAIClient(BaseHTTPClient);
 
 impl OpenAIClient {
-    pub fn new(config: OpenAIConfig) -> Result<Self, TongueError> {
+    pub fn new(config: OpenAIConfig) -> Result<Self, PotatoError> {
         let http_config = config.into_http_config();
         let auth = AuthStrategy::Bearer(http_config.token.clone());
         let client = BaseHTTPClient::new(http_config, auth)?;

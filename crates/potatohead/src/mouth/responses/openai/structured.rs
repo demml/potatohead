@@ -1,4 +1,4 @@
-use crate::error::TongueError;
+use crate::error::PotatoError;
 use crate::mouth::responses::openai::chat::{ChatCompletion, CompletionUsage};
 use pyo3::prelude::*;
 
@@ -54,17 +54,17 @@ pub struct ParsedChatCompletion {
 pub fn parse_chat_completion(
     chat: &ChatCompletion,
     response_format: &Bound<'_, PyAny>,
-) -> Result<ParsedChatCompletion, TongueError> {
+) -> Result<ParsedChatCompletion, PotatoError> {
     // Process choices first
     let choices = chat
         .choices
         .iter()
         .map(|choice| match choice.finish_reason.as_str() {
-            "length" => Err(TongueError::Error(format!(
+            "length" => Err(PotatoError::Error(format!(
                 "Length limit reached - {:?}",
                 chat.usage
             ))),
-            "content_filter" => Err(TongueError::Error("Content filter rejection".to_string())),
+            "content_filter" => Err(PotatoError::Error("Content filter rejection".to_string())),
             _ => {
                 let structured_object = response_format
                     .call_method1("model_validate_json", (choice.message.clone(),))?;
@@ -76,7 +76,7 @@ pub fn parse_chat_completion(
                 })
             }
         })
-        .collect::<Result<Vec<ParsedChoice>, TongueError>>()?;
+        .collect::<Result<Vec<ParsedChoice>, PotatoError>>()?;
 
     // Create ParsedChatCompletion with references where possible
     Ok(ParsedChatCompletion {

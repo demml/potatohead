@@ -3,7 +3,7 @@ pub mod openai;
 pub mod types;
 use crate::client::openai::resolve_route;
 use crate::common::PromptType;
-use crate::error::TongueError;
+use crate::error::PotatoError;
 pub use http::{AuthStrategy, BaseHTTPClient, HTTPConfig, LLMClient};
 pub use openai::{OpenAIClient, OpenAIConfig};
 pub use types::{ClientURL, RequestType};
@@ -14,7 +14,7 @@ pub enum ApiClient {
 }
 
 impl ApiClient {
-    pub fn resolve_route(&self, prompt_type: &PromptType) -> Result<String, TongueError> {
+    pub fn resolve_route(&self, prompt_type: &PromptType) -> Result<String, PotatoError> {
         match self {
             ApiClient::OpenAI(client) => resolve_route(client.url(), prompt_type),
         }

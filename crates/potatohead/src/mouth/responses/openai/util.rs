@@ -1,4 +1,4 @@
-use crate::error::TongueError;
+use crate::error::PotatoError;
 use crate::mouth::responses::openai::chat::ChatCompletion;
 use crate::mouth::responses::openai::structured::parse_chat_completion;
 use pyo3::prelude::*;
@@ -21,7 +21,7 @@ pub fn parse_openai_response<'py>(
 ) -> PyResult<Bound<'py, PyAny>> {
     let chat: ChatCompletion = response
         .json()
-        .map_err(|e| TongueError::Error(e.to_string()))?;
+        .map_err(|e| PotatoError::Error(e.to_string()))?;
 
     match response_format {
         Some(format) => {

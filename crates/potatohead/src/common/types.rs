@@ -42,7 +42,7 @@ pub enum PromptType {
 
 #[pyclass(eq)]
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone, Default)]
-pub enum TongueType {
+pub enum PotatoVendor {
     Anthropic,
     #[default]
     OpenAI,

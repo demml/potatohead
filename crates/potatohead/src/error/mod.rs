@@ -11,7 +11,7 @@ pub enum HttpError {
 }
 
 #[derive(Error, Debug, Deserialize)]
-pub enum TongueError {
+pub enum PotatoError {
     #[error("Error: {0}")]
     Error(String),
 
@@ -43,16 +43,16 @@ pub enum TongueError {
     UnsupportedInteractionType,
 }
 
-impl From<TongueError> for PyErr {
-    fn from(err: TongueError) -> PyErr {
-        PyErr::new::<potatoheadError, _>(err.to_string())
+impl From<PotatoError> for PyErr {
+    fn from(err: PotatoError) -> PyErr {
+        PyErr::new::<PotatoHeadError, _>(err.to_string())
     }
 }
 
-impl From<PyErr> for TongueError {
+impl From<PyErr> for PotatoError {
     fn from(err: PyErr) -> Self {
-        TongueError::Error(err.to_string())
+        PotatoError::Error(err.to_string())
     }
 }
 
-create_exception!(potatohead, potatoheadError, PyException);
+create_exception!(potatohead, PotatoHeadError, PyException);
