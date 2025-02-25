@@ -11,10 +11,10 @@ use serde_json::{json, Value};
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatPrompt {
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     model: String,
 
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     messages: Vec<Message>,
 
     #[pyo3(get)]
@@ -41,7 +41,7 @@ impl ChatPrompt {
         let raw_json = additional_data
             .map(|dict| pyobject_to_json(dict))
             .transpose()?;
-        let prompt_type = PromptType::Text;
+        let prompt_type = PromptType::Chat;
         let model = model.to_string();
 
         // If response_format is provided, check if it is a pydantic BaseModel
@@ -74,48 +74,28 @@ impl ChatPrompt {
             .map(|format| Utils::__json__(format))
     }
 
-    #[getter]
-    pub fn get_messages(&self) -> Vec<Message> {
-        self.messages.clone()
-    }
-
-    #[setter]
-    pub fn set_messages(&mut self, messages: Vec<Message>) {
-        self.messages = messages;
-    }
-
     #[pyo3(signature = (message))]
     pub fn add_message(&mut self, message: Message) {
         self.messages.push(message);
     }
 
-    #[pyo3(signature = (message_idx, context))]
-    pub fn bind_context_at(&mut self, message_idx: usize, context: String) -> PyResult<()> {
-        if let Some(message) = self.messages.get_mut(message_idx) {
+    #[pyo3(signature = (context, index=0,))]
+    pub fn bind_context_at(&mut self, context: String, index: usize) -> PyResult<()> {
+        if let Some(message) = self.messages.get_mut(index) {
             message.bind(&context)?;
 
             Ok(())
         } else {
             Err(WormTongueError::new_err(format!(
                 "Message index {} out of bounds",
-                message_idx
+                index
             )))
         }
     }
 
-    pub fn build(&mut self, py: Python) -> PyResult<Py<Self>> {
+    pub fn deep_copy(&mut self, py: Python) -> PyResult<Py<Self>> {
         // Create new object with current state
-        let result = Py::new(py, self.clone())?;
-
-        // Reset working copy back to original state
-        self.messages = self.original_messages.clone();
-
-        // Reset next_param counter in messages
-        for message in &mut self.messages {
-            message.reset_binding();
-        }
-
-        Ok(result)
+        Py::new(py, self.clone())
     }
 
     pub fn reset(&mut self) -> PyResult<()> {
@@ -127,7 +107,27 @@ impl ChatPrompt {
     }
 
     pub fn __str__(&self) -> String {
-        Utils::__str__(self)
+        // iterate over messages and create json() object
+
+        let msgs = self
+            .messages
+            .iter()
+            .map(|msg| {
+                json!({
+                    "role": msg.role,
+                    "content": msg.content,
+                })
+            })
+            .collect::<Vec<Value>>();
+
+        let val = json!({
+            "model": self.model,
+            "messages": msgs,
+            "additional_data": self.additional_data,
+            "response_format": self.response_format,
+        });
+
+        Utils::__str__(val)
     }
 
     pub fn open_ai_spec(&self) -> String {
@@ -137,9 +137,15 @@ impl ChatPrompt {
 
 impl ChatPrompt {
     pub fn to_open_ai_spec(&self) -> Value {
+        let msgs = self
+            .messages
+            .iter()
+            .map(|msg| msg.to_spec())
+            .collect::<Vec<Value>>();
+
         let mut spec = json!({
             "model": self.model,
-            "messages": self.messages
+            "messages": msgs,
         });
 
         // If additional_data exists, merge it into the spec

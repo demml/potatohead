@@ -34,7 +34,7 @@ pub enum PromptType {
     Image,
     Vision,
     #[default]
-    Text,
+    Chat,
     Voice,
     Batch,
     Embedding,

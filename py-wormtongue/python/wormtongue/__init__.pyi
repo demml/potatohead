@@ -1,182 +1,123 @@
-# type: ignore
-# pylint: disable=relative-beyond-top-level
+from typing import Any, List, Optional
 
-from typing import Any, List, Optional, Union, overload
+class PromptType:
+    Image: "PromptType"
+    Chat: "PromptType"
+    Vision: "PromptType"
+    Voice: "PromptType"
+    Batch: "PromptType"
+    Embedding: "PromptType"
 
-from ..scouter.drift import (
-    CustomDriftProfile,
-    CustomMetric,
-    CustomMetricDriftConfig,
-    PsiDriftConfig,
-    PsiDriftProfile,
-    SpcDriftConfig,
-    SpcDriftProfile,
-)
-from ..scouter.types import DataType
+class Message:
+    def __init__(self, role: str, content: str) -> None:
+        """Message class to represent a message in a chat prompt.
+        Messages can be parameterized with numbered arguments in the form of
+        $1, $2, $3, etc. These arguments will be replaced with the corresponding context
+        when bound.
 
-class Drifter:
-    def __init__(self) -> None:
-        """Instantiate Rust Drifter class that is
-        used to create monitoring profiles and compute drifts.
-        """
-
-    @overload
-    def create_drift_profile(
-        self,
-        data: Any,
-        config: SpcDriftConfig,
-        data_type: Optional[DataType] = None,
-    ) -> SpcDriftProfile:
-        """Create a SPC (Statistical process control) drift profile from the provided data.
+        Example:
+        ```python
+            message = Message("system", "Params: $1, $2")
+            message.bind("world")
+            message.bind("hello")
+        ```
 
         Args:
-            data:
-                Data to create a data profile from. Data can be a numpy array,
-                a polars dataframe or a pandas dataframe.
-            config:
-                SpcDriftConfig
-            data_type:
-                Optional data type. Inferred from data if not provided.
-
-        Returns:
-            SpcDriftProfile
+            role (str)
+                The role to assign the message. Refer to the
+                specific model's documentation for possible roles.
+            content (str):
+                The content of the message.
         """
 
-    @overload
-    def create_drift_profile(
+    @property
+    def role(self) -> str:
+        """The role of the message."""
+
+    @property
+    def content(self) -> str:
+        """The content of the message."""
+
+class ChatPrompt:
+    def __init__(
         self,
-        data: Any,
-        data_type: Optional[DataType] = None,
-    ) -> SpcDriftProfile:
-        """Create a SPC (Statistical process control) drift profile from the provided data.
-
-        Args:
-            data:
-                Data to create a data profile from. Data can be a numpy array,
-                a polars dataframe or a pandas dataframe.
-            config:
-                SpcDriftConfig
-            data_type:
-                Optional data type. Inferred from data if not provided.
-
-        Returns:
-            SpcDriftProfile
-        """
-
-    @overload
-    def create_drift_profile(
-        self,
-        data: Any,
-        config: PsiDriftConfig,
-        data_type: Optional[DataType] = None,
-    ) -> PsiDriftProfile:
-        """Create a PSI (population stability index) drift profile from the provided data.
-
-        Args:
-            data:
-                Data to create a data profile from. Data can be a numpy array,
-                a polars dataframe or a pandas dataframe.
-            config:
-                PsiDriftConfig
-            data_type:
-                Optional data type. Inferred from data if not provided.
-
-        Returns:
-            PsiDriftProfile
-        """
-
-    @overload
-    def create_drift_profile(
-        self,
-        data: Union[CustomMetric, List[CustomMetric]],
-        config: CustomMetricDriftConfig,
-        data_type: Optional[DataType] = None,
-    ) -> CustomDriftProfile:
-        """Create a custom drift profile from data.
-
-        Args:
-            data:
-                CustomMetric or list of CustomMetric.
-            config:
-                CustomMetricDriftConfig
-            data_type:
-                Optional data type. Inferred from data if not provided.
-
-        Returns:
-            CustomDriftProfile
-        """
-
-    def create_drift_profile(  # type: ignore
-        self,
-        data: Any,
-        config: Optional[Union[SpcDriftConfig, PsiDriftConfig, CustomMetricDriftConfig]] = None,
-        data_type: Optional[DataType] = None,
-    ) -> Union[SpcDriftProfile, PsiDriftProfile, CustomDriftProfile]:
-        """Create a drift profile from data.
-
-        Args:
-            data:
-                Data to create a data profile from. Data can be a numpy array,
-                a polars dataframe, pandas dataframe or a list of CustomMetric if creating
-                a custom metric profile.
-            config:
-                Drift config that will be used for monitoring
-            data_type:
-                Optional data type. Inferred from data if not provided.
-
-        Returns:
-            SpcDriftProfile, PsiDriftProfile or CustomDriftProfile
-        """
-
-    def compute_drift(
-        self,
-        data: Any,
-        drift_profile: Union[SpcDriftProfile, PsiDriftProfile],
-        data_type: Optional[DataType] = None,
-    ) -> Any:
-        """Create a drift profile from data.
-
-        Args:
-            data:
-                Data to create a data profile from. Data can be a numpy array,
-                a polars dataframe, pandas dataframe or a list of CustomMetric if creating
-                a custom metric profile.
-            drift_profile:
-                Drift profile to use to compute drift map
-            data_type:
-                Optional data type. Inferred from data if not provided.
-
-        Returns:
-            SpcDriftMap or PsiDriftMap
-        """
-
-class DataProfiler:
-    def __init__(self):
-        """Instantiate Rust TestProfiler class that is
-        used to profile data"""
-
-    def create_data_profile(
-        self,
-        data: Any,
-        data_type: Optional[DataType] = None,
-        bin_size: int = 20,
-        compute_correlations: bool = False,
+        model: str,
+        messages: List[Message],
+        additional_data: Optional[dict[str, Any]] = None,
+        response_format: Optional[Any] = None,
     ) -> None:
-        """Create a data profile from data.
+        """ChatPrompt for interacting with an LLM Chat API.
 
         Args:
-            data:
-                Data to create a data profile from. Data can be a numpy array,
-                a polars dataframe or pandas dataframe. Data is expected to not contain
-                any missing values, NaNs or infinities. These values must be removed or imputed.
-                If NaNs or infinities are present, the data profile will not be created.
-            data_type:
-                Optional data type. Inferred from data if not provided.
-            bin_size:
-                Optional bin size for histograms. Defaults to 20 bins.
-            compute_correlations:
-                Whether to compute correlations or not.
+            model (str):
+                The model to use for the chat prompt.
+            messages (List[Message]):
+                The messages to use in the chat prompt.
+            additional_data (Optional[dict[str, Any]]):
+                Additional data to pass to the API data field.
+            response_format (Optional[Any]):
+                The response format to use for the chat prompt. This
+                is for structured responses and will be parsed accordingly.
+                If provided, must be a subclass of pydantic `BaseModel`.
+        """
 
-        Returns:
-            DataProfile
+    @property
+    def model(self) -> str:
+        """The model to use for the chat prompt."""
+
+    @property
+    def messages(self) -> List[Message]:
+        """The messages to use in the chat prompt."""
+
+    @property
+    def prompt_type(self) -> PromptType:
+        """The prompt type to use for the chat prompt."""
+
+    @property
+    def additional_data(self) -> Optional[str]:
+        """Additional data as it will be passed to the API data field."""
+
+    def add_message(self, message: Message) -> None:
+        """Add a message to the chat prompt.
+
+        Args:
+            message (Message):
+                The message to add to the chat prompt.
+        """
+
+    def bind_context_at(self, context: str, index: int = 0) -> None:
+        """Bind a context at a specific index in the chat prompt.
+
+        Example with ChatPrompt that contains two messages
+
+        ```python
+            chat_prompt = ChatPrompt("gpt-3.5-turbo", [
+                Message("system", "Hello, $1"),
+                Message("user", "World")
+            ])
+            chat_prompt.bind_context_at(0, "world") # we bind "world" to the first message
+        ```
+
+        Args:
+            context (str):
+                The context to bind.
+             index (int):
+                The index to bind the context at. Index refers
+                to the index of the array in which the context will be bound.
+                Defaults to 0.
+        """
+
+    def deep_copy(self) -> "ChatPrompt":
+        """Return a copy of the chat prompt."""
+
+    def reset(self) -> None:
+        """Reset the chat prompt to its initial state."""
+
+    def __str__(self) -> str:
+        """Return a string representation of the chat prompt."""
+
+    def open_ai_spec(self) -> str:
+        """OpenAI spec for the chat prompt. How it will be sent to the API.
+        This is intended for debugging purposes. There is a equivalent method in
+        rust that will return the same spec when used with a `Tongue` for fast processing.
         """

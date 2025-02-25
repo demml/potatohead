@@ -134,16 +134,30 @@ pub fn pyobject_to_json(obj: &Bound<'_, PyAny>) -> PyResult<Value> {
 }
 
 pub fn convert_pydantic_to_json_schema(py: Python, model: &Bound<'_, PyAny>) -> PyResult<Value> {
-    // check if model is a subclass of pydantic.BaseModel
-    let pydantic_basemodel = py.import("pydantic")?.getattr("BaseModel")?;
-    if !model.is_instance(&pydantic_basemodel)? {
+    // Import pydantic and builtins once
+    let pydantic = py.import("pydantic")?;
+    let builtins = py.import("builtins")?;
+    let issubclass = builtins.getattr("issubclass")?;
+
+    // Get pydantic classes
+    let basemodel = pydantic.getattr("BaseModel")?;
+
+    // Check if it's a BaseModel subclass
+    if !issubclass
+        .call1((model, basemodel))?
+        .downcast::<PyBool>()?
+        .is_true()
+    {
         return Err(WormTongueError::new_err(
-            "Model is not a subclass of pydantic.BaseModel",
+            "Model is not a subclass of pydantic BaseModel",
         ));
     }
 
-    let schema = model.call_method0("json_schema")?;
+    // Get model name once
     let name = model.getattr("__name__")?.extract::<String>()?;
+    let schema = model.call_method0("model_json_schema")?;
+
+    // Create JSON response
     Ok(json!({
         "type": "json_schema",
         "json_schema": {

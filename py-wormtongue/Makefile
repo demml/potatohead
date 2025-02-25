@@ -1,6 +1,6 @@
-PROJECT=demml
+PROJECT=wormtongue
 PYTHON_VERSION=3.11.2
-SOURCE_OBJECTS=python/demml tests
+SOURCE_OBJECTS=python/wormtongue
 
 format.isort:
 	uv run isort ${SOURCE_OBJECTS}
@@ -23,7 +23,7 @@ lints.ci: lints.format_check lints.ruff lints.pylint lints.mypy
 
 setup.project:
 	uv sync --all-extras --group dev --group docs
-	uv run maturin develop --extras kafka,rabbitmq,fastapi
+	uv run maturin develop
 
 setup.docs:
 	uv sync --all-extras --group dev --group docs
@@ -47,7 +47,3 @@ uv.sub.pre.tag:
 
 prep.pre.patch: uv.pre.patch uv.sub.pre.tag
 
-publish.docs:
-	uv run pdoc -t docs/docs/api ./python/scouter -o docs/docs/api --docformat google
-	rm -f ./python/scouter/_scouter.cpython-*.so
-	cd docs && uv run mkdocs gh-deploy --force

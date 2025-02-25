@@ -5,4 +5,5 @@ pub mod types;
 pub mod util;
 
 pub use chat::*;
+pub use structured::ParsedChatCompletion;
 pub use util::*;

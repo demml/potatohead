@@ -49,4 +49,10 @@ impl From<TongueError> for PyErr {
     }
 }
 
+impl From<PyErr> for TongueError {
+    fn from(err: PyErr) -> Self {
+        TongueError::Error(err.to_string())
+    }
+}
+
 create_exception!(wormtongue, WormTongueError, PyException);

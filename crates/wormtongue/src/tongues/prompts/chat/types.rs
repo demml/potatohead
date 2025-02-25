@@ -1,6 +1,6 @@
-use crate::error::WormTongueError;
-use pyo3::{prelude::*, types::PyString};
+use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -17,22 +17,12 @@ pub struct Message {
 impl Message {
     #[new]
     #[pyo3(signature = (role, content))]
-    pub fn new(role: &str, content: &Bound<'_, PyAny>) -> PyResult<Self> {
-        content
-            .is_instance_of::<PyString>()
-            .then(|| content.extract::<String>())
-            .map_or_else(
-                || Err(WormTongueError::new_err("Content type must be a string")),
-                |result| {
-                    result
-                        .map(|content| Self {
-                            role: role.to_string(),
-                            content,
-                            next_param: 0,
-                        })
-                        .map_err(WormTongueError::new_err)
-                },
-            )
+    pub fn new(role: &str, content: &str) -> PyResult<Self> {
+        Ok(Self {
+            role: role.to_string(),
+            content: content.to_string(),
+            next_param: 1,
+        })
     }
 
     pub fn bind(&mut self, value: &str) -> PyResult<()> {
@@ -43,6 +33,19 @@ impl Message {
     }
 
     pub fn reset_binding(&mut self) {
-        self.next_param = 0;
+        self.next_param = 1;
+    }
+
+    pub fn __str__(&self) -> PyResult<String> {
+        Ok(format!("{}: {}", self.role, self.content))
+    }
+}
+
+impl Message {
+    pub fn to_spec(&self) -> Value {
+        json!({
+            "role": self.role,
+            "content": self.content,
+        })
     }
 }

@@ -1,7 +1,8 @@
-use crate::error::WormTongueError;
+use crate::error::TongueError;
 use crate::tongues::responses::openai::chat::ChatCompletion;
 use crate::tongues::responses::openai::structured::parse_chat_completion;
-use pyo3::{prelude::*, IntoPyObjectExt};
+use pyo3::prelude::*;
+use pyo3::IntoPyObjectExt;
 use reqwest::blocking::Response;
 
 /// Parse an OpenAI response into either a structured format or raw ChatCompletion
@@ -20,9 +21,13 @@ pub fn parse_openai_response<'py>(
 ) -> PyResult<Bound<'py, PyAny>> {
     let chat: ChatCompletion = response
         .json()
-        .map_err(|e| WormTongueError::new_err(format!("Failed to parse ChatCompletion: {}", e)))?;
+        .map_err(|e| TongueError::Error(e.to_string()))?;
 
-    response_format
-        .map(|format| parse_chat_completion(py, &chat, format))
-        .unwrap_or_else(|| chat.into_bound_py_any(py))
+    match response_format {
+        Some(format) => {
+            let parsed = parse_chat_completion(&chat, format)?;
+            Ok(parsed.into_bound_py_any(py)?)
+        }
+        None => Ok(chat.into_bound_py_any(py)?),
+    }
 }

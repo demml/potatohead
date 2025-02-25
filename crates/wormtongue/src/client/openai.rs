@@ -37,7 +37,7 @@ pub fn resolve_url(url: Option<&str>) -> Result<String, TongueError> {
 
 pub fn resolve_route(url: &str, prompt_type: &PromptType) -> Result<String, TongueError> {
     match prompt_type {
-        PromptType::Text => Ok(format!("{}/v1/chat/completions", url)),
+        PromptType::Chat => Ok(format!("{}/v1/chat/completions", url)),
         PromptType::Image => Ok(format!("{}/v1/images/generations", url)),
         PromptType::Voice => Ok(format!("{}/v1/audio/speech", url)),
         PromptType::Batch => Ok(format!("{}/v1/batches", url)),

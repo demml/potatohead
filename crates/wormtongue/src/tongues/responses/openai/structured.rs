@@ -1,4 +1,4 @@
-use crate::error::WormTongueError;
+use crate::error::{TongueError, WormTongueError};
 use crate::tongues::responses::openai::chat::{ChatCompletion, CompletionUsage};
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
@@ -52,23 +52,20 @@ pub struct ParsedChatCompletion {
     pub usage: CompletionUsage,
 }
 
-pub fn parse_chat_completion<'py>(
-    py: Python<'py>,
+pub fn parse_chat_completion(
     chat: &ChatCompletion,
-    response_format: &Bound<'py, PyAny>,
-) -> PyResult<Bound<'py, PyAny>> {
-    let cloned_chat = chat.clone();
-    let parsed = chat
+    response_format: &Bound<'_, PyAny>,
+) -> Result<ParsedChatCompletion, TongueError> {
+    // Process choices first
+    let choices = chat
         .choices
         .iter()
         .map(|choice| match choice.finish_reason.as_str() {
-            "length" => {
-                return Err(WormTongueError::new_err(format!(
-                    "Length limit reached - {:?}",
-                    chat.usage
-                )))
-            }
-            "content_filter" => return Err(WormTongueError::new_err("Content filter rejection")),
+            "length" => Err(TongueError::Error(format!(
+                "Length limit reached - {:?}",
+                chat.usage
+            ))),
+            "content_filter" => Err(TongueError::Error("Content filter rejection".to_string())),
             _ => {
                 let structured_object = response_format
                     .call_method1("model_validate_json", (choice.message.clone(),))?;
@@ -80,17 +77,17 @@ pub fn parse_chat_completion<'py>(
                 })
             }
         })
-        .collect::<PyResult<Vec<ParsedChoice>>>()
-        .map(|choices| ParsedChatCompletion {
-            id: cloned_chat.id,
-            choices,
-            created: chat.created,
-            model: cloned_chat.model,
-            object: cloned_chat.object,
-            service_tier: cloned_chat.service_tier,
-            system_fingerprint: cloned_chat.system_fingerprint,
-            usage: cloned_chat.usage,
-        })?;
+        .collect::<Result<Vec<ParsedChoice>, TongueError>>()?;
 
-    Ok(parsed.into_bound_py_any(py)?)
+    // Create ParsedChatCompletion with references where possible
+    Ok(ParsedChatCompletion {
+        id: chat.id.clone(),
+        choices,
+        created: chat.created,
+        model: chat.model.clone(),
+        object: chat.object.clone(),
+        service_tier: chat.service_tier.clone(),
+        system_fingerprint: chat.system_fingerprint.clone(),
+        usage: chat.usage.clone(),
+    })
 }

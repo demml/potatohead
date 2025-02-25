@@ -3,6 +3,7 @@ use crate::client::{OpenAIClient, OpenAIConfig, RequestType, TongueClient};
 use crate::error::WormTongueError;
 use crate::tongues::prompts::chat::ChatPrompt;
 use crate::tongues::responses::openai::parse_openai_response;
+use crate::tongues::responses::ChatResponse;
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -29,7 +30,7 @@ impl Tongue {
         Err(WormTongueError::new_err("Invalid config type"))
     }
 
-    #[pyo3(signature = (request, response_format=None))]
+    #[pyo3(signature = (request,  response_format=None))]
     pub fn speak<'py>(
         &self,
         py: Python<'py>,
@@ -53,9 +54,7 @@ impl Tongue {
                         WormTongueError::new_err(format!("Failed to make request: {}", e))
                     })?;
 
-                let parsed = parse_openai_response(py, response, response_format)?;
-
-                Ok(parsed)
+                parse_openai_response(py, response, response_format)
             }
         }
     }
