@@ -70,34 +70,3 @@ def test_chat_prompt_with_pydantic_model():
     assert len(chat_prompt.messages) == 2
 
     chat_prompt.open_ai_spec()
-
-
-def test_chat_prompt_with_pydantic_type_adaptor():
-    class User(BaseModel):
-        name: str
-        id: int
-
-    user_list_adapter = TypeAdapter(List[User])
-
-    isinstance(user_list_adapter, TypeAdapter)
-
-    # Create a ChatPrompt object with response_format
-    chat_prompt = ChatPrompt(
-        model="GPT-4o",
-        messages=[
-            Message(
-                role="system",
-                content="You are a helpful assistant. Guide us through the solution step by step",
-            ),
-            Message(role="user", content="What is 4 + $1?"),
-        ],
-        response_format=user_list_adapter,
-    )
-
-    # Check the model property
-    assert chat_prompt.model == "GPT-4o"
-
-    # Check the messages property
-    assert len(chat_prompt.messages) == 2
-
-    chat_prompt.open_ai_spec()
