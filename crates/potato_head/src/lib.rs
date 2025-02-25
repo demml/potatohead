@@ -1,4 +1,6 @@
 pub mod client;
 pub mod common;
 pub mod error;
-pub mod mouth;
+pub mod helpers;
+pub mod parts;
+pub mod providers;

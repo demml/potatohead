@@ -1,3 +1,4 @@
+use potato_head::client::OpenAIConfig;
 use potato_head::mouth::responses::openai::{
     ChatCompletion, ChatCompletionAudio, ChatCompletionMessage, ChatCompletionTokenLogprob, Choice,
     ChoiceLogprobs, CompletionTokensDetails, CompletionUsage, FunctionCall, ParsedChatCompletion,
@@ -19,5 +20,6 @@ pub fn openai(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ParsedChatCompletion>()?;
     m.add_class::<PromptTokensDetails>()?;
     m.add_class::<TopLogProb>()?;
+    m.add_class::<OpenAIConfig>()?;
     Ok(())
 }

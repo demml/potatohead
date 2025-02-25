@@ -1,8 +1,8 @@
 use crate::client::types::RequestType;
 use crate::error::HttpError;
 
+use reqwest::blocking::Client as BlockingClient;
 use reqwest::blocking::Response;
-use reqwest::blocking::{Client as BlockingClient, RequestBuilder};
 use reqwest::header::{self, HeaderMap};
 use serde_json::Value;
 

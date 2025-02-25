@@ -45,7 +45,7 @@ pub enum PotatoError {
 
 impl From<PotatoError> for PyErr {
     fn from(err: PotatoError) -> PyErr {
-        PyErr::new::<potato_headError, _>(err.to_string())
+        PyErr::new::<PotatoHeadError, _>(err.to_string())
     }
 }
 
@@ -55,4 +55,4 @@ impl From<PyErr> for PotatoError {
     }
 }
 
-create_exception!(potato_head, potato_headError, PyException);
+create_exception!(potato_head, PotatoHeadError, PyException);
