@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
   "crates/*",
-  "py-potatohead",
+  "py-potato_head",
 ]
 default-members = [
   "crates/*",
@@ -13,10 +13,10 @@ version = "0.1.0"
 authors = ["demml <support@demmlai.com>"]
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/demml/potatohead"
+repository = "https://github.com/demml/potato_head"
 
 [workspace.dependencies]
-potatohead = { path = "crates/potatohead" }
+potato-head = { path = "crates/potato_head" }
 chrono ={ version = "0.*", features = ["serde"] }
 colored_json = "*"
 futures = "0.*"

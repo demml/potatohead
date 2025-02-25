@@ -756,7 +756,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "280dc24453071f1b63954171985a0b0d30058d287960968b9b2aca264c8d4ee6"
 
 [[package]]
-name = "potatohead"
+name = "potato-head"
 version = "0.1.0"
 dependencies = [
  "chrono",
@@ -795,10 +795,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "py-potatohead"
+name = "py-potato_head"
 version = "0.1.0"
 dependencies = [
- "potatohead",
+ "potato-head",
  "pyo3",
  "rusty-logging",
  "tracing",
