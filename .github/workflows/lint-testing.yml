@@ -69,19 +69,19 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Create virtual environment
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potatohead
         run: make setup.project
 
       - name: Install dependencies
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potatohead
         run: make setup.project
 
       - name: Lints
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potatohead
         run: make lints.ci
 
       - name: Run tests and report coverage
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potatohead
         run: make test.unit
 
       - name: Upload coverage reports to Codecov
@@ -122,15 +122,15 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Create virtual environment
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potatohead
         run: make setup.project
 
       - name: Lints
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potatohead
         run: make lints.ci
 
       - name: Run tests and report coverage
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potatohead
         run: make test.unit
 
   test-os-integration:
@@ -169,11 +169,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Create virtual environment
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potatohead
         run: make setup.project
 
       - name: Run tests
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potatohead
         run: make test.integration
 
       - name: Stop Containers
@@ -209,7 +209,7 @@ jobs:
           args: --release --out dist --interpreter 3.12
           rust-toolchain: stable
           docker-options: -e CI
-          working-directory: ./py-wormtongue
+          working-directory: ./py-potatohead
           # See: https://github.com/sfackler/rust-openssl/issues/2036#issuecomment-1724324145
           before-script-linux: |
             # If we're running on rhel centos, install needed packages.
@@ -227,9 +227,9 @@ jobs:
             fi
 
       - name: Check dist
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potatohead
         run: ls -lh dist/
 
       - name: Check wheel
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potatohead
         run: twine check --strict dist/*

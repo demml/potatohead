@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
   "crates/*",
-  "py-wormtongue",
+  "py-potatohead",
 ]
 default-members = [
   "crates/*",
@@ -13,10 +13,10 @@ version = "0.1.0"
 authors = ["demml <support@demmlai.com>"]
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/demml/wormtongue"
+repository = "https://github.com/demml/potatohead"
 
 [workspace.dependencies]
-wormtongue = { path = "crates/wormtongue" }
+potatohead = { path = "crates/potatohead" }
 chrono ={ version = "0.*", features = ["serde"] }
 colored_json = "*"
 futures = "0.*"

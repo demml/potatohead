@@ -756,6 +756,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "280dc24453071f1b63954171985a0b0d30058d287960968b9b2aca264c8d4ee6"
 
 [[package]]
+name = "potatohead"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "colored_json",
+ "pyo3",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -780,14 +795,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "py-wormtongue"
+name = "py-potatohead"
 version = "0.1.0"
 dependencies = [
+ "potatohead",
  "pyo3",
  "rusty-logging",
  "tracing",
  "tracing-subscriber",
- "wormtongue",
 ]
 
 [[package]]
@@ -1896,21 +1911,6 @@ name = "windows_x86_64_msvc"
 version = "0.52.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
-
-[[package]]
-name = "wormtongue"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "colored_json",
- "pyo3",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror 2.0.11",
- "tokio",
- "tracing",
-]
 
 [[package]]
 name = "write16"

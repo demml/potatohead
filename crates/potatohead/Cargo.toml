@@ -1,0 +1,29 @@
+[package]
+name = "potatohead"
+version = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+
+authors = [
+  "Demml <support@demmlai.com>"
+]
+
+license = "MIT"
+description = "Standardized interface for working with LLM client"
+
+[dependencies]
+chrono = { workspace = true }
+colored_json = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+pyo3 = { workspace = true }
+tracing = { workspace = true }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+
