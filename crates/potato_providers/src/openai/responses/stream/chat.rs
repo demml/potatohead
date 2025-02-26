@@ -66,7 +66,7 @@ impl ChoiceDelta {
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct Choice {
+pub struct ChunkChoice {
     delta: ChoiceDelta,
 
     finish_reason: Option<String>,
@@ -77,7 +77,7 @@ pub struct Choice {
 }
 
 #[pymethods]
-impl Choice {
+impl ChunkChoice {
     fn __str__(&self) -> String {
         Utils::__str__(&self)
     }
@@ -88,7 +88,7 @@ impl Choice {
 pub struct ChatCompletionChunk {
     id: String,
 
-    choices: Vec<Choice>,
+    choices: Vec<ChunkChoice>,
 
     created: i64,
 
