@@ -1,7 +1,6 @@
 use potato_error::PotatoHeadError;
 use potato_tools::Utils;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
 use pyo3::types::{PyList, PyString};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -64,10 +63,10 @@ pub struct ImageUrl {
 impl ImageUrl {
     #[new]
     #[pyo3(signature = (url, detail))]
-    pub fn new(url: &str, detail: &str) -> Self {
+    pub fn new(url: &str, detail: Option<&str>) -> Self {
         Self {
             url: url.to_string(),
-            detail: detail.to_string(),
+            detail: detail.unwrap_or("auto").to_string(),
         }
     }
 }
@@ -95,10 +94,57 @@ impl ChatPartImage {
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum MessagePart {
+    Text(ChatPartText),
+    Image(ChatPartImage),
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum MessageContent {
     Text(String),
-    Part(Vec<ChatPartText>),
-    Image(Vec<ChatPartImage>),
+    Parts(Vec<MessagePart>),
+}
+
+fn extract_content(content: &Bound<'_, PyAny>) -> PyResult<Option<MessageContent>> {
+    // Handle text content
+    if content.is_instance_of::<PyString>() {
+        return Ok(Some(MessageContent::Text(content.extract::<String>()?)));
+    }
+
+    // Handle list content
+    if content.is_instance_of::<PyList>() {
+        let list = content.downcast::<PyList>()?;
+        let mut parts = Vec::new();
+
+        for item in list.iter() {
+            if item.is_instance_of::<ChatPartText>() {
+                parts.push(MessagePart::Text(item.extract::<ChatPartText>()?));
+            } else if item.is_instance_of::<ChatPartImage>() {
+                parts.push(MessagePart::Image(item.extract::<ChatPartImage>()?));
+            } else {
+                return Ok(None);
+            }
+        }
+
+        if !parts.is_empty() {
+            return Ok(Some(MessageContent::Parts(parts)));
+        }
+        return Ok(None);
+    }
+
+    // Handle single part content
+    if content.is_instance_of::<ChatPartText>() {
+        return Ok(Some(MessageContent::Parts(vec![MessagePart::Text(
+            content.extract::<ChatPartText>()?,
+        )])));
+    } else if content.is_instance_of::<ChatPartImage>() {
+        return Ok(Some(MessageContent::Parts(vec![MessagePart::Image(
+            content.extract::<ChatPartImage>()?,
+        )])));
+    }
+
+    Ok(None)
 }
 
 #[pyclass]
@@ -116,79 +162,22 @@ pub struct Message {
     next_param: usize,
 }
 
-impl Message {
-    pub fn from_dict(py: Python, dict: &PyDict) -> PyResult<Self> {
-        let role = dict.bind(py, "role")?;
-
-        Self::new(&role, content, name.as_deref())
-    }
-}
-
 #[pymethods]
 impl Message {
     #[new]
     #[pyo3(signature = (role, content, name=None))]
     pub fn new(role: &str, content: &Bound<'_, PyAny>, name: Option<&str>) -> PyResult<Self> {
-        // check if content isinstance of PyString (text)
-        if content.is_instance_of::<PyString>() {
-            let content = content.extract::<String>()?;
-            return Ok(Self {
-                role: role.to_string(),
-                content: MessageContent::Text(content),
-                name: name.map(|s| s.to_string()),
-                next_param: 1,
-            });
-        }
+        let content = match extract_content(content)? {
+            Some(content) => content,
+            None => return Err(PotatoHeadError::new_err("Invalid content type")),
+        };
 
-        // check if content is a list (part, image)
-        if content.is_instance_of::<PyList>() {
-            // attempt to extract the first element of the list
-            let first_elem = content.get_item(0)?;
-
-            // check if the first element is a ChatPartText,
-            // if it is extract pylist into Vec<ChatPartText>
-            // if not, check if it is a ChatPartImage
-            // if it is extract pylist into Vec<ChatPartImage>
-            if first_elem.is_instance_of::<ChatPartText>() {
-                // extract pylist into Vec<ChatPartText>
-                let content = content.extract::<Vec<ChatPartText>>()?;
-                return Ok(Self {
-                    role: role.to_string(),
-                    content: MessageContent::Part(content),
-                    name: name.map(|s| s.to_string()),
-                    next_param: 1,
-                });
-            } else if content.is_instance_of::<ChatPartImage>() {
-                // extract pylist into Vec<ChatPartImage>
-                let content = content.extract::<Vec<ChatPartImage>>()?;
-                return Ok(Self {
-                    role: role.to_string(),
-                    content: MessageContent::Image(content),
-                    name: name.map(|s| s.to_string()),
-                    next_param: 1,
-                });
-            }
-        }
-
-        if content.is_instance_of::<ChatPartText>() {
-            let content = content.extract::<ChatPartText>()?;
-            return Ok(Self {
-                role: role.to_string(),
-                content: MessageContent::Part(vec![content]),
-                name: name.map(|s| s.to_string()),
-                next_param: 1,
-            });
-        } else if content.is_instance_of::<ChatPartImage>() {
-            let content = content.extract::<ChatPartImage>()?;
-            return Ok(Self {
-                role: role.to_string(),
-                content: MessageContent::Image(vec![content]),
-                name: name.map(|s| s.to_string()),
-                next_param: 1,
-            });
-        }
-
-        Err(PotatoHeadError::new_err("Invalid content type"))
+        Ok(Self {
+            role: role.to_string(),
+            content,
+            name: name.map(|s| s.to_string()),
+            next_param: 1,
+        })
     }
 
     pub fn bind(&mut self, value: &str) -> PyResult<()> {
@@ -198,17 +187,19 @@ impl Message {
             MessageContent::Text(content) => {
                 *content = content.replace(&placeholder, value);
             }
-            MessageContent::Part(part) => {
-                for p in part {
-                    p.text = p.text.replace(&placeholder, value);
+            MessageContent::Parts(parts) => {
+                for part in parts {
+                    match part {
+                        MessagePart::Text(text_part) => {
+                            text_part.text = text_part.text.replace(&placeholder, value);
+                        }
+                        MessagePart::Image(_) => {
+                            return Err(PotatoHeadError::new_err(
+                                "Cannot bind value to image content",
+                            ));
+                        }
+                    }
                 }
-            }
-
-            // fail for image
-            MessageContent::Image(_) => {
-                return Err(PotatoHeadError::new_err(
-                    "Cannot bind value to image content",
-                ));
             }
         }
 
@@ -227,24 +218,36 @@ impl Message {
 
 impl Message {
     pub fn to_spec(&self) -> Value {
-        // If you need to further customize the output, you can use a custom serializer
         match &self.content {
             MessageContent::Text(text) => json!({
                 "role": self.role,
                 "content": text,
                 "name": self.name,
             }),
-            MessageContent::Part(parts) => json!({
-                "role": self.role,
-                "content": parts,
-                "name": self.name,
-            }),
+            MessageContent::Parts(parts) => {
+                let content: Vec<Value> = parts
+                    .iter()
+                    .map(|part| match part {
+                        MessagePart::Text(text) => json!({
+                            "text": text.text,
+                            "type": text.r#type,
+                        }),
+                        MessagePart::Image(image) => json!({
+                            "image_url": {
+                                "url": image.image_url.url,
+                                "detail": image.image_url.detail,
+                            },
+                            "type": image.r#type,
+                        }),
+                    })
+                    .collect();
 
-            MessageContent::Image(images) => json!({
-                "role": self.role,
-                "content": images,
-                "name": self.name,
-            }),
+                json!({
+                    "role": self.role,
+                    "content": content,
+                    "name": self.name,
+                })
+            }
         }
     }
 }
@@ -284,16 +287,21 @@ mod tests {
         let chat_part = ChatPartText::new("Hello", "text");
         let message = Message {
             role: "assistant".to_string(),
-            content: MessageContent::Part(vec![chat_part]),
+            content: MessageContent::Parts(vec![MessagePart::Text(chat_part)]),
             name: Some("bot".to_string()),
             next_param: 1,
         };
 
         match &message.content {
-            MessageContent::Part(part) => {
+            MessageContent::Parts(part) => {
                 assert_eq!(part.len(), 1);
-                assert_eq!(part[0].text, "Hello");
-                assert_eq!(part[0].r#type, "text");
+                match &part[0] {
+                    MessagePart::Text(text) => {
+                        assert_eq!(text.text, "Hello");
+                        assert_eq!(text.r#type, "text");
+                    }
+                    _ => panic!("Expected Text part"),
+                }
             }
             _ => panic!("Expected Part content"),
         }

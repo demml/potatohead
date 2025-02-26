@@ -9,6 +9,45 @@ use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+fn parse_messages_from_pyobject<'py>(messages: &Bound<'_, PyAny>) -> PyResult<Vec<MessageEnum>> {
+    // Verify messages is a PyList
+    if !messages.is_instance_of::<PyList>() {
+        return Err(PotatoHeadError::new_err(
+            "messages must be a list of Message objects",
+        ));
+    }
+
+    let messages = messages.downcast::<PyList>()?;
+    let result_messages = messages
+        .iter()
+        .map(|item| {
+            let message = if item.is_instance_of::<Message>() {
+                item.extract::<Message>()
+            } else if item.is_instance_of::<PyDict>() {
+                let dict = item.downcast::<PyDict>()?;
+                let role: String = dict.get_item("role")?.unwrap().extract()?;
+                let content = dict.get_item("content")?.unwrap();
+                let name: Option<String> = match dict.get_item("name")? {
+                    Some(py_name) => Some(py_name.extract()?),
+                    None => None,
+                };
+
+                Message::new(&role, &content, name.as_deref())
+            } else {
+                Err(PotatoHeadError::new_err(
+                    "messages must contain Message objects or dictionaries
+                    in the format {'role': str, 'content': Any, 'name': Optional[str]}
+                    ",
+                ))
+            }?;
+
+            Ok(MessageEnum::Base(message))
+        })
+        .collect::<PyResult<Vec<MessageEnum>>>()?;
+
+    Ok(result_messages)
+}
+
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatPrompt {
@@ -34,52 +73,19 @@ impl ChatPrompt {
         messages: &Bound<'_, PyAny>,
         additional_data: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Self> {
+        // Convert additional_data to JSON format for serialization
         let raw_json = additional_data
             .map(|dict| pyobject_to_json(dict))
             .transpose()?;
-        let prompt_type = PromptType::Chat;
-        let model = model.to_string();
 
-        // Verify messages is a PyList
-        if !messages.is_instance_of::<PyList>() {
-            return Err(PotatoHeadError::new_err(
-                "messages must be a list of Message objects",
-            ));
-        }
-
-        let py_list = messages.downcast::<PyList>()?;
-        let mut result_messages = Vec::new();
-
-        // Iterate through messages list
-        for item in py_list.iter() {
-            let message = if item.is_instance_of::<Message>() {
-                // Direct Message object
-                item.extract::<Message>()?
-            } else if item.is_instance_of::<PyDict>() {
-                // Dictionary that needs to be converted to Message
-                let dict = item.downcast::<PyDict>()?;
-                let role: String = dict.get_item("role")?.unwrap().extract()?;
-                let content = dict.get_item("content")?.unwrap();
-                let name: Option<String> = match dict.get_item("name")? {
-                    Some(py_name) => Some(py_name.extract()?),
-                    None => None,
-                };
-
-                Message::new(&role, &content, name.as_deref())?
-            } else {
-                return Err(PotatoHeadError::new_err(
-                    "messages must contain Message objects or dictionaries",
-                ));
-            };
-
-            result_messages.push(MessageEnum::Base(message));
-        }
+        // extract messages
+        let messages = parse_messages_from_pyobject(messages)?;
 
         Ok(Self {
-            model,
-            prompt_type,
-            messages: result_messages.clone(),  // Working copy
-            original_messages: result_messages, // Original state
+            model: model.to_string(),
+            prompt_type: PromptType::Chat,
+            original_messages: messages.clone(),
+            messages,
             additional_data: raw_json,
         })
     }
