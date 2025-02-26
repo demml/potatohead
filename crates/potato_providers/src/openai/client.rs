@@ -3,6 +3,7 @@ use potato_client::{BaseHTTPClient, HTTPConfig, LLMClient, RequestType};
 use potato_error::{HttpError, PotatoError};
 use reqwest::blocking::Response;
 use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::Response as AsyncResponse;
 use serde_json::Value;
 use tracing::error;
 
@@ -66,5 +67,18 @@ impl LLMClient for OpenAIClient {
 
     fn url(&self) -> &str {
         self.0.config.url.as_str()
+    }
+
+    async fn stream_request_with_retry(
+        &self,
+        route: String,
+        request_type: RequestType,
+        body_params: Option<Value>,
+        query_params: Option<String>,
+        headers: Option<HeaderMap>,
+    ) -> Result<AsyncResponse, HttpError> {
+        self.0
+            .stream_request_with_retry(route, request_type, body_params, query_params, headers)
+            .await
     }
 }

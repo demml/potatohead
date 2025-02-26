@@ -83,4 +83,44 @@ impl ApiHelper for OpenAIHelper {
         })
         // ...existing OpenAI specific implementation...
     }
+
+    fn execute_stream_chat_request<'py, T>(
+        &self,
+        py: Python<'py>,
+        client: &T,
+        request: ChatPrompt,
+    ) -> PyResult<()>
+    where
+        T: LLMClient,
+    {
+        let route = resolve_route(client.url(), &request.prompt_type)?;
+
+        let msgs = request
+            .messages
+            .iter()
+            .map(|msg| msg.to_spec())
+            .collect::<Vec<Value>>();
+
+        let mut spec = json!({
+            "model": request.model,
+            "messages": msgs,
+        });
+
+        if let Some(additional) = &request.additional_data {
+            if let Some(spec_obj) = spec.as_object_mut() {
+                if let Some(additional_obj) = additional.as_object() {
+                    for (key, value) in additional_obj {
+                        spec_obj.insert(key.clone(), value.clone());
+                    }
+                }
+            }
+        }
+
+        let response = client
+            .request_with_retry(route, RequestType::Post, Some(spec), None, None)
+            .map_err(|e| {
+                error!("Failed to make request: {}", e);
+                PotatoHeadError::new_err(format!("Failed to make request: {}", e))
+            })?;
+    }
 }
