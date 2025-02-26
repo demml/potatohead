@@ -2,12 +2,14 @@ use crate::{ChoiceLogprobs, CompletionUsage};
 use potato_tools::Utils;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-
+use tracing::debug;
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ChoiceDeltaToolCallFunction {
-    arguments: Option<String>,
-    name: Option<String>,
+    #[pyo3(get)]
+    pub arguments: Option<String>,
+    #[pyo3(get)]
+    pub name: Option<String>,
 }
 
 #[pymethods]
@@ -20,8 +22,10 @@ impl ChoiceDeltaToolCallFunction {
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ChoiceDeltaFunctionCall {
-    arguments: Option<String>,
-    name: Option<String>,
+    #[pyo3(get)]
+    pub arguments: Option<String>,
+    #[pyo3(get)]
+    pub name: Option<String>,
 }
 
 #[pymethods]
@@ -34,10 +38,14 @@ impl ChoiceDeltaFunctionCall {
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ChoiceDeltaToolCall {
-    index: i64,
-    id: Option<String>,
-    function: Option<ChoiceDeltaToolCallFunction>,
-    r#type: Option<String>,
+    #[pyo3(get)]
+    pub index: i64,
+    #[pyo3(get)]
+    pub id: Option<String>,
+    #[pyo3(get)]
+    pub function: Option<ChoiceDeltaToolCallFunction>,
+    #[pyo3(get)]
+    pub r#type: Option<String>,
 }
 
 #[pymethods]
@@ -50,11 +58,16 @@ impl ChoiceDeltaToolCall {
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ChoiceDelta {
-    content: Option<String>,
-    function_call: Option<ChoiceDeltaFunctionCall>,
-    refusal: Option<String>,
-    role: Option<String>,
-    tool_calls: Option<Vec<ChoiceDeltaToolCall>>,
+    #[pyo3(get)]
+    pub content: Option<String>,
+    #[pyo3(get)]
+    pub function_call: Option<ChoiceDeltaFunctionCall>,
+    #[pyo3(get)]
+    pub refusal: Option<String>,
+    #[pyo3(get)]
+    pub role: Option<String>,
+    #[pyo3(get)]
+    pub tool_calls: Option<Vec<ChoiceDeltaToolCall>>,
 }
 
 #[pymethods]
@@ -67,13 +80,17 @@ impl ChoiceDelta {
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ChunkChoice {
-    delta: ChoiceDelta,
+    #[pyo3(get)]
+    pub delta: ChoiceDelta,
 
-    finish_reason: Option<String>,
+    #[pyo3(get)]
+    pub finish_reason: Option<String>,
 
-    index: i64,
+    #[pyo3(get)]
+    pub index: i64,
 
-    logprobs: Option<ChoiceLogprobs>,
+    #[pyo3(get)]
+    pub logprobs: Option<ChoiceLogprobs>,
 }
 
 #[pymethods]
@@ -86,26 +103,66 @@ impl ChunkChoice {
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ChatCompletionChunk {
-    id: String,
+    #[pyo3(get)]
+    pub id: String,
 
-    choices: Vec<ChunkChoice>,
+    #[pyo3(get)]
+    pub choices: Vec<ChunkChoice>,
 
-    created: i64,
+    #[pyo3(get)]
+    pub created: i64,
 
-    model: String,
+    #[pyo3(get)]
+    pub model: String,
 
-    object: String,
+    #[pyo3(get)]
+    pub object: String,
 
-    service_tier: Option<String>,
+    #[pyo3(get)]
+    pub service_tier: Option<String>,
 
-    system_fingerprint: Option<String>,
+    #[pyo3(get)]
+    pub system_fingerprint: Option<String>,
 
-    usage: Option<CompletionUsage>,
+    #[pyo3(get)]
+    pub usage: Option<CompletionUsage>,
 }
 
 #[pymethods]
 impl ChatCompletionChunk {
-    fn __str__(&self) -> String {
+    pub fn __str__(&self) -> String {
         Utils::__str__(&self)
+    }
+}
+
+impl ChatCompletionChunk {
+    pub fn from_sse_events(events: &[String]) -> Result<Self, serde_json::Error> {
+        // Parse the first event to get our base chunk
+        let mut base_chunk: Option<ChatCompletionChunk> = None;
+        let mut all_choices = Vec::new();
+
+        for event in events {
+            match serde_json::from_str(&event) {
+                Ok(chunk) => {
+                    if base_chunk.is_none() {
+                        base_chunk = Some(chunk);
+                    } else {
+                        all_choices.extend(chunk.choices);
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Failed to parse event: {}", e);
+                    continue;
+                }
+            };
+        }
+
+        // Get our base chunk or create an empty one if parsing failed
+        let mut result = base_chunk.unwrap_or_default();
+
+        // Extend the base chunk's choices with all additional choices
+        result.choices.extend(all_choices);
+
+        Ok(result)
     }
 }

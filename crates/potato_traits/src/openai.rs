@@ -14,10 +14,64 @@ use pyo3::{prelude::*, IntoPyObjectExt};
 use serde_json::{json, Value};
 
 use futures_core::Stream;
+use serde::Deserialize;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tracing::error;
+
+#[derive(Debug, Deserialize)]
+pub struct ServerSentEvent {
+    pub event: Option<String>,
+    pub data: Vec<String>,
+    pub joined_data: String,
+    pub id: Option<String>,
+    pub retry: Option<i32>,
+}
+
+impl ServerSentEvent {
+    pub fn parse(data: &str) -> Option<Self> {
+        let mut event = None;
+        let mut data_lines = Vec::new();
+        let mut id = None;
+        let mut retry = None;
+
+        for line in data.lines() {
+            if line.is_empty() {
+                continue;
+            }
+
+            //tracing::debug!("Processing line: {}", line);
+            if let Some((field, value)) = line.split_once(':') {
+                let value = value.trim_start();
+                match field {
+                    "event" => event = Some(value.to_string()),
+                    "data" => {
+                        if value.trim() != "[DONE]" {
+                            data_lines.push(value.to_string())
+                        }
+                    }
+                    "id" => id = Some(value.to_string()),
+                    "retry" => retry = value.parse().ok(),
+                    _ => {} // Ignore unknown fields
+                }
+            }
+        }
+
+        if data_lines.is_empty() && event.is_none() && id.is_none() && retry.is_none() {
+            tracing::debug!("No valid SSE fields found");
+            return None;
+        }
+
+        Some(ServerSentEvent {
+            event,
+            data: data_lines.clone(),
+            joined_data: data_lines.join("\n"),
+            id,
+            retry,
+        })
+    }
+}
 
 #[pyclass]
 pub struct OpenAIStreamResponse {
@@ -49,13 +103,32 @@ impl OpenAIStreamResponse {
         rt.block_on(async {
             match slf.stream.next().await {
                 Some(Ok(bytes)) => {
-                    let chunk =
-                        serde_json::from_slice::<ChatCompletionChunk>(&bytes).map_err(|e| {
-                            PotatoHeadError::new_err(format!("Failed to parse chunk: {}", e))
-                        })?;
-                    Ok(Some(chunk))
+                    let text = String::from_utf8_lossy(&bytes);
+                    //tracing::debug!("Received bytes: {}", text);
+
+                    if let Some(sse) = ServerSentEvent::parse(&text) {
+                        // Check for [DONE] message
+
+                        if sse.joined_data == "[DONE]" {
+                            println!("Received DONE message");
+                            return Ok(None);
+                        }
+
+                        // return data as string
+                        let chunk = ChatCompletionChunk::from_sse_events(&sse.data);
+
+                        match chunk {
+                            Ok(chunk) => Ok(Some(chunk)),
+                            Err(e) => Err(PotatoHeadError::new_err(format!(
+                                "Failed to parse chunk: {}",
+                                e
+                            ))),
+                        }
+                    } else {
+                        Ok(None) // Skip invalid SSE messages
+                    }
                 }
-                Some(Err(_)) => Err(PotatoHeadError::new_err(format!("Stream error"))),
+                Some(Err(_)) => Err(PotatoHeadError::new_err("Stream error")),
                 None => Ok(None),
             }
         })

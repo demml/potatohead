@@ -4,7 +4,7 @@ from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
 from potato_head.parts import Mouth  # type: ignore
 
 
-RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
+RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Info))
 
 
 mouth = Mouth(OpenAIConfig())
@@ -14,7 +14,7 @@ prompt = ChatPrompt(
     messages=[
         {
             "role": "user",
-            "content": "List the numbers 1 through 10. Answer one word at a time.",
+            "content": "Print the numbers from 1 to 10. One number at a time.",
         }
     ],
     temperature=0,
@@ -26,4 +26,7 @@ if __name__ == "__main__":
     response = mouth.stream_speak(prompt)
 
     for message in response:
-        print(message.choices[0].delta.content, end="")
+        for choice in message.choices:
+            if choice.delta.content:  # Check if content exists
+                print(choice.delta.content, end="", flush=True)
+    print()

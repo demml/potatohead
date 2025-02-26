@@ -877,6 +877,7 @@ dependencies = [
  "potato-prompts",
  "potato-providers",
  "pyo3",
+ "serde",
  "serde_json",
  "tokio",
  "tracing",
