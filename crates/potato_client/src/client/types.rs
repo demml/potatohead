@@ -54,3 +54,11 @@ pub fn resolve_api_key(url: &str, api_key: Option<&str>) -> Result<String, Potat
 
     Ok(api_key.unwrap())
 }
+
+pub fn resolve_version(version: Option<&str>) -> Result<Option<String>, PotatoError> {
+    let version = version
+        .map(|s| s.to_string())
+        .or_else(|| env::var("POTATO_HEAD_VERSION").ok());
+
+    Ok(version)
+}

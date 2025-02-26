@@ -1,11 +1,19 @@
 # type: ignore
 
-from typing import Any, Optional
+from typing import Any, Optional, overload
 from ..openai import OpenAIConfig
+from ..anthropic import AnthropicConfig
 from ..prompts import ChatPrompt
 
+class OpenAIResponse: ...
+class AnthropicResponse: ...
+
 class Mouth:
-    def __init__(self, config: OpenAIConfig) -> None:
+    @overload
+    def __init__(self, config: OpenAIConfig) -> None: ...
+    @overload
+    def __init__(self, config: AnthropicConfig) -> None: ...
+    def __init__(self, config: OpenAIConfig | AnthropicConfig) -> None:
         """Mouth class to interact with API Clients
 
         Args:
@@ -13,11 +21,23 @@ class Mouth:
                 The configuration to use for the mouth.
         """
 
+    @overload
     def speak(
         self,
         request: ChatPrompt,
         response_format: Optional[Any] = None,
-    ) -> Any:
+    ) -> OpenAIResponse: ...
+    @overload
+    def speak(
+        self,
+        request: ChatPrompt,
+        response_format: Optional[Any] = None,
+    ) -> AnthropicResponse: ...
+    def speak(
+        self,
+        request: ChatPrompt,
+        response_format: Optional[Any] = None,
+    ) -> OpenAIResponse | AnthropicResponse:
         """Speak to the API.
 
         Args:

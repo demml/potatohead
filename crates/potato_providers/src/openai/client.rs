@@ -1,4 +1,4 @@
-use crate::types::OpenAIConfig;
+use crate::openai::OpenAIConfig;
 use potato_client::{BaseHTTPClient, HTTPConfig, LLMClient, RequestType};
 use potato_error::{HttpError, PotatoError};
 use reqwest::blocking::Response;

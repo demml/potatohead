@@ -67,7 +67,7 @@ pub fn parse_chat_completion(
             "content_filter" => Err(PotatoError::Error("Content filter rejection".to_string())),
             _ => {
                 let structured_object = response_format
-                    .call_method1("model_validate_json", (choice.message.clone(),))?;
+                    .call_method1("model_validate_json", (choice.message.content.clone(),))?;
 
                 Ok(ParsedChoice {
                     message: ParsedChatCompletionMessage {

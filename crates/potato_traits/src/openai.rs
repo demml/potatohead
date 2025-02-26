@@ -1,8 +1,11 @@
 use crate::ApiHelper;
 use potato_client::client::{types::RequestType, LLMClient};
-use potato_error::{PotatoError, PotatoHeadError};
+use potato_error::PotatoHeadError;
 use potato_prompts::ChatPrompt;
-use potato_providers::openai::{convert_pydantic_to_openai_json_schema, resolve_route};
+use potato_providers::{
+    openai::{convert_pydantic_to_openai_json_schema, resolve_route},
+    parse_openai_response,
+};
 use pyo3::prelude::*;
 use serde_json::{json, Value};
 use tracing::error;
@@ -20,17 +23,15 @@ impl ApiHelper for OpenAIHelper {
         client: &T,
         request: ChatPrompt,
         response_format: Option<&Bound<'py, PyAny>>,
-    ) -> Result<(), PotatoError>
+    ) -> PyResult<Bound<'py, PyAny>>
     where
         T: LLMClient,
     {
         let route = resolve_route(client.url(), &request.prompt_type)?;
 
-        let response_format = response_format
+        let response_format_spec = response_format
             .map(|format| convert_pydantic_to_openai_json_schema(py, format))
             .transpose()?;
-
-        println!("{:?}", response_format);
 
         let msgs = request
             .messages
@@ -54,7 +55,7 @@ impl ApiHelper for OpenAIHelper {
         }
 
         // if response_format exists, merge it into the spec
-        if let Some(format) = &response_format {
+        if let Some(format) = response_format_spec {
             if let Some(spec_obj) = spec.as_object_mut() {
                 spec_obj.insert("response_format".to_string(), format.clone());
             }
@@ -69,20 +70,17 @@ impl ApiHelper for OpenAIHelper {
 
         // check if response was successful
         if !response.status().is_success() {
-            return Err(PotatoError::Error(format!(
+            return Err(PotatoHeadError::new_err(format!(
                 "Failed to make request: {}, error: {}",
                 response.status(),
                 response.text().unwrap_or_default()
             )));
         }
 
-        let json_response: serde_json::Value = response.json().map_err(|e| {
-            error!("Failed to parse JSON response: {}", e);
-            PotatoHeadError::new_err(format!("Failed to parse JSON response: {}", e))
-        })?;
-        println!("{:?}", json_response);
-
-        Ok(())
+        parse_openai_response(py, response, response_format).map_err(|e| {
+            error!("Failed to parse response: {}", e);
+            PotatoHeadError::new_err(format!("Failed to parse response: {}", e))
+        })
         // ...existing OpenAI specific implementation...
     }
 }

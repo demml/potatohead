@@ -3,7 +3,6 @@ use potato_prompts::ChatPrompt;
 use potato_providers::openai::{OpenAIClient, OpenAIConfig};
 use potato_traits::{ApiClient, ApiHelper};
 use pyo3::prelude::*;
-use tracing::{error, instrument};
 
 #[pyclass]
 #[derive(Debug)]
@@ -28,21 +27,14 @@ impl Mouth {
     }
 
     #[pyo3(signature = (request,  response_format=None))]
-    #[instrument(skip_all)]
     pub fn speak<'py>(
         &self,
         py: Python<'py>,
         request: ChatPrompt,
         response_format: Option<&Bound<'py, PyAny>>,
-    ) -> PyResult<()> {
+    ) -> PyResult<Bound<'py, PyAny>> {
         let helper = self.client.get_helper();
         let client = self.client.get_client();
-
-        helper
-            .execute_chat_request(py, client, request, response_format)
-            .map_err(|e| {
-                error!("Failed to make request: {}", e);
-                PotatoHeadError::new_err(format!("Failed to make request: {}", e))
-            })
+        helper.execute_chat_request(py, client, request, response_format)
     }
 }
