@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 class PromptType:
     Image: "PromptType"
@@ -80,6 +80,7 @@ class ChatPartAudio:
 
 ContentType = Union[
     str,
+    Dict[str, Any],
     ChatPartAudio,
     ChatPartImage,
     ChatPartText,

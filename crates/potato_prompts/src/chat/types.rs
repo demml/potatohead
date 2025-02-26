@@ -320,6 +320,49 @@ impl Message {
     pub fn __str__(&self) -> String {
         Utils::__str__(self)
     }
+
+    pub fn to_api_spec(&self) -> String {
+        let val = match &self.content {
+            MessageContent::Text(text) => json!({
+                "role": self.role,
+                "content": text,
+                "name": self.name,
+            }),
+            MessageContent::Parts(parts) => {
+                let content: Vec<Value> = parts
+                    .iter()
+                    .map(|part| match part {
+                        MessagePart::Text(text) => json!({
+                            "text": text.text,
+                            "type": text.r#type,
+                        }),
+                        MessagePart::Image(image) => json!({
+                            "image_url": {
+                                "url": image.image_url.url,
+                                "detail": image.image_url.detail,
+                            },
+                            "type": image.r#type,
+                        }),
+                        MessagePart::Audio(audio) => json!({
+                            "input_audio": {
+                                "data": audio.input_audio.data,
+                                "format": audio.input_audio.format,
+                            },
+                            "type": audio.r#type,
+                        }),
+                    })
+                    .collect();
+
+                json!({
+                    "role": self.role,
+                    "content": content,
+                    "name": self.name,
+                })
+            }
+        };
+
+        Utils::__str__(val)
+    }
 }
 
 impl Message {

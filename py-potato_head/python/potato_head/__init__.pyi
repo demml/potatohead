@@ -1,4 +1,5 @@
 from typing import Any, List, Optional
+
 from .openai import OpenAIConfig
 
 class PromptType:
