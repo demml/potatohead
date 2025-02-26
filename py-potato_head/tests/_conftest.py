@@ -16,7 +16,7 @@ print(str(CalendarEvent.model_json_schema()))
 print(str(CalendarEvent.__name__))
 
 
-client.beta.chat.completions.parse
+client.beta.chat.completions.parse()
 client.chat.completions.create()
 
 

@@ -1,0 +1,17 @@
+[package]
+name = "potato-error"
+version = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+
+authors = [
+  "Demml <support@demmlai.com>"
+]
+
+license = "MIT"
+description = "Standardized interface for working with LLM client"
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+pyo3 = { workspace = true }

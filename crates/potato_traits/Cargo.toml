@@ -1,0 +1,22 @@
+[package]
+name = "potato-traits"
+version = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+
+authors = [
+  "Demml <support@demmlai.com>"
+]
+
+license = "MIT"
+description = "Standardized interface for working with LLM client"
+
+[dependencies]
+potato-client = { workspace = true }
+potato-error = { workspace = true }
+potato-providers = { workspace = true }
+potato-prompts = { workspace = true }
+pyo3 = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+

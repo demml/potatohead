@@ -1,5 +1,5 @@
 [package]
-name = "potato-head"
+name = "potato-client"
 version = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
@@ -12,24 +12,13 @@ license = "MIT"
 description = "Standardized interface for working with LLM client"
 
 [dependencies]
-potato-providers = { workspace = true }
-potato-tools = { workspace = true }
 potato-error = { workspace = true }
-potato-prompts = { workspace = true }
-potato-traits = { workspace = true }
 
 chrono = { workspace = true }
 colored_json = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-thiserror = { workspace = true }
 tokio = { workspace = true }
 pyo3 = { workspace = true }
 tracing = { workspace = true }
-
-[profile.release]
-lto = "fat"
-codegen-units = 1
-strip = true
-

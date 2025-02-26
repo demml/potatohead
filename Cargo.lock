@@ -756,17 +756,113 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "280dc24453071f1b63954171985a0b0d30058d287960968b9b2aca264c8d4ee6"
 
 [[package]]
+name = "potato-client"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "colored_json",
+ "potato-error",
+ "pyo3",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "potato-error"
+version = "0.1.0"
+dependencies = [
+ "pyo3",
+ "serde",
+ "thiserror 2.0.11",
+]
+
+[[package]]
 name = "potato-head"
 version = "0.1.0"
 dependencies = [
  "chrono",
  "colored_json",
+ "potato-error",
+ "potato-prompts",
+ "potato-providers",
+ "potato-tools",
+ "potato-traits",
  "pyo3",
  "reqwest",
  "serde",
  "serde_json",
  "thiserror 2.0.11",
  "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "potato-prompts"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "colored_json",
+ "potato-client",
+ "potato-error",
+ "potato-tools",
+ "pyo3",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "potato-providers"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "colored_json",
+ "potato-client",
+ "potato-error",
+ "potato-prompts",
+ "potato-tools",
+ "pyo3",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "potato-tools"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "colored_json",
+ "potato-client",
+ "potato-error",
+ "pyo3",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "potato-traits"
+version = "0.1.0"
+dependencies = [
+ "potato-client",
+ "potato-error",
+ "potato-prompts",
+ "potato-providers",
+ "pyo3",
+ "serde_json",
  "tracing",
 ]
 
@@ -799,6 +895,7 @@ name = "py-potato_head"
 version = "0.1.0"
 dependencies = [
  "potato-head",
+ "potato-prompts",
  "pyo3",
  "rusty-logging",
  "tracing",
