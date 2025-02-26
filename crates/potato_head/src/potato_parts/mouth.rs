@@ -1,7 +1,7 @@
 use potato_error::PotatoHeadError;
 use potato_prompts::ChatPrompt;
 use potato_providers::openai::{OpenAIClient, OpenAIConfig};
-use potato_traits::{ApiClient, ApiHelper, StreamResponse};
+use potato_traits::{ApiClient, ApiHelper};
 use pyo3::prelude::*;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
