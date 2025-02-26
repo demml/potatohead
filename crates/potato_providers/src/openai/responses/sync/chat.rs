@@ -148,7 +148,7 @@ pub struct ChoiceLogprobs {
     #[pyo3(get)]
     pub content: Option<Vec<ChatCompletionTokenLogprob>>,
     #[pyo3(get)]
-    pub refulsal: Option<Vec<ChatCompletionTokenLogprob>>,
+    pub refusal: Option<Vec<ChatCompletionTokenLogprob>>,
 }
 
 impl ChoiceLogprobs {

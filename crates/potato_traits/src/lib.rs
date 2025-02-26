@@ -1,5 +1,6 @@
 pub mod api_client;
 pub mod openai;
+
 pub mod traits;
 
 pub use api_client::ApiClient;

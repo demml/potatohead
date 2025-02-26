@@ -45,10 +45,13 @@ impl Mouth {
     }
 
     #[pyo3(signature = (request))]
-    pub fn stream_speak<'py>(&self, request: ChatPrompt) -> PyResult<StreamResponse> {
+    pub fn stream_speak<'py>(
+        &self,
+        py: Python<'py>,
+        request: ChatPrompt,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let helper = self.client.get_helper();
         let client = self.client.get_client();
-        let response = helper.execute_stream_chat_request(client, request, self.rt.clone())?;
-        Ok(response)
+        helper.execute_stream_chat_request(py, client, request, self.rt.clone())
     }
 }

@@ -1,20 +1,66 @@
-use crate::{ApiHelper, StreamResponse};
+use crate::ApiHelper;
 use futures_util::StreamExt;
 use potato_client::client::{types::RequestType, LLMClient};
 use potato_client::AsyncLLMClient;
 use potato_error::PotatoError;
 use potato_error::PotatoHeadError;
 use potato_prompts::ChatPrompt;
+use potato_providers::openai::responses::ChatCompletionChunk;
 use potato_providers::{
     openai::{convert_pydantic_to_openai_json_schema, resolve_route},
     parse_openai_response,
 };
-use pyo3::prelude::*;
+use pyo3::{prelude::*, IntoPyObjectExt};
 use serde_json::{json, Value};
 
+use futures_core::Stream;
+use std::pin::Pin;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tracing::error;
+
+#[pyclass]
+pub struct OpenAIStreamResponse {
+    stream: Pin<Box<dyn Stream<Item = Result<Vec<u8>, PotatoError>> + Send + Sync + 'static>>,
+    rt: Arc<Runtime>,
+}
+
+impl OpenAIStreamResponse {
+    pub fn new(
+        stream: impl Stream<Item = Result<Vec<u8>, PotatoError>> + Send + Sync + 'static,
+        rt: Arc<Runtime>,
+    ) -> Self {
+        OpenAIStreamResponse {
+            stream: Box::pin(stream),
+            rt,
+        }
+    }
+}
+
+#[pymethods]
+impl OpenAIStreamResponse {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<ChatCompletionChunk>> {
+        let rt = slf.rt.clone();
+
+        rt.block_on(async {
+            match slf.stream.next().await {
+                Some(Ok(bytes)) => {
+                    let chunk =
+                        serde_json::from_slice::<ChatCompletionChunk>(&bytes).map_err(|e| {
+                            PotatoHeadError::new_err(format!("Failed to parse chunk: {}", e))
+                        })?;
+                    Ok(Some(chunk))
+                }
+                Some(Err(_)) => Err(PotatoHeadError::new_err(format!("Stream error"))),
+                None => Ok(None),
+            }
+        })
+    }
+}
 
 pub struct OpenAIHelper;
 
@@ -90,12 +136,13 @@ impl ApiHelper for OpenAIHelper {
         // ...existing OpenAI specific implementation...
     }
 
-    fn execute_stream_chat_request<T>(
+    fn execute_stream_chat_request<'py, T>(
         &self,
+        py: Python<'py>,
         client: &T,
         request: ChatPrompt,
         rt: Arc<Runtime>,
-    ) -> PyResult<StreamResponse>
+    ) -> PyResult<Bound<'py, PyAny>>
     where
         T: AsyncLLMClient + LLMClient,
     {
@@ -140,6 +187,6 @@ impl ApiHelper for OpenAIHelper {
                 .map_err(|e| PotatoError::Error(format!("Failed to read stream: {}", e)))
         });
 
-        Ok(StreamResponse::new(stream, rt))
+        Ok(OpenAIStreamResponse::new(stream, rt).into_bound_py_any(py)?)
     }
 }

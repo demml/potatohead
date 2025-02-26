@@ -58,12 +58,13 @@ pub trait ApiHelper {
     where
         T: LLMClient;
 
-    fn execute_stream_chat_request<T>(
+    fn execute_stream_chat_request<'py, T>(
         &self,
+        py: Python<'py>,
         client: &T,
         request: ChatPrompt,
         rt: Arc<Runtime>,
-    ) -> PyResult<StreamResponse>
+    ) -> PyResult<Bound<'py, PyAny>>
     where
         T: AsyncLLMClient + LLMClient;
 }

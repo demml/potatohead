@@ -11,7 +11,12 @@ mouth = Mouth(OpenAIConfig())
 
 prompt = ChatPrompt(
     model="gpt-4o-mini",
-    messages=[{"role": "user", "content": "What's 1+1? Answer in one word."}],
+    messages=[
+        {
+            "role": "user",
+            "content": "List the numbers 1 through 10. Answer one word at a time.",
+        }
+    ],
     temperature=0,
     stream=True,
 )
@@ -21,4 +26,4 @@ if __name__ == "__main__":
     response = mouth.stream_speak(prompt)
 
     for message in response:
-        print(message)
+        print(message.choices[0].delta.content, end="")

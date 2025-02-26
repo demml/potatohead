@@ -1,4 +1,7 @@
 use potato_providers::openai::{
+    stream::{
+        ChatCompletionChunk, ChoiceDelta, ChoiceDeltaFunctionCall, ChoiceDeltaToolCall, ChunkChoice,
+    },
     ChatCompletion, ChatCompletionAudio, ChatCompletionMessage, ChatCompletionTokenLogprob, Choice,
     ChoiceLogprobs, CompletionTokensDetails, CompletionUsage, FunctionCall, OpenAIConfig,
     ParsedChatCompletion, PromptTokensDetails, TopLogProb,
@@ -20,5 +23,11 @@ pub fn openai(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PromptTokensDetails>()?;
     m.add_class::<TopLogProb>()?;
     m.add_class::<OpenAIConfig>()?;
+
+    m.add_class::<ChoiceDelta>()?;
+    m.add_class::<ChoiceDeltaFunctionCall>()?;
+    m.add_class::<ChoiceDeltaToolCall>()?;
+    m.add_class::<ChatCompletionChunk>()?;
+    m.add_class::<ChunkChoice>()?;
     Ok(())
 }

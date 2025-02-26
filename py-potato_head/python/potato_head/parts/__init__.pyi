@@ -1,7 +1,7 @@
 # type: ignore
 
-from typing import Any, Optional, overload
-from ..openai import OpenAIConfig
+from typing import Any, Optional, overload, Iterator
+from ..openai import OpenAIConfig, ChatCompletionChunk
 from ..anthropic import AnthropicConfig
 from ..prompts import ChatPrompt
 
@@ -57,10 +57,20 @@ class Mouth:
             The response from the API.
         """
 
+    @overload
     def stream_speak(
         self,
         request: ChatPrompt,
-    ) -> StreamResponse:
+    ) -> Iterator[ChatCompletionChunk]: ...
+    @overload
+    def stream_speak(
+        self,
+        request: ChatPrompt,
+    ) -> Iterator[ChatCompletionChunk]: ...
+    def stream_speak(
+        self,
+        request: ChatPrompt,
+    ) -> Iterator[ChatCompletionChunk]:
         """Stream message from API.
 
         Args:
