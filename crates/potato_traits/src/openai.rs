@@ -1,5 +1,8 @@
-use crate::ApiHelper;
+use crate::{ApiHelper, StreamResponse};
+use futures_util::StreamExt;
 use potato_client::client::{types::RequestType, LLMClient};
+use potato_client::AsyncLLMClient;
+use potato_error::PotatoError;
 use potato_error::PotatoHeadError;
 use potato_prompts::ChatPrompt;
 use potato_providers::{
@@ -8,6 +11,9 @@ use potato_providers::{
 };
 use pyo3::prelude::*;
 use serde_json::{json, Value};
+
+use std::sync::Arc;
+use tokio::runtime::Runtime;
 use tracing::error;
 
 pub struct OpenAIHelper;
@@ -84,14 +90,14 @@ impl ApiHelper for OpenAIHelper {
         // ...existing OpenAI specific implementation...
     }
 
-    fn execute_stream_chat_request<'py, T>(
+    fn execute_stream_chat_request<T>(
         &self,
-        py: Python<'py>,
         client: &T,
         request: ChatPrompt,
-    ) -> PyResult<()>
+        rt: Arc<Runtime>,
+    ) -> PyResult<StreamResponse>
     where
-        T: LLMClient,
+        T: AsyncLLMClient + LLMClient,
     {
         let route = resolve_route(client.url(), &request.prompt_type)?;
 
@@ -104,6 +110,7 @@ impl ApiHelper for OpenAIHelper {
         let mut spec = json!({
             "model": request.model,
             "messages": msgs,
+            "stream": true,  // Make sure streaming is enabled
         });
 
         if let Some(additional) = &request.additional_data {
@@ -116,11 +123,23 @@ impl ApiHelper for OpenAIHelper {
             }
         }
 
-        let response = client
-            .request_with_retry(route, RequestType::Post, Some(spec), None, None)
+        let response = rt
+            .block_on(async {
+                client
+                    .stream_request_with_retry(route, RequestType::Post, Some(spec), None, None)
+                    .await
+            })
             .map_err(|e| {
                 error!("Failed to make request: {}", e);
                 PotatoHeadError::new_err(format!("Failed to make request: {}", e))
             })?;
+
+        let stream = response.bytes_stream().map(|result| {
+            result
+                .map(|bytes| bytes.to_vec())
+                .map_err(|e| PotatoError::Error(format!("Failed to read stream: {}", e)))
+        });
+
+        Ok(StreamResponse::new(stream, rt))
     }
 }

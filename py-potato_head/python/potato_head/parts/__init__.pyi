@@ -8,6 +8,10 @@ from ..prompts import ChatPrompt
 class OpenAIResponse: ...
 class AnthropicResponse: ...
 
+class StreamResponse:
+    def __iter__(self) -> Any: ...
+    def __next__(self) -> Any: ...
+
 class Mouth:
     @overload
     def __init__(self, config: OpenAIConfig) -> None: ...
@@ -51,4 +55,18 @@ class Mouth:
 
         Returns:
             The response from the API.
+        """
+
+    def stream_speak(
+        self,
+        request: ChatPrompt,
+    ) -> StreamResponse:
+        """Stream message from API.
+
+        Args:
+            request (ChatPrompt):
+                The request to send to the API.
+
+        Returns:
+            `StreamResponse` object
         """

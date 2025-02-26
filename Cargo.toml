@@ -24,10 +24,12 @@ potato-tools = { path = "crates/potato_tools" }
 potato-traits = { path = "crates/potato_traits" }
 potato-head = { path = "crates/potato_head" }
 
-
+async-trait = "0.*"
 chrono ={ version = "0.*", features = ["serde"] }
 colored_json = "*"
 futures = "0.*"
+futures-core = "0.*"
+futures-util = "0.*"
 proc-macro2 = "1.0"
 pyo3 = { version = ">=0.23.3, <1.0.0", features = ["chrono", "anyhow", "extension-module"] }
 quote = "1.*"

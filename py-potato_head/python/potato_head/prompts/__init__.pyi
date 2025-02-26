@@ -132,7 +132,7 @@ class ChatPrompt:
         self,
         model: str,
         messages: List[Message | Dict[str, Any]],
-        **kwargs: Optional[Dict[str, Any]],
+        **kwargs,
     ) -> None:
         """ChatPrompt for interacting with an LLM Chat API.
 
@@ -165,7 +165,7 @@ class ChatPrompt:
                 The model to use for the chat prompt.
             messages (List[Message | Dict[str, Any]]):
                 The messages to use in the chat prompt.
-            kwargs (Optional[dict[str, Any]]):
+            kwargs:
                 Additional data to pass to the API data field.
         """
 

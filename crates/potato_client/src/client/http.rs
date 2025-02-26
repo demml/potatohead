@@ -1,6 +1,6 @@
 use crate::client::types::RequestType;
+use async_trait::async_trait;
 use potato_error::HttpError;
-
 use reqwest::blocking::Client as BlockingClient;
 use reqwest::blocking::Response;
 
@@ -67,7 +67,10 @@ pub trait LLMClient {
     ) -> Result<Response, HttpError>;
 
     fn url(&self) -> &str;
+}
 
+#[async_trait]
+pub trait AsyncLLMClient {
     async fn stream_request_with_retry(
         &self,
         route: String,
@@ -306,7 +309,10 @@ impl LLMClient for ClaudeClient {
     fn url(&self) -> &str {
         self.0.config.url.as_str()
     }
+}
 
+#[async_trait]
+impl AsyncLLMClient for ClaudeClient {
     async fn stream_request_with_retry(
         &self,
         route: String,

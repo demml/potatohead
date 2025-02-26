@@ -1,4 +1,6 @@
 use crate::openai::OpenAIConfig;
+use async_trait::async_trait;
+use potato_client::AsyncLLMClient;
 use potato_client::{BaseHTTPClient, HTTPConfig, LLMClient, RequestType};
 use potato_error::{HttpError, PotatoError};
 use reqwest::blocking::Response;
@@ -68,7 +70,10 @@ impl LLMClient for OpenAIClient {
     fn url(&self) -> &str {
         self.0.config.url.as_str()
     }
+}
 
+#[async_trait]
+impl AsyncLLMClient for OpenAIClient {
     async fn stream_request_with_retry(
         &self,
         route: String,

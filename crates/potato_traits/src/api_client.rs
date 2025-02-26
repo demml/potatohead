@@ -1,6 +1,6 @@
 use crate::ApiHelper;
 use crate::OpenAIHelper;
-use potato_client::LLMClient;
+use potato_client::{AsyncLLMClient, LLMClient};
 use potato_providers::openai::OpenAIClient;
 
 #[derive(Debug)]
@@ -15,7 +15,7 @@ impl ApiClient {
         }
     }
 
-    pub fn get_client(&self) -> &(impl LLMClient + '_) {
+    pub fn get_client(&self) -> &(impl LLMClient + AsyncLLMClient + '_) {
         match self {
             ApiClient::OpenAI(client) => client,
         }

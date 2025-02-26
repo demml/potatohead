@@ -17,6 +17,7 @@ potato-error = { workspace = true }
 potato-tools = { workspace = true }
 potato-prompts = { workspace = true }
 
+async-trait = { workspace = true }
 chrono = { workspace = true }
 colored_json = { workspace = true }
 reqwest = { workspace = true }
