@@ -1,7 +1,6 @@
 # type: ignore
 
 from typing import Any, Optional
-
 from ..openai import OpenAIConfig
 from ..prompts import ChatPrompt
 

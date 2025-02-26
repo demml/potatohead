@@ -30,6 +30,8 @@ impl ApiHelper for OpenAIHelper {
             .map(|format| convert_pydantic_to_openai_json_schema(py, format))
             .transpose()?;
 
+        println!("{:?}", response_format);
+
         let msgs = request
             .messages
             .iter()

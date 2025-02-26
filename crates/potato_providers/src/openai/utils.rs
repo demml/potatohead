@@ -1,21 +1,25 @@
 use potato_error::PotatoHeadError;
-use potato_tools::pyobject_to_json;
+use potato_tools::pydict_to_json;
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict};
 use serde_json::{json, Value};
 
-fn ensure_strict_json_schema<'py>(schema: Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+fn ensure_strict_json_schema<'py>(schema: Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
     if !schema.is_instance_of::<PyDict>() {
         return Err(PotatoHeadError::new_err("Schema is not a dictionary"));
     }
 
-    let schema_type = schema.getattr("type")?.extract::<String>()?;
+    let schema = schema.downcast::<PyDict>()?;
 
-    if schema_type != "object" && !schema.hasattr("additionalProperties")? {
-        schema.setattr("additionalProperties", false)?;
+    let schema_type = schema.get_item("type")?.unwrap().extract::<String>()?;
+
+    let additional_props = schema.get_item("additionalProperties")?;
+
+    if schema_type == "object" && additional_props.is_none() {
+        schema.set_item("additionalProperties", false)?;
     }
 
-    Ok(schema)
+    Ok(schema.clone())
 }
 
 pub fn convert_pydantic_to_openai_json_schema(
@@ -45,11 +49,18 @@ pub fn convert_pydantic_to_openai_json_schema(
     let name = model.getattr("__name__")?.extract::<String>()?;
     let schema = model.call_method0("model_json_schema")?;
 
+    let strict_schema = ensure_strict_json_schema(schema)
+        .map_err(|e| PotatoHeadError::new_err(format!("Failed to ensure strict schema: {}", e)))?;
+
+    let converted_schema = pydict_to_json(&strict_schema).map_err(|e| {
+        PotatoHeadError::new_err(format!("Failed to convert schema to JSON: {}", e))
+    })?;
+
     // Create JSON response
     Ok(json!({
         "type": "json_schema",
         "json_schema": {
-            "schema": pyobject_to_json(&ensure_strict_json_schema(schema)?)?,
+            "schema": converted_schema,
             "name": name,
             "strict": true,
         },
