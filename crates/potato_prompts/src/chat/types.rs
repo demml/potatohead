@@ -1,6 +1,7 @@
 use potato_error::PotatoHeadError;
 use potato_tools::Utils;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use pyo3::types::{PyList, PyString};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -123,6 +124,95 @@ pub enum MessageContent {
     Parts(Vec<MessagePart>),
 }
 
+/// Generic helper for extracting a value from a dictionary
+fn extract_value_from_dict(dict: &Bound<'_, PyDict>, key: &str) -> PyResult<String> {
+    match dict.get_item(key)? {
+        Some(value) => value.extract::<String>(),
+        None => Err(PotatoHeadError::new_err(format!("Missing key: {}", key))),
+    }
+}
+
+/// convert audio content from a dictionary to a MessagePart
+fn extract_audio_from_dict(dict: &Bound<'_, PyDict>, r#type: &str) -> PyResult<MessagePart> {
+    let data = extract_value_from_dict(dict, "data")?;
+    let format = extract_value_from_dict(dict, "format")?;
+
+    Ok(MessagePart::Audio(ChatPartAudio::new(
+        InputAudio { data, format },
+        r#type,
+    )))
+}
+
+/// convert text content from a dictionary to a MessagePart
+fn extract_text_from_dict(dict: &Bound<'_, PyDict>, r#type: &str) -> PyResult<MessagePart> {
+    let text = extract_value_from_dict(dict, "text")?;
+    Ok(MessagePart::Text(ChatPartText::new(&text, r#type)))
+}
+
+/// convert image content from a dictionary to a MessagePart
+fn extract_image_from_dict(dict: &Bound<'_, PyDict>, r#type: &str) -> PyResult<MessagePart> {
+    let image_dict = dict.get_item("image_url")?.unwrap();
+    let image_url_dict = image_dict.downcast::<PyDict>()?;
+
+    let url = extract_value_from_dict(image_url_dict, "url")?;
+    let detail = match extract_value_from_dict(image_url_dict, "detail") {
+        Ok(value) => value,
+        Err(_) => "auto".to_string(),
+    };
+
+    Ok(MessagePart::Image(ChatPartImage::new(
+        ImageUrl { url, detail },
+        r#type,
+    )))
+}
+
+/// Extract a MessagePart from a PyAny object
+fn extract_part(item: &Bound<'_, PyAny>) -> PyResult<Option<MessagePart>> {
+    // First try direct instance checks
+    if item.is_instance_of::<ChatPartText>() {
+        return Ok(Some(MessagePart::Text(item.extract::<ChatPartText>()?)));
+    } else if item.is_instance_of::<ChatPartImage>() {
+        return Ok(Some(MessagePart::Image(item.extract::<ChatPartImage>()?)));
+    } else if item.is_instance_of::<ChatPartAudio>() {
+        return Ok(Some(MessagePart::Audio(item.extract::<ChatPartAudio>()?)));
+    }
+
+    // If not a direct instance, try dictionary conversion
+    if item.is_instance_of::<PyDict>() {
+        let dict = item.downcast::<PyDict>()?;
+
+        // Try to determine the type from the dictionary
+        let type_str = match extract_value_from_dict(dict, "type") {
+            Ok(value) => value,
+            Err(_) => return Ok(None),
+        };
+
+        match type_str.as_str() {
+            // parse text content
+            "text" => match extract_text_from_dict(dict, &type_str) {
+                Ok(part) => return Ok(Some(part)),
+                Err(_) => return Ok(None),
+            },
+
+            // parse image content
+            "image_url" => match extract_image_from_dict(dict, &type_str) {
+                Ok(part) => return Ok(Some(part)),
+                Err(_) => return Ok(None),
+            },
+
+            // parse audio content
+            "input_audio" => {
+                if let Ok(part) = extract_audio_from_dict(dict, &type_str) {
+                    return Ok(Some(part));
+                }
+            }
+            _ => return Ok(None),
+        }
+    }
+
+    Ok(None)
+}
+
 fn extract_content(content: &Bound<'_, PyAny>) -> PyResult<Option<MessageContent>> {
     // Handle text content
     if content.is_instance_of::<PyString>() {
@@ -135,12 +225,9 @@ fn extract_content(content: &Bound<'_, PyAny>) -> PyResult<Option<MessageContent
         let mut parts = Vec::new();
 
         for item in list.iter() {
-            if item.is_instance_of::<ChatPartText>() {
-                parts.push(MessagePart::Text(item.extract::<ChatPartText>()?));
-            } else if item.is_instance_of::<ChatPartImage>() {
-                parts.push(MessagePart::Image(item.extract::<ChatPartImage>()?));
-            } else if item.is_instance_of::<ChatPartAudio>() {
-                parts.push(MessagePart::Audio(item.extract::<ChatPartAudio>()?));
+            // attempt to extract a part from the item
+            if let Some(part) = extract_part(&item)? {
+                parts.push(part);
             } else {
                 return Ok(None);
             }
@@ -153,18 +240,8 @@ fn extract_content(content: &Bound<'_, PyAny>) -> PyResult<Option<MessageContent
     }
 
     // Handle single part content
-    if content.is_instance_of::<ChatPartText>() {
-        return Ok(Some(MessageContent::Parts(vec![MessagePart::Text(
-            content.extract::<ChatPartText>()?,
-        )])));
-    } else if content.is_instance_of::<ChatPartImage>() {
-        return Ok(Some(MessageContent::Parts(vec![MessagePart::Image(
-            content.extract::<ChatPartImage>()?,
-        )])));
-    } else if content.is_instance_of::<ChatPartAudio>() {
-        return Ok(Some(MessageContent::Parts(vec![MessagePart::Audio(
-            content.extract::<ChatPartAudio>()?,
-        )])));
+    if let Some(part) = extract_part(content)? {
+        return Ok(Some(MessageContent::Parts(vec![part])));
     }
 
     Ok(None)
@@ -190,6 +267,7 @@ impl Message {
     #[new]
     #[pyo3(signature = (role, content, name=None))]
     pub fn new(role: &str, content: &Bound<'_, PyAny>, name: Option<&str>) -> PyResult<Self> {
+        // Extracting content to ensure it is a valid type
         let content = match extract_content(content)? {
             Some(content) => content,
             None => return Err(PotatoHeadError::new_err("Invalid content type")),

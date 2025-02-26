@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 
 class PromptType:
     Image: "PromptType"
@@ -50,8 +50,49 @@ class ChatPartImage:
                 The type of the content.
         """
 
+class InputAudio:
+    data: str
+    format: str
+
+    def __init__(self, data: str, format: str = "wav") -> None:
+        """Base64 encoded audio data.
+
+        Args:
+            data (str):
+                Base64 encoded audio data.
+            format (str):
+                The format of the encoded audio data. Currently supports "wav" and "mp3".
+        """
+
+class ChatPartAudio:
+    input_audio: InputAudio
+    type: str
+
+    def __init__(self, input_audio: InputAudio, type: str = "input_audio") -> None:
+        """Audio content for a chat prompt.
+
+        Args:
+            input_audio (InputAudio):
+                The input audio data.
+            type (str):
+                The type of the content.
+        """
+
+ContentType = Union[
+    str,
+    ChatPartAudio,
+    ChatPartImage,
+    ChatPartText,
+    List[ChatPartText | ChatPartImage | ChatPartAudio],
+]
+
 class Message:
-    def __init__(self, role: str, content: str, name: Optional[str]) -> None:
+    def __init__(
+        self,
+        role: str,
+        content: ContentType,
+        name: Optional[str],
+    ) -> None:
         """Message class to represent a message in a chat prompt.
         Messages can be parameterized with numbered arguments in the form of
         $1, $2, $3, etc. These arguments will be replaced with the corresponding context
