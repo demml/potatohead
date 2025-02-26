@@ -2,7 +2,6 @@ use crate::{ChoiceLogprobs, CompletionUsage};
 use potato_tools::Utils;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use tracing::debug;
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ChoiceDeltaToolCallFunction {

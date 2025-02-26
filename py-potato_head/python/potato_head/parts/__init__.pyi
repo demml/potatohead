@@ -1,8 +1,9 @@
 # type: ignore
 
-from typing import Any, Optional, overload, Iterator
-from ..openai import OpenAIConfig, ChatCompletionChunk
+from typing import Any, Iterator, Optional, overload
+
 from ..anthropic import AnthropicConfig
+from ..openai import ChatCompletionChunk, OpenAIConfig
 from ..prompts import ChatPrompt
 
 class OpenAIResponse: ...
