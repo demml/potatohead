@@ -1,4 +1,3 @@
-pub use crate::types::MessageEnum;
 use crate::Message;
 use potato_error::PotatoHeadError;
 use potato_tools::{pyobject_to_json, PromptType, Utils};
@@ -9,7 +8,29 @@ use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-fn parse_messages_from_pyobject<'py>(messages: &Bound<'_, PyAny>) -> PyResult<Vec<MessageEnum>> {
+fn parse_message_from_pyobject(message: &Bound<'_, PyAny>) -> PyResult<Message> {
+    if message.is_instance_of::<Message>() {
+        message.extract::<Message>()
+    } else if message.is_instance_of::<PyDict>() {
+        let dict = message.downcast::<PyDict>()?;
+        let role: String = dict.get_item("role")?.unwrap().extract()?;
+        let content = dict.get_item("content")?.unwrap();
+        let name: Option<String> = match dict.get_item("name")? {
+            Some(py_name) => Some(py_name.extract()?),
+            None => None,
+        };
+
+        Message::new(&role, &content, name.as_deref())
+    } else {
+        Err(PotatoHeadError::new_err(
+            "messages must contain Message objects or dictionaries
+            in the format {'role': str, 'content': Any, 'name': Optional[str]}
+            ",
+        ))
+    }
+}
+
+fn parse_messages_from_pyobject(messages: &Bound<'_, PyAny>) -> PyResult<Vec<Message>> {
     // Verify messages is a PyList
     if !messages.is_instance_of::<PyList>() {
         return Err(PotatoHeadError::new_err(
@@ -20,30 +41,8 @@ fn parse_messages_from_pyobject<'py>(messages: &Bound<'_, PyAny>) -> PyResult<Ve
     let messages = messages.downcast::<PyList>()?;
     let result_messages = messages
         .iter()
-        .map(|item| {
-            let message = if item.is_instance_of::<Message>() {
-                item.extract::<Message>()
-            } else if item.is_instance_of::<PyDict>() {
-                let dict = item.downcast::<PyDict>()?;
-                let role: String = dict.get_item("role")?.unwrap().extract()?;
-                let content = dict.get_item("content")?.unwrap();
-                let name: Option<String> = match dict.get_item("name")? {
-                    Some(py_name) => Some(py_name.extract()?),
-                    None => None,
-                };
-
-                Message::new(&role, &content, name.as_deref())
-            } else {
-                Err(PotatoHeadError::new_err(
-                    "messages must contain Message objects or dictionaries
-                    in the format {'role': str, 'content': Any, 'name': Optional[str]}
-                    ",
-                ))
-            }?;
-
-            Ok(MessageEnum::Base(message))
-        })
-        .collect::<PyResult<Vec<MessageEnum>>>()?;
+        .map(|item| parse_message_from_pyobject(&item))
+        .collect::<PyResult<Vec<Message>>>()?;
 
     Ok(result_messages)
 }
@@ -54,12 +53,12 @@ pub struct ChatPrompt {
     #[pyo3(get, set)]
     pub model: String,
 
-    pub messages: Vec<MessageEnum>,
+    pub messages: Vec<Message>,
 
     #[pyo3(get)]
     pub prompt_type: PromptType,
 
-    original_messages: Vec<MessageEnum>,
+    original_messages: Vec<Message>,
 
     pub additional_data: Option<Value>,
 }
@@ -67,16 +66,14 @@ pub struct ChatPrompt {
 #[pymethods]
 impl ChatPrompt {
     #[new]
-    #[pyo3(signature = (model, messages, additional_data=None))]
+    #[pyo3(signature = (model, messages, **kwargs))]
     pub fn new(
         model: &str,
         messages: &Bound<'_, PyAny>,
-        additional_data: Option<&Bound<'_, PyDict>>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Self> {
         // Convert additional_data to JSON format for serialization
-        let raw_json = additional_data
-            .map(|dict| pyobject_to_json(dict))
-            .transpose()?;
+        let raw_json = kwargs.map(|dict| pyobject_to_json(dict)).transpose()?;
 
         // extract messages
         let messages = parse_messages_from_pyobject(messages)?;
@@ -91,13 +88,8 @@ impl ChatPrompt {
     }
 
     #[getter]
-    pub fn messages<'py>(&self, py: Python<'py>) -> Vec<PyObject> {
-        self.messages
-            .iter()
-            .filter_map(|msg| match msg {
-                MessageEnum::Base(msg) => msg.clone().into_py_any(py).ok(),
-            })
-            .collect()
+    pub fn messages<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.messages.clone().into_bound_py_any(py)
     }
 
     #[getter]
@@ -108,8 +100,10 @@ impl ChatPrompt {
     }
 
     #[pyo3(signature = (message))]
-    pub fn add_message(&mut self, message: Message) {
+    pub fn add_message(&mut self, message: Bound<'_, PyAny>) -> PyResult<()> {
+        let message = parse_message_from_pyobject(&message)?;
         self.messages.push(message);
+        Ok(())
     }
 
     #[pyo3(signature = (context, index=0,))]

@@ -5,31 +5,6 @@ use pyo3::types::{PyList, PyString};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum MessageEnum {
-    Base(Message),
-}
-
-impl MessageEnum {
-    pub fn to_spec(&self) -> Value {
-        match self {
-            MessageEnum::Base(msg) => msg.to_spec(),
-        }
-    }
-
-    pub fn bind(&mut self, value: &str) -> PyResult<()> {
-        match self {
-            MessageEnum::Base(msg) => msg.bind(value),
-        }
-    }
-
-    pub fn reset_binding(&mut self) {
-        match self {
-            MessageEnum::Base(msg) => msg.reset_binding(),
-        }
-    }
-}
-
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatPartText {
