@@ -1,5 +1,5 @@
-use crate::openai::responses::chat::ChatCompletion;
 use crate::openai::responses::structured::parse_chat_completion;
+use crate::openai::responses::sync::chat::ChatCompletion;
 use potato_error::PotatoError;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;

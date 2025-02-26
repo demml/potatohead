@@ -1,4 +1,4 @@
-use crate::openai::responses::chat::{ChatCompletion, CompletionUsage};
+use crate::openai::responses::sync::chat::{ChatCompletion, CompletionUsage};
 use potato_error::PotatoError;
 use pyo3::prelude::*;
 
