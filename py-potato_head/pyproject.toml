@@ -24,6 +24,7 @@ dev = [
     "isort >= 5.13.2, < 6.0.0",
     "openai>=1.60.2",
     "pip>=24.3.1",
+    "anthropic>=0.47.2",
 ]
 docs = [
     "mkdocs-material >= 9.5.4, < 10.0.0",

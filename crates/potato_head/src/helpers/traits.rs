@@ -1,6 +1,6 @@
 use crate::client::LLMClient;
 use crate::error::PotatoError;
-use crate::parts::mouth::prompts::chat::ChatPrompt;
+use crate::potato_parts::mouth::prompts::chat::ChatPrompt;
 use pyo3::prelude::*;
 
 pub trait ApiHelper {

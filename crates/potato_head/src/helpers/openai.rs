@@ -2,7 +2,7 @@ use crate::client::{types::RequestType, LLMClient};
 use crate::error::PotatoError;
 use crate::error::PotatoHeadError;
 use crate::helpers::traits::ApiHelper;
-use crate::parts::mouth::prompts::chat::ChatPrompt;
+use crate::potato_parts::mouth::prompts::chat::ChatPrompt;
 use crate::providers::openai::{convert_pydantic_to_openai_json_schema, resolve_route};
 use pyo3::prelude::*;
 use serde_json::{json, Value};
