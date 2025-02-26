@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict};
 use serde_json::{json, Value};
 
+#[allow(clippy::needless_lifetimes)]
 fn ensure_strict_json_schema<'py>(schema: Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
     if !schema.is_instance_of::<PyDict>() {
         return Err(PotatoHeadError::new_err("Schema is not a dictionary"));

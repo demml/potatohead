@@ -38,7 +38,7 @@ impl StreamResponse {
         rt.block_on(async {
             match slf.stream.next().await {
                 Some(Ok(bytes)) => Ok(Some(bytes)),
-                Some(Err(_)) => Err(PotatoHeadError::new_err(format!("Stream error"))),
+                Some(Err(_)) => Err(PotatoHeadError::new_err("Stream error")),
                 None => Ok(None),
             }
         })

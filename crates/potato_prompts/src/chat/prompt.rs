@@ -100,9 +100,7 @@ impl ChatPrompt {
 
     #[getter]
     pub fn additional_data(&self) -> Option<String> {
-        self.additional_data
-            .clone()
-            .map(|data| Utils::__json__(data))
+        self.additional_data.clone().map(Utils::__json__)
     }
 
     #[pyo3(signature = (message))]

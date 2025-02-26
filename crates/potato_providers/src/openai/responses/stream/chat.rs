@@ -14,7 +14,7 @@ pub struct ChoiceDeltaToolCallFunction {
 #[pymethods]
 impl ChoiceDeltaToolCallFunction {
     fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -30,7 +30,7 @@ pub struct ChoiceDeltaFunctionCall {
 #[pymethods]
 impl ChoiceDeltaFunctionCall {
     fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -50,7 +50,7 @@ pub struct ChoiceDeltaToolCall {
 #[pymethods]
 impl ChoiceDeltaToolCall {
     fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -72,7 +72,7 @@ pub struct ChoiceDelta {
 #[pymethods]
 impl ChoiceDelta {
     fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -95,7 +95,7 @@ pub struct ChunkChoice {
 #[pymethods]
 impl ChunkChoice {
     fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -130,7 +130,7 @@ pub struct ChatCompletionChunk {
 #[pymethods]
 impl ChatCompletionChunk {
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -141,7 +141,7 @@ impl ChatCompletionChunk {
         let mut all_choices = Vec::new();
 
         for event in events {
-            match serde_json::from_str(&event) {
+            match serde_json::from_str(event) {
                 Ok(chunk) => {
                     if base_chunk.is_none() {
                         base_chunk = Some(chunk);

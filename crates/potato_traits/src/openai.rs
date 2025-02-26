@@ -260,6 +260,6 @@ impl ApiHelper for OpenAIHelper {
                 .map_err(|e| PotatoError::Error(format!("Failed to read stream: {}", e)))
         });
 
-        Ok(OpenAIStreamResponse::new(stream, rt).into_bound_py_any(py)?)
+        OpenAIStreamResponse::new(stream, rt).into_bound_py_any(py)
     }
 }

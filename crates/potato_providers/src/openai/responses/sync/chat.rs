@@ -21,7 +21,7 @@ pub struct ChatCompletionAudio {
 }
 impl ChatCompletionAudio {
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -37,7 +37,7 @@ pub struct FunctionCall {
 #[pymethods]
 impl FunctionCall {
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -53,7 +53,7 @@ pub struct Function {
 #[pymethods]
 impl Function {
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -71,7 +71,7 @@ pub struct ChatCompletionMessageToolCall {
 #[pymethods]
 impl ChatCompletionMessageToolCall {
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -95,7 +95,7 @@ pub struct ChatCompletionMessage {
 #[pymethods]
 impl ChatCompletionMessage {
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -115,7 +115,7 @@ pub struct TopLogProb {
 #[pymethods]
 impl TopLogProb {
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -138,7 +138,7 @@ pub struct ChatCompletionTokenLogprob {
 #[pymethods]
 impl ChatCompletionTokenLogprob {
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -153,7 +153,7 @@ pub struct ChoiceLogprobs {
 
 impl ChoiceLogprobs {
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -173,7 +173,7 @@ pub struct Choice {
 #[pymethods]
 impl Choice {
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -215,7 +215,7 @@ impl ChatCompletion {
     }
 
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -241,7 +241,7 @@ pub struct CompletionUsage {
 #[pymethods]
 impl CompletionUsage {
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -274,7 +274,7 @@ pub struct PromptTokensDetails {
 #[pymethods]
 impl PromptTokensDetails {
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
 
@@ -297,6 +297,6 @@ pub struct CompletionTokensDetails {
 #[pymethods]
 impl CompletionTokensDetails {
     pub fn __str__(&self) -> String {
-        Utils::__str__(&self)
+        Utils::__str__(self)
     }
 }
