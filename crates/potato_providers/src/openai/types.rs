@@ -1,8 +1,9 @@
 use potato_client::HTTPConfig;
 use potato_client::{resolve_api_key, resolve_url};
-use potato_error::PotatoError;
+use potato_error::{PotatoError, PotatoHeadError};
 use potato_tools::PromptType;
 use pyo3::prelude::*;
+use tracing::error;
 
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -23,8 +24,15 @@ impl OpenAIConfig {
         organization: Option<&str>,
         project: Option<&str>,
     ) -> PyResult<Self> {
-        let url = resolve_url(url)?;
-        let api_key = resolve_api_key(&url, api_key)?;
+        let url = resolve_url(url).map_err(|e| {
+            error!("Failed to resolve url: {}", e);
+            PotatoHeadError::new_err(e.to_string())
+        })?;
+
+        let api_key = resolve_api_key(&url, api_key).map_err(|e| {
+            error!("Failed to resolve api key: {}", e);
+            PotatoHeadError::new_err(e.to_string())
+        })?;
 
         Ok(Self {
             api_key: api_key.to_string(),

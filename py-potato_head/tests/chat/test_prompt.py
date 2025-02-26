@@ -1,4 +1,4 @@
-from potato_head.prompts import Message, ChatPrompt
+from potato_head.prompts import Message, ChatPrompt, PromptType
 import json
 
 
@@ -60,3 +60,43 @@ def test_api_chat_image_ref_example():
         ],
         max_tokens=300,
     )
+
+
+def test_chat_prompt():
+    # Create a ChatPrompt object
+    chat_prompt = ChatPrompt(
+        model="GPT-4o",
+        messages=[
+            Message(
+                role="system",
+                content="You are a helpful assistant. Guide us through the solution step by step",
+            ),
+            Message(role="user", content="What is 4 + $1?"),
+        ],
+    )
+
+    # Bind a context at a specific index in the ChatPrompt object
+    chat_prompt.bind_context_at(context="5", index=1)
+
+    # Check the model property
+    assert chat_prompt.model == "GPT-4o"
+
+    # Check the messages property
+    assert len(chat_prompt.messages) == 2
+
+    # Check the prompt_type property
+    assert chat_prompt.prompt_type == PromptType.Chat
+
+    # Check the additional_data property
+    assert chat_prompt.additional_data is None
+
+    copy = chat_prompt.deep_copy()
+
+    # reset the ChatPrompt object
+    copy.reset()
+
+    assert (
+        copy.messages[0].content
+        == "You are a helpful assistant. Guide us through the solution step by step"
+    )
+    assert copy.messages[1].content == "What is 4 + $1?"

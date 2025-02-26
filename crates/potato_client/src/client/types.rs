@@ -48,5 +48,9 @@ pub fn resolve_api_key(url: &str, api_key: Option<&str>) -> Result<String, Potat
         return Err(PotatoError::MissingAPIKey);
     }
 
+    if api_key.is_none() {
+        return Err(PotatoError::MissingAPIKey);
+    }
+
     Ok(api_key.unwrap())
 }

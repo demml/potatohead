@@ -92,7 +92,7 @@ class Message:
         self,
         role: str,
         content: ContentType,
-        name: Optional[str],
+        name: Optional[str] = None,
     ) -> None:
         """Message class to represent a message in a chat prompt.
         Messages can be parameterized with numbered arguments in the form of
@@ -104,13 +104,16 @@ class Message:
             message = Message("system", "Params: $1, $2")
             message.bind("world")
             message.bind("hello")
+
+
+
         ```
 
         Args:
             role (str)
                 The role to assign the message. Refer to the
                 specific model's documentation for possible roles.
-            content (str):
+            content (str | Dict | ChatPartAudio | ChatPartImage | ChatPartText | List[ChatPartText | ChatPartImage | ChatPartAudio]):
                 The content of the message.
             name (Optional[str]):
                 An optional name for the participant.
@@ -132,6 +135,30 @@ class ChatPrompt:
         **kwargs: Optional[Dict[str, Any]],
     ) -> None:
         """ChatPrompt for interacting with an LLM Chat API.
+
+
+        Example:
+        ```python
+            ChatPrompt(
+                model="gpt-4o",
+                messages=[
+                    {"role": "developer", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": "Hello!"},
+                ],
+                logprobs=True,
+                top_logprobs=2,
+            )
+
+
+            ChatPrompt(
+                model="gpt-4o",
+                messages=[
+                    Message("developer", "You are a helpful assistant."),
+                ],
+                logprobs=True,
+                top_logprobs=2,
+            )
+        ```
 
         Args:
             model (str):
