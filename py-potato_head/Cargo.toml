@@ -11,6 +11,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 potato-head = { workspace = true }
 potato-prompts = { workspace = true }
+potato-providers = { workspace = true }
+potato-tools = { workspace = true }
 
 pyo3 = { workspace = true }
 rusty-logging = { workspace = true }

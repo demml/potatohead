@@ -17,7 +17,7 @@ pub struct ChatPartText {
 #[pymethods]
 impl ChatPartText {
     #[new]
-    #[pyo3(signature = (text, r#type))]
+    #[pyo3(signature = (text, r#type="text"))]
     pub fn new(text: &str, r#type: &str) -> Self {
         Self {
             text: text.to_string(),
@@ -37,11 +37,11 @@ pub struct ImageUrl {
 #[pymethods]
 impl ImageUrl {
     #[new]
-    #[pyo3(signature = (url, detail))]
-    pub fn new(url: &str, detail: Option<&str>) -> Self {
+    #[pyo3(signature = (url, detail="auto"))]
+    pub fn new(url: &str, detail: &str) -> Self {
         Self {
             url: url.to_string(),
-            detail: detail.unwrap_or("auto").to_string(),
+            detail: detail.to_string(),
         }
     }
 }
@@ -58,7 +58,7 @@ pub struct ChatPartImage {
 #[pymethods]
 impl ChatPartImage {
     #[new]
-    #[pyo3(signature = (image_url, r#type))]
+    #[pyo3(signature = (image_url, r#type="image_url"))]
     pub fn new(image_url: ImageUrl, r#type: &str) -> Self {
         Self {
             image_url,
@@ -69,9 +69,51 @@ impl ChatPartImage {
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InputAudio {
+    data: String,
+
+    format: String,
+}
+
+#[pymethods]
+impl InputAudio {
+    #[new]
+    #[pyo3(signature = (data, format="wav"))]
+    pub fn new(data: &str, format: &str) -> Self {
+        Self {
+            data: data.to_string(),
+            format: format.to_string(),
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ChatPartAudio {
+    #[pyo3(get)]
+    pub input_audio: InputAudio,
+    #[pyo3(get)]
+    pub r#type: String,
+}
+
+#[pymethods]
+impl ChatPartAudio {
+    #[new]
+    #[pyo3(signature = (input_audio, r#type="input_audio"))]
+    pub fn new(input_audio: InputAudio, r#type: &str) -> Self {
+        Self {
+            input_audio,
+            r#type: r#type.to_string(),
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum MessagePart {
     Text(ChatPartText),
     Image(ChatPartImage),
+    Audio(ChatPartAudio),
 }
 
 #[pyclass]
@@ -97,6 +139,8 @@ fn extract_content(content: &Bound<'_, PyAny>) -> PyResult<Option<MessageContent
                 parts.push(MessagePart::Text(item.extract::<ChatPartText>()?));
             } else if item.is_instance_of::<ChatPartImage>() {
                 parts.push(MessagePart::Image(item.extract::<ChatPartImage>()?));
+            } else if item.is_instance_of::<ChatPartAudio>() {
+                parts.push(MessagePart::Audio(item.extract::<ChatPartAudio>()?));
             } else {
                 return Ok(None);
             }
@@ -116,6 +160,10 @@ fn extract_content(content: &Bound<'_, PyAny>) -> PyResult<Option<MessageContent
     } else if content.is_instance_of::<ChatPartImage>() {
         return Ok(Some(MessageContent::Parts(vec![MessagePart::Image(
             content.extract::<ChatPartImage>()?,
+        )])));
+    } else if content.is_instance_of::<ChatPartAudio>() {
+        return Ok(Some(MessageContent::Parts(vec![MessagePart::Audio(
+            content.extract::<ChatPartAudio>()?,
         )])));
     }
 
@@ -173,6 +221,11 @@ impl Message {
                                 "Cannot bind value to image content",
                             ));
                         }
+                        MessagePart::Audio(_) => {
+                            return Err(PotatoHeadError::new_err(
+                                "Cannot bind value to audio content",
+                            ));
+                        }
                     }
                 }
             }
@@ -213,6 +266,13 @@ impl Message {
                                 "detail": image.image_url.detail,
                             },
                             "type": image.r#type,
+                        }),
+                        MessagePart::Audio(audio) => json!({
+                            "input_audio": {
+                                "data": audio.input_audio.data,
+                                "format": audio.input_audio.format,
+                            },
+                            "type": audio.r#type,
                         }),
                     })
                     .collect();

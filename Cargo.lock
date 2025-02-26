@@ -896,6 +896,8 @@ version = "0.1.0"
 dependencies = [
  "potato-head",
  "potato-prompts",
+ "potato-providers",
+ "potato-tools",
  "pyo3",
  "rusty-logging",
  "tracing",

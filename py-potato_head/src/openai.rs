@@ -1,8 +1,7 @@
-use potato_head::client::OpenAIConfig;
-use potato_head::mouth::responses::openai::{
+use potato_providers::openai::{
     ChatCompletion, ChatCompletionAudio, ChatCompletionMessage, ChatCompletionTokenLogprob, Choice,
-    ChoiceLogprobs, CompletionTokensDetails, CompletionUsage, FunctionCall, ParsedChatCompletion,
-    PromptTokensDetails, TopLogProb,
+    ChoiceLogprobs, CompletionTokensDetails, CompletionUsage, FunctionCall, OpenAIConfig,
+    ParsedChatCompletion, PromptTokensDetails, TopLogProb,
 };
 use pyo3::prelude::*;
 #[pymodule]
