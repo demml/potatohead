@@ -123,3 +123,82 @@ class Message:
     @property
     def content(self) -> str:
         """The content of the message."""
+
+class ChatPrompt:
+    def __init__(
+        self,
+        model: str,
+        messages: List[Message | Dict[str, Any]],
+        **kwargs: Optional[Dict[str, Any]],
+    ) -> None:
+        """ChatPrompt for interacting with an LLM Chat API.
+
+        Args:
+            model (str):
+                The model to use for the chat prompt.
+            messages (List[Message | Dict[str, Any]]):
+                The messages to use in the chat prompt.
+            kwargs (Optional[dict[str, Any]]):
+                Additional data to pass to the API data field.
+        """
+
+    @property
+    def model(self) -> str:
+        """The model to use for the chat prompt."""
+
+    @property
+    def messages(self) -> List[Message]:
+        """The messages to use in the chat prompt."""
+
+    @property
+    def prompt_type(self) -> PromptType:
+        """The prompt type to use for the chat prompt."""
+
+    @property
+    def additional_data(self) -> Optional[str]:
+        """Additional data as it will be passed to the API data field."""
+
+    def add_message(self, message: Message) -> None:
+        """Add a message to the chat prompt.
+
+        Args:
+            message (Message):
+                The message to add to the chat prompt.
+        """
+
+    def bind_context_at(self, context: str, index: int = 0) -> None:
+        """Bind a context at a specific index in the chat prompt.
+
+        Example with ChatPrompt that contains two messages
+
+        ```python
+            chat_prompt = ChatPrompt("gpt-3.5-turbo", [
+                Message("system", "Hello, $1"),
+                Message("user", "World")
+            ])
+            chat_prompt.bind_context_at(0, "world") # we bind "world" to the first message
+        ```
+
+        Args:
+            context (str):
+                The context to bind.
+             index (int):
+                The index to bind the context at. Index refers
+                to the index of the array in which the context will be bound.
+                Defaults to 0.
+        """
+
+    def deep_copy(self) -> "ChatPrompt":
+        """Return a copy of the chat prompt."""
+
+    def reset(self) -> None:
+        """Reset the chat prompt to its initial state."""
+
+    def __str__(self) -> str:
+        """Return a string representation of the chat prompt."""
+
+    def open_ai_spec(self) -> str:
+        """OpenAI spec for the chat prompt. How it will be sent to the API.
+        This is intended for debugging purposes. There is a equivalent method in
+        rust that will return the same spec when used with a `Tongue` for fast processing.
+        """

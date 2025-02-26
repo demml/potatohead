@@ -1,8 +1,8 @@
 use potato_error::PotatoHeadError;
 use potato_tools::Utils;
-use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::types::{PyList, PyString};
+use pyo3::{prelude::*, IntoPyObjectExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -313,6 +313,30 @@ impl Message {
         Ok(())
     }
 
+    #[getter]
+    pub fn content<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        match &self.content {
+            MessageContent::Text(text) => text.into_bound_py_any(py),
+            MessageContent::Parts(parts) => {
+                let list = PyList::empty(py);
+                for part in parts {
+                    match part {
+                        MessagePart::Text(text) => {
+                            list.append(text.clone().into_bound_py_any(py)?).unwrap()
+                        }
+                        MessagePart::Image(image) => {
+                            list.append(image.clone().into_bound_py_any(py)?).unwrap()
+                        }
+                        MessagePart::Audio(audio) => {
+                            list.append(audio.clone().into_bound_py_any(py)?).unwrap()
+                        }
+                    }
+                }
+                list.into_bound_py_any(py)
+            }
+        }
+    }
+
     pub fn reset_binding(&mut self) {
         self.next_param = 1;
     }
@@ -322,46 +346,7 @@ impl Message {
     }
 
     pub fn to_api_spec(&self) -> String {
-        let val = match &self.content {
-            MessageContent::Text(text) => json!({
-                "role": self.role,
-                "content": text,
-                "name": self.name,
-            }),
-            MessageContent::Parts(parts) => {
-                let content: Vec<Value> = parts
-                    .iter()
-                    .map(|part| match part {
-                        MessagePart::Text(text) => json!({
-                            "text": text.text,
-                            "type": text.r#type,
-                        }),
-                        MessagePart::Image(image) => json!({
-                            "image_url": {
-                                "url": image.image_url.url,
-                                "detail": image.image_url.detail,
-                            },
-                            "type": image.r#type,
-                        }),
-                        MessagePart::Audio(audio) => json!({
-                            "input_audio": {
-                                "data": audio.input_audio.data,
-                                "format": audio.input_audio.format,
-                            },
-                            "type": audio.r#type,
-                        }),
-                    })
-                    .collect();
-
-                json!({
-                    "role": self.role,
-                    "content": content,
-                    "name": self.name,
-                })
-            }
-        };
-
-        Utils::__str__(val)
+        Utils::__json__(self.to_spec())
     }
 }
 

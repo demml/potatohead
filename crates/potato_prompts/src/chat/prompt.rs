@@ -16,7 +16,13 @@ fn parse_message_from_pyobject(message: &Bound<'_, PyAny>) -> PyResult<Message> 
         let role: String = dict.get_item("role")?.unwrap().extract()?;
         let content = dict.get_item("content")?.unwrap();
         let name: Option<String> = match dict.get_item("name")? {
-            Some(py_name) => Some(py_name.extract()?),
+            Some(py_name) => {
+                if py_name.is_none() {
+                    None
+                } else {
+                    Some(py_name.extract()?)
+                }
+            }
             None => None,
         };
 
