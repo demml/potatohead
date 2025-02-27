@@ -69,7 +69,7 @@ impl Utils {
             PathBuf::from(filename).with_extension("json")
         };
 
-        std::fs::write(write_path, json).map_err(|_| PotatoError::WriteError)?;
+        std::fs::write(&write_path, json).map_err(|_| PotatoError::WriteError)?;
 
         Ok(write_path)
     }

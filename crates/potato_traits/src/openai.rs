@@ -178,11 +178,6 @@ impl ApiHelper for OpenAIHelper {
             }
         }
 
-        println!(
-            "Request spec: {}",
-            serde_json::to_string_pretty(&spec).unwrap()
-        );
-
         let response = client
             .request_with_retry(route, RequestType::Post, Some(spec), None, None)
             .map_err(|e| {
