@@ -1,7 +1,7 @@
 pub mod health;
 pub mod openai;
 pub mod server;
-
+use potato_error::PotatoError;
 pub use server::create_app;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -10,7 +10,9 @@ use tracing::info;
 
 pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
     // build our application with routes
-    let app = create_app().await.unwrap();
+    let app = create_app()
+        .await
+        .map_err(|e| PotatoError::Error(e.to_string()))?;
     let addr = format!("0.0.0.0:{}", "3000");
 
     // run it

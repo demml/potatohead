@@ -23,7 +23,7 @@ lints.ci: lints.format_check lints.ruff lints.pylint lints.mypy
 
 setup.project:
 	uv sync --all-extras --group dev --group docs
-	uv run maturin develop
+	uv run maturin develop --features dev
 
 setup.docs:
 	uv sync --all-extras --group dev --group docs

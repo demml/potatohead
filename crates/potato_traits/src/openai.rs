@@ -24,7 +24,6 @@ use tracing::error;
 pub struct ServerSentEvent {
     pub event: Option<String>,
     pub data: Vec<String>,
-    pub joined_data: String,
     pub id: Option<String>,
     pub retry: Option<i32>,
 }
@@ -33,6 +32,7 @@ impl ServerSentEvent {
     pub fn parse(data: &str) -> Option<Self> {
         let mut event = None;
         let mut data_lines = Vec::new();
+        let mut has_done = false;
         let mut id = None;
         let mut retry = None;
 
@@ -47,9 +47,11 @@ impl ServerSentEvent {
                 match field {
                     "event" => event = Some(value.to_string()),
                     "data" => {
-                        if value.trim() != "[DONE]" {
-                            data_lines.push(value.to_string())
+                        if value.trim() == "[DONE]" {
+                            has_done = true;
+                            continue;
                         }
+                        data_lines.push(value.to_string())
                     }
                     "id" => id = Some(value.to_string()),
                     "retry" => retry = value.parse().ok(),
@@ -58,15 +60,14 @@ impl ServerSentEvent {
             }
         }
 
-        if data_lines.is_empty() && event.is_none() && id.is_none() && retry.is_none() {
-            tracing::debug!("No valid SSE fields found");
+        if data_lines.is_empty() && event.is_none() && id.is_none() && retry.is_none() && !has_done
+        {
             return None;
         }
 
         Some(ServerSentEvent {
             event,
             data: data_lines.clone(),
-            joined_data: data_lines.join("\n"),
             id,
             retry,
         })
@@ -104,26 +105,17 @@ impl OpenAIStreamResponse {
             match slf.stream.next().await {
                 Some(Ok(bytes)) => {
                     let text = String::from_utf8_lossy(&bytes);
-                    //tracing::debug!("Received bytes: {}", text);
 
                     if let Some(sse) = ServerSentEvent::parse(&text) {
-                        // Check for [DONE] message
-
-                        if sse.joined_data == "[DONE]" {
-                            println!("Received DONE message");
+                        if sse.data.is_empty() {
                             return Ok(None);
                         }
 
-                        // return data as string
-                        let chunk = ChatCompletionChunk::from_sse_events(&sse.data);
-
-                        match chunk {
-                            Ok(chunk) => Ok(Some(chunk)),
-                            Err(e) => Err(PotatoHeadError::new_err(format!(
-                                "Failed to parse chunk: {}",
-                                e
-                            ))),
-                        }
+                        ChatCompletionChunk::from_sse_events(&sse.data)
+                            .map(Some)
+                            .map_err(|e| {
+                                PotatoHeadError::new_err(format!("Failed to parse chunk: {}", e))
+                            })
                     } else {
                         Ok(None) // Skip invalid SSE messages
                     }
@@ -185,6 +177,11 @@ impl ApiHelper for OpenAIHelper {
                 spec_obj.insert("response_format".to_string(), format.clone());
             }
         }
+
+        println!(
+            "Request spec: {}",
+            serde_json::to_string_pretty(&spec).unwrap()
+        );
 
         let response = client
             .request_with_retry(route, RequestType::Post, Some(spec), None, None)

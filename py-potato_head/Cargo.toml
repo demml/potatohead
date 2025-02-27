@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 baked-potato = { workspace = true, optional = true }
-potato-error = { workspace = true, optional = true }
+potato-error = { workspace = true }
 potato-head = { workspace = true }
 potato-prompts = { workspace = true }
 potato-providers = { workspace = true }
@@ -25,5 +25,5 @@ tokio = { workspace = true, optional = true }
 
 
 [features]
-dev = ["baked-potato", "tokio", "potato-error", "reqwest"]
+dev = ["baked-potato", "tokio", "reqwest"]
 

@@ -8,6 +8,7 @@ use axum::Router;
 use serde::{Deserialize, Serialize};
 use std::panic::catch_unwind;
 use std::panic::AssertUnwindSafe;
+use tracing::{error, instrument};
 
 #[derive(Serialize, Deserialize)]
 pub struct Alive {
@@ -33,15 +34,17 @@ pub async fn health_check() -> Alive {
     Alive::default()
 }
 
+#[instrument(skip_all)]
 pub async fn get_health_router() -> Result<Router> {
     let result = catch_unwind(AssertUnwindSafe(|| {
-        Router::new().route(&format!("healthcheck"), get(health_check))
+        Router::new().route(&format!("/healthcheck"), get(health_check))
     }));
 
     match result {
         Ok(router) => Ok(router),
-        Err(_) => {
+        Err(e) => {
             // panic
+            error!("Failed to create health router: {:?}", e);
             Err(anyhow::anyhow!("Failed to create health router"))
                 .context("Panic occurred while creating the router")
         }

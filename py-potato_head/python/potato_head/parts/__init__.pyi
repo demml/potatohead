@@ -59,16 +59,16 @@ class Mouth:
         """
 
     @overload
-    def stream_speak(
+    def speak_stream(
         self,
         request: ChatPrompt,
     ) -> Iterator[ChatCompletionChunk]: ...
     @overload
-    def stream_speak(
+    def speak_stream(
         self,
         request: ChatPrompt,
     ) -> Iterator[ChatCompletionChunk]: ...
-    def stream_speak(
+    def speak_stream(
         self,
         request: ChatPrompt,
     ) -> Iterator[ChatCompletionChunk]:

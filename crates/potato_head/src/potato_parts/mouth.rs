@@ -45,7 +45,7 @@ impl Mouth {
     }
 
     #[pyo3(signature = (request))]
-    pub fn stream_speak<'py>(
+    pub fn speak_stream<'py>(
         &self,
         py: Python<'py>,
         request: ChatPrompt,

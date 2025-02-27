@@ -1,9 +1,8 @@
+use potato_error::PotatoHeadError;
 use pyo3::prelude::*;
 
 #[cfg(feature = "dev")]
 use baked_potato::{start_server_in_background, stop_server};
-#[cfg(feature = "dev")]
-use potato_error::PotatoHeadError;
 #[cfg(feature = "dev")]
 use std::sync::Arc;
 #[cfg(feature = "dev")]
@@ -41,6 +40,7 @@ impl LLMTestServer {
         #[cfg(feature = "dev")]
         {
             std::env::set_var("POTATO_HEAD_URL", "http://localhost:3000");
+            std::env::set_var("POTATO_HEAD_API_KEY", "key");
             std::env::set_var("APP_ENV", "dev_client");
             Ok(())
         }
@@ -69,7 +69,7 @@ impl LLMTestServer {
             let max_attempts = 20;
 
             while attempts < max_attempts {
-                let res = client.get("http://localhost:3000/opsml/healthcheck").send();
+                let res = client.get("http://localhost:3000/healthcheck").send();
                 if let Ok(response) = res {
                     if response.status() == 200 {
                         self.set_env_vars_for_client()?;
@@ -79,8 +79,6 @@ impl LLMTestServer {
                 }
                 attempts += 1;
                 sleep(Duration::from_millis(100));
-
-                // set env vars for OPSML_TRACKING_URI
             }
 
             return Err(PotatoHeadError::new_err("Failed to start LLM Dev server"));
@@ -117,18 +115,6 @@ impl LLMTestServer {
     }
 
     fn cleanup(&self) -> PyResult<()> {
-        let current_dir = std::env::current_dir().unwrap();
-        let db_file = current_dir.join("opsml.db");
-        let storage_dir = current_dir.join("opsml_registries");
-
-        if db_file.exists() {
-            std::fs::remove_file(db_file).unwrap();
-        }
-
-        if storage_dir.exists() {
-            std::fs::remove_dir_all(storage_dir).unwrap();
-        }
-
         Ok(())
     }
 

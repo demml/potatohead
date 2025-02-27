@@ -1,4 +1,4 @@
-from potato_head.prompts import Message, ChatPrompt
+from potato_head.prompts import ChatPrompt
 from potato_head.openai import OpenAIConfig
 from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
 from potato_head.parts import Mouth  # type: ignore
@@ -23,7 +23,7 @@ prompt = ChatPrompt(
 
 
 if __name__ == "__main__":
-    response = mouth.stream_speak(prompt)
+    response = mouth.speak_stream(prompt)
 
     for message in response:
         for choice in message.choices:
