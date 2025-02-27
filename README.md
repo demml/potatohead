@@ -1,13 +1,25 @@
+<figure markdown style="float: right; margin: 5px;">
+  ![Potato Head](images/potatohead.svg){ width="200" }
+</figure>
 
 # Potato Head
 
-Build an LLM Potato Head. Fun for all ages!
+Build an LLM Potato Head. Add a **mouth** (chat), **eyes** (vision/image) and even **ears** (audio)! Fun for all ages!
+
+**Note:** Potato Head currently supports OpenAI compatible apis (more coming soon!) and you can only use **Mouths**. We are actively working on adding more parts to the Potato Head!
+
 
 ## Description
 
-Potato Head currently supports OpenAI compatible apis (more coming soon!) and was originally built as a sister project to OpsML to help facilitate Prompt standardization and testing. 
 
-In addition, Potato Head is built with rust and exposed via python bindings to help improve performance and reduce latency of LLM applications, so enjoy some Rusty Potatoes!
+Potato Head was originally built as a sister project to OpsML to help facilitate Prompt standardization and testing. The goal is to provide a simple and easy to use interface with low overhead. Thus, **Potato Head** is written entirely in **Rust** and is exposed via Python bindings to help improve performance and reduce latency of LLM applications when interacting with clients.
+
+Potato Head Prompts are fully compatible with the OpenAI SDK if you prefer to use that instead. Check out the quickstart for more information!
+
+Check out the quickstart for more information on how you can get started with Potato Head!
+
+## MORE FUNCTIONALITY COMING SOON!
+
 
 ## Quick Start
 
