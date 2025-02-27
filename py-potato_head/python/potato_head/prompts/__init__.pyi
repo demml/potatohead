@@ -1,3 +1,4 @@
+# pylint: disable=redefined-builtin
 from typing import Any, Dict, List, Optional, Union
 
 class PromptType:
@@ -113,7 +114,18 @@ class Message:
             role (str)
                 The role to assign the message. Refer to the
                 specific model's documentation for possible roles.
-            content (str | Dict | ChatPartAudio | ChatPartImage | ChatPartText | List[ChatPartText | ChatPartImage | ChatPartAudio]):
+            content (
+                str |
+                Dict |
+                ChatPartAudio |
+                ChatPartImage |
+                ChatPartText |
+                List[
+                    ChatPartText |
+                    ChatPartImage |
+                    ChatPartAudio
+                    ]
+                    ):
                 The content of the message.
             name (Optional[str]):
                 An optional name for the participant.
@@ -196,20 +208,20 @@ class ChatPrompt:
     def bind_context_at(self, context: str, index: int = 0) -> None:
         """Bind a context at a specific index in the chat prompt.
 
-        Example with ChatPrompt that contains two messages
+            Example with ChatPrompt that contains two messages
 
-        ```python
-            chat_prompt = ChatPrompt("gpt-3.5-turbo", [
-                Message("system", "Hello, $1"),
-                Message("user", "World")
-            ])
-            chat_prompt.bind_context_at(0, "world") # we bind "world" to the first message
-        ```
+            ```python
+                chat_prompt = ChatPrompt("gpt-3.5-turbo", [
+                    Message("system", "Hello, $1"),
+                    Message("user", "World")
+                ])
+                chat_prompt.bind_context_at(0, "world") # we bind "world" to the first message
+            ```
 
         Args:
             context (str):
                 The context to bind.
-             index (int):
+            index (int):
                 The index to bind the context at. Index refers
                 to the index of the array in which the context will be bound.
                 Defaults to 0.

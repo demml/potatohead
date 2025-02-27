@@ -18,4 +18,3 @@ class AnthropicConfig:
             version (str):
                 The version of the API to use.
         """
-        pass

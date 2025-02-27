@@ -2,3 +2,17 @@
 # type: ignore
 
 from .potato_head import logging, openai, parts, prompts, test  # noqa: F401
+
+Mouth = parts.Mouth
+ChatPrompt = prompts.ChatPrompt
+Message = prompts.Message
+OpenAIConfig = openai.OpenAIConfig
+PromptType = prompts.PromptType
+
+__all__ = [
+    "Mouth",
+    "ChatPrompt",
+    "Message",
+    "OpenAIConfig",
+    "PromptType",
+]

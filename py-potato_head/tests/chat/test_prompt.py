@@ -1,4 +1,4 @@
-from potato_head.prompts import Message, ChatPrompt, PromptType
+from potato_head import Message, ChatPrompt, PromptType
 import json
 
 
