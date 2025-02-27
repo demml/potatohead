@@ -1,8 +1,6 @@
-<div style="margin-bottom: 20px">
+<div style="margin-bottom: 20px; position: relative; z-index: 1;">
   <img align="right" width="200" src="images/potatohead.svg">
 </div>
-
-<br clear="right"/>
 
 <div align="left">
   <h1>🥔 Potato Head</h1>
