@@ -1,7 +1,5 @@
-from potato_head.prompts import ChatPrompt
-from potato_head.openai import OpenAIConfig
+from potato_head import Mouth, ChatPrompt, OpenAIConfig
 from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
-from potato_head.parts import Mouth  # type: ignore
 
 
 RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Info))

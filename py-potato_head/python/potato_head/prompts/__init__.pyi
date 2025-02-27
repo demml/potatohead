@@ -241,3 +241,8 @@ class ChatPrompt:
         This is intended for debugging purposes. There is a equivalent method in
         rust that will return the same spec when used with a `Tongue` for fast processing.
         """
+
+    def to_open_ai_request(self) -> Dict[str, Any]:
+        """Convert the chat prompt to an OpenAI request that can be passed to the
+        OpenAI client sdk.
+        """

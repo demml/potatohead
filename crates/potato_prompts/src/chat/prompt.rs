@@ -1,7 +1,7 @@
 use crate::Message;
 use potato_error::PotatoHeadError;
 use potato_tools::FileName;
-use potato_tools::{pyobject_to_json, PromptType, Utils};
+use potato_tools::{json_to_pyobject, pyobject_to_json, PromptType, Utils};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::types::PyList;
@@ -174,6 +174,12 @@ impl ChatPrompt {
 
     pub fn model_dump_json(&self) -> String {
         serde_json::to_string(self).unwrap()
+    }
+
+    pub fn to_open_ai_request<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let spec = self.to_open_ai_spec();
+        let pydict = PyDict::new(py);
+        json_to_pyobject(py, &spec, &pydict)
     }
 
     #[staticmethod]

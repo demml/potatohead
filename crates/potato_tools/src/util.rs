@@ -1,7 +1,9 @@
 use colored_json::{Color, ColorMode, ColoredFormatter, PrettyFormatter, Styler};
 use potato_error::PotatoError;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString, PyTuple};
+use pyo3::IntoPyObjectExt;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::path::PathBuf;
@@ -73,12 +75,46 @@ impl Utils {
     }
 }
 
-/// Converts a UUID string to a byte key
-///
-/// # Errors
-///
-/// This function will return an error if:
-/// - Any downcasting or extraction fails.
+pub fn json_to_pyobject_value(py: Python, value: &Value) -> PyResult<PyObject> {
+    Ok(match value {
+        Value::Null => py.None(),
+        Value::Bool(b) => b
+            .into_py_any(py)
+            .map_err(|_| PyValueError::new_err("Invalid bool"))?,
+        Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                i.into_py_any(py)
+                    .map_err(|_| PyValueError::new_err("Invalid number"))?
+            } else if let Some(f) = n.as_f64() {
+                f.into_py_any(py)
+                    .map_err(|_| PyValueError::new_err("Invalid number"))?
+            } else {
+                return Err(PyValueError::new_err("Invalid number"));
+            }
+        }
+        Value::String(s) => s
+            .into_py_any(py)
+            .map_err(|_| PyValueError::new_err("Invalid string"))?,
+        Value::Array(arr) => {
+            let py_list = PyList::empty(py);
+            for item in arr {
+                let py_item = json_to_pyobject_value(py, item)?;
+                py_list.append(py_item)?;
+            }
+            py_list
+                .into_py_any(py)
+                .map_err(|_| PyValueError::new_err("Invalid list"))?
+        }
+        Value::Object(_) => {
+            let nested_dict = PyDict::new(py);
+            json_to_pyobject(py, value, &nested_dict)?;
+            nested_dict
+                .into_py_any(py)
+                .map_err(|_| PyValueError::new_err("Invalid object"))?
+        }
+    })
+}
+
 pub fn pyobject_to_json(obj: &Bound<'_, PyAny>) -> PyResult<Value> {
     if obj.is_instance_of::<PyDict>() {
         let dict = obj.downcast::<PyDict>()?;
@@ -132,12 +168,6 @@ pub fn pyobject_to_json(obj: &Bound<'_, PyAny>) -> PyResult<Value> {
     }
 }
 
-/// Converts a UUID string to a byte key
-///
-/// # Errors
-///
-/// This function will return an error if:
-/// - Any downcasting or extraction fails.
 pub fn pydict_to_json(obj: &Bound<'_, PyDict>) -> PyResult<Value> {
     if obj.is_instance_of::<PyDict>() {
         let dict = obj.downcast::<PyDict>()?;
@@ -189,4 +219,58 @@ pub fn pydict_to_json(obj: &Bound<'_, PyDict>) -> PyResult<Value> {
 
         Ok(Value::String(obj_str))
     }
+}
+
+pub fn json_to_pyobject<'py>(
+    py: Python,
+    value: &Value,
+    dict: &Bound<'py, PyDict>,
+) -> PyResult<Bound<'py, PyDict>> {
+    match value {
+        Value::Object(map) => {
+            for (k, v) in map {
+                let py_value = match v {
+                    Value::Null => py.None(),
+                    Value::Bool(b) => b
+                        .into_py_any(py)
+                        .map_err(|_| PyValueError::new_err("Invalid bool"))?,
+                    Value::Number(n) => {
+                        if let Some(i) = n.as_i64() {
+                            i.into_py_any(py)
+                                .map_err(|_| PyValueError::new_err("Invalid number"))?
+                        } else if let Some(f) = n.as_f64() {
+                            f.into_py_any(py)
+                                .map_err(|_| PyValueError::new_err("Invalid number"))?
+                        } else {
+                            return Err(PyValueError::new_err("Invalid number"));
+                        }
+                    }
+                    Value::String(s) => s
+                        .into_py_any(py)
+                        .map_err(|_| PyValueError::new_err("Invalid string"))?,
+                    Value::Array(arr) => {
+                        let py_list = PyList::empty(py);
+                        for item in arr {
+                            let py_item = json_to_pyobject_value(py, item)?;
+                            py_list.append(py_item)?;
+                        }
+                        py_list
+                            .into_py_any(py)
+                            .map_err(|_| PyValueError::new_err("Invalid list"))?
+                    }
+                    Value::Object(_) => {
+                        let nested_dict = PyDict::new(py);
+                        json_to_pyobject(py, v, &nested_dict)?;
+                        nested_dict
+                            .into_py_any(py)
+                            .map_err(|_| PyValueError::new_err("Invalid object"))?
+                    }
+                };
+                dict.set_item(k, py_value)?;
+            }
+        }
+        _ => return Err(PyValueError::new_err("Root must be an object")),
+    }
+
+    Ok(dict.clone())
 }

@@ -1,6 +1,4 @@
-from potato_head.parts import Mouth  # type: ignore
-from potato_head.prompts import ChatPrompt, Message
-from potato_head.openai import OpenAIConfig
+from potato_head import Mouth, ChatPrompt, Message, OpenAIConfig
 from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
 from pydantic import BaseModel
 
