@@ -1,6 +1,4 @@
-<figure markdown style="float: right; margin: 5px;">
-  ![Potato Head](images/potatohead.svg){ width="200" }
-</figure>
+<img align="right" width="200" src="images/potatohead.svg">
 
 # Potato Head
 
