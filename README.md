@@ -5,7 +5,9 @@
 
 <div id="toc"> <!-- both work, toc or user-content-toc -->
   <ul style="list-style: none;">
+    <summary>
       <h1>🥔 Potato Head</h1>
+    </summary>
   </ul>
 </div>
 
