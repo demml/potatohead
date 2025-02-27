@@ -11,10 +11,6 @@
   </ul>
 </div>
 
-<div align="left" style="border-bottom: none;">
-  <h1 style="border-bottom: none;">🥔 Potato Head</h1>
-</div>
-
 
 Build an LLM Potato Head. Add a **mouth** (chat), **eyes** (vision/image) and even **ears** (audio)! Fun for all ages!
 
