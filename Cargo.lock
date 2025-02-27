@@ -896,6 +896,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "potato-lib"
+version = "0.1.0"
+dependencies = [
+ "baked-potato",
+ "potato-error",
+ "potato-head",
+ "potato-prompts",
+ "potato-providers",
+ "potato-tools",
+]
+
+[[package]]
 name = "potato-prompts"
 version = "0.1.0"
 dependencies = [
