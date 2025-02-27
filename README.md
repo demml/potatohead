@@ -1,13 +1,17 @@
 <img align="right" width="200" src="images/potatohead.svg">
 
-# Potato Head
+<div align="left">
+  <h1>🥔 Potato Head</h1>
+</div>
 
 Build an LLM Potato Head. Add a **mouth** (chat), **eyes** (vision/image) and even **ears** (audio)! Fun for all ages!
 
 **Note:** Potato Head currently supports OpenAI compatible apis (more coming soon!) and you can only use **Mouths**. We are actively working on adding more parts to the Potato Head!
 
 
-## Description
+<div align="left">
+  <h2>📖 Description</h2>
+</div>
 
 
 Potato Head was originally built as a sister project to OpsML to help facilitate Prompt standardization and testing. The goal is to provide a simple and easy to use interface with low overhead. Thus, **Potato Head** is written entirely in **Rust** and is exposed via Python bindings to help improve performance and reduce latency of LLM applications when interacting with clients.
@@ -19,7 +23,9 @@ Check out the quickstart for more information on how you can get started with Po
 ## MORE FUNCTIONALITY COMING SOON!
 
 
-## Quick Start
+<div align="left">
+  <h2>🚀 Quick Start</h2>
+</div>
 
 ### Chat Completion
 
