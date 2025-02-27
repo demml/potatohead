@@ -6,6 +6,7 @@ pub mod logging;
 pub mod openai;
 pub mod parts;
 pub mod prompts;
+pub mod test;
 
 #[pymodule]
 fn potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -14,5 +15,6 @@ fn potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(prompts::prompts))?;
     m.add_wrapped(wrap_pymodule!(parts::parts))?;
     m.add_wrapped(wrap_pymodule!(anthropic::anthropic))?;
+    m.add_wrapped(wrap_pymodule!(test::test))?;
     Ok(())
 }

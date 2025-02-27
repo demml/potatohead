@@ -995,12 +995,16 @@ dependencies = [
 name = "py-potato_head"
 version = "0.1.0"
 dependencies = [
+ "baked-potato",
+ "potato-error",
  "potato-head",
  "potato-prompts",
  "potato-providers",
  "potato-tools",
  "pyo3",
+ "reqwest",
  "rusty-logging",
+ "tokio",
  "tracing",
  "tracing-subscriber",
 ]
