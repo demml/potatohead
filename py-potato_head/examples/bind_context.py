@@ -14,7 +14,7 @@ prompt = ChatPrompt(
         },
         {
             "role": "user",
-            "content": "Give me a one sentence overview of $1. Also, what what the result of my first question?",
+            "content": "Give me a one sentence overview of $1. Also, what was the result of my first question?",
         },
     ],
 )
