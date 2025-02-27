@@ -1,4 +1,6 @@
-<img align="right" width="200" src="images/potatohead.svg">
+<div style="margin-bottom: 20px">
+  <img align="right" width="200" src="images/potatohead.svg">
+</div>
 
 <div align="left">
   <h1>🥔 Potato Head</h1>
