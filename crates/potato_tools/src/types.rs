@@ -12,11 +12,11 @@ pub enum FileName {
 impl FileName {
     pub fn to_str(&self) -> String {
         // add current timestamp to filename
-        let now = Utc::now().naive_utc().to_string();
+        let now = Utc::now().naive_utc();
         match self {
-            FileName::OpenAIPrompt => format!("openai_prompt_{}", now),
-            FileName::ClaudePrompt => format!("claude_prompt_{}", now),
-            FileName::Prompt => format!("prompt_{}", now),
+            FileName::OpenAIPrompt => format!("openai_prompt_{now}"),
+            FileName::ClaudePrompt => format!("openai_prompt_{now}"),
+            FileName::Prompt => format!("prompt_{now}"),
         }
     }
 }
