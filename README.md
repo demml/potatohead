@@ -2,9 +2,13 @@
   <img align="right" width="200" src="images/potatohead.svg">
 </div>
 
-<div align="left">
-  <h1>🥔 Potato Head</h1>
+
+<div id="toc"> <!-- both work, toc or user-content-toc -->
+  <ul style="list-style: none;">
+      <h1>🥔 Potato Head</h1>
+  </ul>
 </div>
+
 
 Build an LLM Potato Head. Add a **mouth** (chat), **eyes** (vision/image) and even **ears** (audio)! Fun for all ages!
 
