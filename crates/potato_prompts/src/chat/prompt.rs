@@ -1,5 +1,6 @@
 use crate::Message;
 use potato_error::PotatoHeadError;
+use potato_tools::FileName;
 use potato_tools::{pyobject_to_json, PromptType, Utils};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -7,6 +8,7 @@ use pyo3::types::PyList;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::path::PathBuf;
 
 fn parse_message_from_pyobject(message: &Bound<'_, PyAny>) -> PyResult<Message> {
     if message.is_instance_of::<Message>() {
@@ -67,6 +69,8 @@ pub struct ChatPrompt {
     original_messages: Vec<Message>,
 
     pub additional_data: Option<Value>,
+
+    pub version: String,
 }
 
 #[pymethods]
@@ -84,12 +88,16 @@ impl ChatPrompt {
         // extract messages
         let messages = parse_messages_from_pyobject(messages)?;
 
+        // get version from crate
+        let version = env!("CARGO_PKG_VERSION").to_string();
+
         Ok(Self {
             model: model.to_string(),
             prompt_type: PromptType::Chat,
             original_messages: messages.clone(),
             messages,
             additional_data: raw_json,
+            version,
         })
     }
 
@@ -162,6 +170,27 @@ impl ChatPrompt {
 
     pub fn open_ai_spec(&self) -> String {
         Utils::__str__(self.to_open_ai_spec())
+    }
+
+    pub fn model_dump_json(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+
+    #[staticmethod]
+    pub fn model_validate_json(json_string: String) -> PyResult<Self> {
+        let json_value: Value = serde_json::from_str(&json_string)
+            .map_err(|e| PotatoHeadError::new_err(format!("Failed to parse JSON string: {}", e)))?;
+        let model: Self = serde_json::from_value(json_value)
+            .map_err(|e| PotatoHeadError::new_err(format!("Failed to parse JSON value: {}", e)))?;
+
+        Ok(model)
+    }
+
+    #[pyo3(signature = (path = None))]
+    pub fn save_prompt(&self, path: Option<PathBuf>) -> PyResult<()> {
+        Utils::save_to_json(self, path, &FileName::Prompt.to_str())?;
+
+        Ok(())
     }
 }
 

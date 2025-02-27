@@ -5,7 +5,6 @@ use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString, PyTuple};
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::path::PathBuf;
-
 pub struct Utils {}
 
 impl Utils {
@@ -65,7 +64,7 @@ impl Utils {
 
             new_path
         } else {
-            PathBuf::from(filename)
+            PathBuf::from(filename).with_extension("json")
         };
 
         std::fs::write(write_path, json).map_err(|_| PotatoError::WriteError)?;

@@ -1,6 +1,7 @@
 use chrono::Utc;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 pub enum FileName {
     OpenAIPrompt,
@@ -16,6 +17,16 @@ impl FileName {
             FileName::OpenAIPrompt => format!("openai_prompt_{}", now),
             FileName::ClaudePrompt => format!("claude_prompt_{}", now),
             FileName::Prompt => format!("prompt_{}", now),
+        }
+    }
+}
+
+impl AsRef<Path> for FileName {
+    fn as_ref(&self) -> &Path {
+        match self {
+            FileName::OpenAIPrompt => Path::new("openai_prompt"),
+            FileName::ClaudePrompt => Path::new("claude_prompt"),
+            FileName::Prompt => Path::new("prompt"),
         }
     }
 }
