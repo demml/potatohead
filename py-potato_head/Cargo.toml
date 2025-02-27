@@ -1,0 +1,29 @@
+[package]
+name = "py-potato_head"
+version = { workspace = true }
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "potato_head"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+baked-potato = { workspace = true, optional = true }
+potato-error = { workspace = true }
+potato-head = { workspace = true }
+potato-prompts = { workspace = true }
+potato-providers = { workspace = true }
+potato-tools = { workspace = true }
+
+pyo3 = { workspace = true }
+reqwest = { workspace = true, optional = true }
+rusty-logging = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true, optional = true }
+
+
+[features]
+dev = ["baked-potato", "tokio", "reqwest"]
+

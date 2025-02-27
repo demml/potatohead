@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 env:
-  PACKAGE_NAME: wormtongue
+  PACKAGE_NAME: potato_head
   INTERPRETER: "3.10 3.11 3.12 3.13 pypy3.9 pypy3.10"
   RUSTFLAGS: -C debuginfo=0
 
@@ -23,13 +23,13 @@ jobs:
           command: sdist
           args: --out dist
           rust-toolchain: stable
-          working-directory: ./py-wormtongue
+          working-directory: ./py-potato_head
 
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
           name: pypi_sdist
-          path: ./py-wormtongue/dist
+          path: ./py-potato_head/dist
 
   build-ubuntu:
     name: build - ubuntu - ${{ matrix.platform.manylinux }} - ${{ matrix.platform.target }}
@@ -71,20 +71,20 @@ jobs:
           args: --release --out dist --interpreter ${{ env.INTERPRETER }}
           rust-toolchain: stable
           docker-options: -e CI
-          working-directory: ./py-wormtongue
+          working-directory: ./py-potato_head
 
       - name: Check dist
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potato_head
         run: ls -lh dist/
 
       - name: Check wheel
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potato_head
         run: twine check --strict dist/*
 
       - uses: actions/upload-artifact@v4
         with:
           name: pypi_files_ubuntu_${{ matrix.platform.target }}_all_${{ matrix.platform.manylinux }}
-          path: ./py-wormtongue/dist
+          path: ./py-potato_head/dist
 
   build-ubuntu-musllinux:
     name: build - ubuntu - ${{ matrix.manylinux }} - ${{ matrix.target }}
@@ -113,20 +113,20 @@ jobs:
           args: --release --out dist --interpreter ${{ env.INTERPRETER }}
           rust-toolchain: stable
           docker-options: -e CI
-          working-directory: ./py-wormtongue
+          working-directory: ./py-potato_head
 
       - name: Check dist
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potato_head
         run: ls -lh dist/
 
       - name: Check wheel
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potato_head
         run: twine check --strict dist/*
 
       - uses: actions/upload-artifact@v4
         with:
           name: pypi_files_ubuntu_${{ matrix.target }}_all_${{ matrix.manylinux }}
-          path: ./py-wormtongue/dist
+          path: ./py-potato_head/dist
 
   build-macos:
     name: build - macos - (${{ matrix.target }} - auto
@@ -153,20 +153,20 @@ jobs:
           args: --release --out dist --interpreter ${{ env.INTERPRETER }}
           rust-toolchain: stable
           docker-options: -e CI
-          working-directory: ./py-wormtongue
+          working-directory: ./py-potato_head
 
       - name: Check dist
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potato_head
         run: ls -lh dist/
 
       - name: Check wheel
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potato_head
         run: twine check --strict dist/*
 
       - uses: actions/upload-artifact@v4
         with:
           name: pypi_files_macos_${{ matrix.target }}_all
-          path: ./py-wormtongue/dist
+          path: ./py-potato_head/dist
 
   build-windows:
     name: build - windows - (${{ matrix.target }} - auto
@@ -206,20 +206,20 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --interpreter ${{ matrix.interpreter || env.INTERPRETER }}
           rust-toolchain: stable
-          working-directory: ./py-wormtongue
+          working-directory: ./py-potato_head
 
       - name: Check dist
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potato_head
         run: dir dist/
 
       - name: Check wheel
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potato_head
         run: twine check --strict dist/*
 
       - uses: actions/upload-artifact@v4
         with:
           name: pypi_files_windows_${{ matrix.target }}_all
-          path: ./py-wormtongue/dist
+          path: ./py-potato_head/dist
 
   inspect-pypi-assets:
     needs:
@@ -274,22 +274,22 @@ jobs:
           python-version: "3.12"
 
       - name: Create virtual environment
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potato_head
         run: |
           python -m venv .venv
-          echo "$GITHUB_WORKSPACE/wormtongue/.venv/bin" >> $GITHUB_PATH
+          echo "$GITHUB_WORKSPACE/potato_head/.venv/bin" >> $GITHUB_PATH
 
       - name: get dist artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: pypi_files_${{ matrix.os }}_*
           merge-multiple: true
-          path: py-wormtongue/dist
+          path: py-potato_head/dist
 
-      - name: install wormtongue-ml
-        working-directory: ./py-wormtongue
+      - name: install potato_head-ml
+        working-directory: ./py-potato_head
         run: |
-          python3 -m pip install wormtongue --no-deps --no-index --force-reinstall --find-links dist
+          python3 -m pip install potato_head --no-deps --no-index --force-reinstall --find-links dist
 
   python-release:
     name: Release-Python
@@ -300,7 +300,7 @@ jobs:
       - name: install rust stable
         uses: dtolnay/rust-toolchain@stable
       - name: Check version
-        working-directory: ./py-wormtongue
+        working-directory: ./py-potato_head
         run: |
           export VERSION=$(cargo pkgid | cut -d "#" -f2)
           echo "version: $VERSION"

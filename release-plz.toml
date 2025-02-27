@@ -7,8 +7,8 @@ publish_timeout = "10m" # set a timeout for `cargo publish`
 git_tag_enable = false
 git_release_enable = false
 publish = true
-repo_url = "https://github.com/demml/wormtongue"
+repo_url = "https://github.com/demml/potato_head"
 
 [[package]]
-name = "py-wormtongue"
+name = "py-potato_head"
 publish = false

@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
   "crates/*",
-  "py-wormtongue",
+  "py-potato_head",
 ]
 default-members = [
   "crates/*",
@@ -13,14 +13,26 @@ version = "0.1.0"
 authors = ["demml <support@demmlai.com>"]
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/demml/wormtongue"
+repository = "https://github.com/demml/potatohead"
 
 [workspace.dependencies]
-wormtongue = { path = "crates/wormtongue" }
-worm-macros = { path = "crates/worm-macros" }
+baked-potato = { path = "crates/baked_potato" }
+potato-client = { path = "crates/potato_client" }
+potato-error = { path = "crates/potato_error" }
+potato-providers = { path = "crates/potato_providers" }
+potato-prompts = { path = "crates/potato_prompts" }
+potato-tools = { path = "crates/potato_tools" }
+potato-traits = { path = "crates/potato_traits" }
+potato-head = { path = "crates/potato_head" }
+
+anyhow = "1.*"
+axum = "0.*"
+async-trait = "0.*"
 chrono ={ version = "0.*", features = ["serde"] }
 colored_json = "*"
 futures = "0.*"
+futures-core = "0.*"
+futures-util = "0.*"
 proc-macro2 = "1.0"
 pyo3 = { version = ">=0.23.3, <1.0.0", features = ["chrono", "anyhow", "extension-module"] }
 quote = "1.*"
@@ -29,10 +41,12 @@ rusty-logging="0.*"
 serde = { version = "1.*", features = ["derive"] }
 serde_json = "1.*"
 syn = "2.*"
-thiserror = "1.*"
+thiserror = "2.*"
 tokio = { version = "1.*", features = ["rt", "rt-multi-thread", "macros"] }
+tower-http = { version = "0.*", features = ["cors"] }
 tracing = "0.*"
 tracing-subscriber = {version = "0.*", features = ["json", "time"]}
+
 
 [profile.release]
 lto = "fat"

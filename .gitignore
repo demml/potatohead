@@ -19,7 +19,6 @@ dist/
 eggs/
 lib/
 lib64/
-parts/
 sdist/
 var/
 include/
@@ -71,4 +70,4 @@ test_scripts/
 
 # Pyenv
 .python-version
-crates/wormtongue/src/tongues/openai/response/openai.yaml
+crates/potato_head/src/potato_head/openai/response/openai.yaml
