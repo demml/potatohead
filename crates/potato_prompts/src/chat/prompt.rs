@@ -193,10 +193,20 @@ impl ChatPrompt {
     }
 
     #[pyo3(signature = (path = None))]
-    pub fn save_prompt(&self, path: Option<PathBuf>) -> PyResult<()> {
-        Utils::save_to_json(self, path, &FileName::Prompt.to_str())?;
+    pub fn save_prompt(&self, path: Option<PathBuf>) -> PyResult<PathBuf> {
+        let path = Utils::save_to_json(self, path, &FileName::Prompt.to_str())?;
+        Ok(path)
+    }
 
-        Ok(())
+    #[staticmethod]
+    pub fn load_from_path(path: PathBuf) -> PyResult<Self> {
+        // Load the JSON file from the path
+        let file = std::fs::read_to_string(&path)
+            .map_err(|e| PotatoHeadError::new_err(format!("Failed to read file: {}", e)))?;
+
+        // Parse the JSON file into a ChatPrompt
+        serde_json::from_str(&file)
+            .map_err(|e| PotatoHeadError::new_err(format!("Failed to parse JSON: {}", e)))
     }
 }
 

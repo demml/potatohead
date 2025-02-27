@@ -42,7 +42,7 @@ impl Utils {
         model: T,
         path: Option<PathBuf>,
         filename: &str,
-    ) -> Result<(), PotatoError>
+    ) -> Result<PathBuf, PotatoError>
     where
         T: Serialize,
     {
@@ -71,7 +71,7 @@ impl Utils {
 
         std::fs::write(write_path, json).map_err(|_| PotatoError::WriteError)?;
 
-        Ok(())
+        Ok(write_path)
     }
 }
 

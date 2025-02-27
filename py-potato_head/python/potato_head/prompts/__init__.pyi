@@ -1,5 +1,6 @@
 # pylint: disable=redefined-builtin
 from typing import Any, Dict, List, Optional, Union
+from pathlib import Path
 
 class PromptType:
     Image: "PromptType"
@@ -245,4 +246,28 @@ class ChatPrompt:
     def to_open_ai_request(self) -> Dict[str, Any]:
         """Convert the chat prompt to an OpenAI request that can be passed to the
         OpenAI client sdk.
+        """
+
+    def model_dump_json(self) -> str:
+        """Dump the model to a JSON string."""
+
+    @staticmethod
+    def model_validate_json(json_string: str) -> "ChatPrompt":
+        """Load a `ChatPrompt` from a JSON string."""
+
+    def save_prompt(self, path: Optional[Path] = None) -> Path:
+        """Save the chat prompt to a file.
+
+        Args:
+            path (Optional[Path]):
+                The path to save the chat prompt to. If not provided,
+                defaults to "prompt_{utc_datetime}.json".
+        """
+
+    def load_from_path(self, path: Path) -> "ChatPrompt":
+        """Load a `ChatPrompt` from a file.
+
+        Args:
+            path (Path):
+                The path to the chat prompt file.
         """
