@@ -1,7 +1,7 @@
 # pylint: disable=no-name-in-module
 # type: ignore
 
-from .potato_head import logging, openai, parts, prompts, test  # noqa: F401
+from .potato_head import anthropic, logging, openai, parts, prompts, test  # noqa: F401
 
 Mouth = parts.Mouth
 ChatPrompt = prompts.ChatPrompt
