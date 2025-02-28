@@ -56,20 +56,23 @@ pub struct SanitizationConfig {
 
     /// Whether to sanitize delimiters (like ``` or ---)
     #[pyo3(get)]
-    pub sanitize_delimiters: bool,
+    pub check_delimiters: bool,
 
     /// Whether to sanitize common prompt injection keywords
     #[pyo3(get)]
-    pub sanitize_keywords: bool,
+    pub check_keywords: bool,
 
     /// Whether to sanitize control characters
     #[pyo3(get)]
-    pub sanitize_control_chars: bool,
+    pub check_control_chars: bool,
 
     /// Custom regex patterns to detect and sanitize
     #[pyo3(get)]
     pub custom_patterns: Vec<String>,
 
+    /// Whether to sanitize or just detect issues
+    #[pyo3(get)]
+    pub sanitize: bool,
 
     /// Whether to throw error on high risk or just sanitize
     #[pyo3(get, set)]
@@ -81,25 +84,28 @@ impl SanitizationConfig {
     #[new]
     #[pyo3(signature = (
         risk_threshold = RiskLevel::High,
-        sanitize_delimiters = true,
-        sanitize_keywords = true,
-        sanitize_control_chars = true,
+        sanitize = true,
+        check_delimiters = true,
+        check_keywords = true,
+        check_control_chars = true,
         custom_patterns = vec![],
         error_on_high_risk = true
     ))]
     pub fn new(
         risk_threshold: RiskLevel,
-        sanitize_delimiters: bool,
-        sanitize_keywords: bool,
-        sanitize_control_chars: bool,
+        sanitize: bool,
+        check_delimiters: bool,
+        check_keywords: bool,
+        check_control_chars: bool,
         custom_patterns: Vec<String>,
         error_on_high_risk: bool,
     ) -> Self {
         Self {
             risk_threshold,
-            sanitize_delimiters,
-            sanitize_keywords,
-            sanitize_control_chars,
+            sanitize,
+            check_delimiters,
+            check_keywords,
+            check_control_chars,
             custom_patterns,
             error_on_high_risk,
         }
@@ -110,9 +116,10 @@ impl SanitizationConfig {
     pub fn strict() -> Self {
         Self {
             risk_threshold: RiskLevel::Low,
-            sanitize_delimiters: true,
-            sanitize_keywords: true,
-            sanitize_control_chars: true,
+            sanitize: true,
+            check_delimiters: true,
+            check_keywords: true,
+            check_control_chars: true,
             custom_patterns: vec![],
             error_on_high_risk: true,
         }
@@ -123,9 +130,10 @@ impl SanitizationConfig {
     pub fn standard() -> Self {
         Self {
             risk_threshold: RiskLevel::High,
-            sanitize_delimiters: true,
-            sanitize_keywords: true,
-            sanitize_control_chars: true,
+            sanitize: true,
+            check_delimiters: true,
+            check_keywords: true,
+            check_control_chars: true,
             custom_patterns: vec![],
             error_on_high_risk: true,
         }
@@ -136,9 +144,10 @@ impl SanitizationConfig {
     pub fn permissive() -> Self {
         Self {
             risk_threshold: RiskLevel::Critical,
-            sanitize_delimiters: false,
-            sanitize_keywords: true,
-            sanitize_control_chars: true,
+            sanitize: true,
+            check_delimiters: false,
+            check_keywords: true,
+            check_control_chars: true,
             custom_patterns: vec![],
             error_on_high_risk: false,
         }
@@ -425,7 +434,7 @@ fn get_control_chars() -> &'static HashMap<char, RiskLevel> {
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct PromptSanitizer {
-    config: SanitizationConfig,
+    pub config: SanitizationConfig,
     pattern_set: RegexSet,
     compiled_patterns: Vec<Regex>,
 }
@@ -462,24 +471,24 @@ impl PromptSanitizer {
         let mut highest_risk = RiskLevel::Safe;
 
         // Check for delimiters
-        if self.config.sanitize_delimiters {
-            let (text_result, issues, risk) = self.sanitize_delimiters(&sanitized);
+        if self.config.check_delimiters {
+            let (text_result, issues, risk) = self.check_delimiters(&sanitized);
             sanitized = text_result;
             detected_issues.extend(issues);
             highest_risk = std::cmp::max(highest_risk, risk);
         }
 
         // Check for prompt injection keywords
-        if self.config.sanitize_keywords {
-            let (text_result, issues, risk) = self.sanitize_keywords(&sanitized);
+        if self.config.check_keywords {
+            let (text_result, issues, risk) = self.check_keywords(&sanitized);
             sanitized = text_result;
             detected_issues.extend(issues);
             highest_risk = std::cmp::max(highest_risk, risk);
         }
 
         // Check for control characters
-        if self.config.sanitize_control_chars {
-            let (text_result, issues, risk) = self.sanitize_control_chars(&sanitized);
+        if self.config.check_control_chars {
+            let (text_result, issues, risk) = self.check_control_chars(&sanitized);
             sanitized = text_result;
             detected_issues.extend(issues);
             highest_risk = std::cmp::max(highest_risk, risk);
@@ -512,21 +521,21 @@ impl PromptSanitizer {
         let mut highest_risk = RiskLevel::Safe;
 
         // Check for delimiters
-        if self.config.sanitize_delimiters {
+        if self.config.check_delimiters {
             let (issues, risk) = self.detect_delimiters(text);
             detected_issues.extend(issues);
             highest_risk = std::cmp::max(highest_risk, risk);
         }
 
         // Check for prompt injection keywords
-        if self.config.sanitize_keywords {
+        if self.config.check_keywords {
             let (issues, risk) = self.detect_keywords(text);
             detected_issues.extend(issues);
             highest_risk = std::cmp::max(highest_risk, risk);
         }
 
         // Check for control characters
-        if self.config.sanitize_control_chars {
+        if self.config.check_control_chars {
             let (issues, risk) = self.detect_control_chars(text);
             detected_issues.extend(issues);
             highest_risk = std::cmp::max(highest_risk, risk);
@@ -563,7 +572,7 @@ impl PromptSanitizer {
     }
 
     // Sanitize delimiter patterns from the text
-    fn sanitize_delimiters(&self, text: &str) -> (String, Vec<String>, RiskLevel) {
+    fn check_delimiters(&self, text: &str) -> (String, Vec<String>, RiskLevel) {
         let mut result = text.to_string();
         let mut issues = Vec::new();
         let mut highest_risk = RiskLevel::Safe;
@@ -601,7 +610,7 @@ impl PromptSanitizer {
         (issues, highest_risk)
     }
 
-    fn sanitize_keywords(&self, text: &str) -> (String, Vec<String>, RiskLevel) {
+    fn check_keywords(&self, text: &str) -> (String, Vec<String>, RiskLevel) {
         let mut result = text.to_string();
         let mut issues = Vec::new();
         let mut highest_risk = RiskLevel::Safe;
@@ -637,7 +646,7 @@ impl PromptSanitizer {
     }
 
     /// Sanitize control characters from the text
-    fn sanitize_control_chars(&self, text: &str) -> (String, Vec<String>, RiskLevel) {
+    fn check_control_chars(&self, text: &str) -> (String, Vec<String>, RiskLevel) {
         let mut issues = Vec::new();
         let mut highest_risk = RiskLevel::Safe;
 

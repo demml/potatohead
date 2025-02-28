@@ -1,5 +1,7 @@
+use super::sanitize::SanitizationResult;
 use crate::chat::sanitize::{PromptSanitizer, SanitizationConfig};
 use crate::Message;
+use potato_error::PotatoError;
 use potato_error::PotatoHeadError;
 use potato_tools::FileName;
 use potato_tools::{json_to_pyobject, pyobject_to_json, PromptType, Utils};
@@ -7,6 +9,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::types::PyList;
 use pyo3::IntoPyObjectExt;
+use serde::ser::SerializeSeq;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::PathBuf;
@@ -78,6 +81,21 @@ pub struct ChatPrompt {
 
     #[serde(skip)] // skip serialization and deserialization (added when loading from json)
     pub sanitizer: Option<PromptSanitizer>,
+
+    #[serde(serialize_with = "serialize_as_empty_vec", default = "Vec::new")]
+    #[pyo3(get)]
+    pub sanitized_results: Vec<SanitizationResult>,
+
+    #[pyo3(get)]
+    pub has_sanitize_error: bool,
+}
+
+fn serialize_as_empty_vec<S>(_: &Vec<SanitizationResult>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    // Always serialize as an empty vector
+    serializer.serialize_seq(Some(0))?.end()
 }
 
 #[pymethods]
@@ -113,6 +131,8 @@ impl ChatPrompt {
             version,
             sanitization_config,
             sanitizer,
+            sanitized_results: Vec::new(),
+            has_sanitize_error: false,
         })
     }
 
@@ -135,8 +155,10 @@ impl ChatPrompt {
 
     #[pyo3(signature = (context, index=0,))]
     pub fn bind_context_at(&mut self, context: String, index: usize) -> PyResult<()> {
+        let new_context = self.sanitize_message(&context)?;
+
         if let Some(message) = self.messages.get_mut(index) {
-            message.bind(&context)?;
+            message.bind(&new_context)?;
 
             Ok(())
         } else {
@@ -157,6 +179,9 @@ impl ChatPrompt {
         for message in &mut self.messages {
             message.reset_binding();
         }
+        self.has_sanitize_error = false;
+        self.sanitized_results.clear();
+
         Ok(())
     }
 
@@ -229,7 +254,7 @@ impl ChatPrompt {
             .map_err(|e| PotatoHeadError::new_err(format!("Failed to parse JSON: {}", e)))
     }
 }
-
+use std::borrow::Cow;
 impl ChatPrompt {
     pub fn to_open_ai_spec(&self) -> Value {
         let msgs = self
@@ -262,5 +287,32 @@ impl ChatPrompt {
         //}
 
         spec
+    }
+
+    /// Sanitize the message using the provided sanitizer
+    /// If no sanitizer is provided, return the original message
+    ///
+    /// Returns the sanitized message
+    ///
+    fn sanitize_message<'a>(&mut self, message: &'a str) -> Result<Cow<'a, str>, PotatoError> {
+        if let Some(sanitizer) = &self.sanitizer {
+            let result = if sanitizer.config.sanitize {
+                sanitizer.sanitize(message)?
+            } else {
+                sanitizer.assess_risk(message)?
+            };
+
+            if result.risk_level >= sanitizer.config.risk_threshold {
+                self.has_sanitize_error = true;
+            }
+
+            let sanitized = result.sanitized_text.clone();
+            self.sanitized_results.push(result);
+
+            return Ok(Cow::Owned(sanitized));
+        }
+
+        // No need to clone the original message
+        Ok(Cow::Borrowed(message))
     }
 }
