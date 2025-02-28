@@ -118,9 +118,7 @@ impl ChatPrompt {
         let version = env!("CARGO_PKG_VERSION").to_string();
 
         // Create a sanitizer if sanitization_config is provided
-        let sanitizer = sanitization_config
-            .clone()
-            .map(|config| PromptSanitizer::new(config));
+        let sanitizer = sanitization_config.clone().map(PromptSanitizer::new);
 
         Ok(Self {
             model: model.to_string(),
