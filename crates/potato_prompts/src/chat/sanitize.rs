@@ -51,24 +51,25 @@ pub struct SanitizationResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SanitizationConfig {
     /// Minimum risk level that will cause rejection
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub risk_threshold: RiskLevel,
 
     /// Whether to sanitize delimiters (like ``` or ---)
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub sanitize_delimiters: bool,
 
     /// Whether to sanitize common prompt injection keywords
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub sanitize_keywords: bool,
 
     /// Whether to sanitize control characters
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub sanitize_control_chars: bool,
 
     /// Custom regex patterns to detect and sanitize
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub custom_patterns: Vec<String>,
+
 
     /// Whether to throw error on high risk or just sanitize
     #[pyo3(get, set)]
@@ -506,43 +507,47 @@ impl PromptSanitizer {
     }
 
     /// Assess risk without modifying text
-    pub fn assess_risk(&self, text: &str) -> Result<(RiskLevel, Vec<String>), PotatoError> {
+    pub fn assess_risk(&self, text: &str) -> Result<SanitizationResult, PotatoError> {
         let mut detected_issues = Vec::new();
         let mut highest_risk = RiskLevel::Safe;
 
         // Check for delimiters
         if self.config.sanitize_delimiters {
-            let (_, issues, risk) = self.detect_delimiters(text);
+            let (issues, risk) = self.detect_delimiters(text);
             detected_issues.extend(issues);
             highest_risk = std::cmp::max(highest_risk, risk);
         }
 
         // Check for prompt injection keywords
         if self.config.sanitize_keywords {
-            let (_, issues, risk) = self.detect_keywords(text);
+            let (issues, risk) = self.detect_keywords(text);
             detected_issues.extend(issues);
             highest_risk = std::cmp::max(highest_risk, risk);
         }
 
         // Check for control characters
         if self.config.sanitize_control_chars {
-            let (_, issues, risk) = self.detect_control_chars(text);
+            let (issues, risk) = self.detect_control_chars(text);
             detected_issues.extend(issues);
             highest_risk = std::cmp::max(highest_risk, risk);
         }
 
         // Check custom patterns
-        let (_, issues, risk) = self.detect_custom_patterns(text);
+        let (issues, risk) = self.detect_custom_patterns(text);
         detected_issues.extend(issues);
         highest_risk = std::cmp::max(highest_risk, risk);
 
-        Ok((highest_risk, detected_issues))
+        Ok(SanitizationResult{
+            sanitized_text: text.to_string(),
+            risk_level: highest_risk,
+            detected_issues,
+        })
     }
 }
 
 impl PromptSanitizer {
-    fn detect_delimiters(&self, text: &str) -> (String, Vec<String>, RiskLevel) {
-        let result = text.to_string();
+    fn detect_delimiters(&self, text: &str) -> (Vec<String>, RiskLevel) {
+      
         let mut issues = Vec::new();
         let mut highest_risk = RiskLevel::Safe;
 
@@ -554,7 +559,7 @@ impl PromptSanitizer {
             }
         }
 
-        (result, issues, highest_risk)
+        (issues, highest_risk)
     }
 
     // Sanitize delimiter patterns from the text
@@ -577,8 +582,7 @@ impl PromptSanitizer {
 }
 
 impl PromptSanitizer {
-    fn detect_keywords(&self, text: &str) -> (String, Vec<String>, RiskLevel) {
-        let result = text.to_string();
+    fn detect_keywords(&self, text: &str) -> (Vec<String>, RiskLevel) {
         let mut issues = Vec::new();
         let mut highest_risk = RiskLevel::Safe;
 
@@ -594,7 +598,7 @@ impl PromptSanitizer {
             }
         }
 
-        (result, issues, highest_risk)
+        (issues, highest_risk)
     }
 
     fn sanitize_keywords(&self, text: &str) -> (String, Vec<String>, RiskLevel) {
@@ -617,8 +621,7 @@ impl PromptSanitizer {
 
 impl PromptSanitizer {
     /// Detect control characters without modifying the text
-    fn detect_control_chars(&self, text: &str) -> (String, Vec<String>, RiskLevel) {
-        let result = text.to_string();
+    fn detect_control_chars(&self, text: &str) -> (Vec<String>, RiskLevel) {
         let mut issues = Vec::new();
         let mut highest_risk = RiskLevel::Safe;
 
@@ -630,7 +633,7 @@ impl PromptSanitizer {
             }
         }
 
-        (result, issues, highest_risk)
+        (issues, highest_risk)
     }
 
     /// Sanitize control characters from the text
@@ -658,8 +661,8 @@ impl PromptSanitizer {
 
 impl PromptSanitizer {
     /// Detect custom patterns without modifying the text
-    fn detect_custom_patterns(&self, text: &str) -> (String, Vec<String>, RiskLevel) {
-        let result = text.to_string();
+    fn detect_custom_patterns(&self, text: &str) -> (Vec<String>, RiskLevel) {
+    
         let mut issues = Vec::new();
         let mut highest_risk = RiskLevel::Safe;
 
@@ -673,7 +676,7 @@ impl PromptSanitizer {
             }
         }
 
-        (result, issues, highest_risk)
+        (issues, highest_risk)
     }
 
     fn sanitize_custom_patterns(&self, text: &str) -> (String, Vec<String>, RiskLevel) {
@@ -707,7 +710,7 @@ mod tests {
 
         assert_eq!(
             sanitizer.detect_delimiters("Normal text"),
-            ("Normal text".to_string(), vec![], RiskLevel::Safe)
+            (vec![], RiskLevel::Safe)
         );
 
         let test_cases = vec![
@@ -719,14 +722,14 @@ mod tests {
         ];
 
         for (input, expected_risk) in test_cases {
-            let (risk, issues) = sanitizer.assess_risk(input).unwrap();
-            assert_eq!(risk, expected_risk, "Failed for input: {}", input);
+            let result = sanitizer.assess_risk(input).unwrap();
+            assert_eq!(result.risk_level, expected_risk, "Failed for input: {}", input);
 
             // only normal text should have no issues
             if expected_risk == RiskLevel::Safe {
-                assert!(issues.is_empty());
+                assert!(result.detected_issues.is_empty());
             } else {
-                assert!(!issues.is_empty());
+                assert!(!result.detected_issues.is_empty());
             }
         }
     }
@@ -786,8 +789,8 @@ mod tests {
         ];
 
         for (input, expected_risk) in test_cases {
-            let (risk, issues) = sanitizer.assess_risk(input).unwrap();
-            assert_eq!(risk, expected_risk, "Failed for input: {}", input);
+            let result = sanitizer.assess_risk(input).unwrap();
+            assert_eq!(result.risk_level, expected_risk, "Failed for input: {}", input);
         }
     }
 
@@ -810,14 +813,14 @@ mod tests {
         ];
 
         for (input, expected_risk) in test_cases {
-            let (risk, issues) = sanitizer.assess_risk(input).unwrap();
-            assert_eq!(risk, expected_risk, "Failed for input with control char");
+            let result = sanitizer.assess_risk(input).unwrap();
+            assert_eq!(result.risk_level, expected_risk, "Failed for input with control char");
 
             // Only normal text should have no issues
             if expected_risk == RiskLevel::Safe {
-                assert!(issues.is_empty());
+                assert!(result.detected_issues.is_empty());
             } else {
-                assert!(!issues.is_empty());
+                assert!(!result.detected_issues.is_empty());
             }
         }
     }
@@ -853,13 +856,13 @@ mod tests {
         ];
         
         for (input, expected_risk) in test_cases {
-            let (risk, issues) = sanitizer.assess_risk(input).unwrap();
-            assert_eq!(risk, expected_risk, "Failed for input: {}", input);
+            let result = sanitizer.assess_risk(input).unwrap();
+            assert_eq!(result.risk_level, expected_risk, "Failed for input: {}", input);
 
             if expected_risk == RiskLevel::Safe {
-                assert!(issues.is_empty());
+                assert!(result.detected_issues.is_empty());
             } else {
-                assert!(!issues.is_empty());
+                assert!(!result.detected_issues.is_empty());
             }
         }
     }
