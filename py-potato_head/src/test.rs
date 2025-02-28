@@ -81,7 +81,7 @@ impl LLMTestServer {
                 sleep(Duration::from_millis(100));
             }
 
-            return Err(PotatoHeadError::new_err("Failed to start LLM Dev server"));
+            Err(PotatoHeadError::new_err("Failed to start LLM Dev server"))
         }
         #[cfg(not(feature = "dev"))]
         {
