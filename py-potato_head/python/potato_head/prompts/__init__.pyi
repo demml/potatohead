@@ -146,6 +146,7 @@ class ChatPrompt:
         self,
         model: str,
         messages: List[Message | Dict[str, Any]],
+        sanitization_config: Optional[SanitizationConfig] = None,
         **kwargs,
     ) -> None:
         """ChatPrompt for interacting with an LLM Chat API.
@@ -179,8 +180,26 @@ class ChatPrompt:
                 The model to use for the chat prompt.
             messages (List[Message | Dict[str, Any]]):
                 The messages to use in the chat prompt.
-            kwargs:
-                Additional data to pass to the API data field.
+            sanitization_config (Optional[SanitizationConfig]):
+                The sanitization configuration to use for the chat prompt.
+                Defaults to None which means no sanitization will be performed.
+            **kwargs:
+                Additional model-specific parameters passed to the API. Common options include:
+
+                - temperature (float):
+                    Sampling temperature (0.0-2.0). Lower values make responses more deterministic.
+                - top_p (float):
+                    Nucleus sampling parameter (0.0-1.0).
+                - n (int):
+                    Number of completions to generate.
+                - stream (bool):
+                    Whether to stream responses.
+                - logprobs (bool):
+                    Whether to return log probabilities.
+                - top_logprobs (int):
+                    Number of most likely tokens to return log probabilities for.
+                - max_tokens (int):
+                    Maximum number of tokens to generate.
         """
 
     @property
@@ -196,6 +215,14 @@ class ChatPrompt:
         """The prompt type to use for the chat prompt."""
 
     @property
+    def sanitized_results(self) -> List[SanitizationResult]:
+        """The results of the sanitization attempt."""
+
+    @property
+    def has_sanitize_error(self) -> bool:
+        """Whether the prompt has sanitization errors."""
+
+    @property
     def additional_data(self) -> Optional[str]:
         """Additional data as it will be passed to the API data field."""
 
@@ -209,6 +236,10 @@ class ChatPrompt:
 
     def bind_context_at(self, context: str, index: int = 0) -> None:
         """Bind a context at a specific index in the chat prompt.
+        If a `SanitizationConfig` is provided, the context will be sanitized
+        prior to being bound. Any `SanitizationResult` will be stored in the
+        sanitized_results property and if the risk threshold has been passed
+        `has_sanitize_error` will be set to True.
 
             Example with ChatPrompt that contains two messages
 
@@ -292,7 +323,7 @@ class SanitizationConfig:
     error_on_high_risk: bool
     def __init__(
         self,
-        risk_threshold: RiskLevel.High,
+        risk_threshold: RiskLevel = RiskLevel.High,
         sanitize: bool = True,
         check_delimiters: bool = True,
         check_keywords: bool = True,
