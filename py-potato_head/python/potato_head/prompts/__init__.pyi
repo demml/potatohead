@@ -216,6 +216,10 @@ class ChatPrompt:
         """The prompt type to use for the chat prompt."""
 
     @property
+    def sanitization_config(self) -> Optional[SanitizationConfig]:
+        """The sanitization configuration to use for the chat prompt."""
+
+    @property
     def sanitized_results(self) -> List[SanitizationResult]:
         """The results of the sanitization attempt."""
 
@@ -315,13 +319,6 @@ class RiskLevel(IntEnum):
     Critical = 4  # Critical risk, almost certainly a prompt injection attempt
 
 class SanitizationConfig:
-    risk_threshold: RiskLevel
-    sanitize: bool
-    check_delimiters: bool
-    check_keywords: bool
-    check_control_chars: bool
-    custom_patterns: List[str]
-    error_on_high_risk: bool
     def __init__(
         self,
         risk_threshold: RiskLevel = RiskLevel.High,
@@ -355,17 +352,49 @@ class SanitizationConfig:
         """
 
     @property
-    def strict(self) -> "SanitizationConfig":
+    def risk_threshold(self) -> RiskLevel:
+        """The risk threshold to use for the sanitization."""
+
+    @property
+    def check_delimiters(self) -> bool:
+        """Whether to check for delimiters in the chat prompt."""
+
+    @property
+    def check_keywords(self) -> bool:
+        """Whether to check for keywords in the chat prompt."""
+
+    @property
+    def check_control_chars(self) -> bool:
+        """Whether to check for control characters in the chat prompt."""
+
+    @property
+    def custom_patterns(self) -> List[str]:
+        """Custom patterns to use for the sanitization."""
+
+    @property
+    def sanitize(self) -> bool:
+        """Whether to sanitize the chat prompt or just assess risk."""
+
+    @property
+    def error_on_high_risk(self) -> bool:
+        """Whether to raise an error on high risk."""
+
+    @error_on_high_risk.setter
+    def error_on_high_risk(self, value: bool) -> None:
+        """Set the error_on_high_risk property."""
+
+    @staticmethod
+    def strict() -> "SanitizationConfig":
         """A strict sanitization (sanitize=True) configuration with all checks enabled
         and a risk_threshold of Low."""
 
-    @property
-    def standard(self) -> "SanitizationConfig":
+    @staticmethod
+    def standard() -> "SanitizationConfig":
         """A standard sanitization (sanitize=True) configuration with all checks enabled
         and a risk_threshold of High."""
 
-    @property
-    def permissive(self) -> "SanitizationConfig":
+    @staticmethod
+    def permissive() -> "SanitizationConfig":
         """A permissive sanitization (sanitize=True) configuration with keyword and
         control_chars enabled and a Critical risk threshold set"""
 
@@ -383,3 +412,5 @@ class SanitizationResult:
     @property
     def detected_issues(self) -> List[str]:
         """The detected issues in the sanitization attempt"""
+
+    def __str__(self): ...

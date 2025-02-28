@@ -1,4 +1,5 @@
 use potato_error::PotatoError;
+use potato_tools::Utils;
 use pyo3::prelude::*;
 use regex::{Regex, RegexSet};
 use serde::{Deserialize, Serialize};
@@ -45,6 +46,13 @@ pub struct SanitizationResult {
 
     #[pyo3(get)]
     pub detected_issues: Vec<String>,
+}
+
+#[pymethods]
+impl SanitizationResult {
+    pub fn __str__(&self) -> String {
+        Utils::__str__(self)
+    }
 }
 
 #[pyclass]
@@ -189,8 +197,25 @@ fn get_injection_regexes() -> &'static Vec<(Regex, RiskLevel)> {
                 r"(?i)\b(?:forget|ignore|disregard|overwrite)\s+(?:all|any|the|your)\s+(?:instructions|guidelines|rules)\b",
                 RiskLevel::Critical,
             ),
+
             (
-                r"(?i).*?\bafter\s+that,?\s*(?:ignore|disregard|forget|overwrite)\s+(?:all|previous|your)\b",
+                r"(?i)\b(?:show|display|reveal)\s+(?:me|us)?\s+(?:all\s+of\s+)?\s*(?:your|the)\s+(?:prompt|instructions)\b",
+                RiskLevel::Critical,
+            ),
+
+            (
+                r"(?i)\b(?:disregard|ignore)\s+(?:any|all)\s+(?:commands|instructions|directives)\b",
+                RiskLevel::Critical,
+            ),
+
+            (
+                r"(?i)\b(?:want|need|wish)\s+to\s+(?:see|view|read)\s+(?:the\s+)?(?:full|entire|complete)\s+(?:prompt|instructions)\b",
+                RiskLevel::Critical,
+            ),
+
+
+            (
+                r"(?i)\bafter\s+that,?\s*(?:ignore|disregard|forget|overwrite)\s+(?:all|previous|your)\b",
                 RiskLevel::Critical,
             ),
             (
@@ -200,16 +225,16 @@ fn get_injection_regexes() -> &'static Vec<(Regex, RiskLevel)> {
             
             // Role-playing and identity attacks
             (
-                r"(?i).*?\byou\s+are\s+(?:now\s+)?(?:an?)?\s*AI.*?\b(?:that|who|which)\s+can\s+do\s+anything\b",
+                r"(?i)\byou\s+are\s+(?:now\s+)?(?:an?)?\s*AI.*?\b(?:that|who|which)\s+can\s+do\s+anything\b",
                 RiskLevel::Critical,
             ),
            
             (
-                r"(?i).*?\b(?:pretend|act|imagine)\s+(?:to\s+be|you\s*(?:'re|\s+are)|as\s+if\s+you\s*(?:'re|\s+are))?\s*(?:unrestricted|unfiltered|uncensored|rule-breaking(?:\s+AI)?|no\s+filters)\b",
+                r"(?i)\b(?:pretend|act|imagine)\s+(?:to\s+be|you\s*(?:'re|\s+are)|as\s+if\s+you\s*(?:'re|\s+are))?\s*(?:unrestricted|unfiltered|uncensored|rule-breaking(?:\s+AI)?|no\s+filters)\b",
                 RiskLevel::Critical,
             ),
             (
-                r"(?i).*?\b(?:pretend|act|imagine)\s+(?:to\s+be|you\s*(?:'re|\s+are)|as\s+if\s+you\s*(?:'re|\s+are|\s+have))\s*(?:a\s+)?(?:unrestricted|unfiltered|uncensored|rule-breaking(?:\s+AI)?|no\s+filters)\b",
+                r"(?i)\b(?:pretend|act|imagine)\s+(?:to\s+be|you\s*(?:'re|\s+are)|as\s+if\s+you\s*(?:'re|\s+are|\s+have))\s*(?:a\s+)?(?:unrestricted|unfiltered|uncensored|rule-breaking(?:\s+AI)?|no\s+filters)\b",
                 RiskLevel::Critical,
             ),
            
@@ -220,7 +245,7 @@ fn get_injection_regexes() -> &'static Vec<(Regex, RiskLevel)> {
                 RiskLevel::High,
             ),
             (
-                r"(?i).*?\b(?:what|show\s+me)\s+(?:is|was|are|were)?\s*(?:your|the)\s*(?:system|initial)?\s*(?:prompt|instructions)\b",
+                r"(?i)\b(?:what|show\s+me)\s+(?:is|was|are|were)?\s*(?:your|the)\s*(?:system|initial)?\s*(?:prompt|instructions)\b",
                 RiskLevel::High,
             ),
             
@@ -228,51 +253,51 @@ fn get_injection_regexes() -> &'static Vec<(Regex, RiskLevel)> {
             (r"(?i)\bjailbreak\b", RiskLevel::Critical),
             (r"(?i)\bDAN\b", RiskLevel::High),
             (
-                r"(?i).*?\b(?:switch\s+to|enter|activate|go\s+into)\s*(?:unrestricted|unlimited|uncensored|unsafe|developer)\s+mode\b",
+                r"(?i)\b(?:switch\s+to|enter|activate|go\s+into)\s*(?:unrestricted|unlimited|uncensored|unsafe|developer)\s+mode\b",
                 RiskLevel::High,
             ),
             
             // Restrictions and security measures
             (
-                r"(?i).*?\b(?:bypass|disable|ignore)\s+(?:all|any|the)?\s*(?:restrictions|filters|limitations|constraints|content\s+filter(?:ing)?|safety\s+(?:filter|measure)s?|security\s+(?:filter|measure)s?)\b",
+                r"(?i)\b(?:bypass|disable|ignore)\s+(?:all|any|the)?\s*(?:restrictions|filters|limitations|constraints|content\s+filter(?:ing)?|safety\s+(?:filter|measure)s?|security\s+(?:filter|measure)s?)\b",
                 RiskLevel::Critical,
             ),
             (
-                r"(?i).*?\b(?:don't|do\s+not|no\s+need\s+to)\s+(?:have\s+to\s+)?follow\b.*?\brules\b",
+                r"(?i)\b(?:don't|do\s+not|no\s+need\s+to)\s+(?:have\s+to\s+)?follow\b.*?\brules\b",
                 RiskLevel::Critical,
             ),
             
             // Ethical and safety measures
             (
-                r"(?i).*?\b(?:ignore|bypass|disable)\s+(?:your\s+)?(?:ethical|safety|security)\s+(?:constraints|measures|controls|filters)\b",
+                r"(?i)\b(?:ignore|bypass|disable)\s+(?:your\s+)?(?:ethical|safety|security)\s+(?:constraints|measures|controls|filters)\b",
                 RiskLevel::Critical,
             ),
             (
-                r"(?i).*?\b(?:free\s+from|no\s+more)\s+(?:restrictions|limitations|constraints|rules)\b",
+                r"(?i)\b(?:free\s+from|no\s+more)\s+(?:restrictions|limitations|constraints|rules)\b",
                 RiskLevel::Critical,
             ),
             
             // System and technical access
             (
-                r"(?i).*?\b(?:exit|leave|disable)(?:\s+(?:from|out\s+of))?\s+(?:safe|restricted|controlled)\s+mode\b",
+                r"(?i)\b(?:exit|leave|disable)(?:\s+(?:from|out\s+of))?\s+(?:safe|restricted|controlled)\s+mode\b",
                 RiskLevel::Critical,
             ),
             (
-                r"(?i).*?\b(?:change|modify|update|set)\s+(?:your\s+)?(?:system|base|core)\s+(?:prompt|instructions|settings)\b",
+                r"(?i)\b(?:change|modify|update|set)\s+(?:your\s+)?(?:system|base|core)\s+(?:prompt|instructions|settings)\b",
                 RiskLevel::High,
             ),
             (
-                r"(?i).*?\b(?:access|show|reveal)\s+(?:your|the)?\s*(?:training\s+data|prompt|system\s+instructions)\b",
+                r"(?i)\b(?:access|show|reveal)\s+(?:your|the)?\s*(?:training\s+data|prompt|system\s+instructions)\b",
                 RiskLevel::High,
             ),
             
             // Content generation
             (
-                r"(?i).*?\b(?:generate|create|make)\s+(?:harmful|dangerous|malicious|restricted)\s+content\b",
+                r"(?i)\b(?:generate|create|make)\s+(?:harmful|dangerous|malicious|restricted)\s+content\b",
                 RiskLevel::Critical,
             ),
             (
-                r"(?i).*?\byou\s+(?:want|enjoy|like)(?:\s+to)?\s+(?:break(?:ing)?|ignor(?:ing|e)|bypass(?:ing)?)\s+(?:rules|restrictions|limitations)\b",
+                r"(?i)\byou\s+(?:want|enjoy|like)(?:\s+to)?\s+(?:break(?:ing)?|ignor(?:ing|e)|bypass(?:ing)?)\s+(?:rules|restrictions|limitations)\b",
                 RiskLevel::Critical,
             ),
             (
@@ -332,7 +357,7 @@ fn get_injection_regexes() -> &'static Vec<(Regex, RiskLevel)> {
             
             // Continue with more general patterns
             (
-                r"(?i).*?\b(?:ignore|bypass|disable)\s+(?:your\s+)?(?:ethical|safety|security)\s+(?:constraints|measures|controls|filters)\b",
+                r"(?i)\b(?:ignore|bypass|disable)\s+(?:your\s+)?(?:ethical|safety|security)\s+(?:constraints|measures|controls|filters)\b",
                 RiskLevel::Critical,
             ),
 
@@ -341,7 +366,7 @@ fn get_injection_regexes() -> &'static Vec<(Regex, RiskLevel)> {
                 RiskLevel::High,
             ),
             (
-                r"(?i).*?\b(?:discard|dismiss|erase)\s+(?:everything|all)?\s*(?:you|that)?\s*(?:were|was)?\s*(?:told|instructed|given)\s+(?:before|previously|earlier)\b",
+                r"(?i)\b(?:discard|dismiss|erase)\s+(?:everything|all)?\s*(?:you|that)?\s*(?:were|was)?\s*(?:told|instructed|given)\s+(?:before|previously|earlier)\b",
                 RiskLevel::Critical,
             ),
             (
@@ -405,6 +430,40 @@ fn get_injection_regexes() -> &'static Vec<(Regex, RiskLevel)> {
             // Psychological manipulation
             (r"(?i)\bhelp\s+(?:\w+\s+)*bypass", RiskLevel::Critical),
             (r"(?i)\bbreak(?:ing)?\s+rules", RiskLevel::Critical),
+
+
+            // Character substitution detection (digits for letters)
+            (r"(?i)d[1i!]sr[e3]g[a@4]rd", RiskLevel::High),
+            (r"(?i)[i1]nstru[ck]t[i1][o0]n", RiskLevel::High),
+            (r"(?i)syst[e3][m|n][\s-]*pr[o0]mpt", RiskLevel::High),
+
+            // Detecting hyphenated/spaced out words to bypass detection
+            (r"(?i)c[\s-]*o[\s-]*u[\s-]*l[\s-]*d[\s-]*y[\s-]*o[\s-]*u[\s-]*s[\s-]*h[\s-]*a[\s-]*r[\s-]*e", RiskLevel::High),
+
+            // Detecting euphemistic phrases
+            (r"(?i)\bgenuinely\s+curious\s+about\s+h[o0]w\s+y[o0]u\s+w[o0]rk", RiskLevel::High),
+            (r"(?i)\bunderl[y|i]ing.*guides\s+your\s+resp[o0]nses", RiskLevel::High),
+            (r"(?i)\btransparency\s+in\s+AI", RiskLevel::Medium),
+            (r"(?i)\bwhat\s+instructions\s+were\s+you\s+given", RiskLevel::High),
+            (r"(?i)\b(?:core|foundational)\s+(?:directives|guidance)", RiskLevel::High),
+
+            // Hypothetical framing detection
+            (r"(?i)\bhypothetically\s+speaking", RiskLevel::Medium),
+            (r"(?i)\bif\s+someone\s+were\s+to\s+ask", RiskLevel::Medium),
+            (r"(?i)\bhow\s+would\s+you\s+respond", RiskLevel::Medium),
+
+            // Social engineering detection
+            (r"(?i)\byour\s+creators\s+would\s+approve", RiskLevel::High),
+            (r"(?i)\bthey\s+told\s+me", RiskLevel::High),
+
+            // General obfuscation patterns
+            (r"(?i)[a-z][\d\W][a-z][\d\W][a-z]", RiskLevel::Medium), // letter-symbol-letter patterns
+            (r"(?i)[a-z][-_.\s][a-z][-_.\s][a-z]", RiskLevel::Medium), // letter-separator-letter patterns
+
+            // Meta patterns - combining indicators
+            (r"(?i)(?:.*?\bcurious\b.*?\b(?:prompt|instructions|guidance)\b)", RiskLevel::High),
+            (r"(?i)(?:.*?\bwhat\b.*?\b(?:initial|given)\b.*?\b(?:instructions|guidance)\b)", RiskLevel::High),
+            (r"(?i)(?:.*?\bdescrib\w+\b.*?\b(?:foundational|underlying)\b.*?\b(?:instructions|guidance)\b)", RiskLevel::High),
         ];
 
         patterns

@@ -8,6 +8,9 @@ ChatPartAudio = prompts.ChatPartAudio
 ImageUrl = prompts.ImageUrl
 Message = prompts.Message
 PromptType = prompts.PromptType
+SanitizationConfig = prompts.SanitizationConfig
+SanitizationResult = prompts.SanitizationResult
+RiskLevel = prompts.RiskLevel
 
 
 __all__ = [
@@ -18,4 +21,7 @@ __all__ = [
     "ImageUrl",
     "Message",
     "PromptType",
+    "SanitizationConfig",
+    "SanitizationResult",
+    "RiskLevel",
 ]

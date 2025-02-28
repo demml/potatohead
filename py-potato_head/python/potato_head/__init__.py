@@ -8,6 +8,8 @@ ChatPrompt = prompts.ChatPrompt
 Message = prompts.Message
 OpenAIConfig = openai.OpenAIConfig
 PromptType = prompts.PromptType
+SanitizationConfig = prompts.SanitizationConfig
+RiskLevel = prompts.RiskLevel
 
 __all__ = [
     "Mouth",
@@ -15,4 +17,6 @@ __all__ = [
     "Message",
     "OpenAIConfig",
     "PromptType",
+    "SanitizationConfig",
+    "RiskLevel",
 ]
