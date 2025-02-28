@@ -1,4 +1,5 @@
-# pylint: disable=redefined-builtin
+# pylint: disable=redefined-builtin, invalid-name, dangerous-default-value
+
 from enum import IntEnum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
