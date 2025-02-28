@@ -1,3 +1,4 @@
+use crate::chat::sanitize::{PromptSanitizer, SanitizationConfig};
 use crate::Message;
 use potato_error::PotatoHeadError;
 use potato_tools::FileName;
@@ -71,15 +72,22 @@ pub struct ChatPrompt {
     pub additional_data: Option<Value>,
 
     pub version: String,
+
+    #[pyo3(get)]
+    pub sanitization_config: Option<SanitizationConfig>,
+
+    #[serde(skip)] // skip serialization and deserialization (added when loading from json)
+    pub sanitizer: Option<PromptSanitizer>,
 }
 
 #[pymethods]
 impl ChatPrompt {
     #[new]
-    #[pyo3(signature = (model, messages, **kwargs))]
+    #[pyo3(signature = (model, messages, sanitization_config=None, **kwargs))]
     pub fn new(
         model: &str,
         messages: &Bound<'_, PyAny>,
+        sanitization_config: Option<SanitizationConfig>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Self> {
         // Convert additional_data to JSON format for serialization
@@ -91,6 +99,11 @@ impl ChatPrompt {
         // get version from crate
         let version = env!("CARGO_PKG_VERSION").to_string();
 
+        // Create a sanitizer if sanitization_config is provided
+        let sanitizer = sanitization_config
+            .clone()
+            .map(|config| PromptSanitizer::new(config));
+
         Ok(Self {
             model: model.to_string(),
             prompt_type: PromptType::Chat,
@@ -98,6 +111,8 @@ impl ChatPrompt {
             messages,
             additional_data: raw_json,
             version,
+            sanitization_config,
+            sanitizer,
         })
     }
 
@@ -186,8 +201,13 @@ impl ChatPrompt {
     pub fn model_validate_json(json_string: String) -> PyResult<Self> {
         let json_value: Value = serde_json::from_str(&json_string)
             .map_err(|e| PotatoHeadError::new_err(format!("Failed to parse JSON string: {}", e)))?;
-        let model: Self = serde_json::from_value(json_value)
+        let mut model: Self = serde_json::from_value(json_value)
             .map_err(|e| PotatoHeadError::new_err(format!("Failed to parse JSON value: {}", e)))?;
+
+        // if model has sanitization_config, create a sanitizer
+        if let Some(config) = &model.sanitization_config {
+            model.sanitizer = Some(PromptSanitizer::new(config.clone()));
+        }
 
         Ok(model)
     }
