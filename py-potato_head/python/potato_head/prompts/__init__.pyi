@@ -1,6 +1,7 @@
 # pylint: disable=redefined-builtin
 from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
+from enum import IntEnum
 
 class PromptType:
     Image: "PromptType"
@@ -271,3 +272,82 @@ class ChatPrompt:
             path (Path):
                 The path to the chat prompt file.
         """
+
+class RiskLevel(IntEnum):
+    """Risk level of a potential prompt injection attempt"""
+
+    Safe = 0  # No risk detected
+    Low = 1  # Low risk, minor concerns
+    Medium = 2  # Medium risk, potential concerns
+    High = 3  # High risk, likely prompt injection attempt
+    Critical = 4  # Critical risk, almost certainly a prompt injection attempt
+
+class SanitizationConfig:
+    risk_threshold: RiskLevel
+    sanitize: bool
+    check_delimiters: bool
+    check_keywords: bool
+    check_control_chars: bool
+    custom_patterns: List[str]
+    error_on_high_risk: bool
+    def __init__(
+        self,
+        risk_threshold: RiskLevel.High,
+        sanitize: bool = True,
+        check_delimiters: bool = True,
+        check_keywords: bool = True,
+        check_control_chars: bool = True,
+        custom_patterns: Optional[List[str]] = [],
+        error_on_high_risk: bool = True,
+    ) -> None:
+        """SanitizationConfig for configuring the sanitization of a chat prompt.
+
+        Args:
+            risk_threshold (RiskLevel):
+                The risk threshold to use for the sanitization.
+            sanitize (bool):
+                Whether to sanitize the chat prompt or just assess risk. Both
+                will return a sanitization result. Sanitize will return the input text
+                with identified risks masked.
+            check_delimiters (bool):
+                Whether to check for delimiters in the chat prompt.
+            check_keywords (bool):
+                Whether to check for keywords in the chat prompt.
+            check_control_chars (bool):
+                Whether to check for control characters in the chat prompt.
+            custom_patterns (List[str]):
+                Custom patterns to use for the sanitization. These will be read as
+                regular expressions.
+            error_on_high_risk (bool):
+                Whether to raise an error on high risk.
+        """
+
+    @property
+    def strict(self) -> "SanitizationConfig":
+        """A strict sanitization (sanitize=True) configuration with all checks enabled
+        and a risk_threshold of Low."""
+
+    @property
+    def standard(self) -> "SanitizationConfig":
+        """A standard sanitization (sanitize=True) configuration with all checks enabled
+        and a risk_threshold of High."""
+
+    @property
+    def permissive(self) -> "SanitizationConfig":
+        """A permissive sanitization (sanitize=True) configuration with keyword and
+        control_chars enabled and a Critical risk threshold set"""
+
+class SanitizationResult:
+    """Class to represent the result of a sanitization attempt"""
+
+    @property
+    def sanitized_text(self) -> str:
+        """The sanitized text"""
+
+    @property
+    def risk_level(self) -> RiskLevel:
+        """The risk level of the sanitization attempt"""
+
+    @property
+    def detected_issues(self) -> List[str]:
+        """The detected issues in the sanitization attempt"""
