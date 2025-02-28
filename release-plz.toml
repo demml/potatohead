@@ -6,9 +6,9 @@ semver_check = true
 publish_timeout = "10m" # set a timeout for `cargo publish`
 git_tag_enable = false
 git_release_enable = false
-publish = true
-repo_url = "https://github.com/demml/potato_head"
+publish = false
+repo_url = "https://github.com/demml/potatohead"
 
 [[package]]
-name = "py-potato_head"
-publish = false
+name = "potato_lib"
+publish = true
