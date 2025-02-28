@@ -1,4 +1,4 @@
-use super::sanitize::SanitizationResult;
+use crate::chat::sanitize::SanitizationResult;
 use crate::chat::sanitize::{PromptSanitizer, SanitizationConfig};
 use crate::Message;
 use potato_error::PotatoError;
