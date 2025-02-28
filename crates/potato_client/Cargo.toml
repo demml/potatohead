@@ -20,6 +20,5 @@ colored_json = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true }
 pyo3 = { workspace = true }
 tracing = { workspace = true }

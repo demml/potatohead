@@ -1,4 +1,5 @@
 pub mod prompt;
+pub mod sanitize;
 pub mod types;
 
 pub use prompt::ChatPrompt;

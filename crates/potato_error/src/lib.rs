@@ -41,6 +41,9 @@ pub enum PotatoError {
 
     #[error("Unsupported interaction type")]
     UnsupportedInteractionType,
+
+    #[error("Sanitization error: {0}")]
+    SanitizationError(String),
 }
 
 impl From<PotatoError> for PyErr {
