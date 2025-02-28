@@ -134,7 +134,7 @@ pub async fn stream_chat_completion(
 
 pub async fn get_openai_router() -> Result<Router> {
     let result = catch_unwind(AssertUnwindSafe(|| {
-        Router::new().route(&format!("/v1/chat/completions"), post(chat_completion))
+        Router::new().route("/v1/chat/completions", post(chat_completion))
     }));
 
     match result {

@@ -17,6 +17,7 @@ potato-error = { workspace = true }
 potato-providers = { workspace = true }
 potato-prompts = { workspace = true }
 
+
 futures-core = { workspace = true }
 futures-util = { workspace = true }
 pyo3 = { workspace = true }

@@ -37,7 +37,7 @@ pub async fn health_check() -> Alive {
 #[instrument(skip_all)]
 pub async fn get_health_router() -> Result<Router> {
     let result = catch_unwind(AssertUnwindSafe(|| {
-        Router::new().route(&format!("/healthcheck"), get(health_check))
+        Router::new().route("/healthcheck", get(health_check))
     }));
 
     match result {

@@ -30,7 +30,6 @@ setup.docs:
 
 test.unit:
 	uv run pytest \
-		--ignore tests/integration \
 		--cov \
 		--cov-fail-under=0 \
 		--cov-report xml:./coverage.xml \

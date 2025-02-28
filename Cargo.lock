@@ -862,7 +862,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "tokio",
  "tracing",
 ]
 
@@ -917,6 +916,7 @@ dependencies = [
  "potato-error",
  "potato-tools",
  "pyo3",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",
