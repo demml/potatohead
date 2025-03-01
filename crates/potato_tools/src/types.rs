@@ -1,6 +1,9 @@
 use chrono::Utc;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::fmt::Display;
+use std::fmt::Formatter;
 use std::path::Path;
 
 pub enum FileName {
@@ -49,6 +52,19 @@ pub enum PromptType {
     Voice,
     Batch,
     Embedding,
+}
+
+impl Display for PromptType {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            PromptType::Chat => write!(f, "chat"),
+            PromptType::Image => write!(f, "image"),
+            PromptType::Vision => write!(f, "vision"),
+            PromptType::Voice => write!(f, "voice"),
+            PromptType::Batch => write!(f, "batch"),
+            PromptType::Embedding => write!(f, "embedding"),
+        }
+    }
 }
 
 #[pyclass(eq)]

@@ -152,30 +152,6 @@ class ChatPrompt:
     ) -> None:
         """ChatPrompt for interacting with an LLM Chat API.
 
-
-        Example:
-        ```python
-            ChatPrompt(
-                model="gpt-4o",
-                messages=[
-                    {"role": "developer", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": "Hello!"},
-                ],
-                logprobs=True,
-                top_logprobs=2,
-            )
-
-
-            ChatPrompt(
-                model="gpt-4o",
-                messages=[
-                    Message("developer", "You are a helpful assistant."),
-                ],
-                logprobs=True,
-                top_logprobs=2,
-            )
-        ```
-
         Args:
             model (str):
                 The model to use for the chat prompt.
@@ -201,6 +177,31 @@ class ChatPrompt:
                     Number of most likely tokens to return log probabilities for.
                 - max_tokens (int):
                     Maximum number of tokens to generate.
+
+
+        Example:
+        ```python
+            ChatPrompt(
+                model="gpt-4o",
+                messages=[
+                    {"role": "developer", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": "Hello!"},
+                ],
+                logprobs=True,
+                top_logprobs=2,
+            )
+
+
+            ChatPrompt(
+                model="gpt-4o",
+                messages=[
+                    Message("developer", "You are a helpful assistant."),
+                ],
+                logprobs=True,
+                top_logprobs=2,
+            )
+        ```
+
         """
 
     @property
