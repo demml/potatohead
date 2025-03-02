@@ -10,6 +10,7 @@ pub use potato_providers::openai::{
 
 pub use ::potato_head::Mouth;
 pub use ::potato_prompts::{
-    ChatPartAudio, ChatPartImage, ChatPartText, ChatPrompt, ImageUrl, Message,
+    ChatPartAudio, ChatPartImage, ChatPartText, ChatPrompt, ImageUrl, Message, RiskLevel,
+    SanitizationConfig, SanitizationResult,
 };
 pub use ::potato_tools::PromptType;
