@@ -1,25 +1,26 @@
-use crate::error::PotatoError;
+use crate::prompt::error::PromptError;
 use mime_guess;
-use opsml_utils::pyobject_to_json;
-use opsml_utils::PyHelperFuncs;
+use potato_utils::pyobject_to_json;
+use potato_utils::PyHelperFuncs;
 use pyo3::types::PyAnyMethods;
+use pyo3::types::PyDict;
 use pyo3::types::PyString;
 use pyo3::{prelude::*, IntoPyObjectExt};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::sync::OnceLock;
 use tracing::error;
+
 static DOCUMENT_MEDIA_TYPES: OnceLock<HashSet<&'static str>> = OnceLock::new();
-use crate::prompt::sanitize::PromptSanitizer;
-use crate::SanitizedResult;
-use pyo3::types::PyDict;
 
 pub enum Role {
     User,
     Assistant,
     Developer,
+    Tool,
 }
 
 impl Display for Role {
@@ -28,6 +29,7 @@ impl Display for Role {
             Role::User => write!(f, "user"),
             Role::Assistant => write!(f, "assistant"),
             Role::Developer => write!(f, "developer"),
+            Role::Tool => write!(f, "tool"),
         }
     }
 }
@@ -69,14 +71,14 @@ fn get_image_media_types() -> &'static HashSet<&'static str> {
     })
 }
 
-fn image_format(media_type: &str) -> Result<String, PotatoError> {
+fn image_format(media_type: &str) -> Result<String, PromptError> {
     let format = match media_type {
         "image/jpeg" => "jpeg",
         "image/png" => "png",
         "image/gif" => "gif",
         "image/webp" => "webp",
         _ => {
-            return Err(PotatoError::Error(format!(
+            return Err(PromptError::Error(format!(
                 "Unknown image media type: {}",
                 media_type
             )))
@@ -86,7 +88,7 @@ fn image_format(media_type: &str) -> Result<String, PotatoError> {
     Ok(format.to_string())
 }
 
-fn document_format(media_type: &str) -> Result<String, PotatoError> {
+fn document_format(media_type: &str) -> Result<String, PromptError> {
     let format = match media_type {
         "application/pdf" => "pdf",
         "text/plain" => "txt",
@@ -97,7 +99,7 @@ fn document_format(media_type: &str) -> Result<String, PotatoError> {
         "text/markdown" => "md",
         "application/vnd.ms-excel" => "xls",
         _ => {
-            return Err(PotatoError::Error(format!(
+            return Err(PromptError::Error(format!(
                 "Unknown document media type: {}",
                 media_type
             )))
@@ -106,11 +108,11 @@ fn document_format(media_type: &str) -> Result<String, PotatoError> {
     Ok(format.to_string())
 }
 
-fn guess_type(url: &str) -> Result<String, PotatoError> {
+fn guess_type(url: &str) -> Result<String, PromptError> {
     // fail if mime type is not found
     let mime_type = mime_guess::from_path(url)
         .first()
-        .ok_or_else(|| PotatoError::Error(format!("Failed to guess mime type for {}", url)))?;
+        .ok_or_else(|| PromptError::Error(format!("Failed to guess mime type for {}", url)))?;
 
     Ok(mime_type.to_string())
 }
@@ -182,7 +184,7 @@ impl ImageUrl {
     }
 
     #[getter]
-    fn media_type(&self) -> Result<String, PotatoError> {
+    fn media_type(&self) -> Result<String, PromptError> {
         if self.url.ends_with(".jpg") || self.url.ends_with(".jpeg") {
             Ok("image/jpeg".to_string())
         } else if self.url.ends_with(".png") {
@@ -192,7 +194,7 @@ impl ImageUrl {
         } else if self.url.ends_with(".webp") {
             Ok("image/webp".to_string())
         } else {
-            Err(PotatoError::Error(format!(
+            Err(PromptError::Error(format!(
                 "Unknown image file extension: {}",
                 self.url
             )))
@@ -200,7 +202,7 @@ impl ImageUrl {
     }
 
     #[getter]
-    fn format(&self) -> Result<String, PotatoError> {
+    fn format(&self) -> Result<String, PromptError> {
         let media_type = self.media_type()?;
         image_format(&media_type)
     }
@@ -219,7 +221,7 @@ pub struct DocumentUrl {
 impl DocumentUrl {
     #[new]
     #[pyo3(signature = (url, kind="document-url"))]
-    fn new(url: &str, kind: &str) -> Result<Self, PotatoError> {
+    fn new(url: &str, kind: &str) -> Result<Self, PromptError> {
         Ok(Self {
             url: url.to_string(),
             kind: kind.to_string(),
@@ -227,12 +229,12 @@ impl DocumentUrl {
     }
 
     #[getter]
-    fn media_type(&self) -> Result<String, PotatoError> {
+    fn media_type(&self) -> Result<String, PromptError> {
         guess_type(&self.url)
     }
 
     #[getter]
-    fn format(&self) -> Result<String, PotatoError> {
+    fn format(&self) -> Result<String, PromptError> {
         let media_type = self.media_type()?;
         document_format(&media_type)
     }
@@ -253,14 +255,14 @@ pub struct BinaryContent {
 impl BinaryContent {
     #[new]
     #[pyo3(signature = (data, media_type, kind="binary"))]
-    fn new(data: Vec<u8>, media_type: &str, kind: &str) -> Result<Self, PotatoError> {
+    fn new(data: Vec<u8>, media_type: &str, kind: &str) -> Result<Self, PromptError> {
         // assert that media type is valid, must be audio, image, or document
 
         if get_audio_media_types().contains(media_type)
             || get_image_media_types().contains(media_type)
             || get_document_media_types().contains(media_type)
         {
-            return Err(PotatoError::Error(format!(
+            return Err(PromptError::Error(format!(
                 "Unknown media type: {}",
                 media_type
             )));
@@ -289,14 +291,14 @@ impl BinaryContent {
     }
 
     #[getter]
-    fn format(&self) -> Result<String, PotatoError> {
+    fn format(&self) -> Result<String, PromptError> {
         if self.is_audio() {
             if self.media_type == "audio/mpeg" {
                 Ok("mp3".to_string())
             } else if self.media_type == "audio/wav" {
                 Ok("wav".to_string())
             } else {
-                Err(PotatoError::Error(format!(
+                Err(PromptError::Error(format!(
                     "Unknown media type: {}",
                     self.media_type
                 )))
@@ -306,7 +308,7 @@ impl BinaryContent {
         } else if self.is_document() {
             document_format(&self.media_type)
         } else {
-            Err(PotatoError::Error(format!(
+            Err(PromptError::Error(format!(
                 "Unknown media type: {}",
                 self.media_type
             )))
@@ -324,7 +326,7 @@ pub enum PromptContent {
 }
 
 impl PromptContent {
-    pub fn new(prompt: &Bound<'_, PyAny>) -> Result<Self, PotatoError> {
+    pub fn new(prompt: &Bound<'_, PyAny>) -> Result<Self, PromptError> {
         if prompt.is_instance_of::<AudioUrl>() {
             let audio_url = prompt.extract::<AudioUrl>()?;
             Ok(PromptContent::Audio(audio_url))
@@ -341,7 +343,7 @@ impl PromptContent {
             let user_content = prompt.extract::<String>()?;
             Ok(PromptContent::Str(user_content))
         } else {
-            Err(PotatoError::Error("Unsupported prompt content type".into()))
+            Err(PromptError::Error("Unsupported prompt content type".into()))
         }
     }
 
@@ -398,8 +400,6 @@ pub fn get_pydantic_module<'py>(py: Python<'py>, module_name: &str) -> PyResult<
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
     pub content: PromptContent,
-    next_param: usize,
-    sanitized_output: Option<SanitizedResult>,
     pub role: String,
 }
 
@@ -411,14 +411,12 @@ impl Message {
         let content = PromptContent::new(content)?;
         Ok(Self {
             content,
-            next_param: 1,
-            sanitized_output: None,
             role: Role::User.to_string(),
         })
     }
 
-    pub fn bind(&self, context: &str) -> PyResult<Message> {
-        let placeholder = format!("${}", self.next_param);
+    pub fn bind(&self, name: &str, context: &str) -> Result<Message, PromptError> {
+        let placeholder = format!("${{{}}}", name);
 
         let content = match &self.content {
             PromptContent::Str(content) => {
@@ -430,30 +428,6 @@ impl Message {
 
         Ok(Message {
             content,
-            next_param: self.next_param + 1,
-            sanitized_output: None,
-            role: self.role.clone(),
-        })
-    }
-
-    pub fn sanitize(&self, sanitizer: &PromptSanitizer) -> Result<Message, PotatoError> {
-        let (content, sanitized) = match &self.content {
-            PromptContent::Str(content) => {
-                let sanitized_result = sanitizer.sanitize(content).map_err(|e| {
-                    PotatoError::Error(format!("Failed to sanitize content: {}", e))
-                })?;
-                (
-                    PromptContent::Str(sanitized_result.sanitized_text.clone()),
-                    Some(sanitized_result),
-                )
-            }
-            _ => (self.content.clone(), None),
-        };
-
-        Ok(Message {
-            content,
-            next_param: self.next_param,
-            sanitized_output: sanitized,
             role: self.role.clone(),
         })
     }
@@ -479,16 +453,13 @@ impl Message {
     pub fn new_rs(content: PromptContent) -> Self {
         Self {
             content,
-            next_param: 1,
-            sanitized_output: None,
+
             role: Role::User.to_string(),
         }
     }
     pub fn from(content: PromptContent, role: Role) -> Self {
         Self {
             content,
-            next_param: 1,
-            sanitized_output: None,
             role: role.to_string(),
         }
     }
@@ -498,6 +469,29 @@ impl Message {
             PromptContent::Str(s) => s.is_empty(),
             _ => false,
         }
+    }
+
+    pub fn extract_variables(&self) -> Vec<String> {
+        let mut variables = HashSet::new();
+
+        if let PromptContent::Str(content) = &self.content {
+            // Create regex to find all ${variable_name} patterns
+            // This is lazily initialized to avoid recompiling the regex each call
+            static VAR_REGEX: OnceLock<Regex> = OnceLock::new();
+            let regex = VAR_REGEX.get_or_init(|| {
+                Regex::new(r"\$\{([^}]+)\}").expect("Failed to compile variable regex")
+            });
+
+            // Find all matches and collect variable names
+            for captures in regex.captures_iter(content) {
+                if let Some(name) = captures.get(1) {
+                    variables.insert(name.as_str().to_string());
+                }
+            }
+        }
+
+        // Convert HashSet to Vec for return
+        variables.into_iter().collect()
     }
 }
 
@@ -510,7 +504,7 @@ impl Message {
 pub fn check_pydantic_model<'py>(
     py: Python<'py>,
     object: &Bound<'_, PyAny>,
-) -> Result<bool, PotatoError> {
+) -> Result<bool, PromptError> {
     // check pydantic import. Return false if it fails
     let pydantic = match py.import("pydantic").map_err(|e| {
         error!("Failed to import pydantic: {}", e);
@@ -535,14 +529,14 @@ pub fn check_pydantic_model<'py>(
 /// * `object` - The pydantic BaseModel object to generate the schema from.
 /// # Returns
 /// A JSON schema as a serde_json::Value.
-fn get_json_schema_from_basemodel(object: &Bound<'_, PyAny>) -> Result<Value, PotatoError> {
+fn get_json_schema_from_basemodel(object: &Bound<'_, PyAny>) -> Result<Value, PromptError> {
     // call staticmethod .model_json_schema()
     let name = object.getattr("__name__")?.extract::<String>()?;
     let schema = object.getattr("model_json_schema")?.call1(())?;
 
     let mut schema = pyobject_to_json(&schema).map_err(|e| {
         error!("Failed to convert schema to JSON: {}", e);
-        PotatoError::PySerializationError(e.to_string())
+        PromptError::PySerializationError(e.to_string())
     })?;
 
     // ensure schema as additionalProperties set to false
@@ -570,7 +564,7 @@ fn get_json_schema_from_basemodel(object: &Bound<'_, PyAny>) -> Result<Value, Po
 pub fn parse_pydantic_model<'py>(
     py: Python<'py>,
     object: &Bound<'_, PyAny>,
-) -> Result<Option<Value>, PotatoError> {
+) -> Result<Option<Value>, PromptError> {
     let is_subclass = check_pydantic_model(py, object)?;
     if is_subclass {
         Ok(Some(get_json_schema_from_basemodel(object)?))

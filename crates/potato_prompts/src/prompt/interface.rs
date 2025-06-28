@@ -1,15 +1,16 @@
-use crate::error::PotatoError;
-use crate::prompt::sanitize::{PromptSanitizer, SanitizationConfig};
+use crate::prompt::error::PromptError;
 use crate::prompt::types::parse_pydantic_model;
+
 use crate::prompt::types::{Message, Role};
-use opsml_types::SaveName;
-use opsml_utils::{json_to_pyobject, pyobject_to_json, PyHelperFuncs};
+use potato_types::SaveName;
+use potato_utils::{json_to_pyobject, pyobject_to_json, PyHelperFuncs};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 #[pyclass]
@@ -85,13 +86,13 @@ impl ModelSettings {
         logit_bias: Option<HashMap<String, i32>>,
         stop_sequences: Option<Vec<String>>,
         extra_body: Option<&Bound<'_, PyAny>>,
-    ) -> Result<Self, PotatoError> {
+    ) -> Result<Self, PromptError> {
         // check if extra body is not none.
         // if not none, conver to py any and attempt pyobject_to_json
         let extra_body =
             if let Some(extra_body) = extra_body {
                 Some(pyobject_to_json(extra_body).map_err(|e| {
-                    PotatoError::Error(format!("Failed to convert extra body: {}", e))
+                    PromptError::Error(format!("Failed to convert extra body: {}", e))
                 })?)
             } else {
                 None
@@ -118,7 +119,7 @@ impl ModelSettings {
     pub fn extra_body<'py>(
         &self,
         py: Python<'py>,
-    ) -> Result<Option<Bound<'py, PyDict>>, PotatoError> {
+    ) -> Result<Option<Bound<'py, PyDict>>, PromptError> {
         // error if extra body is None
         self.extra_body
             .as_ref()
@@ -127,10 +128,10 @@ impl ModelSettings {
                 json_to_pyobject(py, v, &pydict)
             })
             .transpose()
-            .map_err(|e| PotatoError::Error(format!("Failed to get extra body: {}", e)))
+            .map_err(|e| PromptError::Error(format!("Failed to get extra body: {}", e)))
     }
 
-    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, PotatoError> {
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, PromptError> {
         // iterate over each field in model_settings and add to the dict if it is not None
         let pydict = PyDict::new(py);
 
@@ -183,18 +184,14 @@ pub struct Prompt {
     #[pyo3(get)]
     pub system_message: Vec<Message>,
 
-    #[pyo3(get)]
-    pub sanitization_config: Option<SanitizationConfig>,
-
-    #[serde(skip)] // skip serialization and deserialization (added when loading from json)
-    pub sanitizer: Option<PromptSanitizer>,
-
     pub version: String,
 
     #[pyo3(get)]
     pub model_settings: ModelSettings,
 
     pub response_format: Option<Value>,
+
+    pub parameters: Vec<String>,
 }
 
 pub fn parse_prompt(messages: &Bound<'_, PyAny>) -> PyResult<Vec<Message>> {
@@ -235,17 +232,16 @@ pub fn parse_prompt(messages: &Bound<'_, PyAny>) -> PyResult<Vec<Message>> {
 #[pymethods]
 impl Prompt {
     #[new]
-    #[pyo3(signature = (user_message, model=None, provider=None, system_message=None, sanitization_config=None, model_settings=None, response_format=None))]
+    #[pyo3(signature = (user_message, model=None, provider=None, system_message=None, model_settings=None, response_format=None))]
     pub fn new(
         py: Python<'_>,
         user_message: &Bound<'_, PyAny>,
         model: Option<&str>,
         provider: Option<&str>,
         system_message: Option<&Bound<'_, PyAny>>,
-        sanitization_config: Option<SanitizationConfig>,
         model_settings: Option<ModelSettings>,
         response_format: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
-    ) -> Result<Self, PotatoError> {
+    ) -> Result<Self, PromptError> {
         // extract messages
 
         let system_message = if let Some(system_message) = system_message {
@@ -285,7 +281,6 @@ impl Prompt {
             provider,
             system_message,
             model_settings,
-            sanitization_config,
             response_format,
         )
     }
@@ -318,27 +313,22 @@ impl Prompt {
     }
 
     #[staticmethod]
-    pub fn from_path(path: PathBuf) -> Result<Self, PotatoError> {
+    pub fn from_path(path: PathBuf) -> Result<Self, PromptError> {
         // Load the JSON file from the path
         let file = std::fs::read_to_string(&path)
-            .map_err(|e| PotatoError::Error(format!("Failed to read file: {}", e)))?;
+            .map_err(|e| PromptError::Error(format!("Failed to read file: {}", e)))?;
 
         // Parse the JSON file into a Prompt
         serde_json::from_str(&file)
-            .map_err(|e| PotatoError::Error(format!("Failed to parse JSON: {}", e)))
+            .map_err(|e| PromptError::Error(format!("Failed to parse JSON: {}", e)))
     }
 
     #[staticmethod]
-    pub fn model_validate_json(json_string: String) -> Result<Self, PotatoError> {
+    pub fn model_validate_json(json_string: String) -> Result<Self, PromptError> {
         let json_value: Value = serde_json::from_str(&json_string)
-            .map_err(|e| PotatoError::Error(format!("Failed to parse JSON string: {}", e)))?;
-        let mut model: Self = serde_json::from_value(json_value)
-            .map_err(|e| PotatoError::Error(format!("Failed to parse JSON value: {}", e)))?;
-
-        // if model has sanitization_config, create a sanitizer
-        if let Some(config) = &model.sanitization_config {
-            model.sanitizer = Some(PromptSanitizer::new(config.clone()));
-        }
+            .map_err(|e| PromptError::Error(format!("Failed to parse JSON string: {}", e)))?;
+        let model: Self = serde_json::from_value(json_value)
+            .map_err(|e| PromptError::Error(format!("Failed to parse JSON value: {}", e)))?;
 
         Ok(model)
     }
@@ -355,15 +345,6 @@ impl Prompt {
     pub fn response_format(&self) -> Option<String> {
         Some(PyHelperFuncs::__str__(self.response_format.as_ref()))
     }
-
-    #[getter]
-    pub fn sanitizer(&self) -> Result<PromptSanitizer, PotatoError> {
-        // error if sanitizer is None
-        self.sanitizer
-            .as_ref()
-            .cloned()
-            .ok_or_else(|| PotatoError::Error("Sanitizer is not available".to_string()))
-    }
 }
 
 impl Prompt {
@@ -373,20 +354,14 @@ impl Prompt {
         provider: Option<&str>,
         system_message: Vec<Message>,
         model_settings: Option<ModelSettings>,
-        sanitization_config: Option<SanitizationConfig>,
         response_format: Option<Value>,
-    ) -> Result<Self, PotatoError> {
+    ) -> Result<Self, PromptError> {
         // get version from crate
-        let version = opsml_version::version();
-
-        // Create a sanitizer if sanitization_config is provided, else create default sanitizer (will be skipped)
-        let sanitizer = sanitization_config
-            .as_ref()
-            .map(|config| PromptSanitizer::new(config.clone()));
+        let version = potato_utils::version();
 
         // either model and provider or model_settings must be provided
         if (model.is_none() || provider.is_none()) && model_settings.is_none() {
-            return Err(PotatoError::Error(
+            return Err(PromptError::Error(
                 "Either model and provider or model_settings must be provided".to_string(),
             ));
         }
@@ -400,14 +375,40 @@ impl Prompt {
             },
         };
 
+        // extract named parameters in prompt
+        let parameters = Self::extract_variables(&user_message, &system_message);
+
         Ok(Self {
             user_message,
-            sanitization_config,
-            sanitizer,
             version,
             system_message,
             model_settings,
             response_format,
+            parameters,
         })
+    }
+
+    fn extract_variables(
+        user_message: &Vec<Message>,
+        system_message: &Vec<Message>,
+    ) -> Vec<String> {
+        let mut variables = HashSet::new();
+
+        // Check system messages
+        for message in system_message {
+            for var in message.extract_variables() {
+                variables.insert(var);
+            }
+        }
+
+        // Check user messages
+        for message in user_message {
+            for var in message.extract_variables() {
+                variables.insert(var);
+            }
+        }
+
+        // Convert HashSet to Vec for return
+        variables.into_iter().collect()
     }
 }

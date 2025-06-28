@@ -3,9 +3,12 @@ use crate::error::UtilError;
 use colored_json::{Color, ColorMode, ColoredFormatter, PrettyFormatter, Styler};
 use pyo3::prelude::*;
 
-use pyo3::types::{PyDict, PyDictMethods, PyList};
+use pyo3::types::{
+    PyAny, PyBool, PyDict, PyDictMethods, PyFloat, PyInt, PyList, PyString, PyTuple,
+};
 use pyo3::IntoPyObjectExt;
 use serde::Serialize;
+use serde_json::json;
 use serde_json::Value;
 use std::path::Path;
 use uuid::Uuid;
@@ -156,4 +159,61 @@ pub fn json_to_pyobject_value(py: Python, value: &Value) -> Result<PyObject, Uti
             nested_dict.into_py_any(py)?
         }
     })
+}
+
+pub fn pyobject_to_json(obj: &Bound<'_, PyAny>) -> Result<Value, UtilError> {
+    if obj.is_instance_of::<PyDict>() {
+        let dict = obj.downcast::<PyDict>()?;
+        let mut map = serde_json::Map::new();
+        for (key, value) in dict.iter() {
+            let key_str = key.extract::<String>()?;
+            let json_value = pyobject_to_json(&value)?;
+            map.insert(key_str, json_value);
+        }
+        Ok(Value::Object(map))
+    } else if obj.is_instance_of::<PyList>() {
+        let list = obj.downcast::<PyList>()?;
+        let mut vec = Vec::new();
+        for item in list.iter() {
+            vec.push(pyobject_to_json(&item)?);
+        }
+        Ok(Value::Array(vec))
+    } else if obj.is_instance_of::<PyTuple>() {
+        let tuple = obj.downcast::<PyTuple>()?;
+        let mut vec = Vec::new();
+        for item in tuple.iter() {
+            vec.push(pyobject_to_json(&item)?);
+        }
+        Ok(Value::Array(vec))
+    } else if obj.is_instance_of::<PyString>() {
+        let s = obj.extract::<String>()?;
+        Ok(Value::String(s))
+    } else if obj.is_instance_of::<PyFloat>() {
+        let f = obj.extract::<f64>()?;
+        Ok(json!(f))
+    } else if obj.is_instance_of::<PyBool>() {
+        let b = obj.extract::<bool>()?;
+        Ok(json!(b))
+    } else if obj.is_instance_of::<PyInt>() {
+        let i = obj.extract::<i64>()?;
+        Ok(json!(i))
+    } else if obj.is_none() {
+        Ok(Value::Null)
+    } else {
+        // display "cant show" for unsupported types
+        // call obj.str to get the string representation
+        // if error, default to "unsupported type"
+        let obj_str = match obj.str() {
+            Ok(s) => s
+                .extract::<String>()
+                .unwrap_or_else(|_| "unsupported type".to_string()),
+            Err(_) => "unsupported type".to_string(),
+        };
+
+        Ok(Value::String(obj_str))
+    }
+}
+
+pub fn version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
 }

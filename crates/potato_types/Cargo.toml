@@ -7,3 +7,6 @@ description = "Toppings for your potatoes"
 
 [lib]
 doctest = false
+
+[dependencies]
+pyo3 = { workspace = true }

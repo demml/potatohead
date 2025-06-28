@@ -16,11 +16,11 @@ license = "MIT"
 repository = "https://github.com/demml/potatohead"
 
 [workspace.dependencies]
-potato_agents = { workspace = true, version = "0.1.0" }
-potato_prompts = { workspace = true, version = "0.1.0" }
-potato_types = { workspace = true, version = "0.1.0" }
-potato_workflows = { workspace = true, version = "0.1.0" }
-potato_utils = { workspace = true, version = "0.1.0" }
+potato-agents = { path = "crates/potato_agents", version = "0.1.0" }
+potato-prompts = { path = "crates/potato_prompts", version = "0.1.0" }
+potato-types = { path = "crates/potato_types", version = "0.1.0" }
+potato-workflows = { path = "crates/potato_workflows", version = "0.1.0" }
+potato-utils = { path = "crates/potato_utils", version = "0.1.0" }
 
 
 anyhow = "1.0.93"

@@ -1,6 +1,5 @@
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
-use reqwest::StatusCode;
 use serde::Deserialize;
 use thiserror::Error;
 use tracing::error;
@@ -41,14 +40,14 @@ pub enum PromptError {
     PySerializationError(String),
 }
 
-impl From<PotatoError> for PyErr {
-    fn from(err: PotatoError) -> PyErr {
+impl From<PromptError> for PyErr {
+    fn from(err: PromptError) -> PyErr {
         PyRuntimeError::new_err(err.to_string())
     }
 }
 
-impl From<PyErr> for PotatoError {
+impl From<PyErr> for PromptError {
     fn from(err: PyErr) -> Self {
-        PotatoError::Error(err.to_string())
+        PromptError::Error(err.to_string())
     }
 }
