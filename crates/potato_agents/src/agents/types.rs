@@ -1,9 +1,10 @@
+use crate::agents::error::AgentError;
 use crate::agents::provider::openai::OpenAIChatResponse;
-use crate::error::AgentError;
-use crate::{
-    prompt::types::{PromptContent, Role},
+use potato_prompts::{
+    prompt::{PromptContent, Role},
     Message,
 };
+
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};

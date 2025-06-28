@@ -1,6 +1,6 @@
 use crate::agents::types::ChatResponse;
-use crate::Prompt;
-use opsml_utils::{create_uuid7, PyHelperFuncs};
+use potato_prompts::Prompt;
+use potato_utils::{create_uuid7, PyHelperFuncs};
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

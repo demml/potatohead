@@ -1,7 +1,6 @@
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
 use reqwest::StatusCode;
-use serde::Deserialize;
 use thiserror::Error;
 use tracing::error;
 
