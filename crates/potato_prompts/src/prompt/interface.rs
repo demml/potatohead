@@ -412,3 +412,49 @@ impl Prompt {
         variables.into_iter().collect()
     }
 }
+
+// tests
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::prompt::PromptContent;
+
+    #[test]
+    fn test_task_list_add_and_get() {
+        let prompt_content = PromptContent::Str("Test prompt. ${param1} ${param2}".to_string());
+        let prompt = Prompt::new_rs(
+            vec![Message::new_rs(prompt_content)],
+            Some("gpt-4o"),
+            Some("openai"),
+            vec![],
+            None,
+            None,
+        )
+        .unwrap();
+
+        // Check if the prompt was created successfully
+        assert_eq!(prompt.user_message.len(), 1);
+
+        // check prompt parameters
+        assert!(prompt.parameters.len() == 2);
+
+        // sort parameters to ensure order does not affect the test
+        let mut parameters = prompt.parameters.clone();
+        parameters.sort();
+
+        assert_eq!(parameters[0], "param1");
+        assert_eq!(parameters[1], "param2");
+
+        // bind parameter
+        let bound_msg = prompt.user_message[0].bind("param1", "Value1").unwrap();
+        let bound_msg = bound_msg.bind("param2", "Value2").unwrap();
+
+        // Check if the bound message contains the correct values
+        match bound_msg.content {
+            PromptContent::Str(content) => {
+                assert_eq!(content, "Test prompt. Value1 Value2");
+            }
+            _ => panic!("Expected PromptContent::Str"),
+        }
+    }
+}

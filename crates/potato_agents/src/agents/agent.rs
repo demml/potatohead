@@ -1,9 +1,9 @@
 use crate::agents::provider::openai::OpenAIClient;
 use crate::agents::provider::types::Provider;
-use crate::prompt::interface::parse_prompt;
-use crate::prompt::types::{Message, Role};
+use potato_prompts::prompt::interface::parse_prompt;
+use potato_prompts::prompt::types::{Message, Role};
 
-use crate::{
+use potato_prompts::{
     agents::client::GenAiClient, agents::task::Task, agents::types::AgentResponse,
     error::AgentError,
 };
