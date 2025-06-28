@@ -16,38 +16,27 @@ license = "MIT"
 repository = "https://github.com/demml/potatohead"
 
 [workspace.dependencies]
-baked-potato = { path = "crates/baked_potato" }
-potato-client = { path = "crates/potato_client" }
-potato-error = { path = "crates/potato_error" }
-potato-providers = { path = "crates/potato_providers" }
-potato-prompts = { path = "crates/potato_prompts" }
-potato-tools = { path = "crates/potato_tools" }
-potato-traits = { path = "crates/potato_traits" }
-potato-head = { path = "crates/potato_head" }
-potato-lib = { path = "crates/potato_lib" }
+potato_agents = { workspace = true, version = "0.1.0" }
+potato_prompts = { workspace = true, version = "0.1.0" }
+potato_types = { workspace = true, version = "0.1.0" }
+potato_workflows = { workspace = true, version = "0.1.0" }
+potato_utils = { workspace = true, version = "0.1.0" }
 
-anyhow = "1.*"
-axum = "0.*"
-async-trait = "0.*"
-chrono ={ version = "0.*", features = ["serde"] }
-colored_json = "*"
-futures = "0.*"
-futures-core = "0.*"
-futures-util = "0.*"
-proc-macro2 = "1.0"
-pyo3 = { version = ">=0.23.3, <1.0.0", features = ["chrono", "anyhow", "extension-module"] }
-quote = "1.*"
+
+anyhow = "1.0.93"
+chrono = { version = "0.*", features = ["serde"] }
+colored_json = "5.*"
+mime_guess = "2.*"
+pyo3 = { version = "0.25.*", features = ["extension-module", "anyhow", "serde", "chrono"] }
 regex = "1.*"
-reqwest = { version = "0.12.*", features = ["json", "stream", "rustls-tls", "rustls-tls-native-roots", "blocking" ], default-features = false }
-rusty-logging="0.*"
+reqwest = { version = "0.12.*", features = ["json", "stream", "multipart", "rustls-tls", "rustls-tls-native-roots", "blocking" ], default-features = false }
 serde = { version = "1.*", features = ["derive"] }
 serde_json = "1.*"
-syn = "2.*"
 thiserror = "2.*"
-tokio = { version = "1.*", features = ["rt", "rt-multi-thread", "macros"] }
-tower-http = { version = "0.*", features = ["cors"] }
+tokio = { version = ">1.13.0", features = ["rt", "rt-multi-thread", "macros"] }
 tracing = "0.*"
-tracing-subscriber = {version = "0.*", features = ["json", "time"]}
+uuid = { version = "1.*", features = ["v7"] }
+walkdir = "2.*"
 
 
 [profile.release]

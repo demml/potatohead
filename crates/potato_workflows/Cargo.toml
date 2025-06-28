@@ -1,9 +1,9 @@
 [package]
-name = "potato-prompts"
+name = "potato-workflows"
 version = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
-description = "Tell your potatoes what to do"
+description = "Put the potatoes to work"
 
 [lib]
 doctest = false

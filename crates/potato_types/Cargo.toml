@@ -1,9 +1,9 @@
 [package]
-name = "potato-prompts"
+name = "potato-types"
 version = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
-description = "Tell your potatoes what to do"
+description = "Toppings for your potatoes"
 
 [lib]
 doctest = false
