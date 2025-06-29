@@ -1,6 +1,6 @@
-use crate::error::AgentError;
-use crate::{prompt::types::PromptContent, Message};
-use opsml_utils::PyHelperFuncs;
+use crate::agents::error::AgentError;
+use potato_prompts::{prompt::types::PromptContent, Message};
+use potato_utils::PyHelperFuncs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

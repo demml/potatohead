@@ -1,4 +1,4 @@
-use crate::error::AgentError;
+use crate::agents::error::AgentError;
 use pyo3::prelude::*;
 use reqwest::header::HeaderName;
 use reqwest::header::{HeaderMap, HeaderValue};

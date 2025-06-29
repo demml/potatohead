@@ -1,10 +1,7 @@
+use crate::agents::error::AgentError;
 use crate::agents::provider::openai::{OpenAIChatMessage, OpenAIChatRequest, OpenAIChatResponse};
 use crate::agents::provider::types::{build_http_client, Provider};
-use crate::error::AgentError;
-use crate::Prompt;
-use opsml_state::app_state;
-use pyo3::prelude::*;
-use pyo3::IntoPyObjectExt;
+use potato_prompts::Prompt;
 use reqwest::header::AUTHORIZATION;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -14,13 +11,11 @@ use tracing::{debug, error};
 use serde::{ser::SerializeStruct, Deserializer, Serializer};
 
 #[derive(Debug, Clone)]
-#[pyclass]
 pub struct OpenAIClient {
     client: Client,
     api_key: String,
     base_url: String,
-    #[pyo3(get)]
-    provider: Provider,
+    pub provider: Provider,
 }
 
 /// Allows for serialization as part of workflow and agent serialization, but does not serialize any state.
@@ -42,53 +37,9 @@ impl<'de> Deserialize<'de> for OpenAIClient {
         D: Deserializer<'de>,
     {
         // Re-initialize the client completely from scratch
-        OpenAIClient::new_rs(None, None, None).map_err(|e| {
+        OpenAIClient::new(None, None, None).map_err(|e| {
             serde::de::Error::custom(format!("Failed to initialize OpenAIClient: {}", e))
         })
-    }
-}
-
-#[pymethods]
-impl OpenAIClient {
-    #[new]
-    #[pyo3(signature = (api_key=None, base_url = None, headers = None))]
-    /// Creates a new OpenAIClient instance.
-    ///
-    /// # Arguments:
-    /// * `api_key`: The API key for authenticating with the OpenAI API.
-    /// * `base_url`: The base URL for the OpenAI API (default is the OpenAI API URL).
-    /// * `headers`: Optional headers to include in the HTTP requests.
-    ///
-    /// # Returns:
-    /// * `Result<OpenAIClient, AgentError>`: Returns an `OpenAIClient` instance on success or an `AgentError` on failure.
-    pub fn new(
-        api_key: Option<String>,
-        base_url: Option<String>,
-        headers: Option<HashMap<String, String>>,
-    ) -> Result<Self, AgentError> {
-        Self::new_rs(api_key, base_url, headers)
-    }
-
-    /// Sends a chat completion request to the OpenAI API. This is a blocking method used in python.
-    /// This is only provided as a convenience method for Python users. When running with an Agent,
-    /// the async version will be used instead.
-    ///
-    /// # Arguments:
-    /// * `user_messages`: A vector of `Message` objects representing user messages.
-    /// * `developer_messages`: A vector of `Message` objects representing developer messages.
-    /// * `settings`: A reference to `ModelSettings` containing model configuration.
-    ///
-    /// # Returns:
-    /// * `Result<OpenAIChatResponse, AgentError>`: Returns an `OpenAIChatResponse` on success or an `AgentError` on failure.
-    pub fn chat_completion<'py>(
-        &self,
-        py: Python<'py>,
-        prompt: &Prompt,
-    ) -> Result<Bound<'py, PyAny>, AgentError> {
-        let resp = app_state()
-            .runtime
-            .block_on(async { self.async_chat_completion(prompt).await })?;
-        Ok(resp.into_bound_py_any(py)?)
     }
 }
 
@@ -102,7 +53,7 @@ impl OpenAIClient {
     ///
     /// # Returns:
     /// * `Result<OpenAIClient, AgentError>`: Returns an `OpenAIClient` instance on success or an `AgentError` on failure.
-    pub fn new_rs(
+    pub fn new(
         api_key: Option<String>,
         base_url: Option<String>,
         headers: Option<HashMap<String, String>>,

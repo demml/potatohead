@@ -1,7 +1,8 @@
+use crate::agents::error::AgentError;
 use crate::agents::provider::openai::OpenAIClient;
+use crate::agents::provider::types::Provider;
 use crate::agents::types::ChatResponse;
-use crate::error::AgentError;
-use crate::Prompt;
+use potato_prompts::Prompt;
 use pyo3::prelude::*;
 use reqwest::header::HeaderName;
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -9,7 +10,6 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
-
 const TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug, Clone)]
@@ -67,6 +67,12 @@ impl GenAiClient {
                 let response = client.async_chat_completion(task).await?;
                 Ok(ChatResponse::OpenAI(response))
             }
+        }
+    }
+
+    pub fn provider(&self) -> &Provider {
+        match self {
+            GenAiClient::OpenAI(client) => &client.provider,
         }
     }
 }

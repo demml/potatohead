@@ -1,63 +1,39 @@
 use crate::agents::provider::openai::OpenAIClient;
 use crate::agents::provider::types::Provider;
-use potato_prompts::prompt::interface::parse_prompt;
-use potato_prompts::prompt::types::{Message, Role};
+use potato_prompts::prompt::types::Message;
 
-use potato_prompts::{
-    agents::client::GenAiClient, agents::task::Task, agents::types::AgentResponse,
-    error::AgentError,
+use crate::{
+    agents::client::GenAiClient, agents::error::AgentError, agents::task::Task,
+    agents::types::AgentResponse,
 };
-use opsml_state::app_state;
-use opsml_utils::create_uuid7;
-use pyo3::prelude::*;
+use potato_prompts::Prompt;
+use potato_utils::create_uuid7;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::debug;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[pyclass]
+
 pub struct Agent {
-    #[pyo3(get)]
     pub id: String,
 
     client: GenAiClient,
 
-    #[pyo3(get)]
     pub system_message: Vec<Message>,
 }
 
-#[pymethods]
+/// Rust method implementation of the Agent
 impl Agent {
-    #[new]
-    #[pyo3(signature = (provider, system_message = None))]
-    /// Creates a new Agent instance.
-    ///
-    /// # Arguments:
-    /// * `provider` - A Python object representing the provider, expected to be an a variant of Provider or a string
-    /// that can be mapped to a provider variant
-    ///
     pub fn new(
-        provider: &Bound<'_, PyAny>,
-        system_message: Option<&Bound<'_, PyAny>>,
+        provider: Provider,
+        system_message: Option<Vec<Message>>,
     ) -> Result<Self, AgentError> {
-        let provider = Provider::extract_provider(provider)?;
-
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
             // Add other providers here as needed
         };
 
-        let system_message = if let Some(system_message) = system_message {
-            parse_prompt(system_message)?
-                .into_iter()
-                .map(|mut msg| {
-                    msg.role = Role::Developer.to_string();
-                    msg
-                })
-                .collect::<Vec<Message>>()
-        } else {
-            vec![]
-        };
+        let system_message = system_message.unwrap_or_default();
 
         Ok(Self {
             client,
@@ -66,15 +42,11 @@ impl Agent {
         })
     }
 
-    #[pyo3(signature = (task, context_messages = HashMap::new()))]
-    pub fn execute_task(
+    fn get_task_with_context(
         &self,
         task: &Task,
-        context_messages: HashMap<String, Vec<Message>>,
-    ) -> Result<AgentResponse, AgentError> {
-        // Extract the prompt from the task
-        debug!("Executing task");
-        // we need to clone in order to not modify the original task
+        context_messages: &HashMap<String, Vec<Message>>,
+    ) -> Task {
         let mut cloned_task = task.clone();
 
         if !cloned_task.dependencies.is_empty() {
@@ -88,25 +60,16 @@ impl Agent {
             }
         }
 
-        let mut prompt = cloned_task.prompt;
+        cloned_task
+    }
 
-        // Combine system messages, with agent messages taking precedence
+    fn append_system_messages(&self, prompt: &mut Prompt) {
         if !self.system_message.is_empty() {
             let mut combined_messages = self.system_message.clone();
-            combined_messages.extend(prompt.system_message);
+            combined_messages.extend(prompt.system_message.clone());
             prompt.system_message = combined_messages;
         }
-
-        let chat_response = app_state()
-            .runtime
-            .block_on(async { self.client.execute(&prompt).await })?;
-
-        Ok(AgentResponse::new(task.id.clone(), chat_response))
     }
-}
-
-/// Rust method implementation of the Agent
-impl Agent {
     pub async fn execute_async_task(
         &self,
         task: &Task,
@@ -114,31 +77,18 @@ impl Agent {
     ) -> Result<AgentResponse, AgentError> {
         // Extract the prompt from the task
         debug!("Executing task: {}, count: {}", task.id, task.retry_count);
-        let mut cloned_task = task.clone();
+        let mut prompt = self.get_task_with_context(task, &context_messages).prompt;
+        self.append_system_messages(&mut prompt);
 
-        if !cloned_task.dependencies.is_empty() {
-            for dep in &cloned_task.dependencies {
-                if let Some(messages) = context_messages.get(dep) {
-                    for message in messages {
-                        // prepend the messages from dependencies
-                        cloned_task.prompt.user_message.insert(0, message.clone());
-                    }
-                }
-            }
-        }
-
-        let mut prompt = cloned_task.prompt;
-
-        // Combine system messages, with agent messages taking precedence
-        if !self.system_message.is_empty() {
-            let mut combined_messages = self.system_message.clone();
-            combined_messages.extend(prompt.system_message);
-            prompt.system_message = combined_messages;
-        }
+        self.append_system_messages(&mut prompt);
 
         // Use the client to execute the task
         let chat_response = self.client.execute(&prompt).await?;
 
         Ok(AgentResponse::new(task.id.clone(), chat_response))
+    }
+
+    pub fn provider(&self) -> &Provider {
+        self.client.provider()
     }
 }
