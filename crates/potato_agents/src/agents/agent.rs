@@ -70,7 +70,19 @@ impl Agent {
             prompt.system_message = combined_messages;
         }
     }
-    pub async fn execute_async_task(
+    pub async fn execute_async_task(&self, task: &Task) -> Result<AgentResponse, AgentError> {
+        // Extract the prompt from the task
+        debug!("Executing task: {}, count: {}", task.id, task.retry_count);
+        let mut prompt = task.prompt.clone();
+        self.append_system_messages(&mut prompt);
+
+        // Use the client to execute the task
+        let chat_response = self.client.execute(&prompt).await?;
+
+        Ok(AgentResponse::new(task.id.clone(), chat_response))
+    }
+
+    pub async fn execute_async_task_with_context(
         &self,
         task: &Task,
         context_messages: HashMap<String, Vec<Message>>,
@@ -78,8 +90,6 @@ impl Agent {
         // Extract the prompt from the task
         debug!("Executing task: {}, count: {}", task.id, task.retry_count);
         let mut prompt = self.get_task_with_context(task, &context_messages).prompt;
-        self.append_system_messages(&mut prompt);
-
         self.append_system_messages(&mut prompt);
 
         // Use the client to execute the task

@@ -50,6 +50,9 @@ pub enum AgentError {
 
     #[error("Unknown provider: {0}")]
     UnknownProviderError(String),
+
+    #[error("Failed to create runtime: {0}")]
+    CreateRuntimeError(#[source] std::io::Error),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {

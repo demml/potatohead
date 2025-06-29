@@ -1,9 +1,0 @@
-[package]
-name = "py-potato-head"
-version = { workspace = true }
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[lib]
-name = "potato_head"
-crate-type = ["cdylib", "rlib"]
