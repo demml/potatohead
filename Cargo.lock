@@ -838,6 +838,18 @@ dependencies = [
 [[package]]
 name = "potato-workflows"
 version = "0.1.0"
+dependencies = [
+ "potato-agents",
+ "potato-prompts",
+ "potato-types",
+ "potato-utils",
+ "pyo3",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "potential_utf"
