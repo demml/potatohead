@@ -10,6 +10,15 @@ pub enum WorkflowError {
 
     #[error("Max retries exceeded for task: {0}")]
     MaxRetriesExceeded(String),
+
+    #[error("Task id already exists: {0}")]
+    TaskAlreadyExists(String),
+
+    #[error("Task dependency not found in registered tasks: {0}")]
+    DependencyNotFound(String),
+
+    #[error("Task not cannot depend on itself: {0}")]
+    TaskDependsOnItself(String),
 }
 
 impl From<WorkflowError> for PyErr {

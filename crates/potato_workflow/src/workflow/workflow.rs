@@ -9,13 +9,18 @@ use potato_utils::{create_uuid7, PyHelperFuncs};
 use potato_prompts::prompt::types::Role;
 use potato_prompts::Message;
 use pyo3::prelude::*;
-use serde::Deserialize;
-use serde::Serialize;
+
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::RwLock;
 use tracing::instrument;
 use tracing::{debug, error, info, warn};
+
+use serde::{
+    de::{self, MapAccess, Visitor},
+    ser::SerializeStruct,
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 
 #[derive(Debug)]
 #[pyclass]
@@ -77,9 +82,28 @@ impl TaskList {
             .all(|task| task.status == TaskStatus::Completed || task.status == TaskStatus::Failed)
     }
 
-    pub fn add_task(&mut self, task: Task) {
+    pub fn add_task(&mut self, task: Task) -> Result<(), WorkflowError> {
+        // assert that task ID is unique
+        if self.tasks.contains_key(&task.id) {
+            return Err(WorkflowError::TaskAlreadyExists(task.id.clone()));
+        }
+
+        // if dependencies are not empty, check if they exist in the task list
+        for dep_id in &task.dependencies {
+            if !self.tasks.contains_key(dep_id) {
+                return Err(WorkflowError::DependencyNotFound(dep_id.clone()));
+            }
+
+            // also check that the dependency is not the task itself
+            if dep_id == &task.id {
+                return Err(WorkflowError::TaskDependsOnItself(task.id.clone()));
+            }
+        }
+
+        // if all checks pass, insert the task
         self.tasks.insert(task.id.clone(), task);
         self.rebuild_execution_order();
+        Ok(())
     }
 
     pub fn get_task(&self, task_id: &str) -> Option<&Task> {
@@ -188,7 +212,7 @@ impl TaskList {
 }
 
 /// Rust-specific implementation of a workflow
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Workflow {
     pub id: String,
     pub name: String,
@@ -197,11 +221,11 @@ pub struct Workflow {
 }
 
 impl Workflow {
-    pub fn new(name: String) -> Self {
+    pub fn new(name: &str) -> Self {
         info!("Creating new workflow: {}", name);
         Self {
             id: create_uuid7(),
-            name,
+            name: name.to_string(),
             tasks: TaskList::new(),
             agents: HashMap::new(),
         }
@@ -221,18 +245,20 @@ impl Workflow {
         self.tasks.pending_count()
     }
 
-    pub fn add_task(&mut self, task: Task) {
-        self.tasks.add_task(task);
+    pub fn add_task(&mut self, task: Task) -> Result<(), WorkflowError> {
+        self.tasks.add_task(task)
     }
 
-    pub fn add_tasks(&mut self, tasks: Vec<Task>) {
+    pub fn add_tasks(&mut self, tasks: Vec<Task>) -> Result<(), WorkflowError> {
         for task in tasks {
-            self.tasks.add_task(task);
+            self.tasks.add_task(task)?;
         }
+        Ok(())
     }
 
-    pub fn add_agent(&mut self, agent: Agent) {
-        self.agents.insert(agent.id.clone(), Arc::new(agent));
+    pub fn add_agent(&mut self, agent: &Agent) {
+        self.agents
+            .insert(agent.id.clone(), Arc::new(agent.clone()));
     }
 
     pub fn execution_plan(&self) -> Result<HashMap<String, HashSet<String>>, WorkflowError> {
@@ -502,6 +528,104 @@ pub async fn execute_workflow(workflow: Arc<RwLock<Workflow>>) -> Result<(), Wor
     Ok(())
 }
 
+impl Serialize for Workflow {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Workflow", 4)?;
+
+        // set session to none
+        state.serialize_field("id", &self.id)?;
+        state.serialize_field("name", &self.name)?;
+        state.serialize_field("tasks", &self.tasks)?;
+
+        // serialize agents by unwrapping the Arc
+        let agents: HashMap<String, Agent> = self
+            .agents
+            .iter()
+            .map(|(id, agent)| (id.clone(), (*agent.as_ref()).clone()))
+            .collect();
+
+        state.serialize_field("agents", &agents)?;
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Workflow {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "snake_case")]
+        enum Field {
+            Id,
+            Name,
+            Tasks,
+            Agents,
+        }
+
+        struct WorkflowVisitor;
+
+        impl<'de> Visitor<'de> for WorkflowVisitor {
+            type Value = Workflow;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("struct Workflow")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<Workflow, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut id = None;
+                let mut name = None;
+                let mut tasks = None;
+                let mut agents: Option<HashMap<String, Agent>> = None;
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Id => {
+                            id = Some(map.next_value()?);
+                        }
+                        Field::Tasks => {
+                            tasks = Some(map.next_value()?);
+                        }
+                        Field::Agents => {
+                            agents = Some(map.next_value()?);
+                        }
+                        Field::Name => {
+                            name = Some(map.next_value()?);
+                        }
+                    }
+                }
+
+                let id = id.ok_or_else(|| de::Error::missing_field("id"))?;
+                let name = name.ok_or_else(|| de::Error::missing_field("name"))?;
+                let tasks = tasks.ok_or_else(|| de::Error::missing_field("tasks"))?;
+                let agents = agents.ok_or_else(|| de::Error::missing_field("agents"))?;
+
+                // convert agents to arc
+                let agents = agents
+                    .into_iter()
+                    .map(|(id, agent)| (id, Arc::new(agent)))
+                    .collect();
+
+                Ok(Workflow {
+                    id,
+                    name,
+                    tasks,
+                    agents,
+                })
+            }
+        }
+
+        const FIELDS: &[&str] = &["id", "name", "tasks", "agents"];
+        deserializer.deserialize_struct("Workflow", FIELDS, WorkflowVisitor)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -509,7 +633,7 @@ mod tests {
 
     #[test]
     fn test_workflow_creation() {
-        let workflow = Workflow::new("Test Workflow".to_string());
+        let workflow = Workflow::new("Test Workflow");
         assert_eq!(workflow.name, "Test Workflow");
         assert_eq!(workflow.id.len(), 36); // UUID7 length
     }
@@ -528,8 +652,8 @@ mod tests {
         )
         .unwrap();
 
-        let task = Task::new("task1".to_string(), prompt, None, None, None);
-        task_list.add_task(task.clone());
+        let task = Task::new("task1", prompt, "task1", None, None);
+        task_list.add_task(task.clone()).unwrap();
         assert_eq!(task_list.get_task(&task.id).unwrap().id, task.id);
         task_list.reset_failed_tasks().unwrap();
     }

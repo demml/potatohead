@@ -1,6 +1,6 @@
 use crate::agents::types::ChatResponse;
 use potato_prompts::Prompt;
-use potato_utils::{create_uuid7, PyHelperFuncs};
+use potato_utils::PyHelperFuncs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -58,12 +58,12 @@ pub struct Task {
 #[pymethods]
 impl Task {
     #[new]
-    #[pyo3(signature = (agent_id, prompt, dependencies = None, id = None, max_retries=None))]
+    #[pyo3(signature = (agent_id, prompt, id, dependencies = None, max_retries=None))]
     pub fn new(
-        agent_id: String,
+        agent_id: &str,
         prompt: Prompt,
+        id: &str,
         dependencies: Option<Vec<String>>,
-        id: Option<String>,
         max_retries: Option<u32>,
     ) -> Self {
         Self {
@@ -71,8 +71,8 @@ impl Task {
             dependencies: dependencies.unwrap_or_default(),
             status: TaskStatus::Pending,
             result: None,
-            id: id.unwrap_or_else(create_uuid7),
-            agent_id,
+            id: id.to_string(),
+            agent_id: agent_id.to_string(),
             max_retries: max_retries.unwrap_or(3),
             retry_count: 0,
         }

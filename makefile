@@ -10,4 +10,4 @@ test:
 	cargo test -- --nocapture --test-threads=1
 
 test.baked:
-	cargo test -p baked-potato test_mock_server -- --nocapture --test-threads=1
+	cargo test -p baked-potato -- --nocapture --test-threads=1

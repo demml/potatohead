@@ -10,10 +10,12 @@ name = "baked_potato"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mockito = { workspace = true }
-potato-types = { workspace = true }
-potato-prompts = { workspace = true }
 potato-agents = { workspace = true }
+potato-prompts = { workspace = true }
+potato-types = { workspace = true }
+potato-workflow = { workspace = true }
+
+mockito = { workspace = true }
 pyo3 = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

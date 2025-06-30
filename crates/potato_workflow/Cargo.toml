@@ -1,5 +1,5 @@
 [package]
-name = "potato-workflows"
+name = "potato-workflow"
 version = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
