@@ -13,7 +13,6 @@ use std::collections::HashMap;
 use tracing::debug;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-
 pub struct Agent {
     pub id: String,
 
