@@ -1,0 +1,13 @@
+[package]
+name = "potato-types"
+version = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+description = "Toppings for your potatoes"
+
+[lib]
+doctest = false
+
+[dependencies]
+pyo3 = { workspace = true }
+potato-utils = { workspace = true }

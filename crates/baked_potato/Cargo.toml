@@ -1,26 +1,34 @@
 [package]
 name = "baked-potato"
 version = { workspace = true }
-edition = { workspace = true }
-repository = { workspace = true }
+edition = "2021"
+description = "Test module for all potato crates"
 
-authors = [
-  "Demml <support@demmlai.com>"
-]
-
-license = "MIT"
-description = "Dev dependencies for PotatoHead"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "baked_potato"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-potato-error = { workspace = true }
+potato-agents = { workspace = true }
 potato-prompts = { workspace = true }
-potato-providers = { workspace = true }
+potato-types = { workspace = true }
+potato-workflow = { workspace = true }
 
-anyhow = { workspace = true }
-axum = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tokio = { workspace = true }
-tower-http = { workspace = true }
+mockito = { workspace = true }
 pyo3 = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
 tracing = { workspace = true }
+
+[[test]]
+name = "integration"
+path = "tests/lib.rs"
+
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+debug = false
