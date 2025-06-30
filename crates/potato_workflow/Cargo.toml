@@ -4,6 +4,7 @@ version = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
 description = "Put the potatoes to work"
+license = "MIT"
 
 [lib]
 doctest = false
