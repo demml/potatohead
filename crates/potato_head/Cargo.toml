@@ -1,0 +1,16 @@
+[package]
+name = "potato-head"
+version = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+description = "Potato brands"
+
+[lib]
+doctest = false
+
+[dependencies]
+potato-types = { workspace = true }
+potato-prompts = { workspace = true }
+potato-utils = { workspace = true }
+potato-agents = { workspace = true }
+potato-workflow = { workspace = true }
