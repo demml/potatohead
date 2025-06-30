@@ -8,7 +8,3 @@ git_tag_enable = false
 git_release_enable = false
 publish = true
 repo_url = "https://github.com/demml/potato_head"
-
-[[package]]
-name = "py-potato_head"
-publish = false

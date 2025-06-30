@@ -47,8 +47,8 @@ impl WorkflowResult {
                 };
                 (id, Py::new(py, py_task).unwrap())
             })
-            .collect::<HashMap<_, _>>()
-            .into();
+            .collect::<HashMap<_, _>>();
+
         Self { tasks: py_tasks }
     }
 }

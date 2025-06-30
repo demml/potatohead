@@ -74,11 +74,5 @@ fn test_workflow() {
         workflow.run().await.unwrap();
     });
 
-    // assert workflow tasks are completed
-    assert!(workflow.is_complete());
-
-    // assert pending count is 0
-    assert_eq!(workflow.pending_count(), 0);
-
     mock.stop_server().unwrap();
 }

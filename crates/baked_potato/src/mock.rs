@@ -35,6 +35,12 @@ impl OpenAIMock {
     }
 }
 
+impl Default for OpenAIMock {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[pyclass]
 #[allow(dead_code)]
 pub struct OpenAITestServer {
@@ -74,7 +80,7 @@ impl OpenAITestServer {
                 "OPENAI_API_URL",
                 self.openai_server.as_ref().unwrap().url.clone(),
             );
-            return Ok(());
+            Ok(())
         }
     }
 
@@ -122,5 +128,11 @@ impl OpenAITestServer {
         _traceback: PyObject,
     ) -> Result<(), MockError> {
         self.stop_server()
+    }
+}
+
+impl Default for OpenAITestServer {
+    fn default() -> Self {
+        Self::new()
     }
 }
