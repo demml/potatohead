@@ -1,5 +1,5 @@
 [package]
-name = "potato-types"
+name = "potato-type"
 version = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
@@ -11,4 +11,4 @@ doctest = false
 
 [dependencies]
 pyo3 = { workspace = true }
-potato-utils = { workspace = true }
+potato-util = { workspace = true }

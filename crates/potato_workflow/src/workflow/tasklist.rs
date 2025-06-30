@@ -1,6 +1,6 @@
 use crate::workflow::error::WorkflowError;
 
-pub use potato_agents::agents::{
+pub use potato_agent::agents::{
     agent::Agent,
     task::{PyTask, Task, TaskStatus},
     types::ChatResponse,

@@ -74,9 +74,9 @@ name = "baked-potato"
 version = "0.2.0"
 dependencies = [
  "mockito",
- "potato-agents",
- "potato-prompts",
- "potato-types",
+ "potato-agent",
+ "potato-prompt",
+ "potato-type",
  "potato-workflow",
  "pyo3",
  "serde_json",
@@ -784,12 +784,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f84267b20a16ea918e43c6a88433c2d54fa145c92a811b5b047ccbe153674483"
 
 [[package]]
-name = "potato-agents"
+name = "potato-agent"
 version = "0.2.0"
 dependencies = [
- "potato-prompts",
- "potato-types",
- "potato-utils",
+ "potato-prompt",
+ "potato-type",
+ "potato-util",
  "pyo3",
  "reqwest",
  "serde",
@@ -803,20 +803,20 @@ dependencies = [
 name = "potato-head"
 version = "0.2.0"
 dependencies = [
- "potato-agents",
- "potato-prompts",
- "potato-types",
- "potato-utils",
+ "potato-agent",
+ "potato-prompt",
+ "potato-type",
+ "potato-util",
  "potato-workflow",
 ]
 
 [[package]]
-name = "potato-prompts"
+name = "potato-prompt"
 version = "0.2.0"
 dependencies = [
  "mime_guess",
- "potato-types",
- "potato-utils",
+ "potato-type",
+ "potato-util",
  "pyo3",
  "regex",
  "serde",
@@ -826,15 +826,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "potato-types"
+name = "potato-type"
 version = "0.2.0"
 dependencies = [
- "potato-utils",
+ "potato-util",
  "pyo3",
 ]
 
 [[package]]
-name = "potato-utils"
+name = "potato-util"
 version = "0.2.0"
 dependencies = [
  "colored_json",
@@ -851,10 +851,10 @@ dependencies = [
 name = "potato-workflow"
 version = "0.2.0"
 dependencies = [
- "potato-agents",
- "potato-prompts",
- "potato-types",
- "potato-utils",
+ "potato-agent",
+ "potato-prompt",
+ "potato-type",
+ "potato-util",
  "pyo3",
  "serde",
  "serde_json",

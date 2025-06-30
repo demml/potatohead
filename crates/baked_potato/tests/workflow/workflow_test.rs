@@ -1,6 +1,6 @@
 use baked_potato::OpenAITestServer;
-use potato_agents::{Agent, Provider, Task};
-use potato_prompts::prompt::{Message, Prompt, PromptContent};
+use potato_agent::{Agent, Provider, Task};
+use potato_prompt::prompt::{Message, Prompt, PromptContent};
 use potato_workflow::Workflow;
 
 #[test]

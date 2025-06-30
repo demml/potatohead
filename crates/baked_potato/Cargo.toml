@@ -10,9 +10,9 @@ name = "baked_potato"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-potato-agents = { workspace = true }
-potato-prompts = { workspace = true }
-potato-types = { workspace = true }
+potato-agent = { workspace = true }
+potato-prompt = { workspace = true }
+potato-type = { workspace = true }
 potato-workflow = { workspace = true }
 
 mockito = { workspace = true }

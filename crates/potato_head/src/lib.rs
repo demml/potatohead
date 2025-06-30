@@ -1,5 +1,5 @@
-pub use potato_agents as agents;
-pub use potato_prompts as prompts;
-pub use potato_types as types;
-pub use potato_utils as utils;
+pub use potato_agent as agent;
+pub use potato_prompt as prompt;
+pub use potato_type as types;
+pub use potato_util as util;
 pub use potato_workflow as workflow;

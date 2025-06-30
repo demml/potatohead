@@ -1,13 +1,13 @@
 use crate::agents::provider::openai::OpenAIClient;
 use crate::agents::provider::types::Provider;
-use potato_prompts::prompt::types::Message;
+use potato_prompt::prompt::types::Message;
 
 use crate::{
     agents::client::GenAiClient, agents::error::AgentError, agents::task::Task,
     agents::types::AgentResponse,
 };
-use potato_prompts::Prompt;
-use potato_utils::create_uuid7;
+use potato_prompt::Prompt;
+use potato_util::create_uuid7;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::debug;

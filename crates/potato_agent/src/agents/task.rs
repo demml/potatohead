@@ -1,6 +1,6 @@
 use crate::agents::types::ChatResponse;
-use potato_prompts::Prompt;
-use potato_utils::PyHelperFuncs;
+use potato_prompt::Prompt;
+use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

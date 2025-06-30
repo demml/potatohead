@@ -1,13 +1,13 @@
 use crate::workflow::error::WorkflowError;
-pub use potato_agents::agents::{
+pub use potato_agent::agents::{
     agent::Agent,
     task::{PyTask, Task, TaskStatus},
     types::ChatResponse,
 };
-use potato_utils::{create_uuid7, PyHelperFuncs};
+use potato_util::{create_uuid7, PyHelperFuncs};
 
-use potato_prompts::prompt::types::Role;
-use potato_prompts::Message;
+use potato_prompt::prompt::types::Role;
+use potato_prompt::Message;
 use pyo3::prelude::*;
 
 use std::collections::{HashMap, HashSet};
@@ -629,7 +629,7 @@ impl<'de> Deserialize<'de> for Workflow {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use potato_prompts::{prompt::types::PromptContent, Message, Prompt};
+    use potato_prompt::{prompt::types::PromptContent, Message, Prompt};
 
     #[test]
     fn test_workflow_creation() {

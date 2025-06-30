@@ -1,6 +1,6 @@
 use crate::agents::error::AgentError;
 use crate::agents::provider::openai::OpenAIChatResponse;
-use potato_prompts::{
+use potato_prompt::{
     prompt::{PromptContent, Role},
     Message,
 };

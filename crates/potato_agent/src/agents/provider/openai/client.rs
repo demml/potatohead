@@ -1,7 +1,7 @@
 use crate::agents::error::AgentError;
 use crate::agents::provider::openai::{OpenAIChatMessage, OpenAIChatRequest, OpenAIChatResponse};
 use crate::agents::provider::types::{build_http_client, Provider};
-use potato_prompts::Prompt;
+use potato_prompt::Prompt;
 use reqwest::header::AUTHORIZATION;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};

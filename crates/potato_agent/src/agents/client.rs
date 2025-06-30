@@ -2,7 +2,7 @@ use crate::agents::error::AgentError;
 use crate::agents::provider::openai::OpenAIClient;
 use crate::agents::provider::types::Provider;
 use crate::agents::types::ChatResponse;
-use potato_prompts::Prompt;
+use potato_prompt::Prompt;
 use pyo3::prelude::*;
 use reqwest::header::HeaderName;
 use reqwest::header::{HeaderMap, HeaderValue};

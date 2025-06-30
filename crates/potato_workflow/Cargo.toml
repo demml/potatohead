@@ -10,10 +10,10 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-potato-types = { workspace = true }
-potato-prompts = { workspace = true }
-potato-agents = { workspace = true }
-potato-utils = { workspace = true }
+potato-type = { workspace = true }
+potato-prompt = { workspace = true }
+potato-agent = { workspace = true }
+potato-util = { workspace = true }
 
 pyo3 = { workspace = true }
 serde = { workspace = true }

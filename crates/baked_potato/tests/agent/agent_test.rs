@@ -1,6 +1,6 @@
 use baked_potato::OpenAITestServer;
-use potato_agents::{Agent, Provider, Task};
-use potato_prompts::prompt::{Message, Prompt, PromptContent};
+use potato_agent::{Agent, Provider, Task};
+use potato_prompt::prompt::{Message, Prompt, PromptContent};
 
 /// This test is performed in a sync context in order to maintain compatibility with python (OpenAITestServer can be used in rust and python)
 /// Because of this, we need to use a tokio runtime to run the async code within the test.

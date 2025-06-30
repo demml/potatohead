@@ -2,8 +2,8 @@ use crate::prompt::error::PromptError;
 use crate::prompt::types::parse_pydantic_model;
 
 use crate::prompt::types::{Message, Role};
-use potato_types::SaveName;
-use potato_utils::{json_to_pyobject, pyobject_to_json, PyHelperFuncs};
+use potato_type::SaveName;
+use potato_util::{json_to_pyobject, pyobject_to_json, PyHelperFuncs};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
 
@@ -357,7 +357,7 @@ impl Prompt {
         response_format: Option<Value>,
     ) -> Result<Self, PromptError> {
         // get version from crate
-        let version = potato_utils::version();
+        let version = potato_util::version();
 
         // either model and provider or model_settings must be provided
         if (model.is_none() || provider.is_none()) && model_settings.is_none() {

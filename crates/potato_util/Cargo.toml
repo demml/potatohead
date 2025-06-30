@@ -1,23 +1,21 @@
 [package]
-name = "potato-prompts"
+name = "potato-util"
 version = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
-description = "Tell your potatoes what to do"
+description = "Utilities for your potatoes"
 license = "MIT"
 
 [lib]
 doctest = false
 
+
 [dependencies]
-potato-types = { workspace = true }
-potato-utils = { workspace = true }
-
-
+colored_json = { workspace = true }
 pyo3 = { workspace = true }
-mime_guess = { workspace = true }
-regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+uuid = { workspace = true }
+walkdir = { workspace = true }

@@ -1,7 +1,7 @@
 use crate::prompt::error::PromptError;
 use mime_guess;
-use potato_utils::pyobject_to_json;
-use potato_utils::PyHelperFuncs;
+use potato_util::pyobject_to_json;
+use potato_util::PyHelperFuncs;
 use pyo3::types::PyAnyMethods;
 use pyo3::types::PyDict;
 use pyo3::types::PyString;

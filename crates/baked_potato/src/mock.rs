@@ -1,6 +1,6 @@
 use crate::error::MockError;
 use mockito;
-use potato_agents::agents::provider::openai::OpenAIChatResponse;
+use potato_agent::agents::provider::openai::OpenAIChatResponse;
 use serde_json;
 
 use pyo3::prelude::*;
