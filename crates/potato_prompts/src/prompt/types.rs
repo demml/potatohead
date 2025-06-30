@@ -79,8 +79,7 @@ fn image_format(media_type: &str) -> Result<String, PromptError> {
         "image/webp" => "webp",
         _ => {
             return Err(PromptError::Error(format!(
-                "Unknown image media type: {}",
-                media_type
+                "Unknown image media type: {media_type}"
             )))
         }
     };
@@ -100,8 +99,7 @@ fn document_format(media_type: &str) -> Result<String, PromptError> {
         "application/vnd.ms-excel" => "xls",
         _ => {
             return Err(PromptError::Error(format!(
-                "Unknown document media type: {}",
-                media_type
+                "Unknown document media type: {media_type}",
             )))
         }
     };
@@ -112,7 +110,7 @@ fn guess_type(url: &str) -> Result<String, PromptError> {
     // fail if mime type is not found
     let mime_type = mime_guess::from_path(url)
         .first()
-        .ok_or_else(|| PromptError::Error(format!("Failed to guess mime type for {}", url)))?;
+        .ok_or_else(|| PromptError::Error(format!("Failed to guess mime type for {url}")))?;
 
     Ok(mime_type.to_string())
 }
@@ -132,8 +130,7 @@ impl AudioUrl {
     fn new(url: String) -> PyResult<Self> {
         if !url.ends_with(".mp3") && !url.ends_with(".wav") {
             return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                "Unknown audio file extension: {}",
-                url
+                "Unknown audio file extension: {url}",
             )));
         }
         Ok(Self {
@@ -173,8 +170,7 @@ impl ImageUrl {
             && !url.ends_with(".webp")
         {
             return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                "Unknown image file extension: {}",
-                url
+                "Unknown image file extension: {url}",
             )));
         }
         Ok(Self {
@@ -263,8 +259,7 @@ impl BinaryContent {
             || get_document_media_types().contains(media_type)
         {
             return Err(PromptError::Error(format!(
-                "Unknown media type: {}",
-                media_type
+                "Unknown media type: {media_type}",
             )));
         }
 
@@ -416,7 +411,7 @@ impl Message {
     }
 
     pub fn bind(&self, name: &str, context: &str) -> Result<Message, PromptError> {
-        let placeholder = format!("${{{}}}", name);
+        let placeholder = format!("${{{name}}}");
 
         let content = match &self.content {
             PromptContent::Str(content) => {

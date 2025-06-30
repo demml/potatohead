@@ -92,7 +92,7 @@ impl ModelSettings {
         let extra_body =
             if let Some(extra_body) = extra_body {
                 Some(pyobject_to_json(extra_body).map_err(|e| {
-                    PromptError::Error(format!("Failed to convert extra body: {}", e))
+                    PromptError::Error(format!("Failed to convert extra body: {e}"))
                 })?)
             } else {
                 None
@@ -128,7 +128,7 @@ impl ModelSettings {
                 json_to_pyobject(py, v, &pydict)
             })
             .transpose()
-            .map_err(|e| PromptError::Error(format!("Failed to get extra body: {}", e)))
+            .map_err(|e| PromptError::Error(format!("Failed to get extra body: {e}")))
     }
 
     pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, PromptError> {
@@ -316,19 +316,19 @@ impl Prompt {
     pub fn from_path(path: PathBuf) -> Result<Self, PromptError> {
         // Load the JSON file from the path
         let file = std::fs::read_to_string(&path)
-            .map_err(|e| PromptError::Error(format!("Failed to read file: {}", e)))?;
+            .map_err(|e| PromptError::Error(format!("Failed to read file: {e}")))?;
 
         // Parse the JSON file into a Prompt
         serde_json::from_str(&file)
-            .map_err(|e| PromptError::Error(format!("Failed to parse JSON: {}", e)))
+            .map_err(|e| PromptError::Error(format!("Failed to parse JSON: {e}")))
     }
 
     #[staticmethod]
     pub fn model_validate_json(json_string: String) -> Result<Self, PromptError> {
         let json_value: Value = serde_json::from_str(&json_string)
-            .map_err(|e| PromptError::Error(format!("Failed to parse JSON string: {}", e)))?;
+            .map_err(|e| PromptError::Error(format!("Failed to parse JSON string: {e}")))?;
         let model: Self = serde_json::from_value(json_value)
-            .map_err(|e| PromptError::Error(format!("Failed to parse JSON value: {}", e)))?;
+            .map_err(|e| PromptError::Error(format!("Failed to parse JSON value: {e}")))?;
 
         Ok(model)
     }

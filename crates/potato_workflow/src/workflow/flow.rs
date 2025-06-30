@@ -297,7 +297,7 @@ impl Workflow {
             }
 
             // Add parallel tasks to the current step
-            plan.insert(format!("step{}", step), ready_set);
+            plan.insert(format!("step{step}"), ready_set);
 
             step += 1;
         }

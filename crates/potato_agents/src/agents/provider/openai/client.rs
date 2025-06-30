@@ -38,7 +38,7 @@ impl<'de> Deserialize<'de> for OpenAIClient {
     {
         // Re-initialize the client completely from scratch
         OpenAIClient::new(None, None, None).map_err(|e| {
-            serde::de::Error::custom(format!("Failed to initialize OpenAIClient: {}", e))
+            serde::de::Error::custom(format!("Failed to initialize OpenAIClient: {e}"))
         })
     }
 }
