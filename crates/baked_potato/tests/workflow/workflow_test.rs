@@ -30,31 +30,41 @@ fn test_workflow() {
     workflow.add_agent(&agent2);
 
     // add a task to the workflow
-    workflow.add_task(Task::new(&agent1.id, prompt.clone(), "task1", None, None));
-    workflow.add_task(Task::new(&agent2.id, prompt.clone(), "task2", None, None));
-    workflow.add_task(Task::new(
-        &agent2.id,
-        prompt.clone(),
-        "task3",
-        Some(vec!["task1".to_string(), "task2".to_string()]),
-        None,
-    ));
-    workflow.add_task(Task::new(
-        &agent1.id,
-        prompt.clone(),
-        "task4",
-        Some(vec!["task3".to_string()]),
-        None,
-    ));
+    workflow
+        .add_task(Task::new(&agent1.id, prompt.clone(), "task1", None, None))
+        .unwrap();
+    workflow
+        .add_task(Task::new(&agent2.id, prompt.clone(), "task2", None, None))
+        .unwrap();
+    workflow
+        .add_task(Task::new(
+            &agent2.id,
+            prompt.clone(),
+            "task3",
+            Some(vec!["task1".to_string(), "task2".to_string()]),
+            None,
+        ))
+        .unwrap();
+    workflow
+        .add_task(Task::new(
+            &agent1.id,
+            prompt.clone(),
+            "task4",
+            Some(vec!["task3".to_string()]),
+            None,
+        ))
+        .unwrap();
 
     // add final task
-    workflow.add_task(Task::new(
-        &agent1.id,
-        prompt.clone(),
-        "final_task",
-        Some(vec!["task3".to_string(), "task4".to_string()]),
-        None,
-    ));
+    workflow
+        .add_task(Task::new(
+            &agent1.id,
+            prompt.clone(),
+            "final_task",
+            Some(vec!["task3".to_string(), "task4".to_string()]),
+            None,
+        ))
+        .unwrap();
 
     // print execution plan
     println!("Execution Plan: {:?}", workflow.execution_plan());
