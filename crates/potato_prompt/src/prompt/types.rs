@@ -254,9 +254,9 @@ impl BinaryContent {
     fn new(data: Vec<u8>, media_type: &str, kind: &str) -> Result<Self, PromptError> {
         // assert that media type is valid, must be audio, image, or document
 
-        if get_audio_media_types().contains(media_type)
-            || get_image_media_types().contains(media_type)
-            || get_document_media_types().contains(media_type)
+        if !get_audio_media_types().contains(media_type)
+            || !get_image_media_types().contains(media_type)
+            || !get_document_media_types().contains(media_type)
         {
             return Err(PromptError::Error(format!(
                 "Unknown media type: {media_type}",
