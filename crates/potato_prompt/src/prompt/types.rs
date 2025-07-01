@@ -12,7 +12,7 @@ use serde_json::Value;
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::sync::OnceLock;
-use tracing::error;
+use tracing::{debug, error};
 
 static DOCUMENT_MEDIA_TYPES: OnceLock<HashSet<&'static str>> = OnceLock::new();
 
@@ -253,11 +253,13 @@ impl BinaryContent {
     #[pyo3(signature = (data, media_type, kind="binary"))]
     fn new(data: Vec<u8>, media_type: &str, kind: &str) -> Result<Self, PromptError> {
         // assert that media type is valid, must be audio, image, or document
+        let is_audio = get_audio_media_types().contains(media_type);
+        let is_image = get_image_media_types().contains(media_type);
+        let is_document = get_document_media_types().contains(media_type);
 
-        if !get_audio_media_types().contains(media_type)
-            || !get_image_media_types().contains(media_type)
-            || !get_document_media_types().contains(media_type)
-        {
+        debug!("Creating BinaryContent with media_type: {media_type}, is_audio: {is_audio}, is_image: {is_image}, is_document: {is_document}");
+
+        if !is_audio && !is_image && !is_document {
             return Err(PromptError::Error(format!(
                 "Unknown media type: {media_type}",
             )));
