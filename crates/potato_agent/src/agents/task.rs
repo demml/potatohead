@@ -36,6 +36,17 @@ pub struct PyTask {
     pub response_type: Option<Arc<PyObject>>,
 }
 
+#[pymethods]
+impl PyTask {
+    #[getter]
+    pub fn result<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        match &self.result {
+            Some(resp) => Ok(resp.to_python(py).map(Some)?),
+            None => Ok(None),
+        }
+    }
+}
+
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
