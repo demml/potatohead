@@ -71,7 +71,7 @@ dependencies = [
 
 [[package]]
 name = "baked-potato"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "mockito",
  "potato-agent",
@@ -304,9 +304,9 @@ checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 
 [[package]]
 name = "h2"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9421a676d1b147b16b82c9225157dc629087ef8ec4d5e2960f9437a90dac0a5"
+checksum = "17da50a276f1e01e0ba6c029e47b7100754904ee8a278f886546e98575380785"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -785,7 +785,7 @@ checksum = "f84267b20a16ea918e43c6a88433c2d54fa145c92a811b5b047ccbe153674483"
 
 [[package]]
 name = "potato-agent"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "potato-prompt",
  "potato-type",
@@ -801,7 +801,7 @@ dependencies = [
 
 [[package]]
 name = "potato-head"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "potato-agent",
  "potato-prompt",
@@ -812,7 +812,7 @@ dependencies = [
 
 [[package]]
 name = "potato-prompt"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "mime_guess",
  "potato-type",
@@ -827,7 +827,7 @@ dependencies = [
 
 [[package]]
 name = "potato-type"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "potato-util",
  "pyo3",
@@ -835,7 +835,7 @@ dependencies = [
 
 [[package]]
 name = "potato-util"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "colored_json",
  "pyo3",
@@ -849,7 +849,7 @@ dependencies = [
 
 [[package]]
 name = "potato-workflow"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "potato-agent",
  "potato-prompt",
@@ -1094,9 +1094,9 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "reqwest"
-version = "0.12.20"
+version = "0.12.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eabf4c97d9130e2bf606614eb937e86edac8292eaa6f422f995d7e8de1eb1813"
+checksum = "4c8cea6b35bcceb099f30173754403d2eba0a5dc18cea3630fccd88251909288"
 dependencies = [
  "base64",
  "bytes",

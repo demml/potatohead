@@ -119,9 +119,9 @@ fn guess_type(url: &str) -> Result<String, PromptError> {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AudioUrl {
     #[pyo3(get, set)]
-    url: String,
+    pub url: String,
     #[pyo3(get)]
-    kind: String,
+    pub kind: String,
 }
 
 #[pymethods]
@@ -208,9 +208,9 @@ impl ImageUrl {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DocumentUrl {
     #[pyo3(get, set)]
-    url: String,
+    pub url: String,
     #[pyo3(get)]
-    kind: String,
+    pub kind: String,
 }
 
 #[pymethods]
@@ -240,11 +240,11 @@ impl DocumentUrl {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BinaryContent {
     #[pyo3(get, set)]
-    data: Vec<u8>,
+    pub data: Vec<u8>,
     #[pyo3(get, set)]
-    media_type: String,
+    pub media_type: String,
     #[pyo3(get)]
-    kind: String,
+    pub kind: String,
 }
 
 #[pymethods]
