@@ -105,6 +105,7 @@ pub struct PromptTokenDetails {
     pub cached_tokens: u64,
 }
 
+#[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Usage {

@@ -1,10 +1,10 @@
 use crate::agents::error::AgentError;
 use crate::agents::provider::openai::OpenAIChatResponse;
+use crate::agents::provider::openai::Usage;
 use potato_prompt::{
     prompt::{PromptContent, Role},
     Message,
 };
-
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
@@ -59,6 +59,13 @@ impl AgentResponse {
             ChatResponse::OpenAI(resp) => resp.choices.first().map_or("".to_string(), |c| {
                 c.message.content.clone().unwrap_or_default()
             }),
+        }
+    }
+
+    #[getter]
+    pub fn token_usage(&self) -> Usage {
+        match &self.response {
+            ChatResponse::OpenAI(resp) => resp.usage.clone(),
         }
     }
 }
