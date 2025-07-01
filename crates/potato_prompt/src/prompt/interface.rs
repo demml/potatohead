@@ -417,7 +417,7 @@ impl Prompt {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::prompt::PromptContent;
+    use crate::prompt::types::{BinaryContent, DocumentUrl, ImageUrl, PromptContent};
 
     #[test]
     fn test_task_list_add_and_get() {
@@ -455,6 +455,127 @@ mod tests {
                 assert_eq!(content, "Test prompt. Value1 Value2");
             }
             _ => panic!("Expected PromptContent::Str"),
+        }
+    }
+
+    #[test]
+    fn test_image_prompt() {
+        let prompt = Prompt::new_rs(
+            vec![
+                Message::new_rs(PromptContent::Str(
+                    "What company is this logo from?".to_string(),
+                )),
+                Message::new_rs(PromptContent::Image(ImageUrl {
+                    url: "https://iili.io/3Hs4FMg.png".to_string(),
+                    kind: "image-url".to_string(),
+                })),
+            ],
+            Some("gpt-4o"),
+            Some("openai"),
+            vec![Message::new_rs(PromptContent::Str(
+                "system_prompt".to_string(),
+            ))],
+            None,
+            None,
+        )
+        .unwrap();
+
+        // Check the first user message
+        if let PromptContent::Str(content) = &prompt.user_message[0].content {
+            assert_eq!(content, "What company is this logo from?");
+        } else {
+            panic!("Expected PromptContent::Str for the first user message");
+        }
+
+        // Check the second user message (ImageUrl)
+        if let PromptContent::Image(image_url) = &prompt.user_message[1].content {
+            assert_eq!(image_url.url, "https://iili.io/3Hs4FMg.png");
+            assert_eq!(image_url.kind, "image-url");
+        } else {
+            panic!("Expected PromptContent::Image for the second user message");
+        }
+    }
+
+    #[test]
+    fn test_binary_prompt() {
+        let image_data = vec![137, 80, 78, 71, 13, 10, 26, 10]; // Example PNG header bytes
+
+        let prompt = Prompt::new_rs(
+            vec![
+                Message::new_rs(PromptContent::Str(
+                    "What company is this logo from?".to_string(),
+                )),
+                Message::new_rs(PromptContent::Binary(BinaryContent {
+                    data: image_data.clone(),
+                    media_type: "image/png".to_string(),
+                    kind: "binary".to_string(),
+                })),
+            ],
+            Some("gpt-4o"),
+            Some("openai"),
+            vec![Message::new_rs(PromptContent::Str(
+                "system_prompt".to_string(),
+            ))],
+            None,
+            None,
+        )
+        .unwrap();
+
+        // Check the first user message
+        if let PromptContent::Str(content) = &prompt.user_message[0].content {
+            assert_eq!(content, "What company is this logo from?");
+        } else {
+            panic!("Expected PromptContent::Str for the first user message");
+        }
+
+        // Check the second user message (BinaryContent)
+        if let PromptContent::Binary(binary_content) = &prompt.user_message[1].content {
+            assert_eq!(binary_content.data, image_data);
+            assert_eq!(binary_content.media_type, "image/png");
+            assert_eq!(binary_content.kind, "binary");
+        } else {
+            panic!("Expected PromptContent::Binary for the second user message");
+        }
+    }
+
+    #[test]
+    fn test_document_prompt() {
+        let prompt = Prompt::new_rs(
+            vec![
+                Message::new_rs(PromptContent::Str(
+                    "What is the main content of this document?".to_string(),
+                )),
+                Message::new_rs(PromptContent::Document(DocumentUrl {
+                    url: "https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf".to_string(),
+                    kind: "document-url".to_string(),
+                })),
+            ],
+            Some("gpt-4o"),
+            Some("openai"),
+            vec![Message::new_rs(PromptContent::Str(
+                "system_prompt".to_string(),
+            ))],
+            None,
+            None,
+        )
+        .unwrap();
+
+        // Check the first user message
+        if let PromptContent::Str(content) = &prompt.user_message[0].content {
+            assert_eq!(content, "What is the main content of this document?");
+        } else {
+            panic!("Expected PromptContent::Str for the first user message");
+        }
+
+        // Check the second user message (DocumentUrl)
+        if let PromptContent::Document(document_url) = &prompt.user_message[1].content {
+            assert_eq!(
+                document_url.url,
+                "https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"
+            );
+            assert_eq!(document_url.kind, "document-url");
+        } else {
+            panic!("Expected PromptContent::Document for the second user message");
         }
     }
 }
