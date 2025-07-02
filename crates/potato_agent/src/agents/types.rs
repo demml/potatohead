@@ -103,10 +103,10 @@ impl PyAgentResponse {
         self.response.output()
     }
 
-    //#[getter]
-    //pub fn token_usage(&self) -> Usage {
-    //    self.response.token_usage()
-    //}
+    #[getter]
+    pub fn token_usage(&self) -> Usage {
+        self.response.token_usage()
+    }
 
     #[getter]
     pub fn result<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
