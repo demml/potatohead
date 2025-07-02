@@ -1,10 +1,9 @@
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
-use serde::Deserialize;
 use thiserror::Error;
 use tracing::error;
 
-#[derive(Error, Debug, Deserialize)]
+#[derive(Error, Debug)]
 pub enum PromptError {
     #[error("Error: {0}")]
     Error(String),
@@ -41,6 +40,9 @@ pub enum PromptError {
 
     #[error("Failed to parse Python object: {0}")]
     ParseError(String),
+
+    #[error(transparent)]
+    SerdeJsonError(#[from] serde_json::Error),
 }
 
 impl From<PromptError> for PyErr {

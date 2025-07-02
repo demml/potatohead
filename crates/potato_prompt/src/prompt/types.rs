@@ -627,6 +627,11 @@ impl Score {
     pub fn response_type() -> ResponseType {
         ResponseType::Score
     }
+
+    #[staticmethod]
+    pub fn model_validate_json(json_string: String) -> Result<Score, PromptError> {
+        Ok(serde_json::from_str(&json_string)?)
+    }
 }
 
 impl Score {
