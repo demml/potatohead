@@ -6,7 +6,7 @@ use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 
 #[pyclass]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TaskStatus {
     Pending,
     Running,
