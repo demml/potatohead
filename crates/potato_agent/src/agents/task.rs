@@ -5,13 +5,20 @@ use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 
-#[pyclass]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[pyclass(eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TaskStatus {
     Pending,
     Running,
     Completed,
     Failed,
+}
+
+impl TaskStatus {
+    pub fn __eq__(&self, other: &Self) -> bool {
+        // compare strings
+        format!("{:?}", self) == format!("{:?}", other)
+    }
 }
 
 #[pyclass]
