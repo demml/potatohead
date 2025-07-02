@@ -632,6 +632,10 @@ impl Score {
     pub fn model_validate_json(json_string: String) -> Result<Score, PromptError> {
         Ok(serde_json::from_str(&json_string)?)
     }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
 }
 
 impl Score {
