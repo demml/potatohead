@@ -34,7 +34,7 @@ impl WorkflowResult {
     pub fn new(
         py: Python,
         tasks: HashMap<String, Task>,
-        output_types: HashMap<String, Arc<PyObject>>,
+        output_types: &HashMap<String, Arc<PyObject>>,
     ) -> Self {
         let py_tasks = tasks
             .into_iter()
