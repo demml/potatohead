@@ -558,7 +558,7 @@ fn get_json_schema_from_basemodel(object: &Bound<'_, PyAny>) -> Result<Value, Pr
     Ok(json_schema)
 }
 
-pub fn parse_pydantic_model<'py>(
+fn parse_pydantic_model<'py>(
     py: Python<'py>,
     object: &Bound<'_, PyAny>,
 ) -> Result<Option<Value>, PromptError> {
@@ -568,4 +568,95 @@ pub fn parse_pydantic_model<'py>(
     } else {
         Ok(None)
     }
+}
+
+pub fn check_response_type(object: &Bound<'_, PyAny>) -> Result<Option<ResponseType>, PromptError> {
+    // try calling staticmethod response_type()
+    let response_type = match object.getattr("response_type") {
+        Ok(method) => {
+            if method.is_callable() {
+                let response_type: ResponseType = method.call0()?.extract()?;
+                Some(response_type)
+            } else {
+                None
+            }
+        }
+        Err(_) => None,
+    };
+
+    Ok(response_type)
+}
+
+fn get_json_schema_from_response_type(response_type: &ResponseType) -> Result<Value, PromptError> {
+    match response_type {
+        ResponseType::Score => Ok(Score::get_structured_output_schema()),
+    }
+}
+
+pub fn parse_response_format<'py>(
+    py: Python<'py>,
+    object: &Bound<'_, PyAny>,
+) -> Result<Option<Value>, PromptError> {
+    // check if object is a pydantic model
+    let is_pydantic_model = check_pydantic_model(py, object)?;
+    if is_pydantic_model {
+        return parse_pydantic_model(py, object);
+    }
+
+    // check if object has response_type method
+    let response_type = check_response_type(object)?;
+    if let Some(response_type) = response_type {
+        return Ok(Some(get_json_schema_from_response_type(&response_type)?));
+    }
+
+    Ok(None)
+}
+
+#[pyclass]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Score {
+    #[pyo3(get)]
+    pub score: i64,
+
+    #[pyo3(get)]
+    pub reason: String,
+}
+#[pymethods]
+impl Score {
+    #[staticmethod]
+    pub fn response_type() -> ResponseType {
+        ResponseType::Score
+    }
+}
+
+impl Score {
+    pub fn to_json_schema() -> Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "score": { "type": "integer" },
+                "reason": { "type": "string" },
+            },
+            "required": ["score", "reason"],
+        })
+    }
+
+    pub fn get_structured_output_schema() -> Value {
+        let json_schema = serde_json::json!({
+            "type": "json_schema",
+            "json_schema": {
+                 "name": "Score",
+                 "schema": Self::to_json_schema(),
+                 "strict": true
+            },
+        });
+
+        json_schema
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ResponseType {
+    Score,
 }

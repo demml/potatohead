@@ -14,13 +14,6 @@ pub enum TaskStatus {
     Failed,
 }
 
-impl TaskStatus {
-    pub fn __eq__(&self, other: &Self) -> bool {
-        // compare strings
-        format!("{:?}", self) == format!("{:?}", other)
-    }
-}
-
 #[pyclass]
 #[derive(Debug, Serialize)]
 pub struct PyTask {

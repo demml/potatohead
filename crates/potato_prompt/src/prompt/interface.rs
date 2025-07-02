@@ -1,5 +1,5 @@
 use crate::prompt::error::PromptError;
-use crate::prompt::types::parse_pydantic_model;
+use crate::prompt::types::parse_response_format;
 
 use crate::prompt::types::{Message, Role};
 use potato_type::SaveName;
@@ -268,7 +268,7 @@ impl Prompt {
         let response_format = match response_format {
             Some(response_format) => {
                 // check if response_format is a pydantic model and extract the model json schema
-                parse_pydantic_model(py, response_format)?
+                parse_response_format(py, response_format)?
             }
             None => None,
         };
@@ -415,7 +415,10 @@ impl Prompt {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::prompt::types::{BinaryContent, DocumentUrl, ImageUrl, PromptContent};
+    use crate::prompt::{
+        types::{BinaryContent, DocumentUrl, ImageUrl, PromptContent},
+        Score,
+    };
 
     #[test]
     fn test_task_list_add_and_get() {
@@ -575,5 +578,23 @@ mod tests {
         } else {
             panic!("Expected PromptContent::Document for the second user message");
         }
+    }
+
+    #[test]
+    fn test_response_format_score() {
+        let prompt = Prompt::new_rs(
+            vec![Message::new_rs(PromptContent::Str(
+                "Rate the quality of this response.".to_string(),
+            ))],
+            Some("gpt-4o"),
+            Some("openai"),
+            vec![],
+            None,
+            Some(Score::get_structured_output_schema()),
+        )
+        .unwrap();
+
+        // Check if the response format is set correctly
+        assert!(prompt.response_format.is_some());
     }
 }
