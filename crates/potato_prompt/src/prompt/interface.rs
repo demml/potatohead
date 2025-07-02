@@ -184,17 +184,17 @@ pub struct Prompt {
     #[pyo3(get)]
     pub system_message: Vec<Message>,
 
-    pub version: String,
-
     #[pyo3(get)]
     pub model_settings: ModelSettings,
+
+    pub version: String,
 
     pub response_format: Option<Value>,
 
     pub parameters: Vec<String>,
 }
 
-pub fn parse_prompt(messages: &Bound<'_, PyAny>) -> PyResult<Vec<Message>> {
+pub fn parse_prompt(messages: &Bound<'_, PyAny>) -> Result<Vec<Message>, PromptError> {
     if messages.is_instance_of::<Message>() {
         return Ok(vec![messages.extract::<Message>()?]);
     }
@@ -218,7 +218,7 @@ pub fn parse_prompt(messages: &Bound<'_, PyAny>) -> PyResult<Vec<Message>> {
                     });
                 }
                 Err(e) => {
-                    return Err(e);
+                    return Err(PromptError::ParseError(e.to_string()));
                 }
             }
         }
@@ -269,8 +269,6 @@ impl Prompt {
             Some(response_format) => {
                 // check if response_format is a pydantic model and extract the model json schema
                 parse_pydantic_model(py, response_format)?
-
-                // we don't store response_format in the prompt, but we validate it
             }
             None => None,
         };

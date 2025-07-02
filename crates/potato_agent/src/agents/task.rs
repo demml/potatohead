@@ -1,9 +1,9 @@
-use crate::agents::types::ChatResponse;
+use crate::{AgentResponse, PyAgentResponse};
 use potato_prompt::Prompt;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
+use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -27,13 +27,11 @@ pub struct PyTask {
     pub status: TaskStatus,
     #[pyo3(get)]
     pub agent_id: String,
-    pub result: Option<ChatResponse>,
     #[pyo3(get)]
     pub max_retries: u32,
-    pub retry_count: u32,
+    pub result: Option<PyAgentResponse>,
 
-    #[serde(skip)]
-    pub response_type: Option<Arc<PyObject>>,
+    pub retry_count: u32,
 }
 
 #[pymethods]
@@ -41,7 +39,10 @@ impl PyTask {
     #[getter]
     pub fn result<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         match &self.result {
-            Some(resp) => Ok(resp.to_python(py).map(Some)?),
+            Some(resp) => {
+                //Ok(chat_resp)
+                Ok(Some(resp.result(py)?))
+            }
             None => Ok(None),
         }
     }
@@ -60,7 +61,7 @@ pub struct Task {
     pub status: TaskStatus,
     #[pyo3(get)]
     pub agent_id: String,
-    pub result: Option<ChatResponse>,
+    pub result: Option<AgentResponse>,
     #[pyo3(get)]
     pub max_retries: u32,
     pub retry_count: u32,
@@ -97,14 +98,14 @@ impl Task {
         self.status = status;
     }
 
-    pub fn set_result(&mut self, result: ChatResponse) {
+    pub fn set_result(&mut self, result: AgentResponse) {
         self.result = Some(result);
     }
 
     #[getter]
     pub fn result<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         match &self.result {
-            Some(resp) => Ok(resp.to_python(py).map(Some)?),
+            Some(resp) => Ok(resp.clone().into_bound_py_any(py).map(Some)?),
             None => Ok(None),
         }
     }

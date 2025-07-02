@@ -6,5 +6,5 @@ pub use agents::{
     error::AgentError,
     provider::types::Provider,
     task::{PyTask, Task, TaskStatus},
-    types::{AgentResponse, ChatResponse},
+    types::{AgentResponse, ChatResponse, PyAgentResponse},
 };

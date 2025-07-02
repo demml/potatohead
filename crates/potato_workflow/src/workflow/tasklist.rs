@@ -6,6 +6,7 @@ pub use potato_agent::agents::{
     types::ChatResponse,
 };
 
+use potato_agent::AgentResponse;
 use pyo3::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
@@ -60,7 +61,7 @@ impl TaskList {
         &mut self,
         task_id: &str,
         status: TaskStatus,
-        result: Option<ChatResponse>,
+        result: Option<AgentResponse>,
     ) {
         debug!(status=?status, result=?result, "Updating task status");
         if let Some(task) = self.tasks.get_mut(task_id) {

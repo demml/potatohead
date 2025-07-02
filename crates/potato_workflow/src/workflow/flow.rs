@@ -4,6 +4,7 @@ pub use potato_agent::agents::{
     task::{PyTask, Task, TaskStatus},
     types::ChatResponse,
 };
+use potato_agent::{AgentResponse, PyAgentResponse};
 use potato_util::{create_uuid7, PyHelperFuncs};
 
 use potato_prompt::prompt::types::Role;
@@ -30,20 +31,29 @@ pub struct WorkflowResult {
 }
 
 impl WorkflowResult {
-    pub fn new(py: Python, tasks: HashMap<String, Task>) -> Self {
+    pub fn new(
+        py: Python,
+        tasks: HashMap<String, Task>,
+        output_types: HashMap<String, Arc<PyObject>>,
+    ) -> Self {
         let py_tasks = tasks
             .into_iter()
             .map(|(id, task)| {
+                let py_agent_response = if let Some(result) = task.result {
+                    let output_type = output_types.get(&id).map(|arc| arc.as_ref().clone_ref(py));
+                    Some(PyAgentResponse::new(result, output_type))
+                } else {
+                    None
+                };
                 let py_task = PyTask {
                     id: task.id.clone(),
                     prompt: task.prompt,
                     dependencies: task.dependencies,
                     status: task.status,
                     agent_id: task.agent_id,
-                    result: task.result,
+                    result: py_agent_response,
                     max_retries: task.max_retries,
                     retry_count: task.retry_count,
-                    response_type: None, // Response type is not serialized
                 };
                 (id, Py::new(py, py_task).unwrap())
             })
@@ -126,7 +136,7 @@ impl TaskList {
         &mut self,
         task_id: &str,
         status: TaskStatus,
-        result: Option<ChatResponse>,
+        result: Option<AgentResponse>,
     ) {
         debug!(status=?status, result=?result, "Updating task status");
         if let Some(task) = self.tasks.get_mut(task_id) {
@@ -388,7 +398,7 @@ fn build_task_context(
     for dep_id in &task.dependencies {
         if let Some(dep) = wf.tasks.get_task(dep_id) {
             if let Some(result) = &dep.result {
-                if let Ok(message) = result.to_message(Role::Assistant) {
+                if let Ok(message) = result.response.to_message(Role::Assistant) {
                     ctx.insert(dep_id.clone(), message);
                 }
             }
@@ -418,11 +428,8 @@ fn spawn_task_execution(
             match agent.execute_async_task_with_context(&task, context).await {
                 Ok(response) => {
                     let mut wf = workflow.write().unwrap();
-                    wf.tasks.update_task_status(
-                        &task_id,
-                        TaskStatus::Completed,
-                        Some(response.response),
-                    );
+                    wf.tasks
+                        .update_task_status(&task_id, TaskStatus::Completed, Some(response));
                 }
                 Err(e) => {
                     error!("Task {} failed: {}", task_id, e);

@@ -38,6 +38,9 @@ pub enum PromptError {
 
     #[error("Failed to serialize Python object: {0}")]
     PySerializationError(String),
+
+    #[error("Failed to parse Python object: {0}")]
+    ParseError(String),
 }
 
 impl From<PromptError> for PyErr {
