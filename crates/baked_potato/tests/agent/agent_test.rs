@@ -25,7 +25,11 @@ fn test_agent() {
     let task = Task::new(&agent.id, prompt, "task1", None, None);
 
     runtime.block_on(async {
-        agent.execute_async_task(&task).await.unwrap();
+        agent.execute_task(&task).await.unwrap();
+    });
+
+    runtime.block_on(async {
+        agent.execute_prompt(&task.prompt).await.unwrap();
     });
 
     mock.stop_server().unwrap();

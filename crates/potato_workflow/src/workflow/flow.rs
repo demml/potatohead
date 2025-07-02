@@ -425,7 +425,7 @@ fn spawn_task_execution(
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         if let Some(agent) = agent {
-            match agent.execute_async_task_with_context(&task, context).await {
+            match agent.execute_task_with_context(&task, context).await {
                 Ok(response) => {
                     let mut wf = workflow.write().unwrap();
                     wf.tasks

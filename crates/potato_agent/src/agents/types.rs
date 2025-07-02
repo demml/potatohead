@@ -42,6 +42,12 @@ impl ChatResponse {
             ChatResponse::OpenAI(resp) => Ok(resp.clone().into_bound_py_any(py)?),
         }
     }
+
+    pub fn id(&self) -> String {
+        match self {
+            ChatResponse::OpenAI(resp) => resp.id.clone(),
+        }
+    }
 }
 
 #[pyclass]
