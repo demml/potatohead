@@ -1,6 +1,6 @@
 use crate::agents::provider::openai::OpenAIClient;
 use crate::agents::provider::types::Provider;
-use potato_prompt::prompt::types::Message;
+use potato_prompt::{prompt::types::Message, ModelSettings};
 
 use crate::{
     agents::client::GenAiClient, agents::error::AgentError, agents::task::Task,
@@ -111,5 +111,18 @@ impl Agent {
 
     pub fn provider(&self) -> &Provider {
         self.client.provider()
+    }
+
+    pub fn from_model_settings(model_settings: &ModelSettings) -> Result<Self, AgentError> {
+        let provider = Provider::from_string(&model_settings.provider)?;
+        let client = match provider {
+            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
+        };
+
+        Ok(Self {
+            client,
+            id: create_uuid7(),
+            system_message: Vec::new(),
+        })
     }
 }
