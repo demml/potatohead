@@ -1,5 +1,6 @@
 use crate::agents::error::AgentError;
 use crate::agents::provider::openai::OpenAIChatResponse;
+use crate::agents::provider::openai::ToolCall;
 use crate::agents::provider::openai::Usage;
 use potato_prompt::{
     prompt::{PromptContent, Role},
@@ -8,6 +9,7 @@ use potato_prompt::{
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,6 +49,51 @@ impl ChatResponse {
         match self {
             ChatResponse::OpenAI(resp) => resp.id.clone(),
         }
+    }
+
+    /// Get the content of the first choice in the chat response
+    pub fn content(&self) -> Option<&String> {
+        match self {
+            ChatResponse::OpenAI(resp) => resp
+                .choices
+                .first()
+                .and_then(|c| c.message.content.as_ref()),
+        }
+    }
+
+    /// Check for tool calls in the chat response
+    pub fn tool_calls(&self) -> Option<&Vec<ToolCall>> {
+        match self {
+            ChatResponse::OpenAI(resp) => {
+                let tool_calls: Option<&Vec<ToolCall>> = resp
+                    .choices
+                    .first()
+                    .and_then(|c| Some(c.message.tool_calls.as_ref()));
+                tool_calls
+            }
+        }
+    }
+
+    /// Extracts structured data from a chat response
+    pub fn extract_structured_data(&self) -> Option<Value> {
+        // Check for JSON in content field
+        if let Some(content) = self.content() {
+            let trimmed = content.trim();
+            if (trimmed.starts_with('{') && trimmed.ends_with('}'))
+                || (trimmed.starts_with('[') && trimmed.ends_with(']'))
+            {
+                return serde_json::from_str(trimmed).ok();
+            }
+        }
+
+        // Check for tool calls
+        if let Some(tool_calls) = &self.tool_calls() {
+            if !tool_calls.is_empty() {
+                return serde_json::to_value(tool_calls).ok();
+            }
+        }
+
+        None
     }
 }
 

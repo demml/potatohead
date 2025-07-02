@@ -5,23 +5,23 @@ pub use potato_agent::agents::{
     types::ChatResponse,
 };
 use potato_agent::{AgentResponse, PyAgentResponse};
-use potato_util::{create_uuid7, PyHelperFuncs};
+use potato_util::{create_uuid7, utils::update_serde_map_with, PyHelperFuncs};
 
 use potato_prompt::prompt::types::Role;
 use potato_prompt::Message;
 use pyo3::prelude::*;
-
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use std::sync::RwLock;
-use tracing::instrument;
-use tracing::{debug, error, info, warn};
-
 use serde::{
     de::{self, MapAccess, Visitor},
     ser::SerializeStruct,
     Deserialize, Deserializer, Serialize, Serializer,
 };
+use serde_json::Map;
+use serde_json::Value;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use std::sync::RwLock;
+use tracing::instrument;
+use tracing::{debug, error, info, warn};
 
 #[derive(Debug)]
 #[pyclass]
@@ -391,9 +391,10 @@ fn get_agent_for_task(workflow: &Arc<RwLock<Workflow>>, task: &Task) -> Option<A
 fn build_task_context(
     workflow: &Arc<RwLock<Workflow>>,
     task: &Task,
-) -> HashMap<String, Vec<Message>> {
+) -> Result<(HashMap<String, Vec<Message>>, Value), WorkflowError> {
     let wf = workflow.read().unwrap();
     let mut ctx = HashMap::new();
+    let mut param_ctx: Value = Value::Object(Map::new());
 
     for dep_id in &task.dependencies {
         if let Some(dep) = wf.tasks.get_task(dep_id) {
@@ -401,11 +402,19 @@ fn build_task_context(
                 if let Ok(message) = result.response.to_message(Role::Assistant) {
                     ctx.insert(dep_id.clone(), message);
                 }
+                if let Some(structure_output) = result.response.extract_structured_data() {
+                    // Value should be a serde_json::Value Object type
+                    // validate that it's an object
+                    if structure_output.is_object() {
+                        // extract the Map from the Value
+                        update_serde_map_with(&mut param_ctx, &structure_output)?;
+                    }
+                }
             }
         }
     }
 
-    ctx
+    Ok((ctx, param_ctx))
 }
 
 /// Spawns an individual task execution
@@ -455,7 +464,7 @@ fn spawn_task_execution(
 fn spawn_task_executions(
     workflow: &Arc<RwLock<Workflow>>,
     tasks: Vec<Task>,
-) -> Vec<tokio::task::JoinHandle<()>> {
+) -> Result<Vec<tokio::task::JoinHandle<()>>, WorkflowError> {
     let mut handles = Vec::with_capacity(tasks.len());
 
     for task in tasks {
@@ -466,7 +475,7 @@ fn spawn_task_executions(
         mark_task_as_running(workflow, &task_id);
 
         // Build the context
-        let context = build_task_context(workflow, &task);
+        let (context, _param_context) = build_task_context(workflow, &task)?;
 
         // Get/clone agent ARC
         let agent = get_agent_for_task(workflow, &task);
@@ -476,7 +485,7 @@ fn spawn_task_executions(
         handles.push(handle);
     }
 
-    handles
+    Ok(handles)
 }
 
 /// Wait for all spawned tasks to complete
@@ -525,7 +534,7 @@ pub async fn execute_workflow(workflow: Arc<RwLock<Workflow>>) -> Result<(), Wor
         }
 
         // Execute tasks asynchronously
-        let handles = spawn_task_executions(&workflow, ready_tasks);
+        let handles = spawn_task_executions(&workflow, ready_tasks)?;
 
         // Wait for all tasks to complete
         await_task_completions(handles).await;

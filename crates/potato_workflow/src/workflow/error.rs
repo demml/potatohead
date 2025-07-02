@@ -1,3 +1,4 @@
+use potato_util::UtilError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
 use thiserror::Error;
@@ -19,6 +20,9 @@ pub enum WorkflowError {
 
     #[error("Task not cannot depend on itself: {0}")]
     TaskDependsOnItself(String),
+
+    #[error(transparent)]
+    UtilError(#[from] UtilError),
 }
 
 impl From<WorkflowError> for PyErr {

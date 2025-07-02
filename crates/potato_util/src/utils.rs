@@ -10,6 +10,7 @@ use pyo3::IntoPyObjectExt;
 use serde::Serialize;
 use serde_json::json;
 use serde_json::Value;
+use serde_json::Value::{Null, Object};
 use std::path::Path;
 use uuid::Uuid;
 
@@ -216,4 +217,41 @@ pub fn pyobject_to_json(obj: &Bound<'_, PyAny>) -> Result<Value, UtilError> {
 
 pub fn version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
+}
+
+pub fn update_serde_value(value: &mut Value, key: &str, new_value: Value) -> Result<(), UtilError> {
+    if let Value::Object(map) = value {
+        map.insert(key.to_string(), new_value);
+        Ok(())
+    } else {
+        Err(UtilError::RootMustBeObjectError)
+    }
+}
+
+/// Updates a serde_json::Value object with another serde_json::Value object.
+/// Both types must be of the `Object` variant.
+/// If a key in the source object does not exist in the destination object,
+/// it will be added with the value from the source object.
+/// # Arguments
+/// * `dest` - A mutable reference to the destination serde_json::Value object.
+/// * `src` - A reference to the source serde_json::Value object.
+/// # Returns
+/// * `Ok(())` if the update was successful.    
+/// * `Err(UtilError::RootMustBeObjectError)` if either `dest` or `src` is not an `Object`.
+pub fn update_serde_map_with(
+    dest: &mut serde_json::Value,
+    src: &serde_json::Value,
+) -> Result<(), UtilError> {
+    match (dest, src) {
+        (&mut Object(ref mut map_dest), &Object(ref map_src)) => {
+            // map_dest and map_src both are Map<String, Value>
+            for (key, value) in map_src {
+                // if key is not in map_dest, create a Null object
+                // then only, update the value
+                *map_dest.entry(key.clone()).or_insert(Null) = value.clone();
+            }
+            Ok(())
+        }
+        (_, _) => Err(UtilError::RootMustBeObjectError),
+    }
 }
