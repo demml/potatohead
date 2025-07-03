@@ -40,7 +40,7 @@ pub struct EventDetails {
 #[derive(Debug, Clone)]
 pub struct EventTracker {
     run_id: String,
-    events: Arc<RwLock<Vec<TaskEvent>>>,
+    pub events: Arc<RwLock<Vec<TaskEvent>>>,
     task_start_times: Arc<RwLock<HashMap<String, DateTime<Utc>>>>,
 }
 
