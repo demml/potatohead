@@ -9,6 +9,7 @@ use crate::{
 use potato_prompt::Prompt;
 use potato_util::create_uuid7;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use tracing::debug;
 
@@ -41,25 +42,38 @@ impl Agent {
         })
     }
 
-    fn get_task_with_context(
+    fn append_task_with_message_context(
         &self,
-        task: &Task,
+        task: &mut Task,
         context_messages: &HashMap<String, Vec<Message>>,
-    ) -> Task {
-        let mut cloned_task = task.clone();
-
-        if !cloned_task.dependencies.is_empty() {
-            for dep in &cloned_task.dependencies {
+    ) {
+        if !task.dependencies.is_empty() {
+            for dep in &task.dependencies {
                 if let Some(messages) = context_messages.get(dep) {
                     for message in messages {
                         // prepend the messages from dependencies
-                        cloned_task.prompt.user_message.insert(0, message.clone());
+                        task.prompt.user_message.insert(0, message.clone());
                     }
                 }
             }
         }
+    }
 
-        cloned_task
+    fn bind_parameters(
+        &self,
+        prompt: &mut Prompt,
+        context_messages: &Value,
+    ) -> Result<(), AgentError> {
+        if !prompt.parameters.is_empty() {
+            for param in &prompt.parameters {
+                if let Some(value) = context_messages.get(param) {
+                    if let Some(first) = prompt.user_message.first_mut() {
+                        first.bind_mut(param, &value.to_string())?;
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     fn append_system_messages(&self, prompt: &mut Prompt) {
@@ -95,18 +109,27 @@ impl Agent {
 
     pub async fn execute_task_with_context(
         &self,
-        task: &Task,
+        task: &mut Task,
+        task_id: &str,
         context_messages: HashMap<String, Vec<Message>>,
+        parameter_context: Value,
     ) -> Result<AgentResponse, AgentError> {
+        // Record event started
+
         // Extract the prompt from the task
-        debug!("Executing task: {}, count: {}", task.id, task.retry_count);
-        let mut prompt = self.get_task_with_context(task, &context_messages).prompt;
-        self.append_system_messages(&mut prompt);
+        debug!("Executing task: {}, count: {}", task_id, task.retry_count);
+        self.append_task_with_message_context(task, &context_messages);
+
+        //let mut prompt = &task.prompt;
+
+        // Bind parameters if any
+        self.bind_parameters(&mut task.prompt, &parameter_context)?;
+        self.append_system_messages(&mut task.prompt);
 
         // Use the client to execute the task
-        let chat_response = self.client.execute(&prompt).await?;
+        let chat_response = self.client.execute(&task.prompt).await?;
 
-        Ok(AgentResponse::new(task.id.clone(), chat_response))
+        Ok(AgentResponse::new(task_id.to_string(), chat_response))
     }
 
     pub fn provider(&self) -> &Provider {

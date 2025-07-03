@@ -1,4 +1,7 @@
-use crate::workflow::error::WorkflowError;
+use crate::{
+    events::{EventTracker, TaskEvent},
+    workflow::error::WorkflowError,
+};
 pub use potato_agent::agents::{
     agent::Agent,
     task::{PyTask, Task, TaskStatus},
@@ -28,6 +31,9 @@ use tracing::{debug, error, info, warn};
 pub struct WorkflowResult {
     #[pyo3(get)]
     pub tasks: HashMap<String, Py<PyTask>>,
+
+    #[pyo3(get)]
+    pub events: Vec<TaskEvent>,
 }
 
 impl WorkflowResult {
@@ -35,6 +41,7 @@ impl WorkflowResult {
         py: Python,
         tasks: HashMap<String, Task>,
         output_types: &HashMap<String, Arc<PyObject>>,
+        events: Vec<TaskEvent>,
     ) -> Self {
         let py_tasks = tasks
             .into_iter()
@@ -59,7 +66,10 @@ impl WorkflowResult {
             })
             .collect::<HashMap<_, _>>();
 
-        Self { tasks: py_tasks }
+        Self {
+            tasks: py_tasks,
+            events,
+        }
     }
 }
 
@@ -136,12 +146,12 @@ impl TaskList {
         &mut self,
         task_id: &str,
         status: TaskStatus,
-        result: Option<AgentResponse>,
+        result: Option<&AgentResponse>,
     ) {
         debug!(status=?status, result=?result, "Updating task status");
         if let Some(task) = self.tasks.get_mut(task_id) {
             task.status = status;
-            task.result = result;
+            task.result = result.cloned();
         }
     }
 
@@ -228,6 +238,7 @@ pub struct Workflow {
     pub name: String,
     pub tasks: TaskList,
     pub agents: HashMap<String, Arc<Agent>>,
+    pub event_tracker: Arc<RwLock<EventTracker>>,
 }
 
 impl Workflow {
@@ -238,11 +249,20 @@ impl Workflow {
             name: name.to_string(),
             tasks: TaskList::new(),
             agents: HashMap::new(),
+            event_tracker: Arc::new(RwLock::new(EventTracker::new())),
         }
+    }
+    fn reset_event_tracker(&self) {
+        let tracker = self.event_tracker.write().unwrap();
+        tracker.reset();
     }
     pub async fn run(&self) -> Result<(), WorkflowError> {
         info!("Running workflow: {}", self.name);
         let workflow = self.clone();
+        workflow.reset_event_tracker();
+
+        // need to set current run ID in the event tracker
+
         let workflow = Arc::new(RwLock::new(workflow));
         execute_workflow(workflow).await
     }
@@ -372,6 +392,10 @@ fn mark_task_as_running(workflow: &Arc<RwLock<Workflow>>, task_id: &str) {
     let mut wf = workflow.write().unwrap();
     wf.tasks
         .update_task_status(task_id, TaskStatus::Running, None);
+    wf.event_tracker
+        .write()
+        .unwrap()
+        .record_task_started(&wf.id, task_id);
 }
 
 /// Get an agent for a task
@@ -427,24 +451,38 @@ fn build_task_context(
 /// # Returns a JoinHandle for the spawned task
 fn spawn_task_execution(
     workflow: Arc<RwLock<Workflow>>,
-    task: Task,
+    mut task: Task,
     task_id: String,
     agent: Option<Arc<Agent>>,
     context: HashMap<String, Vec<Message>>,
+    parameter_context: Value,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         if let Some(agent) = agent {
-            match agent.execute_task_with_context(&task, context).await {
+            match agent
+                .execute_task_with_context(&mut task, &task_id, context, parameter_context)
+                .await
+            {
                 Ok(response) => {
                     let mut wf = workflow.write().unwrap();
                     wf.tasks
-                        .update_task_status(&task_id, TaskStatus::Completed, Some(response));
+                        .update_task_status(&task_id, TaskStatus::Completed, Some(&response));
+                    wf.event_tracker.write().unwrap().record_task_completed(
+                        &task_id,
+                        &task.prompt,
+                        response,
+                    );
                 }
                 Err(e) => {
                     error!("Task {} failed: {}", task_id, e);
                     let mut wf = workflow.write().unwrap();
                     wf.tasks
                         .update_task_status(&task_id, TaskStatus::Failed, None);
+                    wf.event_tracker.write().unwrap().record_task_failed(
+                        &task_id,
+                        &e.to_string(),
+                        &task.prompt,
+                    );
                 }
             }
         } else {
@@ -475,13 +513,20 @@ fn spawn_task_executions(
         mark_task_as_running(workflow, &task_id);
 
         // Build the context
-        let (context, _param_context) = build_task_context(workflow, &task)?;
+        let (context, parameter_context) = build_task_context(workflow, &task)?;
 
         // Get/clone agent ARC
         let agent = get_agent_for_task(workflow, &task);
 
         // Spawn task execution and push handle to the vector
-        let handle = spawn_task_execution(workflow.clone(), task, task_id, agent, context);
+        let handle = spawn_task_execution(
+            workflow.clone(),
+            task,
+            task_id,
+            agent,
+            context,
+            parameter_context,
+        );
         handles.push(handle);
     }
 
@@ -518,7 +563,7 @@ pub async fn execute_workflow(workflow: Arc<RwLock<Workflow>>) -> Result<(), Wor
 
     while !is_workflow_complete(&workflow) {
         // Reset any failed tasks
-        // This will return and error if any task exceeds its max retries
+        // This will return an error if any task exceeds its max retries
         reset_failed_workflow_tasks(&workflow)?;
 
         // Get tasks ready for execution
@@ -621,6 +666,7 @@ impl<'de> Deserialize<'de> for Workflow {
                 let name = name.ok_or_else(|| de::Error::missing_field("name"))?;
                 let tasks = tasks.ok_or_else(|| de::Error::missing_field("tasks"))?;
                 let agents = agents.ok_or_else(|| de::Error::missing_field("agents"))?;
+                let event_tracker = Arc::new(RwLock::new(EventTracker::new()));
 
                 // convert agents to arc
                 let agents = agents
@@ -633,6 +679,7 @@ impl<'de> Deserialize<'de> for Workflow {
                     name,
                     tasks,
                     agents,
+                    event_tracker,
                 })
             }
         }

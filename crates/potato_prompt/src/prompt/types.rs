@@ -429,6 +429,19 @@ impl Message {
         })
     }
 
+    pub fn bind_mut(&mut self, name: &str, context: &str) -> Result<(), PromptError> {
+        let placeholder = format!("${{{name}}}");
+
+        match &mut self.content {
+            PromptContent::Str(content) => {
+                *content = content.replace(&placeholder, context);
+            }
+            _ => return Err(PromptError::Error("Cannot bind non-string content".into())),
+        }
+
+        Ok(())
+    }
+
     pub fn unwrap<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         self.content.to_pyobject(py)
     }

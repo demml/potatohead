@@ -1,3 +1,4 @@
+use potato_prompt::PromptError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
 use reqwest::StatusCode;
@@ -53,6 +54,9 @@ pub enum AgentError {
 
     #[error("Failed to create runtime: {0}")]
     CreateRuntimeError(#[source] std::io::Error),
+
+    #[error(transparent)]
+    PromptError(#[from] PromptError),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {
