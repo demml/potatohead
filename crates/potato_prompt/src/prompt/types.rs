@@ -12,6 +12,7 @@ use serde_json::Value;
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::sync::OnceLock;
+use tracing::instrument;
 use tracing::{debug, error};
 
 static DOCUMENT_MEDIA_TYPES: OnceLock<HashSet<&'static str>> = OnceLock::new();
@@ -429,8 +430,9 @@ impl Message {
         })
     }
 
+    #[instrument(skip_all)]
     pub fn bind_mut(&mut self, name: &str, context: &str) -> Result<(), PromptError> {
-        println!("Binding variable: {} with context: {}", name, context);
+        debug!("Binding variable: {name} with context: {context}");
         let placeholder = format!("${{{name}}}");
 
         match &mut self.content {

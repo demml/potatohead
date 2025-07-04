@@ -16,7 +16,7 @@ mod tests {
 
     #[test]
     fn test_my_output_serialization() {
-        let output = MyOutput {
+        let _ = MyOutput {
             value: 42,
             message: "Hello, world!".to_string(),
         };

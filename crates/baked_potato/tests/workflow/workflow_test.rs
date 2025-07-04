@@ -2,12 +2,12 @@ use baked_potato::OpenAITestServer;
 use potato_agent::{Agent, Provider, Task};
 use potato_prompt::prompt::{Message, Prompt, PromptContent};
 use potato_type::StructuredOutput;
-use potato_util::PyHelperFuncs;
 use potato_workflow::Workflow;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
 
+#[allow(dead_code)]
 #[derive(Debug, JsonSchema, Deserialize)]
 struct Parameters {
     variable1: i32,

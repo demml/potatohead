@@ -56,7 +56,6 @@ impl From<SaveName> for PathBuf {
 }
 
 /// A trait for structured output types that can be used with potatohead prompts agents and workflows.
-
 ///
 /// # Example
 /// ```rust
