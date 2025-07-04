@@ -12,3 +12,6 @@ doctest = false
 [dependencies]
 pyo3 = { workspace = true }
 potato-util = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

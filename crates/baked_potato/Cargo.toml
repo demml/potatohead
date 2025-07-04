@@ -14,9 +14,11 @@ potato-agent = { workspace = true }
 potato-prompt = { workspace = true }
 potato-type = { workspace = true }
 potato-workflow = { workspace = true }
-
+potato-util = { workspace = true }
 mockito = { workspace = true }
 pyo3 = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true}
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

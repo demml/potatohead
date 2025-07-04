@@ -134,6 +134,12 @@ impl TaskList {
         self.tasks.remove(task_id);
     }
 
+    pub fn update_task(&mut self, task_id: &str, updated_task: Task) {
+        if let Some(task) = self.tasks.get_mut(task_id) {
+            *task = updated_task;
+        }
+    }
+
     pub fn pending_count(&self) -> usize {
         self.tasks
             .values()
@@ -252,11 +258,17 @@ impl Workflow {
             event_tracker: Arc::new(RwLock::new(EventTracker::new())),
         }
     }
+    pub fn events(&self) -> Vec<TaskEvent> {
+        let tracker = self.event_tracker.read().unwrap();
+        let events = tracker.events.read().unwrap().clone();
+        events
+    }
+
     fn reset_event_tracker(&self) {
         let tracker = self.event_tracker.write().unwrap();
         tracker.reset();
     }
-    pub async fn run(&self) -> Result<(), WorkflowError> {
+    pub async fn run(&self) -> Result<Arc<RwLock<Workflow>>, WorkflowError> {
         info!("Running workflow: {}", self.name);
         let workflow = self.clone();
         workflow.reset_event_tracker();
@@ -264,7 +276,9 @@ impl Workflow {
         // need to set current run ID in the event tracker
 
         let workflow = Arc::new(RwLock::new(workflow));
-        execute_workflow(workflow).await
+        execute_workflow(&workflow).await?;
+
+        Ok(workflow)
     }
 
     pub fn is_complete(&self) -> bool {
@@ -467,6 +481,7 @@ fn spawn_task_execution(
                     let mut wf = workflow.write().unwrap();
                     wf.tasks
                         .update_task_status(&task_id, TaskStatus::Completed, Some(&response));
+
                     wf.event_tracker.write().unwrap().record_task_completed(
                         &task_id,
                         &task.prompt,
@@ -478,6 +493,7 @@ fn spawn_task_execution(
                     let mut wf = workflow.write().unwrap();
                     wf.tasks
                         .update_task_status(&task_id, TaskStatus::Failed, None);
+
                     wf.event_tracker.write().unwrap().record_task_failed(
                         &task_id,
                         &e.to_string(),
@@ -558,28 +574,28 @@ async fn await_task_completions(handles: Vec<tokio::task::JoinHandle<()>>) {
 /// ///    - Push task to the handles vector
 /// 4. Waits for all spawned tasks to complete
 #[instrument(skip_all)]
-pub async fn execute_workflow(workflow: Arc<RwLock<Workflow>>) -> Result<(), WorkflowError> {
+pub async fn execute_workflow(workflow: &Arc<RwLock<Workflow>>) -> Result<(), WorkflowError> {
     info!("Starting workflow execution");
 
-    while !is_workflow_complete(&workflow) {
+    while !is_workflow_complete(workflow) {
         // Reset any failed tasks
         // This will return an error if any task exceeds its max retries
-        reset_failed_workflow_tasks(&workflow)?;
+        reset_failed_workflow_tasks(workflow)?;
 
         // Get tasks ready for execution
-        let ready_tasks = get_ready_tasks(&workflow);
+        let ready_tasks = get_ready_tasks(workflow);
         info!("Found {} ready tasks for execution", ready_tasks.len());
 
         // Check for circular dependencies
         if ready_tasks.is_empty() {
-            if check_for_circular_dependencies(&workflow) {
+            if check_for_circular_dependencies(workflow) {
                 break;
             }
             continue;
         }
 
         // Execute tasks asynchronously
-        let handles = spawn_task_executions(&workflow, ready_tasks)?;
+        let handles = spawn_task_executions(workflow, ready_tasks)?;
 
         // Wait for all tasks to complete
         await_task_completions(handles).await;

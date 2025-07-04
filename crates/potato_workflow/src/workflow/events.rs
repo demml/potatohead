@@ -37,9 +37,9 @@ pub struct EventDetails {
     pub error: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct EventTracker {
-    run_id: String,
+    _run_id: String,
     pub events: Arc<RwLock<Vec<TaskEvent>>>,
     task_start_times: Arc<RwLock<HashMap<String, DateTime<Utc>>>>,
 }
@@ -47,7 +47,7 @@ pub struct EventTracker {
 impl EventTracker {
     pub fn new() -> Self {
         Self {
-            run_id: create_uuid7(),
+            _run_id: create_uuid7(),
             events: Arc::new(RwLock::new(Vec::new())),
             task_start_times: Arc::new(RwLock::new(HashMap::new())),
         }

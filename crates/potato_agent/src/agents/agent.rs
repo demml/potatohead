@@ -11,7 +11,7 @@ use potato_util::create_uuid7;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use tracing::debug;
+use tracing::{debug, instrument};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Agent {
@@ -59,16 +59,21 @@ impl Agent {
         }
     }
 
+    #[instrument(skip_all)]
     fn bind_parameters(
         &self,
         prompt: &mut Prompt,
         context_messages: &Value,
     ) -> Result<(), AgentError> {
+        // print user messages
         if !prompt.parameters.is_empty() {
             for param in &prompt.parameters {
                 if let Some(value) = context_messages.get(param) {
-                    if let Some(first) = prompt.user_message.first_mut() {
-                        first.bind_mut(param, &value.to_string())?;
+                    for message in &mut prompt.user_message {
+                        if message.role == "user" {
+                            debug!("Binding parameter: {} with value: {}", param, value);
+                            message.bind_mut(param, &value.to_string())?;
+                        }
                     }
                 }
             }
@@ -119,8 +124,6 @@ impl Agent {
         // Extract the prompt from the task
         debug!("Executing task: {}, count: {}", task_id, task.retry_count);
         self.append_task_with_message_context(task, &context_messages);
-
-        //let mut prompt = &task.prompt;
 
         // Bind parameters if any
         self.bind_parameters(&mut task.prompt, &parameter_context)?;

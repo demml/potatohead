@@ -243,7 +243,7 @@ pub fn update_serde_map_with(
     src: &serde_json::Value,
 ) -> Result<(), UtilError> {
     match (dest, src) {
-        (&mut Object(ref mut map_dest), &Object(ref map_src)) => {
+        (&mut Object(ref mut map_dest), Object(ref map_src)) => {
             // map_dest and map_src both are Map<String, Value>
             for (key, value) in map_src {
                 // if key is not in map_dest, create a Null object

@@ -65,10 +65,8 @@ impl ChatResponse {
     pub fn tool_calls(&self) -> Option<&Vec<ToolCall>> {
         match self {
             ChatResponse::OpenAI(resp) => {
-                let tool_calls: Option<&Vec<ToolCall>> = resp
-                    .choices
-                    .first()
-                    .and_then(|c| Some(c.message.tool_calls.as_ref()));
+                let tool_calls: Option<&Vec<ToolCall>> =
+                    resp.choices.first().map(|c| c.message.tool_calls.as_ref());
                 tool_calls
             }
         }

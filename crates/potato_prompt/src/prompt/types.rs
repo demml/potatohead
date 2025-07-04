@@ -430,6 +430,7 @@ impl Message {
     }
 
     pub fn bind_mut(&mut self, name: &str, context: &str) -> Result<(), PromptError> {
+        println!("Binding variable: {} with context: {}", name, context);
         let placeholder = format!("${{{name}}}");
 
         match &mut self.content {

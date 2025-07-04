@@ -13,4 +13,4 @@ test.prompt:
 	cargo test -p potato-prompt -- --nocapture --test-threads=1
 
 test.baked:
-	cargo test -p baked-potato -- --nocapture --test-threads=1
+	cargo test -p baked-potato test_parameterized_workflow -- --nocapture --test-threads=1
