@@ -11,6 +11,8 @@ use potato_util::create_uuid7;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::RwLock;
 use tracing::{debug, instrument};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,25 +116,23 @@ impl Agent {
 
     pub async fn execute_task_with_context(
         &self,
-        task: &mut Task,
-        task_id: &str,
+        task: &Arc<RwLock<Task>>,
         context_messages: HashMap<String, Vec<Message>>,
         parameter_context: Value,
     ) -> Result<AgentResponse, AgentError> {
-        // Record event started
+        // Prepare prompt and context before await
+        let (prompt, task_id) = {
+            let mut task = task.write().unwrap();
+            self.append_task_with_message_context(&mut task, &context_messages);
+            self.bind_parameters(&mut task.prompt, &parameter_context)?;
+            self.append_system_messages(&mut task.prompt);
+            (task.prompt.clone(), task.id.clone())
+        };
 
-        // Extract the prompt from the task
-        debug!("Executing task: {}, count: {}", task_id, task.retry_count);
-        self.append_task_with_message_context(task, &context_messages);
+        // Now do the async work without holding the lock
+        let chat_response = self.client.execute(&prompt).await?;
 
-        // Bind parameters if any
-        self.bind_parameters(&mut task.prompt, &parameter_context)?;
-        self.append_system_messages(&mut task.prompt);
-
-        // Use the client to execute the task
-        let chat_response = self.client.execute(&task.prompt).await?;
-
-        Ok(AgentResponse::new(task_id.to_string(), chat_response))
+        Ok(AgentResponse::new(task_id, chat_response))
     }
 
     pub fn provider(&self) -> &Provider {

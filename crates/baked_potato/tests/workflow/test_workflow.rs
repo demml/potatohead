@@ -95,6 +95,9 @@ fn test_workflow() {
         ))
         .unwrap();
 
+    assert_eq!(workflow.tasklist.len(), 5);
+    assert!(!workflow.tasklist.is_empty());
+
     // print execution plan
     println!("Execution Plan: {:?}", workflow.execution_plan());
 
@@ -138,11 +141,16 @@ fn test_parameterized_workflow() {
 
     let result = runtime.block_on(async { workflow.run().await.unwrap() });
 
+    // assert result id is not the same as workflow id
+    assert_ne!(result.read().unwrap().id, workflow.id);
+
     let task1_output = result
         .read()
         .unwrap()
-        .tasks
+        .tasklist
         .get_task("task1")
+        .unwrap()
+        .read()
         .unwrap()
         .result
         .as_ref()
@@ -151,8 +159,18 @@ fn test_parameterized_workflow() {
 
     let _ = Parameters::model_validate_json_str(task1_output.as_str());
 
-    println!(
-        "Workflow Task2 prompt: {:?}",
-        result.read().unwrap().events()
-    );
+    // assert original workflow is unmodified
+    assert_eq!(workflow.tasklist.len(), 2);
+
+    // assert workflow event tracker is empty for the original workflow
+    assert!(workflow.event_tracker.read().unwrap().is_empty());
+
+    // assert the recent run workflow has events
+    assert!(!result
+        .read()
+        .unwrap()
+        .event_tracker
+        .read()
+        .unwrap()
+        .is_empty());
 }

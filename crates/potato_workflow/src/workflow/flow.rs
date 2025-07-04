@@ -83,9 +83,31 @@ impl WorkflowResult {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[pyclass]
 pub struct TaskList {
-    #[pyo3(get)]
-    pub tasks: HashMap<String, Task>,
+    pub tasks: HashMap<String, Arc<RwLock<Task>>>,
     pub execution_order: Vec<String>,
+}
+
+#[pymethods]
+impl TaskList {
+    /// This is mainly a utility function to help with python interoperability.
+    pub fn tasks(&self, py: Python) -> HashMap<String, Py<Task>> {
+        self.tasks
+            .iter()
+            .map(|(id, task)| {
+                let py_task = Task {
+                    id: id.clone(),
+                    prompt: task.read().unwrap().prompt.clone(),
+                    dependencies: task.read().unwrap().dependencies.clone(),
+                    status: task.read().unwrap().status.clone(),
+                    agent_id: task.read().unwrap().agent_id.clone(),
+                    result: task.read().unwrap().result.clone(),
+                    max_retries: task.read().unwrap().max_retries,
+                    retry_count: task.read().unwrap().retry_count,
+                };
+                (id.clone(), Py::new(py, py_task).unwrap())
+            })
+            .collect()
+    }
 }
 
 impl TaskList {
@@ -96,10 +118,19 @@ impl TaskList {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.tasks.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.tasks.is_empty()
+    }
+
     pub fn is_complete(&self) -> bool {
-        self.tasks
-            .values()
-            .all(|task| task.status == TaskStatus::Completed || task.status == TaskStatus::Failed)
+        self.tasks.values().all(|task| {
+            task.read().unwrap().status == TaskStatus::Completed
+                || task.read().unwrap().status == TaskStatus::Failed
+        })
     }
 
     pub fn add_task(&mut self, task: Task) -> Result<(), WorkflowError> {
@@ -121,29 +152,24 @@ impl TaskList {
         }
 
         // if all checks pass, insert the task
-        self.tasks.insert(task.id.clone(), task);
+        self.tasks
+            .insert(task.id.clone(), Arc::new(RwLock::new(task)));
         self.rebuild_execution_order();
         Ok(())
     }
 
-    pub fn get_task(&self, task_id: &str) -> Option<&Task> {
-        self.tasks.get(task_id)
+    pub fn get_task(&self, task_id: &str) -> Option<Arc<RwLock<Task>>> {
+        self.tasks.get(task_id).cloned()
     }
 
     pub fn remove_task(&mut self, task_id: &str) {
         self.tasks.remove(task_id);
     }
 
-    pub fn update_task(&mut self, task_id: &str, updated_task: Task) {
-        if let Some(task) = self.tasks.get_mut(task_id) {
-            *task = updated_task;
-        }
-    }
-
     pub fn pending_count(&self) -> usize {
         self.tasks
             .values()
-            .filter(|task| task.status == TaskStatus::Pending)
+            .filter(|task| task.read().unwrap().status == TaskStatus::Pending)
             .count()
     }
 
@@ -156,6 +182,7 @@ impl TaskList {
     ) {
         debug!(status=?status, result=?result, "Updating task status");
         if let Some(task) = self.tasks.get_mut(task_id) {
+            let mut task = task.write().unwrap();
             task.status = status;
             task.result = result.cloned();
         }
@@ -179,7 +206,7 @@ impl TaskList {
         temp_visited.insert(task_id.to_string());
 
         if let Some(task) = self.tasks.get(task_id) {
-            for dep_id in &task.dependencies {
+            for dep_id in &task.read().unwrap().dependencies {
                 self.topological_sort(dep_id, visited, temp_visited, order);
             }
         }
@@ -207,15 +234,16 @@ impl TaskList {
     /// This also checks if all dependencies of the task are completed
     ///
     /// # Returns a vector of references to tasks that are ready to be executed
-    pub fn get_ready_tasks(&self) -> Vec<Task> {
+    pub fn get_ready_tasks(&self) -> Vec<Arc<RwLock<Task>>> {
         self.tasks
             .values()
-            .filter(|task| {
+            .filter(|task_arc| {
+                let task = task_arc.read().unwrap();
                 task.status == TaskStatus::Pending
                     && task.dependencies.iter().all(|dep_id| {
                         self.tasks
                             .get(dep_id)
-                            .map(|dep| dep.status == TaskStatus::Completed)
+                            .map(|dep| dep.read().unwrap().status == TaskStatus::Completed)
                             .unwrap_or(false)
                     })
             })
@@ -225,6 +253,7 @@ impl TaskList {
 
     pub fn reset_failed_tasks(&mut self) -> Result<(), WorkflowError> {
         for task in self.tasks.values_mut() {
+            let mut task = task.write().unwrap();
             if task.status == TaskStatus::Failed {
                 task.status = TaskStatus::Pending;
                 task.increment_retry();
@@ -242,7 +271,7 @@ impl TaskList {
 pub struct Workflow {
     pub id: String,
     pub name: String,
-    pub tasks: TaskList,
+    pub tasklist: TaskList,
     pub agents: HashMap<String, Arc<Agent>>,
     pub event_tracker: Arc<RwLock<EventTracker>>,
 }
@@ -250,12 +279,13 @@ pub struct Workflow {
 impl Workflow {
     pub fn new(name: &str) -> Self {
         info!("Creating new workflow: {}", name);
+        let id = create_uuid7();
         Self {
-            id: create_uuid7(),
+            id: id.clone(),
             name: name.to_string(),
-            tasks: TaskList::new(),
+            tasklist: TaskList::new(),
             agents: HashMap::new(),
-            event_tracker: Arc::new(RwLock::new(EventTracker::new())),
+            event_tracker: Arc::new(RwLock::new(EventTracker::new(id))),
         }
     }
     pub fn events(&self) -> Vec<TaskEvent> {
@@ -264,38 +294,38 @@ impl Workflow {
         events
     }
 
-    fn reset_event_tracker(&self) {
-        let tracker = self.event_tracker.write().unwrap();
-        tracker.reset();
+    fn get_new_workflow(&self) -> Self {
+        let mut workflow = self.clone();
+        // set new id for the new workflow
+        workflow.id = create_uuid7();
+        workflow.event_tracker = Arc::new(RwLock::new(EventTracker::new(workflow.id.clone())));
+        workflow
     }
+
     pub async fn run(&self) -> Result<Arc<RwLock<Workflow>>, WorkflowError> {
         info!("Running workflow: {}", self.name);
-        let workflow = self.clone();
-        workflow.reset_event_tracker();
+        let run_workflow = Arc::new(RwLock::new(self.get_new_workflow()));
 
-        // need to set current run ID in the event tracker
+        execute_workflow(&run_workflow).await?;
 
-        let workflow = Arc::new(RwLock::new(workflow));
-        execute_workflow(&workflow).await?;
-
-        Ok(workflow)
+        Ok(run_workflow)
     }
 
     pub fn is_complete(&self) -> bool {
-        self.tasks.is_complete()
+        self.tasklist.is_complete()
     }
 
     pub fn pending_count(&self) -> usize {
-        self.tasks.pending_count()
+        self.tasklist.pending_count()
     }
 
     pub fn add_task(&mut self, task: Task) -> Result<(), WorkflowError> {
-        self.tasks.add_task(task)
+        self.tasklist.add_task(task)
     }
 
     pub fn add_tasks(&mut self, tasks: Vec<Task>) -> Result<(), WorkflowError> {
         for task in tasks {
-            self.tasks.add_task(task)?;
+            self.tasklist.add_task(task)?;
         }
         Ok(())
     }
@@ -307,10 +337,15 @@ impl Workflow {
 
     pub fn execution_plan(&self) -> Result<HashMap<String, HashSet<String>>, WorkflowError> {
         let mut remaining: HashMap<String, HashSet<String>> = self
-            .tasks
+            .tasklist
             .tasks
             .iter()
-            .map(|(id, task)| (id.clone(), task.dependencies.iter().cloned().collect()))
+            .map(|(id, task)| {
+                (
+                    id.clone(),
+                    task.read().unwrap().dependencies.iter().cloned().collect(),
+                )
+            })
             .collect();
 
         let mut executed = HashSet::new();
@@ -348,6 +383,10 @@ impl Workflow {
 
         Ok(plan)
     }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(&self.tasklist)
+    }
 }
 
 /// Check if the workflow is complete
@@ -363,7 +402,7 @@ fn is_workflow_complete(workflow: &Arc<RwLock<Workflow>>) -> bool {
 /// * `workflow` - A reference to the workflow instance
 /// # Returns Ok(()) if successful, or an error if the reset fails
 fn reset_failed_workflow_tasks(workflow: &Arc<RwLock<Workflow>>) -> Result<(), WorkflowError> {
-    match workflow.write().unwrap().tasks.reset_failed_tasks() {
+    match workflow.write().unwrap().tasklist.reset_failed_tasks() {
         Ok(_) => Ok(()),
         Err(e) => {
             warn!("Failed to reset failed tasks: {}", e);
@@ -376,8 +415,8 @@ fn reset_failed_workflow_tasks(workflow: &Arc<RwLock<Workflow>>) -> Result<(), W
 /// # Arguments
 /// * `workflow` - A reference to the workflow instance
 /// # Returns a vector of tasks that are ready to be executed
-fn get_ready_tasks(workflow: &Arc<RwLock<Workflow>>) -> Vec<Task> {
-    workflow.read().unwrap().tasks.get_ready_tasks()
+fn get_ready_tasks(workflow: &Arc<RwLock<Workflow>>) -> Vec<Arc<RwLock<Task>>> {
+    workflow.read().unwrap().tasklist.get_ready_tasks()
 }
 
 /// Check for circular dependencies
@@ -402,23 +441,19 @@ fn check_for_circular_dependencies(workflow: &Arc<RwLock<Workflow>>) -> bool {
 /// # Arguments
 /// * `workflow` - A reference to the workflow instance
 /// # Returns nothing
-fn mark_task_as_running(workflow: &Arc<RwLock<Workflow>>, task_id: &str) {
-    let mut wf = workflow.write().unwrap();
-    wf.tasks
-        .update_task_status(task_id, TaskStatus::Running, None);
-    wf.event_tracker
-        .write()
-        .unwrap()
-        .record_task_started(&wf.id, task_id);
+fn mark_task_as_running(task: Arc<RwLock<Task>>, event_tracker: &Arc<RwLock<EventTracker>>) {
+    let mut task = task.write().unwrap();
+    task.set_status(TaskStatus::Running);
+    event_tracker.write().unwrap().record_task_started(&task.id);
 }
 
 /// Get an agent for a task
 /// # Arguments
 /// * `workflow` - A reference to the workflow instance
 /// * `task` - A reference to the task for which the agent is needed
-fn get_agent_for_task(workflow: &Arc<RwLock<Workflow>>, task: &Task) -> Option<Arc<Agent>> {
+fn get_agent_for_task(workflow: &Arc<RwLock<Workflow>>, agent_id: &str) -> Option<Arc<Agent>> {
     let wf = workflow.read().unwrap();
-    wf.agents.get(&task.agent_id).cloned()
+    wf.agents.get(agent_id).cloned()
 }
 
 /// Builds the context for a task from its dependencies
@@ -428,15 +463,15 @@ fn get_agent_for_task(workflow: &Arc<RwLock<Workflow>>, task: &Task) -> Option<A
 /// # Returns a HashMap containing the context messages for the task
 fn build_task_context(
     workflow: &Arc<RwLock<Workflow>>,
-    task: &Task,
+    task_dependencies: &Vec<String>,
 ) -> Result<(HashMap<String, Vec<Message>>, Value), WorkflowError> {
     let wf = workflow.read().unwrap();
     let mut ctx = HashMap::new();
     let mut param_ctx: Value = Value::Object(Map::new());
 
-    for dep_id in &task.dependencies {
-        if let Some(dep) = wf.tasks.get_task(dep_id) {
-            if let Some(result) = &dep.result {
+    for dep_id in task_dependencies {
+        if let Some(dep) = wf.tasklist.get_task(dep_id) {
+            if let Some(result) = &dep.read().unwrap().result {
                 if let Ok(message) = result.response.to_message(Role::Assistant) {
                     ctx.insert(dep_id.clone(), message);
                 }
@@ -464,8 +499,8 @@ fn build_task_context(
 /// * `context` - A HashMap containing the context messages for the task
 /// # Returns a JoinHandle for the spawned task
 fn spawn_task_execution(
-    workflow: Arc<RwLock<Workflow>>,
-    mut task: Task,
+    event_tracker: Arc<RwLock<EventTracker>>,
+    task: Arc<RwLock<Task>>,
     task_id: String,
     agent: Option<Arc<Agent>>,
     context: HashMap<String, Vec<Message>>,
@@ -473,41 +508,53 @@ fn spawn_task_execution(
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         if let Some(agent) = agent {
-            match agent
-                .execute_task_with_context(&mut task, &task_id, context, parameter_context)
-                .await
-            {
+            // (1) Insert any context messages and/or parameters into the task prompt
+            // (2) Execute the task with the agent
+            // (3) Return the AgentResponse
+            let result = agent
+                .execute_task_with_context(&task, context, parameter_context)
+                .await;
+            match result {
                 Ok(response) => {
-                    let mut wf = workflow.write().unwrap();
-                    wf.tasks
-                        .update_task_status(&task_id, TaskStatus::Completed, Some(&response));
-
-                    wf.event_tracker.write().unwrap().record_task_completed(
-                        &task_id,
-                        &task.prompt,
+                    let mut write_task = task.write().unwrap();
+                    write_task.set_status(TaskStatus::Completed);
+                    write_task.set_result(response.clone());
+                    event_tracker.write().unwrap().record_task_completed(
+                        &write_task.id,
+                        &write_task.prompt,
                         response,
                     );
                 }
                 Err(e) => {
                     error!("Task {} failed: {}", task_id, e);
-                    let mut wf = workflow.write().unwrap();
-                    wf.tasks
-                        .update_task_status(&task_id, TaskStatus::Failed, None);
-
-                    wf.event_tracker.write().unwrap().record_task_failed(
-                        &task_id,
+                    let mut write_task = task.write().unwrap();
+                    write_task.set_status(TaskStatus::Failed);
+                    event_tracker.write().unwrap().record_task_failed(
+                        &write_task.id,
                         &e.to_string(),
-                        &task.prompt,
+                        &write_task.prompt,
                     );
                 }
             }
         } else {
             error!("No agent found for task {}", task_id);
-            let mut wf = workflow.write().unwrap();
-            wf.tasks
-                .update_task_status(&task_id, TaskStatus::Failed, None);
+            let mut write_task = task.write().unwrap();
+            write_task.set_status(TaskStatus::Failed);
         }
     })
+}
+
+fn get_parameters_from_context(task: Arc<RwLock<Task>>) -> (String, Vec<String>, String) {
+    let (task_id, dependencies, agent_id) = {
+        let task_guard = task.read().unwrap();
+        (
+            task_guard.id.clone(),
+            task_guard.dependencies.clone(),
+            task_guard.agent_id.clone(),
+        )
+    };
+
+    (task_id, dependencies, agent_id)
 }
 
 /// Helper for spawning a task execution
@@ -517,27 +564,34 @@ fn spawn_task_execution(
 /// # Returns a vector of JoinHandles for the spawned tasks
 fn spawn_task_executions(
     workflow: &Arc<RwLock<Workflow>>,
-    tasks: Vec<Task>,
+    ready_tasks: Vec<Arc<RwLock<Task>>>,
 ) -> Result<Vec<tokio::task::JoinHandle<()>>, WorkflowError> {
-    let mut handles = Vec::with_capacity(tasks.len());
+    let mut handles = Vec::with_capacity(ready_tasks.len());
 
-    for task in tasks {
-        let task_id = task.id.clone();
-        //let workflow_clone = workflow.clone();
+    // Get the event tracker from the workflow
+    let event_tracker = workflow.read().unwrap().event_tracker.clone();
+
+    for task in ready_tasks {
+        // Get task parameters
+        let (task_id, dependencies, agent_id) = get_parameters_from_context(task.clone());
 
         // Mark task as running
-        mark_task_as_running(workflow, &task_id);
+        // This will also record the task started event
+        mark_task_as_running(task.clone(), &event_tracker);
 
         // Build the context
-        let (context, parameter_context) = build_task_context(workflow, &task)?;
+        // Here we:
+        // 1. Get the task dependencies and their results (these will be injected as assistant messages)
+        // 2. Parse dependent tasks for any structured outputs and return as a serde_json::Value
+        let (context, parameter_context) = build_task_context(workflow, &dependencies)?;
 
         // Get/clone agent ARC
-        let agent = get_agent_for_task(workflow, &task);
+        let agent = get_agent_for_task(workflow, &agent_id);
 
-        // Spawn task execution and push handle to the vector
+        // Spawn task execution and push handle to future vector
         let handle = spawn_task_execution(
-            workflow.clone(),
-            task,
+            event_tracker.clone(),
+            task.clone(),
             task_id,
             agent,
             context,
@@ -575,14 +629,19 @@ async fn await_task_completions(handles: Vec<tokio::task::JoinHandle<()>>) {
 /// 4. Waits for all spawned tasks to complete
 #[instrument(skip_all)]
 pub async fn execute_workflow(workflow: &Arc<RwLock<Workflow>>) -> Result<(), WorkflowError> {
+    // Important to remember that the workflow is an Arc<RwLock<Workflow>> is a new clone of
+    // the loaded workflow. This allows us to mutate the workflow without affecting the original
+    // workflow instance.
     info!("Starting workflow execution");
 
+    // Run until workflow is complete
     while !is_workflow_complete(workflow) {
         // Reset any failed tasks
-        // This will return an error if any task exceeds its max retries
+        // This will return an error if any task exceeds its max retries (set at the task level)
         reset_failed_workflow_tasks(workflow)?;
 
         // Get tasks ready for execution
+        // This will return an Arc<RwLock<Task>>
         let ready_tasks = get_ready_tasks(workflow);
         info!("Found {} ready tasks for execution", ready_tasks.len());
 
@@ -615,7 +674,7 @@ impl Serialize for Workflow {
         // set session to none
         state.serialize_field("id", &self.id)?;
         state.serialize_field("name", &self.name)?;
-        state.serialize_field("tasks", &self.tasks)?;
+        state.serialize_field("tasklist", &self.tasklist)?;
 
         // serialize agents by unwrapping the Arc
         let agents: HashMap<String, Agent> = self
@@ -639,7 +698,7 @@ impl<'de> Deserialize<'de> for Workflow {
         enum Field {
             Id,
             Name,
-            Tasks,
+            TaskList,
             Agents,
         }
 
@@ -666,7 +725,7 @@ impl<'de> Deserialize<'de> for Workflow {
                         Field::Id => {
                             id = Some(map.next_value()?);
                         }
-                        Field::Tasks => {
+                        Field::TaskList => {
                             tasks = Some(map.next_value()?);
                         }
                         Field::Agents => {
@@ -680,9 +739,9 @@ impl<'de> Deserialize<'de> for Workflow {
 
                 let id = id.ok_or_else(|| de::Error::missing_field("id"))?;
                 let name = name.ok_or_else(|| de::Error::missing_field("name"))?;
-                let tasks = tasks.ok_or_else(|| de::Error::missing_field("tasks"))?;
+                let tasklist = tasks.ok_or_else(|| de::Error::missing_field("tasklist"))?;
                 let agents = agents.ok_or_else(|| de::Error::missing_field("agents"))?;
-                let event_tracker = Arc::new(RwLock::new(EventTracker::new()));
+                let event_tracker = Arc::new(RwLock::new(EventTracker::new(create_uuid7())));
 
                 // convert agents to arc
                 let agents = agents
@@ -693,7 +752,7 @@ impl<'de> Deserialize<'de> for Workflow {
                 Ok(Workflow {
                     id,
                     name,
-                    tasks,
+                    tasklist,
                     agents,
                     event_tracker,
                 })
@@ -733,7 +792,10 @@ mod tests {
 
         let task = Task::new("task1", prompt, "task1", None, None);
         task_list.add_task(task.clone()).unwrap();
-        assert_eq!(task_list.get_task(&task.id).unwrap().id, task.id);
+        assert_eq!(
+            task_list.get_task(&task.id).unwrap().read().unwrap().id,
+            task.id
+        );
         task_list.reset_failed_tasks().unwrap();
     }
 }

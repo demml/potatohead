@@ -30,7 +30,6 @@ pub struct PyTask {
     #[pyo3(get)]
     pub max_retries: u32,
     pub result: Option<PyAgentResponse>,
-
     pub retry_count: u32,
 }
 

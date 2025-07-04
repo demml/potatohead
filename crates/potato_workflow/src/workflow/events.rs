@@ -39,18 +39,23 @@ pub struct EventDetails {
 
 #[derive(Debug, Clone, Default)]
 pub struct EventTracker {
-    _run_id: String,
+    workflow_id: String,
     pub events: Arc<RwLock<Vec<TaskEvent>>>,
     task_start_times: Arc<RwLock<HashMap<String, DateTime<Utc>>>>,
 }
 
 impl EventTracker {
-    pub fn new() -> Self {
+    pub fn new(workflow_id: String) -> Self {
         Self {
-            _run_id: create_uuid7(),
+            workflow_id,
             events: Arc::new(RwLock::new(Vec::new())),
             task_start_times: Arc::new(RwLock::new(HashMap::new())),
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        let events = self.events.read().unwrap();
+        events.is_empty()
     }
 
     pub fn reset(&self) {
@@ -66,7 +71,7 @@ impl EventTracker {
     /// * `task_id` - The ID of the task that was started.
     /// # Returns
     /// None
-    pub fn record_task_started(&self, workflow_id: &str, task_id: &str) {
+    pub fn record_task_started(&self, task_id: &str) {
         let now = Utc::now();
 
         let mut start_times = self.task_start_times.write().unwrap();
@@ -74,7 +79,7 @@ impl EventTracker {
 
         let event = TaskEvent {
             id: create_uuid7(),
-            workflow_id: workflow_id.to_string(),
+            workflow_id: self.workflow_id.clone(),
             task_id: task_id.to_string(),
             status: TaskStatus::Running,
             timestamp: now,

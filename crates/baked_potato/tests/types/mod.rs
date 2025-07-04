@@ -1,1 +1,1 @@
-pub mod types_test;
+pub mod test_types;
