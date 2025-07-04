@@ -294,7 +294,7 @@ impl Workflow {
         events
     }
 
-    fn get_new_workflow(&self) -> Self {
+    pub fn get_new_workflow(&self) -> Self {
         let mut workflow = self.clone();
         // set new id for the new workflow
         workflow.id = create_uuid7();
