@@ -90,11 +90,11 @@ pub struct TaskList {
 #[pymethods]
 impl TaskList {
     /// This is mainly a utility function to help with python interoperability.
-    pub fn tasks(&self, py: Python) -> HashMap<String, Py<Task>> {
+    pub fn tasks(&self) -> HashMap<String, Task> {
         self.tasks
             .iter()
             .map(|(id, task)| {
-                let py_task = Task {
+                let task = Task {
                     id: id.clone(),
                     prompt: task.read().unwrap().prompt.clone(),
                     dependencies: task.read().unwrap().dependencies.clone(),
@@ -104,7 +104,7 @@ impl TaskList {
                     max_retries: task.read().unwrap().max_retries,
                     retry_count: task.read().unwrap().retry_count,
                 };
-                (id.clone(), Py::new(py, py_task).unwrap())
+                (id.clone(), task)
             })
             .collect()
     }
