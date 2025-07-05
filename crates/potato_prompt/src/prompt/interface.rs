@@ -3,10 +3,10 @@ use crate::prompt::types::parse_response_format;
 
 use crate::prompt::types::{Message, Role};
 use potato_type::SaveName;
+
 use potato_util::{json_to_pyobject, pyobject_to_json, PyHelperFuncs};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -419,6 +419,7 @@ mod tests {
         types::{BinaryContent, DocumentUrl, ImageUrl, PromptContent},
         Score,
     };
+    use potato_type::StructuredOutput;
 
     #[test]
     fn test_task_list_add_and_get() {

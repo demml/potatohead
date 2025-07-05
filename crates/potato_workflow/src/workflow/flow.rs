@@ -76,7 +76,13 @@ impl WorkflowResult {
 #[pymethods]
 impl WorkflowResult {
     pub fn __str__(&self) -> String {
-        PyHelperFuncs::__str__(&self.tasks)
+        // serialize tasks to json
+        let json = serde_json::json!({
+            "tasks": serde_json::to_value(&self.tasks).unwrap_or(Value::Null),
+            "events": serde_json::to_value(&self.events).unwrap_or(Value::Null)
+        });
+
+        PyHelperFuncs::__str__(&json)
     }
 }
 
