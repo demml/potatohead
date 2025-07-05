@@ -155,9 +155,9 @@ fn test_parameterized_workflow() {
         .result
         .as_ref()
         .unwrap()
-        .output();
+        .content();
 
-    let _ = Parameters::model_validate_json_str(task1_output.as_str());
+    let _ = Parameters::model_validate_json(&task1_output);
 
     // assert original workflow is unmodified
     assert_eq!(workflow.tasklist.len(), 2);
