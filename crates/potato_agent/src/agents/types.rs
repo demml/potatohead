@@ -6,7 +6,7 @@ use potato_prompt::{
     prompt::{PromptContent, Role},
     Message,
 };
-use potato_util::PyHelperFuncs;
+use potato_util::{json_to_pyobject, PyHelperFuncs};
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
@@ -134,6 +134,13 @@ impl AgentResponse {
             ChatResponse::OpenAI(resp) => resp.usage.clone(),
         }
     }
+
+    pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+        let pyobj = json_to_pyobject(py, &self.content())?;
+
+        // Convert plain string output to Python string
+        Ok(pyobj.into_bound_py_any(py)?)
+    }
 }
 
 impl AgentResponse {
@@ -173,14 +180,23 @@ impl PyAgentResponse {
     }
 
     #[getter]
+    /// This will map a the content of the response to a python object.
+    /// A python object in this case will be either a passed pydantic model or support potatohead types.
+    /// If neither is porvided, an attempt is made to parse the serde Value into an appropriate Python type.
+    /// Types:
+    /// - Serde Null -> Python None
+    /// - Serde Bool -> Python bool
+    /// - Serde String -> Python str
+    /// - Serde Number -> Python int or float
+    /// - Serde Array -> Python list (with each item converted to Python type)
+    /// - Serde Object -> Python dict (with each key-value pair converted to Python type)
     pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
         let content_value = self.response.content();
         // convert content_value to string
 
-        let content_string = serde_json::to_string(&content_value)?;
-
         match &self.output_type {
             Some(output_type) => {
+                let content_string = serde_json::to_string(&content_value)?;
                 // Convert structured output using model_validate_json
                 let bound = output_type
                     .bind(py)
@@ -190,7 +206,7 @@ impl PyAgentResponse {
             }
             None => {
                 // Convert plain string output to Python string
-                Ok(content_string.into_bound_py_any(py)?)
+                Ok(json_to_pyobject(py, &content_value)?.into_bound_py_any(py)?)
             }
         }
     }

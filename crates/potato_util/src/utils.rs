@@ -88,7 +88,7 @@ impl PyHelperFuncs {
     }
 }
 
-pub fn json_to_pyobject<'py>(
+pub fn json_to_pydict<'py>(
     py: Python,
     value: &Value,
     dict: &Bound<'py, PyDict>,
@@ -112,14 +112,14 @@ pub fn json_to_pyobject<'py>(
                     Value::Array(arr) => {
                         let py_list = PyList::empty(py);
                         for item in arr {
-                            let py_item = json_to_pyobject_value(py, item)?;
+                            let py_item = json_to_pyobject(py, item)?;
                             py_list.append(py_item)?;
                         }
                         py_list.into_py_any(py)?
                     }
                     Value::Object(_) => {
                         let nested_dict = PyDict::new(py);
-                        json_to_pyobject(py, v, &nested_dict)?;
+                        json_to_pydict(py, v, &nested_dict)?;
                         nested_dict.into_py_any(py)?
                     }
                 };
@@ -132,7 +132,7 @@ pub fn json_to_pyobject<'py>(
     Ok(dict.clone())
 }
 
-pub fn json_to_pyobject_value(py: Python, value: &Value) -> Result<PyObject, UtilError> {
+pub fn json_to_pyobject(py: Python, value: &Value) -> Result<PyObject, UtilError> {
     Ok(match value {
         Value::Null => py.None(),
         Value::Bool(b) => b.into_py_any(py)?,
@@ -149,14 +149,14 @@ pub fn json_to_pyobject_value(py: Python, value: &Value) -> Result<PyObject, Uti
         Value::Array(arr) => {
             let py_list = PyList::empty(py);
             for item in arr {
-                let py_item = json_to_pyobject_value(py, item)?;
+                let py_item = json_to_pyobject(py, item)?;
                 py_list.append(py_item)?;
             }
             py_list.into_py_any(py)?
         }
         Value::Object(_) => {
             let nested_dict = PyDict::new(py);
-            json_to_pyobject(py, value, &nested_dict)?;
+            json_to_pydict(py, value, &nested_dict)?;
             nested_dict.into_py_any(py)?
         }
     })

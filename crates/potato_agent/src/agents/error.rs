@@ -57,6 +57,9 @@ pub enum AgentError {
 
     #[error(transparent)]
     PromptError(#[from] PromptError),
+
+    #[error(transparent)]
+    UtilError(#[from] potato_util::UtilError),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {

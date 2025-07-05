@@ -4,7 +4,7 @@ use crate::prompt::types::parse_response_format;
 use crate::prompt::types::{Message, Role};
 use potato_type::SaveName;
 
-use potato_util::{json_to_pyobject, pyobject_to_json, PyHelperFuncs};
+use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
 use serde::{Deserialize, Serialize};
@@ -125,7 +125,7 @@ impl ModelSettings {
             .as_ref()
             .map(|v| {
                 let pydict = PyDict::new(py);
-                json_to_pyobject(py, v, &pydict)
+                json_to_pydict(py, v, &pydict)
             })
             .transpose()
             .map_err(|e| PromptError::Error(format!("Failed to get extra body: {e}")))
