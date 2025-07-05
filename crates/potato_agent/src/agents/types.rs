@@ -6,6 +6,7 @@ use potato_prompt::{
     prompt::{PromptContent, Role},
     Message,
 };
+use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
@@ -15,6 +16,21 @@ use serde_json::Value;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ChatResponse {
     OpenAI(OpenAIChatResponse),
+}
+
+#[pymethods]
+impl ChatResponse {
+    pub fn to_py<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+        // try unwrapping the prompt, if it exists
+        match self {
+            ChatResponse::OpenAI(resp) => Ok(resp.clone().into_bound_py_any(py)?),
+        }
+    }
+    pub fn __str__(&self) -> String {
+        match self {
+            ChatResponse::OpenAI(resp) => PyHelperFuncs::__str__(resp),
+        }
+    }
 }
 
 impl ChatResponse {

@@ -12,28 +12,42 @@ use std::sync::RwLock;
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskEvent {
+    #[pyo3(get)]
     pub id: String,
+    #[pyo3(get)]
     pub workflow_id: String,
+    #[pyo3(get)]
     pub task_id: String,
+    #[pyo3(get)]
     pub status: TaskStatus,
+    #[pyo3(get)]
     pub timestamp: DateTime<Utc>,
+    #[pyo3(get)]
     pub updated_at: DateTime<Utc>,
+    #[pyo3(get)]
     pub details: EventDetails,
 }
 
+#[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct EventDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub prompt: Option<Arc<Prompt>>,
+    #[pyo3(get)]
+    pub prompt: Option<Prompt>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub response: Option<Arc<ChatResponse>>,
+    #[pyo3(get)]
+    pub response: Option<ChatResponse>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub duration: Option<Duration>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub start_time: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub end_time: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub error: Option<String>,
 }
 
@@ -122,10 +136,10 @@ impl EventTracker {
                 if event.task_id == task_id {
                     event.status = TaskStatus::Completed;
                     event.updated_at = now;
-                    event.details.response = Some(Arc::new(response.response.clone()));
+                    event.details.response = Some(response.response.clone());
                     event.details.duration = duration;
                     event.details.end_time = Some(now);
-                    event.details.prompt = Some(Arc::new(prompt.clone()));
+                    event.details.prompt = Some(prompt.clone());
                     Some(event)
                 } else {
                     None
@@ -164,7 +178,7 @@ impl EventTracker {
                     event.updated_at = now;
                     event.details.duration = duration;
                     event.details.end_time = Some(now);
-                    event.details.prompt = Some(Arc::new(prompt.clone()));
+                    event.details.prompt = Some(prompt.clone());
                     event.details.error = Some(error_msg.to_string());
                     Some(event)
                 } else {
