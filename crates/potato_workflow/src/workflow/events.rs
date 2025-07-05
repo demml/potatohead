@@ -3,6 +3,7 @@ use potato_agent::agents::{task::TaskStatus, types::ChatResponse};
 use potato_agent::AgentResponse;
 use potato_prompt::Prompt;
 use potato_util::create_uuid7;
+use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -28,6 +29,13 @@ pub struct TaskEvent {
     pub details: EventDetails,
 }
 
+#[pymethods]
+impl TaskEvent {
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
+}
+
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct EventDetails {
@@ -49,6 +57,13 @@ pub struct EventDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get)]
     pub error: Option<String>,
+}
+
+#[pymethods]
+impl EventDetails {
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
 }
 
 #[derive(Debug, Clone, Default)]
