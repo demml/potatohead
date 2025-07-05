@@ -117,6 +117,19 @@ fn guess_type(url: &str) -> Result<String, PromptError> {
     Ok(mime_type.to_string())
 }
 
+pub trait DeserializePromptValExt: for<'de> serde::Deserialize<'de> {
+    /// Validates and deserializes a JSON value into its struct type.
+    ///
+    /// # Arguments
+    /// * `value` - The JSON value to deserialize
+    ///
+    /// # Returns
+    /// * `Result<Self, serde_json::Error>` - The deserialized value or error
+    fn model_validate_json(value: &Value) -> Result<Self, serde_json::Error> {
+        serde_json::from_value(value.clone())
+    }
+}
+
 #[pyclass]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AudioUrl {
@@ -315,6 +328,11 @@ impl BinaryContent {
     }
 }
 
+impl DeserializePromptValExt for AudioUrl {}
+impl DeserializePromptValExt for ImageUrl {}
+impl DeserializePromptValExt for DocumentUrl {}
+impl DeserializePromptValExt for BinaryContent {}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PromptContent {
     Str(String),
@@ -387,6 +405,34 @@ impl PromptContent {
                     Err(_) => binary_content.clone().into_bound_py_any(py),
                 }
             }
+        }
+    }
+
+    pub fn from_json_value(value: &Value) -> Result<Self, PromptError> {
+        match value {
+            Value::String(s) => Ok(PromptContent::Str(s.clone())),
+            Value::Object(obj) => {
+                if obj.contains_key("audio_url") {
+                    AudioUrl::model_validate_json(value)
+                        .map(PromptContent::Audio)
+                        .map_err(|e| PromptError::Error(format!("Invalid audio_url: {e}")))
+                } else if obj.contains_key("image_url") {
+                    ImageUrl::model_validate_json(value)
+                        .map(PromptContent::Image)
+                        .map_err(|e| PromptError::Error(format!("Invalid image_url: {e}")))
+                } else if obj.contains_key("document_url") {
+                    DocumentUrl::model_validate_json(value)
+                        .map(PromptContent::Document)
+                        .map_err(|e| PromptError::Error(format!("Invalid document_url: {e}")))
+                } else {
+                    Err(PromptError::Error(
+                        "Unsupported JSON object for PromptContent".into(),
+                    ))
+                }
+            }
+            _ => Err(PromptError::Error(
+                "Unsupported JSON value for PromptContent".into(),
+            )),
         }
     }
 }

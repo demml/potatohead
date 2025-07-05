@@ -49,7 +49,7 @@ pub struct Audio {
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct ChatCompletionMessage {
-    pub content: Option<String>,
+    pub content: serde_json::Value,
     pub refusal: Option<String>,
     pub role: String,
     pub annotations: Vec<Annotations>,

@@ -49,7 +49,7 @@ impl ChatResponse {
                     .ok_or_else(|| AgentError::ClientNoResponseError)?;
 
                 let message =
-                    PromptContent::Str(first_choice.message.content.clone().unwrap_or_default());
+                    PromptContent::from_json_value(&first_choice.message.content.clone())?;
                 Ok(vec![Message::from(message, role)])
             }
         }
@@ -68,12 +68,11 @@ impl ChatResponse {
     }
 
     /// Get the content of the first choice in the chat response
-    pub fn content(&self) -> Option<&String> {
+    pub fn content(&self) -> Option<&Value> {
         match self {
-            ChatResponse::OpenAI(resp) => resp
-                .choices
-                .first()
-                .and_then(|c| c.message.content.as_ref()),
+            ChatResponse::OpenAI(resp) => {
+                resp.choices.first().and_then(|c| Some(&c.message.content))
+            }
         }
     }
 
@@ -90,24 +89,32 @@ impl ChatResponse {
 
     /// Extracts structured data from a chat response
     pub fn extract_structured_data(&self) -> Option<Value> {
-        // Check for JSON in content field
         if let Some(content) = self.content() {
-            let trimmed = content.trim();
-            if (trimmed.starts_with('{') && trimmed.ends_with('}'))
-                || (trimmed.starts_with('[') && trimmed.ends_with(']'))
-            {
-                return serde_json::from_str(trimmed).ok();
+            match content {
+                Value::String(s) => {
+                    let trimmed = s.trim();
+                    // Check if the string is a JSON object or array
+                    if (trimmed.starts_with('{') && trimmed.ends_with('}'))
+                        || (trimmed.starts_with('[') && trimmed.ends_with(']'))
+                    {
+                        serde_json::from_str(trimmed).ok()
+                    } else {
+                        None
+                    }
+                }
+                // If array or object, return as is
+                Value::Array(_) | Value::Object(_) => Some(content.clone()),
+                _ => None,
             }
-        }
-
-        // Check for tool calls
-        if let Some(tool_calls) = &self.tool_calls() {
+        } else if let Some(tool_calls) = self.tool_calls() {
             if !tool_calls.is_empty() {
-                return serde_json::to_value(tool_calls).ok();
+                serde_json::to_value(tool_calls).ok()
+            } else {
+                None
             }
+        } else {
+            None
         }
-
-        None
     }
 }
 
@@ -122,15 +129,6 @@ pub struct AgentResponse {
 #[pymethods]
 impl AgentResponse {
     #[getter]
-    pub fn output(&self) -> String {
-        match &self.response {
-            ChatResponse::OpenAI(resp) => resp.choices.first().map_or("".to_string(), |c| {
-                c.message.content.clone().unwrap_or_default()
-            }),
-        }
-    }
-
-    #[getter]
     pub fn token_usage(&self) -> Usage {
         match &self.response {
             ChatResponse::OpenAI(resp) => resp.usage.clone(),
@@ -141,6 +139,15 @@ impl AgentResponse {
 impl AgentResponse {
     pub fn new(id: String, response: ChatResponse) -> Self {
         Self { id, response }
+    }
+
+    pub fn content(&self) -> Value {
+        match &self.response {
+            ChatResponse::OpenAI(resp) => resp
+                .choices
+                .first()
+                .map_or(Value::Null, |c| c.message.content.clone()),
+        }
     }
 }
 
@@ -159,10 +166,6 @@ impl PyAgentResponse {
     pub fn id(&self) -> &str {
         &self.response.id
     }
-    #[getter]
-    pub fn output(&self) -> String {
-        self.response.output()
-    }
 
     #[getter]
     pub fn token_usage(&self) -> Usage {
@@ -170,19 +173,24 @@ impl PyAgentResponse {
     }
 
     #[getter]
-    pub fn result<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let msg = self.response.output();
+    pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+        let content_value = self.response.content();
+        // convert content_value to string
+
+        let content_string = serde_json::to_string(&content_value)?;
 
         match &self.output_type {
             Some(output_type) => {
                 // Convert structured output using model_validate_json
-                output_type
+                let bound = output_type
                     .bind(py)
-                    .call_method1("model_validate_json", (msg,))
+                    .call_method1("model_validate_json", (content_string,))?;
+
+                Ok(bound)
             }
             None => {
                 // Convert plain string output to Python string
-                Ok(msg.into_bound_py_any(py)?)
+                Ok(content_string.into_bound_py_any(py)?)
             }
         }
     }
