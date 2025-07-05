@@ -1,5 +1,6 @@
 use crate::prompt::error::PromptError;
 use mime_guess;
+use potato_type::StructuredOutput;
 use potato_util::pyobject_to_json;
 use potato_util::PyHelperFuncs;
 use pyo3::types::PyAnyMethods;
@@ -7,6 +8,7 @@ use pyo3::types::PyDict;
 use pyo3::types::PyString;
 use pyo3::{prelude::*, IntoPyObjectExt};
 use regex::Regex;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
@@ -14,7 +16,6 @@ use std::fmt::Display;
 use std::sync::OnceLock;
 use tracing::instrument;
 use tracing::{debug, error};
-
 static DOCUMENT_MEDIA_TYPES: OnceLock<HashSet<&'static str>> = OnceLock::new();
 
 pub enum Role {
@@ -629,7 +630,7 @@ pub fn parse_response_format<'py>(
 }
 
 #[pyclass]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Score {
     #[pyo3(get)]
     pub score: i64,
@@ -654,31 +655,33 @@ impl Score {
     }
 }
 
-impl Score {
-    pub fn to_json_schema() -> Value {
-        serde_json::json!({
-            "type": "object",
-            "properties": {
-                "score": { "type": "integer" },
-                "reason": { "type": "string" },
-            },
-            "required": ["score", "reason"],
-        })
-    }
+impl StructuredOutput for Score {}
 
-    pub fn get_structured_output_schema() -> Value {
-        let json_schema = serde_json::json!({
-            "type": "json_schema",
-            "json_schema": {
-                 "name": "Score",
-                 "schema": Self::to_json_schema(),
-                 "strict": true
-            },
-        });
-
-        json_schema
-    }
-}
+//impl Score {
+//    pub fn to_json_schema() -> Value {
+//        serde_json::json!({
+//            "type": "object",
+//            "properties": {
+//                "score": { "type": "integer" },
+//                "reason": { "type": "string" },
+//            },
+//            "required": ["score", "reason"],
+//        })
+//    }
+//
+//    pub fn get_structured_output_schema() -> Value {
+//        let json_schema = serde_json::json!({
+//            "type": "json_schema",
+//            "json_schema": {
+//                 "name": "Score",
+//                 "schema": Self::to_json_schema(),
+//                 "strict": true
+//            },
+//        });
+//
+//        json_schema
+//    }
+//}
 
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize)]
