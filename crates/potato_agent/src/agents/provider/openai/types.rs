@@ -50,16 +50,19 @@ pub struct Audio {
 #[serde(default)]
 pub struct ChatCompletionMessage {
     pub content: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub refusal: Option<String>,
     pub role: String,
     pub annotations: Vec<Annotations>,
     pub tool_calls: Vec<ToolCall>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub audio: Option<Audio>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct TopLogProbs {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bytes: Option<Vec<u8>>,
     pub logprob: f64,
     pub token: String,
@@ -68,16 +71,20 @@ pub struct TopLogProbs {
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct LogContent {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bytes: Option<Vec<u8>>,
     pub logprob: f64,
     pub token: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub top_logprobs: Option<Vec<TopLogProbs>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct LogProbs {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<Vec<LogContent>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub refusal: Option<Vec<LogContent>>,
 }
 
@@ -86,6 +93,7 @@ pub struct LogProbs {
 pub struct Choice {
     pub message: ChatCompletionMessage,
     pub finish_reason: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub logprobs: Option<LogProbs>,
 }
 
@@ -127,6 +135,7 @@ pub struct OpenAIChatResponse {
     pub model: String,
     pub choices: Vec<Choice>,
     pub usage: Usage,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub service_tier: Option<String>,
     pub system_fingerprint: String,
 }
