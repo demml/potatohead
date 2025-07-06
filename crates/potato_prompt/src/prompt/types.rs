@@ -677,7 +677,7 @@ pub fn parse_response_format<'py>(
 
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields)] // this ensures schemars will not allow additional fields (AdditionalProperties: false)
 pub struct Score {
     #[pyo3(get)]
     pub score: i64,
