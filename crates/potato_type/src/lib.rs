@@ -85,7 +85,7 @@ pub trait StructuredOutput: for<'de> serde::Deserialize<'de> + JsonSchema {
     ///
     /// # Returns
     /// * `Result<Self, serde_json::Error>` - The deserialized value or error
-    fn model_validate_json(value: &Value) -> Result<Self, serde_json::Error> {
+    fn model_validate_json_value(value: &Value) -> Result<Self, serde_json::Error> {
         serde_json::from_value(value.clone())
     }
 
