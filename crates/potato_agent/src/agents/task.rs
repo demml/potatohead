@@ -36,8 +36,8 @@ pub struct PyTask {
 #[pymethods]
 impl PyTask {
     #[getter]
-    pub fn result<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
-        match &self.result {
+    pub fn result<'py>(&mut self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        match &mut self.result {
             Some(resp) => {
                 //Ok(chat_resp)
                 Ok(Some(resp.result(py)?))

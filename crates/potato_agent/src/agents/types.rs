@@ -210,7 +210,7 @@ impl PyAgentResponse {
                         let bound = output_type
                             .bind(py)
                             .call_method1("model_validate_json", (&s,))?;
-                        return Ok(bound);
+                        Ok(bound)
                     }
 
                     _ => {
@@ -219,7 +219,7 @@ impl PyAgentResponse {
                             content_value
                         );
                         self.failed_conversion = true;
-                        return Ok(json_to_pyobject(py, &content_value)?.into_bound_py_any(py)?);
+                        Ok(json_to_pyobject(py, &content_value)?.into_bound_py_any(py)?)
                     }
                 }
                 // Convert structured output using model_validate_json
