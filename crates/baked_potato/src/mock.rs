@@ -78,7 +78,7 @@ impl OpenAIMock {
                 "response_format": {
                     "type": "json_schema",
                     "json_schema": {
-                        "name": "Parameters",
+                        "name": "Score",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -87,7 +87,8 @@ impl OpenAIMock {
                             },
                             "required": ["score", "reason"]
                         },
-                        "strict": true
+                        "strict": true,
+                        "additionalProperties": false
                     }
                 }
             })))
