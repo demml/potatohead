@@ -314,6 +314,11 @@ impl Workflow {
 
         execute_workflow(&run_workflow).await?;
 
+        println!(
+            "Workflow {} completed",
+            PyHelperFuncs::__str__(&run_workflow)
+        );
+
         Ok(run_workflow)
     }
 
