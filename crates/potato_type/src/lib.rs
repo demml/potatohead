@@ -100,9 +100,9 @@ pub trait StructuredOutput: for<'de> serde::Deserialize<'de> + JsonSchema {
     fn get_structured_output_schema() -> Value {
         let mut schema = ::schemars::schema_for!(Self);
 
-        if let Some(obj) = schema.as_object_mut() {
-            obj.insert("additionalProperties".to_string(), serde_json::json!(false));
-        };
+        //if let Some(obj) = schema.as_object_mut() {
+        //obj.insert("additionalProperties".to_string(), serde_json::json!(false));
+        //};
 
         serde_json::json!({
             "type": "json_schema",

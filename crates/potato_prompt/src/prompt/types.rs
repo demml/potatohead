@@ -677,6 +677,7 @@ pub fn parse_response_format<'py>(
 
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct Score {
     #[pyo3(get)]
     pub score: i64,
