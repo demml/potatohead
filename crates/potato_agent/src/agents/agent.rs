@@ -6,6 +6,7 @@ use crate::{
     agents::client::GenAiClient, agents::error::AgentError, agents::task::Task,
     agents::types::AgentResponse,
 };
+
 use potato_prompt::Prompt;
 use potato_util::create_uuid7;
 use serde::{Deserialize, Serialize};
@@ -49,13 +50,13 @@ impl Agent {
         task: &mut Task,
         context_messages: &HashMap<String, Vec<Message>>,
     ) {
+        //
+        debug!(task.id = %task.id, task.dependencies = ?task.dependencies, context_messages = ?context_messages, "Appending messages");
         if !task.dependencies.is_empty() {
             for dep in &task.dependencies {
-                println!("Processing dependency: {}", dep);
                 if let Some(messages) = context_messages.get(dep) {
                     for message in messages {
                         // prepend the messages from dependencies
-                        println!("Appending message from dependency {}: {:?}", dep, message);
                         task.prompt.user_message.insert(0, message.clone());
                     }
                 }
