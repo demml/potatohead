@@ -132,6 +132,20 @@ pub fn json_to_pydict<'py>(
     Ok(dict.clone())
 }
 
+/// Converts a serde_json::Value to a PyObject. Including support for nested objects and arrays.
+/// This function handles all Serde JSON types:
+/// - Serde Null -> Python None
+/// - Serde Bool -> Python bool
+/// - Serde String -> Python str
+/// - Serde Number -> Python int or float
+/// - Serde Array -> Python list (with each item converted to Python type)
+/// - Serde Object -> Python dict (with each key-value pair converted to Python type)
+////// # Arguments
+/// * `py` - A Python interpreter instance.
+/// * `value` - A reference to a serde_json::Value object.
+/// # Returns
+/// * `Ok(PyObject)` if the conversion was successful.
+/// * `Err(UtilError)` if the conversion failed.
 pub fn json_to_pyobject(py: Python, value: &Value) -> Result<PyObject, UtilError> {
     Ok(match value {
         Value::Null => py.None(),

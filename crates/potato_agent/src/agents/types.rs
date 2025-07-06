@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::debug;
 use tracing::instrument;
+use tracing::warn;
 
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -167,6 +168,9 @@ pub struct PyAgentResponse {
 
     #[serde(skip_serializing)]
     pub output_type: Option<PyObject>,
+
+    #[pyo3(get)]
+    pub failed_conversion: bool,
 }
 
 #[pymethods]
@@ -193,20 +197,32 @@ impl PyAgentResponse {
     /// - Serde Object -> Python dict (with each key-value pair converted to Python type)
     #[getter]
     #[instrument(skip_all)]
-    pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+    pub fn result<'py>(&mut self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
         let content_value = self.response.content();
         // convert content_value to string
 
         match &self.output_type {
             Some(output_type) => {
-                let content_string = serde_json::to_string(&content_value)?;
-                debug!("Converting content to string: {}", content_string);
-                // Convert structured output using model_validate_json
-                let bound = output_type
-                    .bind(py)
-                    .call_method1("model_validate_json", (content_string,))?;
+                // Match the value. For loading into pydantic models, it's expected that the api response is a JSON string.
+                match content_value {
+                    Value::String(s) => {
+                        // If the content is a string, we can directly convert it to a Python string
+                        let bound = output_type
+                            .bind(py)
+                            .call_method1("model_validate_json", (&s,))?;
+                        return Ok(bound);
+                    }
 
-                Ok(bound)
+                    _ => {
+                        warn!(
+                            "Expected a string for model validation, but got: {:?}. Defaulting to JSON conversion.",
+                            content_value
+                        );
+                        self.failed_conversion = true;
+                        return Ok(json_to_pyobject(py, &content_value)?.into_bound_py_any(py)?);
+                    }
+                }
+                // Convert structured output using model_validate_json
             }
             None => {
                 // Convert plain string output to Python string
@@ -221,6 +237,7 @@ impl PyAgentResponse {
         Self {
             response,
             output_type,
+            failed_conversion: false,
         }
     }
 }
