@@ -54,6 +54,7 @@ impl Agent {
                 if let Some(messages) = context_messages.get(dep) {
                     for message in messages {
                         // prepend the messages from dependencies
+                        println!("Appending message from dependency {}: {:?}", dep, message);
                         task.prompt.user_message.insert(0, message.clone());
                     }
                 }
@@ -125,6 +126,9 @@ impl Agent {
             let mut task = task.write().unwrap();
             self.append_task_with_message_context(&mut task, &context_messages);
             self.bind_parameters(&mut task.prompt, &parameter_context)?;
+
+            println!("prompt: {:?}", task.prompt);
+
             self.append_system_messages(&mut task.prompt);
             (task.prompt.clone(), task.id.clone())
         };
