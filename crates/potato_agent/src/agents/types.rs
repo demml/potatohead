@@ -44,6 +44,7 @@ impl ChatResponse {
 
     #[instrument(skip_all)]
     pub fn to_message(&self, role: Role) -> Result<Vec<Message>, AgentError> {
+        debug!("Converting chat response to message with role");
         match self {
             ChatResponse::OpenAI(resp) => {
                 let first_choice = resp
@@ -51,11 +52,9 @@ impl ChatResponse {
                     .first()
                     .ok_or_else(|| AgentError::ClientNoResponseError)?;
 
-                let message =
-                    PromptContent::from_json_value(&first_choice.message.content.clone())?;
-                debug!(?message, "Converted chat response to message");
+                let content = PromptContent::Str(first_choice.message.content.to_string());
 
-                Ok(vec![Message::from(message, role)])
+                Ok(vec![Message::from(content, role)])
             }
         }
     }
@@ -75,9 +74,7 @@ impl ChatResponse {
     /// Get the content of the first choice in the chat response
     pub fn content(&self) -> Option<&Value> {
         match self {
-            ChatResponse::OpenAI(resp) => {
-                resp.choices.first().and_then(|c| Some(&c.message.content))
-            }
+            ChatResponse::OpenAI(resp) => resp.choices.first().map(|c| &c.message.content),
         }
     }
 

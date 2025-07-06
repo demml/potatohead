@@ -480,7 +480,6 @@ fn build_task_context(
         debug!("Building context for task dependency: {}", dep_id);
         if let Some(dep) = wf.tasklist.get_task(dep_id) {
             if let Some(result) = &dep.read().unwrap().result {
-                debug!("Found context");
                 let msg_to_insert = result.response.to_message(Role::Assistant);
 
                 match msg_to_insert {
