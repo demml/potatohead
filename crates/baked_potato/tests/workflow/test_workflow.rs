@@ -1,11 +1,9 @@
-use baked_potato::OpenAITestServer;
+use baked_potato::{create_parameterized_prompt, create_prompt, OpenAITestServer};
 use potato_agent::{Agent, Provider, Task};
-use potato_prompt::prompt::{Message, Prompt, PromptContent};
 use potato_type::StructuredOutput;
 use potato_workflow::Workflow;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use serde_json::Value;
 
 #[allow(dead_code)]
 #[derive(Debug, JsonSchema, Deserialize)]
@@ -14,34 +12,6 @@ struct Parameters {
     variable2: i32,
 }
 impl StructuredOutput for Parameters {}
-
-fn create_prompt(response_format: Option<Value>) -> Prompt {
-    let user_content = PromptContent::Str("Hello, how are you?".to_string());
-    let system_content = PromptContent::Str("You are a helpful assistant.".to_string());
-    Prompt::new_rs(
-        vec![Message::new_rs(user_content)],
-        Some("gpt-4o"),
-        Some("openai"),
-        vec![Message::new_rs(system_content)],
-        None,
-        response_format,
-    )
-    .unwrap()
-}
-
-fn create_parameterized_prompt() -> Prompt {
-    let user_content = PromptContent::Str("What is ${variable1} + ${variable2}?".to_string());
-    let system_content = PromptContent::Str("You are a helpful assistant.".to_string());
-    Prompt::new_rs(
-        vec![Message::new_rs(user_content)],
-        Some("gpt-4o"),
-        Some("openai"),
-        vec![Message::new_rs(system_content)],
-        None,
-        None,
-    )
-    .unwrap()
-}
 
 #[test]
 fn test_workflow() {
