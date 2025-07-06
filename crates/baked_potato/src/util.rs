@@ -30,7 +30,7 @@ pub fn create_parameterized_prompt() -> Prompt {
     .unwrap()
 }
 
-pub fn score_prompt() -> Prompt {
+pub fn create_score_prompt() -> Prompt {
     let user_content = PromptContent::Str("What is the score?".to_string());
     let system_content = PromptContent::Str("You are a helpful assistant.".to_string());
     Prompt::new_rs(
