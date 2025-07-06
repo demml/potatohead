@@ -79,16 +79,6 @@ impl OpenAIMock {
                     "type": "json_schema",
                     "json_schema": {
                         "name": "Score",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "score": { "type": "integer" },
-                                "reason": { "type": "string" },
-                            },
-                            "required": ["score", "reason"]
-                        },
-                        "strict": true,
-                        "additionalProperties": false
                     }
                 }
             })))
