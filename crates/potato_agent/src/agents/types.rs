@@ -181,7 +181,6 @@ impl PyAgentResponse {
         self.response.token_usage()
     }
 
-    #[getter]
     /// This will map a the content of the response to a python object.
     /// A python object in this case will be either a passed pydantic model or support potatohead types.
     /// If neither is porvided, an attempt is made to parse the serde Value into an appropriate Python type.
@@ -192,6 +191,8 @@ impl PyAgentResponse {
     /// - Serde Number -> Python int or float
     /// - Serde Array -> Python list (with each item converted to Python type)
     /// - Serde Object -> Python dict (with each key-value pair converted to Python type)
+    #[getter]
+    #[instrument(skip_all)]
     pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
         let content_value = self.response.content();
         // convert content_value to string
@@ -199,6 +200,7 @@ impl PyAgentResponse {
         match &self.output_type {
             Some(output_type) => {
                 let content_string = serde_json::to_string(&content_value)?;
+                debug!("Converting content to string: {}", content_string);
                 // Convert structured output using model_validate_json
                 let bound = output_type
                     .bind(py)
