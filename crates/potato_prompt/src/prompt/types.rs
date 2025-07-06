@@ -412,6 +412,12 @@ impl PromptContent {
         println!("Deserializing PromptContent from JSON: {value}");
         match value {
             Value::String(s) => Ok(PromptContent::Str(s.clone())),
+            Value::Array(_) => {
+                println!("Deserializing PromptContent from JSON array");
+                Err(PromptError::Error(
+                    "Unsupported JSON value for PromptContent".into(),
+                ))
+            }
             Value::Object(obj) => {
                 if obj.contains_key("audio_url") {
                     AudioUrl::model_validate_json(value)
