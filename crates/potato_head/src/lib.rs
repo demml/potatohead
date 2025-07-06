@@ -8,4 +8,4 @@ pub use potato_util::{
 pub use potato_workflow::*;
 
 #[cfg(feature = "mock")]
-pub use baked_potato::mock::*;
+pub use baked_potato::*;
