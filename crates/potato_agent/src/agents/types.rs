@@ -11,6 +11,8 @@ use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::debug;
+use tracing::instrument;
 
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,6 +42,7 @@ impl ChatResponse {
         }
     }
 
+    #[instrument(skip_all)]
     pub fn to_message(&self, role: Role) -> Result<Vec<Message>, AgentError> {
         match self {
             ChatResponse::OpenAI(resp) => {
@@ -50,6 +53,8 @@ impl ChatResponse {
 
                 let message =
                     PromptContent::from_json_value(&first_choice.message.content.clone())?;
+                debug!(?message, "Converted chat response to message");
+
                 Ok(vec![Message::from(message, role)])
             }
         }

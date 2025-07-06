@@ -477,8 +477,10 @@ fn build_task_context(
     let mut param_ctx: Value = Value::Object(Map::new());
 
     for dep_id in task_dependencies {
+        debug!("Building context for task dependency: {}", dep_id);
         if let Some(dep) = wf.tasklist.get_task(dep_id) {
             if let Some(result) = &dep.read().unwrap().result {
+                debug!("Found context");
                 if let Ok(message) = result.response.to_message(Role::Assistant) {
                     ctx.insert(dep_id.clone(), message);
                 }

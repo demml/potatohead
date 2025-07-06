@@ -45,6 +45,7 @@ impl Agent {
         })
     }
 
+    #[instrument(skip_all)]
     fn append_task_with_message_context(
         &self,
         task: &mut Task,
@@ -128,8 +129,6 @@ impl Agent {
             let mut task = task.write().unwrap();
             self.append_task_with_message_context(&mut task, &context_messages);
             self.bind_parameters(&mut task.prompt, &parameter_context)?;
-
-            println!("prompt: {:?}", task.prompt.user_message);
 
             self.append_system_messages(&mut task.prompt);
             (task.prompt.clone(), task.id.clone())
