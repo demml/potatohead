@@ -481,9 +481,17 @@ fn build_task_context(
         if let Some(dep) = wf.tasklist.get_task(dep_id) {
             if let Some(result) = &dep.read().unwrap().result {
                 debug!("Found context");
-                if let Ok(message) = result.response.to_message(Role::Assistant) {
-                    ctx.insert(dep_id.clone(), message);
+                let msg_to_insert = result.response.to_message(Role::Assistant);
+
+                match msg_to_insert {
+                    Ok(message) => {
+                        ctx.insert(dep_id.clone(), message);
+                    }
+                    Err(e) => {
+                        warn!("Failed to convert response to message: {}", e);
+                    }
                 }
+
                 if let Some(structure_output) = result.response.extract_structured_data() {
                     // Value should be a serde_json::Value Object type
                     // validate that it's an object
