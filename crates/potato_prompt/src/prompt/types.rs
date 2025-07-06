@@ -409,6 +409,7 @@ impl PromptContent {
     }
 
     pub fn from_json_value(value: &Value) -> Result<Self, PromptError> {
+        println!("Deserializing PromptContent from JSON: {value}");
         match value {
             Value::String(s) => Ok(PromptContent::Str(s.clone())),
             Value::Object(obj) => {
