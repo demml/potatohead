@@ -6,3 +6,6 @@ pub use potato_util::{
     PyHelperFuncs,
 };
 pub use potato_workflow::*;
+
+#[cfg(feature = "mock")]
+pub use baked_potato::mock::*;

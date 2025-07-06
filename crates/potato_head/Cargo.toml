@@ -15,3 +15,9 @@ potato-prompt = { workspace = true }
 potato-util = { workspace = true }
 potato-agent = { workspace = true }
 potato-workflow = { workspace = true }
+baked-potato = { workspace = true, optional = true }
+
+
+[features]
+default = []
+mock = ["baked-potato"]
