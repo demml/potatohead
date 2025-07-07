@@ -54,7 +54,7 @@ pub fn build_http_client(
     Ok(client)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum GenAiClient {
     OpenAI(OpenAIClient),
 }

@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 #[pyclass]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TaskEvent {
     #[pyo3(get)]
     pub id: String,
@@ -37,7 +37,7 @@ impl TaskEvent {
 }
 
 #[pyclass]
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct EventDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get)]
@@ -71,6 +71,13 @@ pub struct EventTracker {
     workflow_id: String,
     pub events: Arc<RwLock<Vec<TaskEvent>>>,
     task_start_times: Arc<RwLock<HashMap<String, DateTime<Utc>>>>,
+}
+
+impl PartialEq for EventTracker {
+    fn eq(&self, other: &Self) -> bool {
+        // Compare workflow_id and events
+        self.workflow_id == other.workflow_id
+    }
 }
 
 impl EventTracker {

@@ -48,7 +48,7 @@ impl PyTask {
 }
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Task {
     #[pyo3(get)]
     pub id: String,

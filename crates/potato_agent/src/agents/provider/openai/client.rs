@@ -15,6 +15,14 @@ pub struct OpenAIClient {
     pub provider: Provider,
 }
 
+impl PartialEq for OpenAIClient {
+    fn eq(&self, other: &Self) -> bool {
+        self.api_key == other.api_key
+            && self.base_url == other.base_url
+            && self.provider == other.provider
+    }
+}
+
 impl OpenAIClient {
     /// Creates a new OpenAIClient instance. This is a shared method that can be used in both Python and Rust.
     ///

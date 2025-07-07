@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Function {
     pub arguments: String,
     pub name: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct ToolCall {
     pub id: String,
@@ -21,7 +21,7 @@ pub struct ToolCall {
     pub function: Function,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct UrlCitation {
     pub end_index: u64,
@@ -30,14 +30,14 @@ pub struct UrlCitation {
     pub url: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Annotations {
     pub r#type: String,
     pub url_citations: Vec<UrlCitation>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Audio {
     pub data: String,
@@ -46,7 +46,7 @@ pub struct Audio {
     pub transcript: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct ChatCompletionMessage {
     pub content: serde_json::Value,
@@ -59,7 +59,7 @@ pub struct ChatCompletionMessage {
     pub audio: Option<Audio>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct TopLogProbs {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -68,7 +68,7 @@ pub struct TopLogProbs {
     pub token: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct LogContent {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -79,7 +79,7 @@ pub struct LogContent {
     pub top_logprobs: Option<Vec<TopLogProbs>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct LogProbs {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -88,7 +88,7 @@ pub struct LogProbs {
     pub refusal: Option<Vec<LogContent>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Choice {
     pub message: ChatCompletionMessage,
@@ -97,7 +97,7 @@ pub struct Choice {
     pub logprobs: Option<LogProbs>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct CompletionTokenDetails {
     pub accepted_prediction_tokens: u64,
@@ -106,7 +106,7 @@ pub struct CompletionTokenDetails {
     pub rejected_prediction_tokens: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct PromptTokenDetails {
     pub audio_tokens: u64,
@@ -114,7 +114,7 @@ pub struct PromptTokenDetails {
 }
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Usage {
     pub completion_tokens: u64,
@@ -126,7 +126,7 @@ pub struct Usage {
 }
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct OpenAIChatResponse {
     pub id: String,

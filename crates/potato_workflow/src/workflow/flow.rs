@@ -101,6 +101,13 @@ pub struct Workflow {
     pub event_tracker: Arc<RwLock<EventTracker>>,
 }
 
+impl PartialEq for Workflow {
+    fn eq(&self, other: &Self) -> bool {
+        // Compare by ID and name
+        self.id == other.id && self.name == other.name
+    }
+}
+
 impl Workflow {
     pub fn new(name: &str) -> Self {
         info!("Creating new workflow: {}", name);

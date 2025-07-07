@@ -16,7 +16,7 @@ use tracing::instrument;
 use tracing::warn;
 
 #[pyclass]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ChatResponse {
     OpenAI(OpenAIChatResponse),
 }
@@ -122,7 +122,7 @@ impl ChatResponse {
 }
 
 #[pyclass]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentResponse {
     #[pyo3(get)]
     pub id: String,

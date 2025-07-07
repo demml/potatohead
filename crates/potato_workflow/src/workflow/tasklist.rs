@@ -22,6 +22,13 @@ pub struct TaskList {
     pub execution_order: Vec<String>,
 }
 
+impl PartialEq for TaskList {
+    fn eq(&self, other: &Self) -> bool {
+        // Compare tasks by their IDs and execution order
+        self.tasks.keys().eq(other.tasks.keys()) && self.execution_order == other.execution_order
+    }
+}
+
 #[pymethods]
 impl TaskList {
     /// This is mainly a utility function to help with python interoperability.
