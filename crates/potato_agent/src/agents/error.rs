@@ -60,6 +60,12 @@ pub enum AgentError {
 
     #[error(transparent)]
     UtilError(#[from] potato_util::UtilError),
+
+    #[error("Invalid output type: {0}")]
+    InvalidOutputType(String),
+
+    #[error("Failed to create tokio runtime: {0}")]
+    RuntimeError(String),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {

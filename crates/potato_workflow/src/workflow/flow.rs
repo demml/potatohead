@@ -3,15 +3,16 @@ use crate::{
     workflow::error::WorkflowError,
 };
 pub use potato_agent::agents::{
-    agent::Agent,
+    agent::{Agent, PyAgent},
     task::{PyTask, Task, TaskStatus},
     types::ChatResponse,
 };
 use potato_agent::{AgentResponse, PyAgentResponse};
-use potato_util::{create_uuid7, utils::update_serde_map_with, PyHelperFuncs};
-
+use potato_prompt::parse_response_format;
 use potato_prompt::prompt::types::Role;
 use potato_prompt::Message;
+use potato_util::json_to_pydict;
+use potato_util::{create_uuid7, utils::update_serde_map_with, PyHelperFuncs};
 use pyo3::prelude::*;
 use serde::{
     de::{self, MapAccess, Visitor},
@@ -25,6 +26,9 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use tracing::instrument;
 use tracing::{debug, error, info, warn};
+
+/// Python workflows are a work in progress
+use pyo3::types::PyDict;
 
 #[derive(Debug)]
 #[pyclass]
@@ -777,8 +781,199 @@ impl<'de> Deserialize<'de> for Workflow {
             }
         }
 
-        const FIELDS: &[&str] = &["id", "name", "tasks", "agents"];
+        const FIELDS: &[&str] = &["id", "name", "tasklist", "agents", "event_tracker"];
         deserializer.deserialize_struct("Workflow", FIELDS, WorkflowVisitor)
+    }
+}
+
+#[pyclass(name = "Workflow")]
+#[derive(Debug, Clone)]
+pub struct PyWorkflow {
+    workflow: Workflow,
+
+    // allow adding output types for python tasks (py only)
+    // these are provided at runtime by the user and must match the response
+    // format of the prompt the task is associated with
+    output_types: HashMap<String, Arc<PyObject>>,
+
+    // potatohead version holds a reference to the runtime
+    runtime: Arc<tokio::runtime::Runtime>,
+}
+
+#[pymethods]
+impl PyWorkflow {
+    #[new]
+    #[pyo3(signature = (name))]
+    pub fn new(name: &str) -> Result<Self, WorkflowError> {
+        info!("Creating new workflow: {}", name);
+        Ok(Self {
+            workflow: Workflow::new(name),
+            output_types: HashMap::new(),
+            runtime: Arc::new(
+                tokio::runtime::Runtime::new()
+                    .map_err(|e| WorkflowError::RuntimeError(e.to_string()))?,
+            ),
+        })
+    }
+
+    #[getter]
+    pub fn name(&self) -> String {
+        self.workflow.name.clone()
+    }
+
+    #[getter]
+    pub fn tasklist(&self) -> TaskList {
+        self.workflow.tasklist.clone()
+    }
+
+    #[getter]
+    pub fn agents(&self) -> Result<HashMap<String, PyAgent>, WorkflowError> {
+        self.workflow
+            .agents
+            .iter()
+            .map(|(id, agent)| {
+                Ok((
+                    id.clone(),
+                    PyAgent {
+                        agent: agent.clone(),
+                        runtime: self.runtime.clone(),
+                    },
+                ))
+            })
+            .collect::<Result<HashMap<_, _>, _>>()
+    }
+
+    #[pyo3(signature = (task_output_types))]
+    pub fn add_task_output_types<'py>(
+        &mut self,
+        task_output_types: Bound<'py, PyDict>,
+    ) -> PyResult<()> {
+        let converted: HashMap<String, Arc<PyObject>> = task_output_types
+            .iter()
+            .map(|(k, v)| -> PyResult<(String, Arc<PyObject>)> {
+                // Explicitly return a Result from the closure
+                let key = k.extract::<String>()?;
+                let value = v.clone().unbind();
+                Ok((key, Arc::new(value)))
+            })
+            .collect::<PyResult<_>>()?;
+        self.output_types.extend(converted);
+        Ok(())
+    }
+
+    #[pyo3(signature = (task, output_type = None))]
+    pub fn add_task(
+        &mut self,
+        py: Python<'_>,
+        mut task: Task,
+        output_type: Option<Bound<'_, PyAny>>,
+    ) -> Result<(), WorkflowError> {
+        if let Some(output_type) = output_type {
+            // Parse and set the response format
+            task.prompt.response_format = parse_response_format(py, &output_type)
+                .map_err(|e| WorkflowError::InvalidOutputType(e.to_string()))?;
+
+            // Store the output type for later use
+            self.output_types
+                .insert(task.id.clone(), Arc::new(output_type.unbind()));
+        }
+
+        self.workflow.tasklist.add_task(task)?;
+        Ok(())
+    }
+
+    pub fn add_tasks(&mut self, tasks: Vec<Task>) -> Result<(), WorkflowError> {
+        for task in tasks {
+            self.workflow.tasklist.add_task(task)?;
+        }
+        Ok(())
+    }
+
+    pub fn add_agent(&mut self, agent: &Bound<'_, PyAgent>) {
+        // extract the arc rust agent from the python agent
+        let agent = agent.extract::<PyAgent>().unwrap().agent.clone();
+        self.workflow.agents.insert(agent.id.clone(), agent);
+    }
+
+    pub fn is_complete(&self) -> bool {
+        self.workflow.tasklist.is_complete()
+    }
+
+    pub fn pending_count(&self) -> usize {
+        self.workflow.tasklist.pending_count()
+    }
+
+    pub fn execution_plan<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyDict>, WorkflowError> {
+        let plan = self.workflow.execution_plan()?;
+        debug!("Execution plan: {:?}", plan);
+
+        // turn hashmap into a to json
+        let json = serde_json::to_value(plan).map_err(|e| {
+            error!("Failed to serialize execution plan to JSON: {}", e);
+            e
+        })?;
+
+        let pydict = PyDict::new(py);
+        json_to_pydict(py, &json, &pydict)?;
+
+        Ok(pydict)
+    }
+
+    pub fn run(&self, py: Python) -> Result<WorkflowResult, WorkflowError> {
+        info!("Running workflow: {}", self.workflow.name);
+
+        let workflow: Arc<RwLock<Workflow>> =
+            self.runtime.block_on(async { self.workflow.run().await })?;
+
+        // Try to get exclusive ownership of the workflow by unwrapping the Arc if there's only one reference
+        let workflow_result = match Arc::try_unwrap(workflow) {
+            // If we have exclusive ownership, we can consume the RwLock
+            Ok(rwlock) => {
+                // Unwrap the RwLock to get the Workflow
+                let workflow = rwlock
+                    .into_inner()
+                    .map_err(|_| WorkflowError::LockAcquireError)?;
+
+                // Get the events before creating WorkflowResult
+                let events = workflow
+                    .event_tracker
+                    .read()
+                    .unwrap()
+                    .events
+                    .read()
+                    .unwrap()
+                    .clone();
+
+                // Move the tasks out of the workflow
+                WorkflowResult::new(py, workflow.tasklist.tasks(), &self.output_types, events)
+            }
+            // If there are other references, we need to clone
+            Err(arc) => {
+                // Just read the workflow
+                error!("Workflow still has other references, reading instead of consuming.");
+                let workflow = arc
+                    .read()
+                    .map_err(|_| WorkflowError::ReadLockAcquireError)?;
+
+                // Get the events before creating WorkflowResult
+                let events = workflow
+                    .event_tracker
+                    .read()
+                    .unwrap()
+                    .events
+                    .read()
+                    .unwrap()
+                    .clone();
+
+                WorkflowResult::new(py, workflow.tasklist.tasks(), &self.output_types, events)
+            }
+        };
+
+        info!("Workflow execution completed successfully.");
+        Ok(workflow_result)
     }
 }
 

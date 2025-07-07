@@ -1,20 +1,22 @@
 use crate::agents::provider::openai::OpenAIClient;
+use crate::agents::provider::openai::Usage;
 use crate::agents::provider::types::Provider;
-use potato_prompt::{prompt::types::Message, ModelSettings};
-
 use crate::{
     agents::client::GenAiClient, agents::error::AgentError, agents::task::Task,
     agents::types::AgentResponse,
 };
-
-use potato_prompt::Prompt;
-use potato_util::create_uuid7;
+use potato_prompt::{
+    parse_response_format, prompt::parse_prompt, prompt::types::Message, ModelSettings, Prompt,
+    Role,
+};
+use potato_util::{create_uuid7, json_to_pyobject};
+use pyo3::{prelude::*, IntoPyObjectExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;
-use tracing::{debug, instrument};
+use tracing::{debug, instrument, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Agent {
@@ -155,5 +157,209 @@ impl Agent {
             id: create_uuid7(),
             system_message: Vec::new(),
         })
+    }
+}
+
+#[pyclass(name = "Agent")]
+#[derive(Debug, Clone)]
+pub struct PyAgent {
+    pub agent: Arc<Agent>,
+    pub runtime: Arc<tokio::runtime::Runtime>,
+}
+
+#[pymethods]
+impl PyAgent {
+    #[new]
+    #[pyo3(signature = (provider, system_message = None))]
+    /// Creates a new Agent instance.
+    ///
+    /// # Arguments:
+    /// * `provider` - A Python object representing the provider, expected to be an a variant of Provider or a string
+    /// that can be mapped to a provider variant
+    ///
+    pub fn new(
+        provider: &Bound<'_, PyAny>,
+        system_message: Option<&Bound<'_, PyAny>>,
+    ) -> Result<Self, AgentError> {
+        let provider = Provider::extract_provider(provider)?;
+
+        let system_message = if let Some(system_message) = system_message {
+            Some(
+                parse_prompt(system_message)?
+                    .into_iter()
+                    .map(|mut msg| {
+                        msg.role = Role::Developer.to_string();
+                        msg
+                    })
+                    .collect::<Vec<Message>>(),
+            )
+        } else {
+            None
+        };
+
+        let agent = Agent::new(provider, system_message)?;
+
+        Ok(Self {
+            agent: Arc::new(agent),
+            runtime: Arc::new(
+                tokio::runtime::Runtime::new()
+                    .map_err(|e| AgentError::RuntimeError(e.to_string()))?,
+            ),
+        })
+    }
+
+    #[pyo3(signature = (task, output_type))]
+    pub fn execute_task(
+        &self,
+        py: Python<'_>,
+        task: &mut Task,
+        output_type: Option<Bound<'_, PyAny>>,
+    ) -> Result<PyAgentResponse, AgentError> {
+        // Extract the prompt from the task
+        debug!("Executing task");
+        // if output_type is not None,  mutate task prompt
+        if let Some(output_type) = &output_type {
+            match parse_response_format(py, output_type) {
+                Ok(response_format) => {
+                    task.prompt.response_format = response_format;
+                }
+                Err(_) => {
+                    return Err(AgentError::InvalidOutputType(output_type.to_string()));
+                }
+            }
+        }
+
+        let chat_response = self
+            .runtime
+            .block_on(async { self.agent.execute_task(task).await })?;
+
+        debug!("Task executed successfully");
+        let output = output_type.as_ref().map(|obj| obj.clone().unbind());
+        let response = PyAgentResponse::new(chat_response, output);
+
+        Ok(response)
+    }
+
+    #[pyo3(signature = (prompt, output_type=None))]
+    pub fn execute_prompt(
+        &self,
+        py: Python<'_>,
+        prompt: &mut Prompt,
+        output_type: Option<Bound<'_, PyAny>>,
+    ) -> Result<PyAgentResponse, AgentError> {
+        // Extract the prompt from the task
+        debug!("Executing task");
+        // if output_type is not None,  mutate task prompt
+        if let Some(output_type) = &output_type {
+            match parse_response_format(py, output_type) {
+                Ok(response_format) => {
+                    prompt.response_format = response_format;
+                }
+                Err(_) => {
+                    return Err(AgentError::InvalidOutputType(output_type.to_string()));
+                }
+            }
+        }
+
+        let chat_response = self
+            .runtime
+            .block_on(async { self.agent.execute_prompt(prompt).await })?;
+
+        debug!("Task executed successfully");
+        let output = output_type.as_ref().map(|obj| obj.clone().unbind());
+        let response = PyAgentResponse::new(chat_response, output);
+
+        Ok(response)
+    }
+
+    #[getter]
+    pub fn system_message<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+        Ok(self.agent.system_message.clone().into_bound_py_any(py)?)
+    }
+
+    #[getter]
+    pub fn id(&self) -> &str {
+        self.agent.id.as_str()
+    }
+}
+
+#[pyclass(name = "AgentResponse")]
+#[derive(Debug, Serialize)]
+pub struct PyAgentResponse {
+    pub response: AgentResponse,
+
+    #[serde(skip_serializing)]
+    pub output_type: Option<PyObject>,
+
+    #[pyo3(get)]
+    pub failed_conversion: bool,
+}
+
+#[pymethods]
+impl PyAgentResponse {
+    #[getter]
+    pub fn id(&self) -> &str {
+        &self.response.id
+    }
+
+    #[getter]
+    pub fn token_usage(&self) -> Usage {
+        self.response.token_usage()
+    }
+
+    /// This will map a the content of the response to a python object.
+    /// A python object in this case will be either a passed pydantic model or support potatohead types.
+    /// If neither is porvided, an attempt is made to parse the serde Value into an appropriate Python type.
+    /// Types:
+    /// - Serde Null -> Python None
+    /// - Serde Bool -> Python bool
+    /// - Serde String -> Python str
+    /// - Serde Number -> Python int or float
+    /// - Serde Array -> Python list (with each item converted to Python type)
+    /// - Serde Object -> Python dict (with each key-value pair converted to Python type)
+    #[getter]
+    #[instrument(skip_all)]
+    pub fn result<'py>(&mut self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+        let content_value = self.response.content();
+        // convert content_value to string
+
+        match &self.output_type {
+            Some(output_type) => {
+                // Match the value. For loading into pydantic models, it's expected that the api response is a JSON string.
+                match content_value {
+                    Value::String(s) => {
+                        // If the content is a string, we can directly convert it to a Python string
+                        let bound = output_type
+                            .bind(py)
+                            .call_method1("model_validate_json", (&s,))?;
+                        Ok(bound)
+                    }
+
+                    _ => {
+                        warn!(
+                            "Expected a string for model validation, but got: {:?}. Defaulting to JSON conversion.",
+                            content_value
+                        );
+                        self.failed_conversion = true;
+                        Ok(json_to_pyobject(py, &content_value)?.into_bound_py_any(py)?)
+                    }
+                }
+                // Convert structured output using model_validate_json
+            }
+            None => {
+                // Convert plain string output to Python string
+                Ok(json_to_pyobject(py, &content_value)?.into_bound_py_any(py)?)
+            }
+        }
+    }
+}
+
+impl PyAgentResponse {
+    pub fn new(response: AgentResponse, output_type: Option<PyObject>) -> Self {
+        Self {
+            response,
+            output_type,
+            failed_conversion: false,
+        }
     }
 }

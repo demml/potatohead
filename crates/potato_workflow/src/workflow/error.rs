@@ -23,6 +23,21 @@ pub enum WorkflowError {
 
     #[error(transparent)]
     UtilError(#[from] UtilError),
+
+    #[error("Failed to create runtime: {0}")]
+    RuntimeError(String),
+
+    #[error("Invalid output type provided for task: {0}")]
+    InvalidOutputType(String),
+
+    #[error(transparent)]
+    SerializationError(#[from] serde_json::Error),
+
+    #[error("Failed to acquire lock on workflow")]
+    LockAcquireError,
+
+    #[error("Failed to acquire read lock on workflow")]
+    ReadLockAcquireError,
 }
 
 impl From<WorkflowError> for PyErr {
