@@ -281,7 +281,7 @@ impl TaskList {
 pub struct Workflow {
     pub id: String,
     pub name: String,
-    pub tasklist: TaskList,
+    pub task_list: TaskList,
     pub agents: HashMap<String, Arc<Agent>>,
     pub event_tracker: Arc<RwLock<EventTracker>>,
 }
@@ -293,7 +293,7 @@ impl Workflow {
         Self {
             id: id.clone(),
             name: name.to_string(),
-            tasklist: TaskList::new(),
+            task_list: TaskList::new(),
             agents: HashMap::new(),
             event_tracker: Arc::new(RwLock::new(EventTracker::new(id))),
         }
@@ -322,20 +322,20 @@ impl Workflow {
     }
 
     pub fn is_complete(&self) -> bool {
-        self.tasklist.is_complete()
+        self.task_list.is_complete()
     }
 
     pub fn pending_count(&self) -> usize {
-        self.tasklist.pending_count()
+        self.task_list.pending_count()
     }
 
     pub fn add_task(&mut self, task: Task) -> Result<(), WorkflowError> {
-        self.tasklist.add_task(task)
+        self.task_list.add_task(task)
     }
 
     pub fn add_tasks(&mut self, tasks: Vec<Task>) -> Result<(), WorkflowError> {
         for task in tasks {
-            self.tasklist.add_task(task)?;
+            self.task_list.add_task(task)?;
         }
         Ok(())
     }
@@ -347,7 +347,7 @@ impl Workflow {
 
     pub fn execution_plan(&self) -> Result<HashMap<String, HashSet<String>>, WorkflowError> {
         let mut remaining: HashMap<String, HashSet<String>> = self
-            .tasklist
+            .task_list
             .tasks
             .iter()
             .map(|(id, task)| {
@@ -395,7 +395,7 @@ impl Workflow {
     }
 
     pub fn __str__(&self) -> String {
-        PyHelperFuncs::__str__(&self.tasklist)
+        PyHelperFuncs::__str__(&self.task_list)
     }
 }
 
@@ -412,7 +412,7 @@ fn is_workflow_complete(workflow: &Arc<RwLock<Workflow>>) -> bool {
 /// * `workflow` - A reference to the workflow instance
 /// # Returns Ok(()) if successful, or an error if the reset fails
 fn reset_failed_workflow_tasks(workflow: &Arc<RwLock<Workflow>>) -> Result<(), WorkflowError> {
-    match workflow.write().unwrap().tasklist.reset_failed_tasks() {
+    match workflow.write().unwrap().task_list.reset_failed_tasks() {
         Ok(_) => Ok(()),
         Err(e) => {
             warn!("Failed to reset failed tasks: {}", e);
@@ -426,7 +426,7 @@ fn reset_failed_workflow_tasks(workflow: &Arc<RwLock<Workflow>>) -> Result<(), W
 /// * `workflow` - A reference to the workflow instance
 /// # Returns a vector of tasks that are ready to be executed
 fn get_ready_tasks(workflow: &Arc<RwLock<Workflow>>) -> Vec<Arc<RwLock<Task>>> {
-    workflow.read().unwrap().tasklist.get_ready_tasks()
+    workflow.read().unwrap().task_list.get_ready_tasks()
 }
 
 /// Check for circular dependencies
@@ -482,7 +482,7 @@ fn build_task_context(
 
     for dep_id in task_dependencies {
         debug!("Building context for task dependency: {}", dep_id);
-        if let Some(dep) = wf.tasklist.get_task(dep_id) {
+        if let Some(dep) = wf.task_list.get_task(dep_id) {
             if let Some(result) = &dep.read().unwrap().result {
                 let msg_to_insert = result.response.to_message(Role::Assistant);
 
@@ -696,7 +696,7 @@ impl Serialize for Workflow {
         // set session to none
         state.serialize_field("id", &self.id)?;
         state.serialize_field("name", &self.name)?;
-        state.serialize_field("tasklist", &self.tasklist)?;
+        state.serialize_field("tasklist", &self.task_list)?;
 
         // serialize agents by unwrapping the Arc
         let agents: HashMap<String, Agent> = self
@@ -761,7 +761,7 @@ impl<'de> Deserialize<'de> for Workflow {
 
                 let id = id.ok_or_else(|| de::Error::missing_field("id"))?;
                 let name = name.ok_or_else(|| de::Error::missing_field("name"))?;
-                let tasklist = tasks.ok_or_else(|| de::Error::missing_field("tasklist"))?;
+                let task_list = tasks.ok_or_else(|| de::Error::missing_field("tasklist"))?;
                 let agents = agents.ok_or_else(|| de::Error::missing_field("agents"))?;
                 let event_tracker = Arc::new(RwLock::new(EventTracker::new(create_uuid7())));
 
@@ -774,7 +774,7 @@ impl<'de> Deserialize<'de> for Workflow {
                 Ok(Workflow {
                     id,
                     name,
-                    tasklist,
+                    task_list,
                     agents,
                     event_tracker,
                 })
@@ -823,7 +823,7 @@ impl PyWorkflow {
 
     #[getter]
     pub fn tasklist(&self) -> TaskList {
-        self.workflow.tasklist.clone()
+        self.workflow.task_list.clone()
     }
 
     #[getter]
@@ -878,13 +878,13 @@ impl PyWorkflow {
                 .insert(task.id.clone(), Arc::new(output_type.unbind()));
         }
 
-        self.workflow.tasklist.add_task(task)?;
+        self.workflow.task_list.add_task(task)?;
         Ok(())
     }
 
     pub fn add_tasks(&mut self, tasks: Vec<Task>) -> Result<(), WorkflowError> {
         for task in tasks {
-            self.workflow.tasklist.add_task(task)?;
+            self.workflow.task_list.add_task(task)?;
         }
         Ok(())
     }
@@ -896,11 +896,11 @@ impl PyWorkflow {
     }
 
     pub fn is_complete(&self) -> bool {
-        self.workflow.tasklist.is_complete()
+        self.workflow.task_list.is_complete()
     }
 
     pub fn pending_count(&self) -> usize {
-        self.workflow.tasklist.pending_count()
+        self.workflow.task_list.pending_count()
     }
 
     pub fn execution_plan<'py>(
@@ -948,7 +948,7 @@ impl PyWorkflow {
                     .clone();
 
                 // Move the tasks out of the workflow
-                WorkflowResult::new(py, workflow.tasklist.tasks(), &self.output_types, events)
+                WorkflowResult::new(py, workflow.task_list.tasks(), &self.output_types, events)
             }
             // If there are other references, we need to clone
             Err(arc) => {
@@ -968,7 +968,7 @@ impl PyWorkflow {
                     .unwrap()
                     .clone();
 
-                WorkflowResult::new(py, workflow.tasklist.tasks(), &self.output_types, events)
+                WorkflowResult::new(py, workflow.task_list.tasks(), &self.output_types, events)
             }
         };
 

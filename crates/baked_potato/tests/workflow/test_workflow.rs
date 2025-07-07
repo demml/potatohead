@@ -65,8 +65,8 @@ fn test_workflow() {
         ))
         .unwrap();
 
-    assert_eq!(workflow.tasklist.len(), 5);
-    assert!(!workflow.tasklist.is_empty());
+    assert_eq!(workflow.task_list.len(), 5);
+    assert!(!workflow.task_list.is_empty());
 
     // print execution plan
     println!("Execution Plan: {:?}", workflow.execution_plan());
@@ -117,7 +117,7 @@ fn test_parameterized_workflow() {
     let task1_output = result
         .read()
         .unwrap()
-        .tasklist
+        .task_list
         .get_task("task1")
         .unwrap()
         .read()
@@ -130,7 +130,7 @@ fn test_parameterized_workflow() {
     let _ = Parameters::model_validate_json_value(&task1_output);
 
     // assert original workflow is unmodified
-    assert_eq!(workflow.tasklist.len(), 2);
+    assert_eq!(workflow.task_list.len(), 2);
 
     // assert workflow event tracker is empty for the original workflow
     assert!(workflow.event_tracker.read().unwrap().is_empty());
@@ -144,7 +144,7 @@ fn test_parameterized_workflow() {
         .unwrap()
         .is_empty());
 
-    let binding = result.read().unwrap().tasklist.get_task("task2").unwrap();
+    let binding = result.read().unwrap().task_list.get_task("task2").unwrap();
     let task2_output = &binding.read().unwrap().prompt.user_message;
 
     // assert task2_output len is 2
