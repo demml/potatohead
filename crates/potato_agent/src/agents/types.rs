@@ -212,6 +212,14 @@ impl PyAgentResponse {
                             .call_method1("model_validate_json", (&s,))?;
                         Ok(bound)
                     }
+                    Value::Object(_) => {
+                        // Attempt to convert content_value to a JSON string
+                        let content_string = serde_json::to_string(&content_value)?;
+                        let bound = output_type
+                            .bind(py)
+                            .call_method1("model_validate_json", (&content_string,))?;
+                        Ok(bound)
+                    }
 
                     _ => {
                         warn!(

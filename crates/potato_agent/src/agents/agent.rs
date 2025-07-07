@@ -1,15 +1,16 @@
 use crate::agents::provider::openai::OpenAIClient;
-use crate::agents::provider::openai::Usage;
 use crate::agents::provider::types::Provider;
 use crate::{
-    agents::client::GenAiClient, agents::error::AgentError, agents::task::Task,
-    agents::types::AgentResponse,
+    agents::client::GenAiClient,
+    agents::error::AgentError,
+    agents::task::Task,
+    agents::types::{AgentResponse, PyAgentResponse},
 };
 use potato_prompt::{
     parse_response_format, prompt::parse_prompt, prompt::types::Message, ModelSettings, Prompt,
     Role,
 };
-use potato_util::{create_uuid7, json_to_pyobject};
+use potato_util::create_uuid7;
 use pyo3::{prelude::*, IntoPyObjectExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -280,94 +281,5 @@ impl PyAgent {
     #[getter]
     pub fn id(&self) -> &str {
         self.agent.id.as_str()
-    }
-}
-
-#[pyclass(name = "AgentResponse")]
-#[derive(Debug, Serialize)]
-pub struct PyAgentResponse {
-    pub response: AgentResponse,
-
-    #[serde(skip_serializing)]
-    pub output_type: Option<PyObject>,
-
-    #[pyo3(get)]
-    pub failed_conversion: bool,
-}
-
-#[pymethods]
-impl PyAgentResponse {
-    #[getter]
-    pub fn id(&self) -> &str {
-        &self.response.id
-    }
-
-    #[getter]
-    pub fn token_usage(&self) -> Usage {
-        self.response.token_usage()
-    }
-
-    /// This will map a the content of the response to a python object.
-    /// A python object in this case will be either a passed pydantic model or support potatohead types.
-    /// If neither is porvided, an attempt is made to parse the serde Value into an appropriate Python type.
-    /// Types:
-    /// - Serde Null -> Python None
-    /// - Serde Bool -> Python bool
-    /// - Serde String -> Python str
-    /// - Serde Number -> Python int or float
-    /// - Serde Array -> Python list (with each item converted to Python type)
-    /// - Serde Object -> Python dict (with each key-value pair converted to Python type)
-    #[getter]
-    #[instrument(skip_all)]
-    pub fn result<'py>(&mut self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
-        let content_value = self.response.content();
-        // convert content_value to string
-
-        match &self.output_type {
-            Some(output_type) => {
-                // Match the value. For loading into pydantic models, it's expected that the api response is a JSON string.
-                match content_value {
-                    Value::String(s) => {
-                        // If the content is a string, we can directly convert it to a Python string
-                        let bound = output_type
-                            .bind(py)
-                            .call_method1("model_validate_json", (&s,))?;
-                        Ok(bound)
-                    }
-                    Value::Object(_) => {
-                        // Attempt to convert content_value to a JSON string
-                        let content_string = serde_json::to_string(&content_value)?;
-                        let bound = output_type
-                            .bind(py)
-                            .call_method1("model_validate_json", (&content_string,))?;
-                        Ok(bound)
-                    }
-
-                    _ => {
-                        warn!(
-                            "Expected a string for model validation, but got: {:?}. Defaulting to JSON conversion.",
-                            content_value
-                        );
-                        self.failed_conversion = true;
-                        Ok(json_to_pyobject(py, &content_value)?.into_bound_py_any(py)?)
-                    }
-                }
-                // Convert structured output using model_validate_json
-            }
-            None => {
-                // Convert plain string output to Python string
-                Ok(json_to_pyobject(py, &content_value)?.into_bound_py_any(py)?)
-            }
-        }
-    }
-}
-
-impl PyAgentResponse {
-    pub fn new(response: AgentResponse, output_type: Option<PyObject>) -> Self {
-        Self {
-            response,
-            output_type,
-            failed_conversion: false,
-        }
     }
 }
