@@ -232,6 +232,14 @@ impl Workflow {
         // Deserialize the JSON string into a Workflow instance
         Ok(serde_json::from_str(json)?)
     }
+
+    pub fn task_names(&self) -> Vec<String> {
+        self.task_list
+            .tasks
+            .keys()
+            .cloned()
+            .collect::<Vec<String>>()
+    }
 }
 
 /// Check if the workflow is complete
