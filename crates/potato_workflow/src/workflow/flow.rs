@@ -1,3 +1,4 @@
+use crate::tasklist::TaskList;
 use crate::{
     events::{EventTracker, TaskEvent},
     workflow::error::WorkflowError,
@@ -7,7 +8,7 @@ pub use potato_agent::agents::{
     task::{PyTask, Task, TaskStatus},
     types::ChatResponse,
 };
-use potato_agent::{AgentResponse, PyAgentResponse};
+use potato_agent::PyAgentResponse;
 use potato_prompt::parse_response_format;
 use potato_prompt::prompt::types::Role;
 use potato_prompt::Message;
@@ -90,192 +91,6 @@ impl WorkflowResult {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[pyclass]
-pub struct TaskList {
-    pub tasks: HashMap<String, Arc<RwLock<Task>>>,
-    pub execution_order: Vec<String>,
-}
-
-#[pymethods]
-impl TaskList {
-    /// This is mainly a utility function to help with python interoperability.
-    pub fn tasks(&self) -> HashMap<String, Task> {
-        self.tasks
-            .iter()
-            .map(|(id, task)| {
-                let task = Task {
-                    id: id.clone(),
-                    prompt: task.read().unwrap().prompt.clone(),
-                    dependencies: task.read().unwrap().dependencies.clone(),
-                    status: task.read().unwrap().status.clone(),
-                    agent_id: task.read().unwrap().agent_id.clone(),
-                    result: task.read().unwrap().result.clone(),
-                    max_retries: task.read().unwrap().max_retries,
-                    retry_count: task.read().unwrap().retry_count,
-                };
-                (id.clone(), task)
-            })
-            .collect()
-    }
-}
-
-impl TaskList {
-    pub fn new() -> Self {
-        Self {
-            tasks: HashMap::new(),
-            execution_order: Vec::new(),
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.tasks.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.tasks.is_empty()
-    }
-
-    pub fn is_complete(&self) -> bool {
-        self.tasks.values().all(|task| {
-            task.read().unwrap().status == TaskStatus::Completed
-                || task.read().unwrap().status == TaskStatus::Failed
-        })
-    }
-
-    pub fn add_task(&mut self, task: Task) -> Result<(), WorkflowError> {
-        // assert that task ID is unique
-        if self.tasks.contains_key(&task.id) {
-            return Err(WorkflowError::TaskAlreadyExists(task.id.clone()));
-        }
-
-        // if dependencies are not empty, check if they exist in the task list
-        for dep_id in &task.dependencies {
-            if !self.tasks.contains_key(dep_id) {
-                return Err(WorkflowError::DependencyNotFound(dep_id.clone()));
-            }
-
-            // also check that the dependency is not the task itself
-            if dep_id == &task.id {
-                return Err(WorkflowError::TaskDependsOnItself(task.id.clone()));
-            }
-        }
-
-        // if all checks pass, insert the task
-        self.tasks
-            .insert(task.id.clone(), Arc::new(RwLock::new(task)));
-        self.rebuild_execution_order();
-        Ok(())
-    }
-
-    pub fn get_task(&self, task_id: &str) -> Option<Arc<RwLock<Task>>> {
-        self.tasks.get(task_id).cloned()
-    }
-
-    pub fn remove_task(&mut self, task_id: &str) {
-        self.tasks.remove(task_id);
-    }
-
-    pub fn pending_count(&self) -> usize {
-        self.tasks
-            .values()
-            .filter(|task| task.read().unwrap().status == TaskStatus::Pending)
-            .count()
-    }
-
-    #[instrument(skip_all)]
-    pub fn update_task_status(
-        &mut self,
-        task_id: &str,
-        status: TaskStatus,
-        result: Option<&AgentResponse>,
-    ) {
-        debug!(status=?status, result=?result, "Updating task status");
-        if let Some(task) = self.tasks.get_mut(task_id) {
-            let mut task = task.write().unwrap();
-            task.status = status;
-            task.result = result.cloned();
-        }
-    }
-
-    fn topological_sort(
-        &self,
-        task_id: &str,
-        visited: &mut HashSet<String>,
-        temp_visited: &mut HashSet<String>,
-        order: &mut Vec<String>,
-    ) {
-        if temp_visited.contains(task_id) {
-            return; // Cycle detected, skip
-        }
-
-        if visited.contains(task_id) {
-            return;
-        }
-
-        temp_visited.insert(task_id.to_string());
-
-        if let Some(task) = self.tasks.get(task_id) {
-            for dep_id in &task.read().unwrap().dependencies {
-                self.topological_sort(dep_id, visited, temp_visited, order);
-            }
-        }
-
-        temp_visited.remove(task_id);
-        visited.insert(task_id.to_string());
-        order.push(task_id.to_string());
-    }
-
-    fn rebuild_execution_order(&mut self) {
-        let mut order = Vec::new();
-        let mut visited = HashSet::new();
-        let mut temp_visited = HashSet::new();
-
-        for task_id in self.tasks.keys() {
-            if !visited.contains(task_id) {
-                self.topological_sort(task_id, &mut visited, &mut temp_visited, &mut order);
-            }
-        }
-
-        self.execution_order = order;
-    }
-
-    /// Iterate through all tasks and return those that are ready to be executed
-    /// This also checks if all dependencies of the task are completed
-    ///
-    /// # Returns a vector of references to tasks that are ready to be executed
-    pub fn get_ready_tasks(&self) -> Vec<Arc<RwLock<Task>>> {
-        self.tasks
-            .values()
-            .filter(|task_arc| {
-                let task = task_arc.read().unwrap();
-                task.status == TaskStatus::Pending
-                    && task.dependencies.iter().all(|dep_id| {
-                        self.tasks
-                            .get(dep_id)
-                            .map(|dep| dep.read().unwrap().status == TaskStatus::Completed)
-                            .unwrap_or(false)
-                    })
-            })
-            .cloned()
-            .collect()
-    }
-
-    pub fn reset_failed_tasks(&mut self) -> Result<(), WorkflowError> {
-        for task in self.tasks.values_mut() {
-            let mut task = task.write().unwrap();
-            if task.status == TaskStatus::Failed {
-                task.status = TaskStatus::Pending;
-                task.increment_retry();
-                if task.retry_count > task.max_retries {
-                    return Err(WorkflowError::MaxRetriesExceeded(task.id.clone()));
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
 /// Rust-specific implementation of a workflow
 #[derive(Debug, Clone)]
 pub struct Workflow {
@@ -304,17 +119,25 @@ impl Workflow {
         events
     }
 
-    pub fn get_new_workflow(&self) -> Self {
-        let mut workflow = self.clone();
+    pub fn get_new_workflow(&self) -> Result<Self, WorkflowError> {
         // set new id for the new workflow
-        workflow.id = create_uuid7();
-        workflow.event_tracker = Arc::new(RwLock::new(EventTracker::new(workflow.id.clone())));
-        workflow
+        let id = create_uuid7();
+
+        // create deep copy of the tasklist so we don't clone the arc
+        let task_list = self.task_list.deep_clone()?;
+
+        Ok(Workflow {
+            id: id.clone(),
+            name: self.name.clone(),
+            task_list,
+            agents: self.agents.clone(), // Agents can be shared since they're read-only during execution
+            event_tracker: Arc::new(RwLock::new(EventTracker::new(id))),
+        })
     }
 
     pub async fn run(&self) -> Result<Arc<RwLock<Workflow>>, WorkflowError> {
         info!("Running workflow: {}", self.name);
-        let run_workflow = Arc::new(RwLock::new(self.get_new_workflow()));
+        let run_workflow = Arc::new(RwLock::new(self.get_new_workflow()?));
 
         execute_workflow(&run_workflow).await?;
 
@@ -396,6 +219,13 @@ impl Workflow {
 
     pub fn __str__(&self) -> String {
         PyHelperFuncs::__str__(&self.task_list)
+    }
+
+    pub fn serialize(&self) -> Result<String, serde_json::Error> {
+        // reset the workflow
+        let json = serde_json::to_string(self).unwrap();
+        // Add debug output to see what's being serialized
+        Ok(json)
     }
 }
 
@@ -696,16 +526,33 @@ impl Serialize for Workflow {
         // set session to none
         state.serialize_field("id", &self.id)?;
         state.serialize_field("name", &self.name)?;
+
+        //let tasks: HashMap<String, Task> = self
+        //    .task_list
+        //    .tasks
+        //    .iter()
+        //    .map(|(id, task_arc)| {
+        //        let task = task_arc.read().unwrap();
+        //        (id.clone(), task.clone())
+        //    })
+        //    .collect();
+        //
+        //let serializable_task_list = serde_json::json!({
+        //    "tasks": tasks,
+        //    "execution_order": self.task_list.execution_order
+        //});
+
         state.serialize_field("task_list", &self.task_list)?;
 
         // serialize agents by unwrapping the Arc
-        let agents: HashMap<String, Agent> = self
-            .agents
-            .iter()
-            .map(|(id, agent)| (id.clone(), (*agent.as_ref()).clone()))
-            .collect();
+        //let agents: HashMap<String, Agent> = self
+        //    .agents
+        //    .iter()
+        //    .map(|(id, agent)| (id.clone(), (*agent.as_ref()).clone()))
+        //    .collect();
 
-        state.serialize_field("agents", &agents)?;
+        state.serialize_field("agents", &self.agents)?;
+
         state.end()
     }
 }
@@ -739,30 +586,91 @@ impl<'de> Deserialize<'de> for Workflow {
             {
                 let mut id = None;
                 let mut name = None;
-                let mut tasks = None;
+                let mut task_list_data = None;
                 let mut agents: Option<HashMap<String, Agent>> = None;
 
                 while let Some(key) = map.next_key()? {
                     match key {
                         Field::Id => {
-                            id = Some(map.next_value()?);
+                            let value: String = map.next_value().map_err(|e| {
+                                error!("Failed to deserialize field 'id': {}", e);
+                                de::Error::custom(format!(
+                                    "Failed to deserialize field 'id': {}",
+                                    e
+                                ))
+                            })?;
+                            id = Some(value);
                         }
                         Field::TaskList => {
-                            tasks = Some(map.next_value()?);
-                        }
-                        Field::Agents => {
-                            agents = Some(map.next_value()?);
+                            // Deserialize as a generic Value first
+                            let value: TaskList = map.next_value().map_err(|e| {
+                                error!("Failed to deserialize field 'task_list': {}", e);
+                                de::Error::custom(format!(
+                                    "Failed to deserialize field 'task_list': {}",
+                                    e
+                                ))
+                            })?;
+
+                            task_list_data = Some(value);
                         }
                         Field::Name => {
-                            name = Some(map.next_value()?);
+                            let value: String = map.next_value().map_err(|e| {
+                                error!("Failed to deserialize field 'name': {}", e);
+                                de::Error::custom(format!(
+                                    "Failed to deserialize field 'name': {}",
+                                    e
+                                ))
+                            })?;
+                            name = Some(value);
+                        }
+                        Field::Agents => {
+                            let value: HashMap<String, Agent> = map.next_value().map_err(|e| {
+                                error!("Failed to deserialize field 'agents': {}", e);
+                                de::Error::custom(format!(
+                                    "Failed to deserialize field 'agents': {}",
+                                    e
+                                ))
+                            })?;
+                            agents = Some(value);
                         }
                     }
                 }
 
                 let id = id.ok_or_else(|| de::Error::missing_field("id"))?;
                 let name = name.ok_or_else(|| de::Error::missing_field("name"))?;
-                let task_list = tasks.ok_or_else(|| de::Error::missing_field("task_list"))?;
+                let task_list_data =
+                    task_list_data.ok_or_else(|| de::Error::missing_field("task_list"))?;
                 let agents = agents.ok_or_else(|| de::Error::missing_field("agents"))?;
+
+                //let mut task_list = TaskList::new();
+                //
+                //if let Some(tasks_obj) = task_list_data.get("tasks") {
+                //    if let Some(tasks_map) = tasks_obj.as_object() {
+                //        for (task_id, task_value) in tasks_map {
+                //            let task: Task =
+                //                serde_json::from_value(task_value.clone()).map_err(|e| {
+                //                    de::Error::custom(format!(
+                //                        "Failed to deserialize task {}: {}",
+                //                        task_id, e
+                //                    ))
+                //                })?;
+                //            task_list.add_task(task).map_err(|e| {
+                //                de::Error::custom(format!("Failed to add task {}: {}", task_id, e))
+                //            })?;
+                //        }
+                //    }
+                //}
+
+                // Restore execution_order if present
+                //if let Some(execution_order_value) = task_list_data.get("execution_order") {
+                //    if let Some(execution_order) = execution_order_value.as_array() {
+                //        task_list.execution_order = execution_order
+                //            .iter()
+                //            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                //            .collect();
+                //    }
+                //}
+
                 let event_tracker = Arc::new(RwLock::new(EventTracker::new(create_uuid7())));
 
                 // convert agents to arc
@@ -774,14 +682,14 @@ impl<'de> Deserialize<'de> for Workflow {
                 Ok(Workflow {
                     id,
                     name,
-                    task_list,
+                    task_list: task_list_data,
                     agents,
                     event_tracker,
                 })
             }
         }
 
-        const FIELDS: &[&str] = &["id", "name", "task_list", "agents", "event_tracker"];
+        const FIELDS: &[&str] = &["id", "name", "task_list", "agents"];
         deserializer.deserialize_struct("Workflow", FIELDS, WorkflowVisitor)
     }
 }
@@ -822,7 +730,7 @@ impl PyWorkflow {
     }
 
     #[getter]
-    pub fn tasklist(&self) -> TaskList {
+    pub fn task_list(&self) -> TaskList {
         self.workflow.task_list.clone()
     }
 

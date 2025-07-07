@@ -7,7 +7,6 @@ use pyo3::prelude::*;
 use reqwest::header::HeaderName;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
 const TIMEOUT_SECS: u64 = 30;
@@ -55,7 +54,7 @@ pub fn build_http_client(
     Ok(client)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub enum GenAiClient {
     OpenAI(OpenAIClient),
 }

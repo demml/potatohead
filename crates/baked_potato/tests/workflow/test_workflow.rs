@@ -68,9 +68,6 @@ fn test_workflow() {
     assert_eq!(workflow.task_list.len(), 5);
     assert!(!workflow.task_list.is_empty());
 
-    // print execution plan
-    println!("Execution Plan: {:?}", workflow.execution_plan());
-
     // run the workflow
     runtime.block_on(async {
         workflow.run().await.unwrap();
@@ -109,7 +106,14 @@ fn test_parameterized_workflow() {
         ))
         .unwrap();
 
+    // assert pending task count is
+    assert_eq!(workflow.pending_count(), 2);
+
     let result = runtime.block_on(async { workflow.run().await.unwrap() });
+
+    // assert original workflow is unmodified
+    assert_eq!(workflow.task_list.len(), 2);
+    assert_eq!(workflow.pending_count(), 2);
 
     // assert result id is not the same as workflow id
     assert_ne!(result.read().unwrap().id, workflow.id);
@@ -149,4 +153,8 @@ fn test_parameterized_workflow() {
 
     // assert task2_output len is 2
     assert_eq!(task2_output.len(), 2);
+
+    let serialized = workflow.serialize().unwrap();
+
+    let _deserialized: Workflow = serde_json::from_str(&serialized).unwrap();
 }

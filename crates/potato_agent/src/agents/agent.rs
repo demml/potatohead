@@ -12,6 +12,11 @@ use potato_prompt::{
 };
 use potato_util::create_uuid7;
 use pyo3::{prelude::*, IntoPyObjectExt};
+use serde::{
+    de::{self, MapAccess, Visitor},
+    ser::SerializeStruct,
+    Deserializer, Serializer,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -19,7 +24,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use tracing::{debug, instrument, warn};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Agent {
     pub id: String,
 
@@ -158,6 +163,91 @@ impl Agent {
             id: create_uuid7(),
             system_message: Vec::new(),
         })
+    }
+}
+
+impl Serialize for Agent {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Agent", 3)?;
+        state.serialize_field("id", &self.id)?;
+        state.serialize_field("provider", &self.client.provider())?;
+        state.serialize_field("system_message", &self.system_message)?;
+        state.end()
+    }
+}
+
+/// Allows for deserialization of the Agent, re-initializing the client.
+impl<'de> Deserialize<'de> for Agent {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "snake_case")]
+        enum Field {
+            Id,
+            Provider,
+            SystemMessage,
+        }
+
+        struct AgentVisitor;
+
+        impl<'de> Visitor<'de> for AgentVisitor {
+            type Value = Agent;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("struct Agent")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<Agent, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut id = None;
+                let mut provider = None;
+                let mut system_message = None;
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Id => {
+                            id = Some(map.next_value()?);
+                        }
+                        Field::Provider => {
+                            provider = Some(map.next_value()?);
+                        }
+                        Field::SystemMessage => {
+                            system_message = Some(map.next_value()?);
+                        }
+                    }
+                }
+
+                let id = id.ok_or_else(|| de::Error::missing_field("id"))?;
+                let provider = provider.ok_or_else(|| de::Error::missing_field("provider"))?;
+                let system_message =
+                    system_message.ok_or_else(|| de::Error::missing_field("system_message"))?;
+
+                // Re-initialize the client based on the provider
+                let client = match provider {
+                    Provider::OpenAI => {
+                        GenAiClient::OpenAI(OpenAIClient::new(None, None, None).map_err(|e| {
+                            de::Error::custom(format!("Failed to initialize OpenAIClient: {}", e))
+                        })?)
+                    }
+                };
+
+                Ok(Agent {
+                    id,
+                    client,
+                    system_message,
+                })
+            }
+        }
+
+        const FIELDS: &[&str] = &["id", "provider", "system_message"];
+        deserializer.deserialize_struct("Agent", FIELDS, AgentVisitor)
     }
 }
 
