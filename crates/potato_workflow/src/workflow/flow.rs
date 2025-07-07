@@ -975,6 +975,44 @@ impl PyWorkflow {
         info!("Workflow execution completed successfully.");
         Ok(workflow_result)
     }
+
+    pub fn model_dump_json(&self) -> String {
+        serde_json::to_string(&self.workflow).unwrap()
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (json_string, output_types=None))]
+    pub fn model_validate_json(
+        json_string: String,
+        output_types: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, WorkflowError> {
+        let workflow: Workflow = serde_json::from_str(&json_string)?;
+        let runtime = Arc::new(
+            tokio::runtime::Runtime::new()
+                .map_err(|e| WorkflowError::RuntimeError(e.to_string()))?,
+        );
+
+        let output_types = if let Some(output_types) = output_types {
+            output_types
+                .iter()
+                .map(|(k, v)| -> PyResult<(String, Arc<PyObject>)> {
+                    let key = k.extract::<String>()?;
+                    let value = v.clone().unbind();
+                    Ok((key, Arc::new(value)))
+                })
+                .collect::<PyResult<HashMap<String, Arc<PyObject>>>>()?
+        } else {
+            HashMap::new()
+        };
+
+        let py_workflow = PyWorkflow {
+            workflow,
+            output_types,
+            runtime,
+        };
+
+        Ok(py_workflow)
+    }
 }
 
 #[cfg(test)]
