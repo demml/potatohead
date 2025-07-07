@@ -790,8 +790,9 @@ impl PyWorkflow {
     ) -> Result<(), WorkflowError> {
         if let Some(output_type) = output_type {
             // Parse and set the response format
-            task.prompt.response_format = parse_response_format(py, &output_type)
-                .map_err(|e| WorkflowError::InvalidOutputType(e.to_string()))?;
+            (task.prompt.response_type, task.prompt.response_format) =
+                parse_response_format(py, &output_type)
+                    .map_err(|e| WorkflowError::InvalidOutputType(e.to_string()))?;
 
             // Store the output type for later use
             self.output_types
@@ -938,6 +939,7 @@ impl PyWorkflow {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use potato_prompt::prompt::ResponseType;
     use potato_prompt::{prompt::types::PromptContent, Message, Prompt};
 
     #[test]
@@ -958,6 +960,7 @@ mod tests {
             vec![],
             None,
             None,
+            ResponseType::Null,
         )
         .unwrap();
 

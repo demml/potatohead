@@ -2,6 +2,7 @@ use crate::prompt::error::PromptError;
 use crate::prompt::types::parse_response_format;
 
 use crate::prompt::types::{Message, Role};
+use crate::prompt::ResponseType;
 use potato_type::SaveName;
 
 use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs};
@@ -192,6 +193,8 @@ pub struct Prompt {
     pub response_format: Option<Value>,
 
     pub parameters: Vec<String>,
+
+    pub response_type: ResponseType,
 }
 
 pub fn parse_prompt(messages: &Bound<'_, PyAny>) -> Result<Vec<Message>, PromptError> {
@@ -265,12 +268,12 @@ impl Prompt {
             .collect::<Vec<Message>>();
 
         // validate response_format
-        let response_format = match response_format {
+        let (response_type, response_format) = match response_format {
             Some(response_format) => {
                 // check if response_format is a pydantic model and extract the model json schema
                 parse_response_format(py, response_format)?
             }
-            None => None,
+            None => (ResponseType::Null, None),
         };
 
         Self::new_rs(
@@ -280,6 +283,7 @@ impl Prompt {
             system_message,
             model_settings,
             response_format,
+            response_type,
         )
     }
 
@@ -353,6 +357,7 @@ impl Prompt {
         system_message: Vec<Message>,
         model_settings: Option<ModelSettings>,
         response_format: Option<Value>,
+        response_type: ResponseType,
     ) -> Result<Self, PromptError> {
         // get version from crate
         let version = potato_util::version();
@@ -383,6 +388,7 @@ impl Prompt {
             model_settings,
             response_format,
             parameters,
+            response_type,
         })
     }
 
@@ -431,6 +437,7 @@ mod tests {
             vec![],
             None,
             None,
+            ResponseType::Null,
         )
         .unwrap();
 
@@ -479,6 +486,7 @@ mod tests {
             ))],
             None,
             None,
+            ResponseType::Null,
         )
         .unwrap();
 
@@ -520,6 +528,7 @@ mod tests {
             ))],
             None,
             None,
+            ResponseType::Null,
         )
         .unwrap();
 
@@ -559,6 +568,7 @@ mod tests {
             ))],
             None,
             None,
+              ResponseType::Null,
         )
         .unwrap();
 
@@ -592,6 +602,7 @@ mod tests {
             vec![],
             None,
             Some(Score::get_structured_output_schema()),
+            ResponseType::Null,
         )
         .unwrap();
 

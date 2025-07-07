@@ -12,6 +12,7 @@ pub fn create_prompt(response_format: Option<Value>) -> Prompt {
         vec![Message::new_rs(system_content)],
         None,
         response_format,
+        potato_prompt::prompt::ResponseType::Null,
     )
     .unwrap()
 }
@@ -26,6 +27,7 @@ pub fn create_parameterized_prompt() -> Prompt {
         vec![Message::new_rs(system_content)],
         None,
         None,
+        potato_prompt::prompt::ResponseType::Null,
     )
     .unwrap()
 }
@@ -40,6 +42,7 @@ pub fn create_score_prompt() -> Prompt {
         vec![Message::new_rs(system_content)],
         None,
         Some(Score::get_structured_output_schema()),
+        potato_prompt::prompt::ResponseType::Score,
     )
     .unwrap()
 }

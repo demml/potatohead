@@ -653,26 +653,35 @@ pub fn check_response_type(object: &Bound<'_, PyAny>) -> Result<Option<ResponseT
 fn get_json_schema_from_response_type(response_type: &ResponseType) -> Result<Value, PromptError> {
     match response_type {
         ResponseType::Score => Ok(Score::get_structured_output_schema()),
+        _ => {
+            // If the response type is not recognized, return None
+            Err(PromptError::Error(format!(
+                "Unsupported response type: {response_type}"
+            )))
+        }
     }
 }
 
 pub fn parse_response_format<'py>(
     py: Python<'py>,
     object: &Bound<'_, PyAny>,
-) -> Result<Option<Value>, PromptError> {
+) -> Result<(ResponseType, Option<Value>), PromptError> {
     // check if object is a pydantic model
     let is_pydantic_model = check_pydantic_model(py, object)?;
     if is_pydantic_model {
-        return parse_pydantic_model(py, object);
+        return Ok((ResponseType::Pydantic, parse_pydantic_model(py, object)?));
     }
 
     // check if object has response_type method
     let response_type = check_response_type(object)?;
     if let Some(response_type) = response_type {
-        return Ok(Some(get_json_schema_from_response_type(&response_type)?));
+        return Ok((
+            response_type.clone(),
+            Some(get_json_schema_from_response_type(&response_type)?),
+        ));
     }
 
-    Ok(None)
+    Ok((ResponseType::Null, None))
 }
 
 #[pyclass]
@@ -734,4 +743,16 @@ impl StructuredOutput for Score {}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ResponseType {
     Score,
+    Pydantic,
+    Null, // This is used when no response type is specified
+}
+
+impl Display for ResponseType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResponseType::Score => write!(f, "Score"),
+            ResponseType::Pydantic => write!(f, "Pydantic"),
+            ResponseType::Null => write!(f, "Null"),
+        }
+    }
 }

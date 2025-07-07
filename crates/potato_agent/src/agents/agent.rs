@@ -311,7 +311,8 @@ impl PyAgent {
         // if output_type is not None,  mutate task prompt
         if let Some(output_type) = &output_type {
             match parse_response_format(py, output_type) {
-                Ok(response_format) => {
+                Ok((response_type, response_format)) => {
+                    task.prompt.response_type = response_type;
                     task.prompt.response_format = response_format;
                 }
                 Err(_) => {
@@ -343,7 +344,8 @@ impl PyAgent {
         // if output_type is not None,  mutate task prompt
         if let Some(output_type) = &output_type {
             match parse_response_format(py, output_type) {
-                Ok(response_format) => {
+                Ok((response_type, response_format)) => {
+                    prompt.response_type = response_type;
                     prompt.response_format = response_format;
                 }
                 Err(_) => {
