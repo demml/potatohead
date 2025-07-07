@@ -131,7 +131,7 @@ pub trait DeserializePromptValExt: for<'de> serde::Deserialize<'de> {
 }
 
 #[pyclass]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AudioUrl {
     #[pyo3(get, set)]
     pub url: String,
@@ -165,7 +165,7 @@ impl AudioUrl {
 }
 
 #[pyclass]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ImageUrl {
     #[pyo3(get, set)]
     pub url: String,
@@ -220,7 +220,7 @@ impl ImageUrl {
 }
 
 #[pyclass]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DocumentUrl {
     #[pyo3(get, set)]
     pub url: String,
@@ -252,7 +252,7 @@ impl DocumentUrl {
 }
 
 #[pyclass]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BinaryContent {
     #[pyo3(get, set)]
     pub data: Vec<u8>,
@@ -333,7 +333,7 @@ impl DeserializePromptValExt for ImageUrl {}
 impl DeserializePromptValExt for DocumentUrl {}
 impl DeserializePromptValExt for BinaryContent {}
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum PromptContent {
     Str(String),
     Audio(AudioUrl),
@@ -442,7 +442,7 @@ pub fn get_pydantic_module<'py>(py: Python<'py>, module_name: &str) -> PyResult<
 }
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Message {
     pub content: PromptContent,
     pub role: String,

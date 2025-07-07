@@ -15,7 +15,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 
 pub struct ModelSettings {
     #[pyo3(get, set)]
@@ -177,7 +177,7 @@ impl ModelSettings {
 }
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Prompt {
     #[pyo3(get)]
     pub user_message: Vec<Message>,
