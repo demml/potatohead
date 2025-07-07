@@ -696,7 +696,7 @@ impl Serialize for Workflow {
         // set session to none
         state.serialize_field("id", &self.id)?;
         state.serialize_field("name", &self.name)?;
-        state.serialize_field("tasklist", &self.task_list)?;
+        state.serialize_field("task_list", &self.task_list)?;
 
         // serialize agents by unwrapping the Arc
         let agents: HashMap<String, Agent> = self
@@ -761,7 +761,7 @@ impl<'de> Deserialize<'de> for Workflow {
 
                 let id = id.ok_or_else(|| de::Error::missing_field("id"))?;
                 let name = name.ok_or_else(|| de::Error::missing_field("name"))?;
-                let task_list = tasks.ok_or_else(|| de::Error::missing_field("tasklist"))?;
+                let task_list = tasks.ok_or_else(|| de::Error::missing_field("task_list"))?;
                 let agents = agents.ok_or_else(|| de::Error::missing_field("agents"))?;
                 let event_tracker = Arc::new(RwLock::new(EventTracker::new(create_uuid7())));
 
@@ -781,7 +781,7 @@ impl<'de> Deserialize<'de> for Workflow {
             }
         }
 
-        const FIELDS: &[&str] = &["id", "name", "tasklist", "agents", "event_tracker"];
+        const FIELDS: &[&str] = &["id", "name", "task_list", "agents", "event_tracker"];
         deserializer.deserialize_struct("Workflow", FIELDS, WorkflowVisitor)
     }
 }
