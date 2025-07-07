@@ -740,7 +740,7 @@ impl StructuredOutput for Score {}
 //}
 
 #[pyclass]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ResponseType {
     Score,
     Pydantic,
