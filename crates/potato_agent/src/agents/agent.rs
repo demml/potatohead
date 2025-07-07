@@ -233,7 +233,7 @@ impl<'de> Deserialize<'de> for Agent {
                 let client = match provider {
                     Provider::OpenAI => {
                         GenAiClient::OpenAI(OpenAIClient::new(None, None, None).map_err(|e| {
-                            de::Error::custom(format!("Failed to initialize OpenAIClient: {}", e))
+                            de::Error::custom(format!("Failed to initialize OpenAIClient: {e}"))
                         })?)
                     }
                 };

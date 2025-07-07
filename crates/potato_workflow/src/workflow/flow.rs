@@ -227,6 +227,11 @@ impl Workflow {
         // Add debug output to see what's being serialized
         Ok(json)
     }
+
+    pub fn from_json(json: &str) -> Result<Self, WorkflowError> {
+        // Deserialize the JSON string into a Workflow instance
+        Ok(serde_json::from_str(json)?)
+    }
 }
 
 /// Check if the workflow is complete
@@ -593,21 +598,17 @@ impl<'de> Deserialize<'de> for Workflow {
                     match key {
                         Field::Id => {
                             let value: String = map.next_value().map_err(|e| {
-                                error!("Failed to deserialize field 'id': {}", e);
-                                de::Error::custom(format!(
-                                    "Failed to deserialize field 'id': {}",
-                                    e
-                                ))
+                                error!("Failed to deserialize field 'id': {e}");
+                                de::Error::custom(format!("Failed to deserialize field 'id': {e}"))
                             })?;
                             id = Some(value);
                         }
                         Field::TaskList => {
                             // Deserialize as a generic Value first
                             let value: TaskList = map.next_value().map_err(|e| {
-                                error!("Failed to deserialize field 'task_list': {}", e);
+                                error!("Failed to deserialize field 'task_list': {e}");
                                 de::Error::custom(format!(
-                                    "Failed to deserialize field 'task_list': {}",
-                                    e
+                                    "Failed to deserialize field 'task_list': {e}",
                                 ))
                             })?;
 
@@ -615,20 +616,18 @@ impl<'de> Deserialize<'de> for Workflow {
                         }
                         Field::Name => {
                             let value: String = map.next_value().map_err(|e| {
-                                error!("Failed to deserialize field 'name': {}", e);
+                                error!("Failed to deserialize field 'name': {e}");
                                 de::Error::custom(format!(
-                                    "Failed to deserialize field 'name': {}",
-                                    e
+                                    "Failed to deserialize field 'name': {e}",
                                 ))
                             })?;
                             name = Some(value);
                         }
                         Field::Agents => {
                             let value: HashMap<String, Agent> = map.next_value().map_err(|e| {
-                                error!("Failed to deserialize field 'agents': {}", e);
+                                error!("Failed to deserialize field 'agents': {e}");
                                 de::Error::custom(format!(
-                                    "Failed to deserialize field 'agents': {}",
-                                    e
+                                    "Failed to deserialize field 'agents': {e}"
                                 ))
                             })?;
                             agents = Some(value);
@@ -732,6 +731,11 @@ impl PyWorkflow {
     #[getter]
     pub fn task_list(&self) -> TaskList {
         self.workflow.task_list.clone()
+    }
+
+    #[getter]
+    pub fn is_workflow(&self) -> bool {
+        true
     }
 
     #[getter]
