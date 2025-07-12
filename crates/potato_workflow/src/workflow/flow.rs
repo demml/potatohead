@@ -754,6 +754,11 @@ impl PyWorkflow {
     }
 
     #[getter]
+    pub fn __workflow__(&self) -> String {
+        self.model_dump_json()
+    }
+
+    #[getter]
     pub fn agents(&self) -> Result<HashMap<String, PyAgent>, WorkflowError> {
         self.workflow
             .agents
