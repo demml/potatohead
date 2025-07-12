@@ -175,7 +175,7 @@ impl Workflow {
             .insert(agent.id.clone(), Arc::new(agent.clone()));
     }
 
-    pub fn execution_plan(&self) -> Result<HashMap<String, HashSet<String>>, WorkflowError> {
+    pub fn execution_plan(&self) -> Result<HashMap<i32, HashSet<String>>, WorkflowError> {
         let mut remaining: HashMap<String, HashSet<String>> = self
             .task_list
             .tasks
@@ -216,7 +216,7 @@ impl Workflow {
             }
 
             // Add parallel tasks to the current step
-            plan.insert(format!("step{step}"), ready_set);
+            plan.insert(step, ready_set);
 
             step += 1;
         }
