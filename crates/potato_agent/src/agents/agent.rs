@@ -73,20 +73,43 @@ impl Agent {
         }
     }
 
+    /// This function will bind dependency-specific context and global context if provided to the user prompt.
+    ///
+    /// # Arguments:
+    /// * `prompt` - The prompt to bind parameters to.
+    /// * `parameter_context` - A serde_json::Value containing the parameters to bind.
+    /// * `global_context` - An optional serde_json::Value containing global parameters to bind.
+    ///
+    /// # Returns:
+    /// * `Result<(), AgentError>` - Returns Ok(()) if successful, or an `AgentError` if there was an issue binding the parameters.
     #[instrument(skip_all)]
-    fn bind_parameters(
+    fn bind_context(
         &self,
         prompt: &mut Prompt,
-        context_messages: &Value,
+        parameter_context: &Value,
+        global_context: &Option<Value>,
     ) -> Result<(), AgentError> {
         // print user messages
         if !prompt.parameters.is_empty() {
             for param in &prompt.parameters {
-                if let Some(value) = context_messages.get(param) {
+                // Bind parameter context to the user message
+                if let Some(value) = parameter_context.get(param) {
                     for message in &mut prompt.user_message {
                         if message.role == "user" {
                             debug!("Binding parameter: {} with value: {}", param, value);
                             message.bind_mut(param, &value.to_string())?;
+                        }
+                    }
+                }
+
+                // If global context is provided, bind it to the user message
+                if let Some(global_value) = global_context {
+                    if let Some(value) = global_value.get(param) {
+                        for message in &mut prompt.user_message {
+                            if message.role == "user" {
+                                debug!("Binding global parameter: {} with value: {}", param, value);
+                                message.bind_mut(param, &value.to_string())?;
+                            }
                         }
                     }
                 }
@@ -131,12 +154,13 @@ impl Agent {
         task: &Arc<RwLock<Task>>,
         context_messages: HashMap<String, Vec<Message>>,
         parameter_context: Value,
+        global_context: Option<Value>,
     ) -> Result<AgentResponse, AgentError> {
         // Prepare prompt and context before await
         let (prompt, task_id) = {
             let mut task = task.write().unwrap();
             self.append_task_with_message_context(&mut task, &context_messages);
-            self.bind_parameters(&mut task.prompt, &parameter_context)?;
+            self.bind_context(&mut task.prompt, &parameter_context, &global_context)?;
 
             self.append_system_messages(&mut task.prompt);
             (task.prompt.clone(), task.id.clone())

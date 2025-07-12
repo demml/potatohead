@@ -12,9 +12,10 @@ use potato_agent::PyAgentResponse;
 use potato_prompt::parse_response_format;
 use potato_prompt::prompt::types::Role;
 use potato_prompt::Message;
-use potato_util::json_to_pydict;
 use potato_util::{create_uuid7, utils::update_serde_map_with, PyHelperFuncs};
+use potato_util::{json_to_pydict, pyobject_to_json};
 use pyo3::prelude::*;
+use pyo3::IntoPyObjectExt;
 use serde::{
     de::{self, MapAccess, Visitor},
     ser::SerializeStruct,
@@ -99,6 +100,7 @@ pub struct Workflow {
     pub task_list: TaskList,
     pub agents: HashMap<String, Arc<Agent>>,
     pub event_tracker: Arc<RwLock<EventTracker>>,
+    pub global_context: Option<Value>,
 }
 
 impl PartialEq for Workflow {
@@ -118,6 +120,7 @@ impl Workflow {
             task_list: TaskList::new(),
             agents: HashMap::new(),
             event_tracker: Arc::new(RwLock::new(EventTracker::new(id))),
+            global_context: None, // Initialize with no global context
         }
     }
     pub fn events(&self) -> Vec<TaskEvent> {
@@ -126,7 +129,7 @@ impl Workflow {
         events
     }
 
-    pub fn get_new_workflow(&self) -> Result<Self, WorkflowError> {
+    pub fn get_new_workflow(&self, global_context: Option<Value>) -> Result<Self, WorkflowError> {
         // set new id for the new workflow
         let id = create_uuid7();
 
@@ -139,12 +142,17 @@ impl Workflow {
             task_list,
             agents: self.agents.clone(), // Agents can be shared since they're read-only during execution
             event_tracker: Arc::new(RwLock::new(EventTracker::new(id))),
+            global_context, // Use the provided global context or None
         })
     }
 
-    pub async fn run(&self) -> Result<Arc<RwLock<Workflow>>, WorkflowError> {
+    pub async fn run(
+        &self,
+        global_context: Option<Value>,
+    ) -> Result<Arc<RwLock<Workflow>>, WorkflowError> {
         info!("Running workflow: {}", self.name);
-        let run_workflow = Arc::new(RwLock::new(self.get_new_workflow()?));
+
+        let run_workflow = Arc::new(RwLock::new(self.get_new_workflow(global_context)?));
 
         execute_workflow(&run_workflow).await?;
 
@@ -325,7 +333,7 @@ fn get_agent_for_task(workflow: &Arc<RwLock<Workflow>>, agent_id: &str) -> Optio
 fn build_task_context(
     workflow: &Arc<RwLock<Workflow>>,
     task_dependencies: &Vec<String>,
-) -> Result<(HashMap<String, Vec<Message>>, Value), WorkflowError> {
+) -> Result<(HashMap<String, Vec<Message>>, Value, Option<Value>), WorkflowError> {
     let wf = workflow.read().unwrap();
     let mut ctx = HashMap::new();
     let mut param_ctx: Value = Value::Object(Map::new());
@@ -358,8 +366,9 @@ fn build_task_context(
     }
 
     debug!("Built context for task dependencies: {:?}", ctx);
+    let global_context = workflow.read().unwrap().global_context.clone();
 
-    Ok((ctx, param_ctx))
+    Ok((ctx, param_ctx, global_context))
 }
 
 /// Spawns an individual task execution
@@ -377,6 +386,7 @@ fn spawn_task_execution(
     agent: Option<Arc<Agent>>,
     context: HashMap<String, Vec<Message>>,
     parameter_context: Value,
+    global_context: Option<Value>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         if let Some(agent) = agent {
@@ -384,7 +394,7 @@ fn spawn_task_execution(
             // (2) Execute the task with the agent
             // (3) Return the AgentResponse
             let result = agent
-                .execute_task_with_context(&task, context, parameter_context)
+                .execute_task_with_context(&task, context, parameter_context, global_context)
                 .await;
             match result {
                 Ok(response) => {
@@ -454,8 +464,9 @@ fn spawn_task_executions(
         // Build the context
         // Here we:
         // 1. Get the task dependencies and their results (these will be injected as assistant messages)
-        // 2. Parse dependent tasks for any structured outputs and return as a serde_json::Value
-        let (context, parameter_context) = build_task_context(workflow, &dependencies)?;
+        // 2. Parse dependent tasks for any structured outputs and return as a serde_json::Value (this will be task-level context)
+        let (context, parameter_context, global_context) =
+            build_task_context(workflow, &dependencies)?;
 
         // Get/clone agent ARC
         let agent = get_agent_for_task(workflow, &agent_id);
@@ -468,6 +479,7 @@ fn spawn_task_executions(
             agent,
             context,
             parameter_context,
+            global_context,
         );
         handles.push(handle);
     }
@@ -546,31 +558,7 @@ impl Serialize for Workflow {
         // set session to none
         state.serialize_field("id", &self.id)?;
         state.serialize_field("name", &self.name)?;
-
-        //let tasks: HashMap<String, Task> = self
-        //    .task_list
-        //    .tasks
-        //    .iter()
-        //    .map(|(id, task_arc)| {
-        //        let task = task_arc.read().unwrap();
-        //        (id.clone(), task.clone())
-        //    })
-        //    .collect();
-        //
-        //let serializable_task_list = serde_json::json!({
-        //    "tasks": tasks,
-        //    "execution_order": self.task_list.execution_order
-        //});
-
         state.serialize_field("task_list", &self.task_list)?;
-
-        // serialize agents by unwrapping the Arc
-        //let agents: HashMap<String, Agent> = self
-        //    .agents
-        //    .iter()
-        //    .map(|(id, agent)| (id.clone(), (*agent.as_ref()).clone()))
-        //    .collect();
-
         state.serialize_field("agents", &self.agents)?;
 
         state.end()
@@ -656,35 +644,6 @@ impl<'de> Deserialize<'de> for Workflow {
                     task_list_data.ok_or_else(|| de::Error::missing_field("task_list"))?;
                 let agents = agents.ok_or_else(|| de::Error::missing_field("agents"))?;
 
-                //let mut task_list = TaskList::new();
-                //
-                //if let Some(tasks_obj) = task_list_data.get("tasks") {
-                //    if let Some(tasks_map) = tasks_obj.as_object() {
-                //        for (task_id, task_value) in tasks_map {
-                //            let task: Task =
-                //                serde_json::from_value(task_value.clone()).map_err(|e| {
-                //                    de::Error::custom(format!(
-                //                        "Failed to deserialize task {}: {}",
-                //                        task_id, e
-                //                    ))
-                //                })?;
-                //            task_list.add_task(task).map_err(|e| {
-                //                de::Error::custom(format!("Failed to add task {}: {}", task_id, e))
-                //            })?;
-                //        }
-                //    }
-                //}
-
-                // Restore execution_order if present
-                //if let Some(execution_order_value) = task_list_data.get("execution_order") {
-                //    if let Some(execution_order) = execution_order_value.as_array() {
-                //        task_list.execution_order = execution_order
-                //            .iter()
-                //            .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                //            .collect();
-                //    }
-                //}
-
                 let event_tracker = Arc::new(RwLock::new(EventTracker::new(create_uuid7())));
 
                 // convert agents to arc
@@ -699,6 +658,7 @@ impl<'de> Deserialize<'de> for Workflow {
                     task_list: task_list_data,
                     agents,
                     event_tracker,
+                    global_context: None, // Initialize with no global context
                 })
             }
         }
@@ -855,11 +815,25 @@ impl PyWorkflow {
         Ok(pydict)
     }
 
-    pub fn run(&self, py: Python) -> Result<WorkflowResult, WorkflowError> {
+    pub fn run(
+        &self,
+        py: Python,
+        global_context: Option<Bound<'_, PyDict>>,
+    ) -> Result<WorkflowResult, WorkflowError> {
         info!("Running workflow: {}", self.workflow.name);
 
-        let workflow: Arc<RwLock<Workflow>> =
-            self.runtime.block_on(async { self.workflow.run().await })?;
+        // Convert the global context from PyDict to serde_json::Value if provided
+        let global_context = if let Some(context) = global_context {
+            // Convert PyDict to serde_json::Value
+            let json_value = pyobject_to_json(&context.into_bound_py_any(py)?)?;
+            Some(json_value)
+        } else {
+            None
+        };
+
+        let workflow: Arc<RwLock<Workflow>> = self
+            .runtime
+            .block_on(async { self.workflow.run(global_context).await })?;
 
         // Try to get exclusive ownership of the workflow by unwrapping the Arc if there's only one reference
         let workflow_result = match Arc::try_unwrap(workflow) {
