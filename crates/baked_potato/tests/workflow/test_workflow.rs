@@ -70,7 +70,7 @@ fn test_workflow() {
 
     // run the workflow
     runtime.block_on(async {
-        workflow.run().await.unwrap();
+        workflow.run(None).await.unwrap();
     });
 
     mock.stop_server().unwrap();
@@ -109,7 +109,7 @@ fn test_parameterized_workflow() {
     // assert pending task count is
     assert_eq!(workflow.pending_count(), 2);
 
-    let result = runtime.block_on(async { workflow.run().await.unwrap() });
+    let result = runtime.block_on(async { workflow.run(None).await.unwrap() });
 
     // assert original workflow is unmodified
     assert_eq!(workflow.task_list.len(), 2);

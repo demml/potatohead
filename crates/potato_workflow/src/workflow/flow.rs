@@ -1,4 +1,5 @@
 use crate::tasklist::TaskList;
+use crate::types::Context;
 use crate::{
     events::{EventTracker, TaskEvent},
     workflow::error::WorkflowError,
@@ -333,7 +334,7 @@ fn get_agent_for_task(workflow: &Arc<RwLock<Workflow>>, agent_id: &str) -> Optio
 fn build_task_context(
     workflow: &Arc<RwLock<Workflow>>,
     task_dependencies: &Vec<String>,
-) -> Result<(HashMap<String, Vec<Message>>, Value, Option<Value>), WorkflowError> {
+) -> Result<Context, WorkflowError> {
     let wf = workflow.read().unwrap();
     let mut ctx = HashMap::new();
     let mut param_ctx: Value = Value::Object(Map::new());
