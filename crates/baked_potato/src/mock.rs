@@ -5,16 +5,16 @@ use serde_json;
 
 use pyo3::prelude::*;
 
-const OPENAI_CHAT_COMPLETION_RESPONSE: &str =
+pub const OPENAI_CHAT_COMPLETION_RESPONSE: &str =
     include_str!("assets/openai/openai_chat_completion_response.json");
 
-const OPENAI_CHAT_STRUCTURED_RESPONSE: &str =
+pub const OPENAI_CHAT_STRUCTURED_RESPONSE: &str =
     include_str!("assets/openai/chat_completion_structured_response.json");
 
-const OPENAI_CHAT_STRUCTURED_SCORE_RESPONSE: &str =
+pub const OPENAI_CHAT_STRUCTURED_SCORE_RESPONSE: &str =
     include_str!("assets/openai/chat_completion_structured_score_response.json");
 
-const OPENAI_CHAT_STRUCTURED_RESPONSE_PARAMS: &str =
+pub const OPENAI_CHAT_STRUCTURED_RESPONSE_PARAMS: &str =
     include_str!("assets/openai/chat_completion_structured_response_params.json");
 
 pub struct OpenAIMock {
