@@ -714,7 +714,6 @@ impl PyWorkflow {
         true
     }
 
-    #[getter]
     pub fn __workflow__(&self) -> String {
         self.model_dump_json()
     }
