@@ -80,6 +80,7 @@ impl OpenAIMock {
             .mock("POST", "/v1/chat/completions")
             .match_body(mockito::Matcher::PartialJson(serde_json::json!({
                "response_format": {
+                    "type": "json_schema",
                     "json_schema": {
                         "name": "TaskOutput",
                     }
