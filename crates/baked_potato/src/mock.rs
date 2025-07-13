@@ -17,6 +17,9 @@ pub const OPENAI_CHAT_STRUCTURED_SCORE_RESPONSE: &str =
 pub const OPENAI_CHAT_STRUCTURED_RESPONSE_PARAMS: &str =
     include_str!("assets/openai/chat_completion_structured_response_params.json");
 
+pub const OPENAI_CHAT_STRUCTURED_TASK_OUTPUT: &str =
+    include_str!("assets/openai/chat_completion_structured_task_output.json");
+
 pub struct OpenAIMock {
     pub url: String,
     pub server: mockito::ServerGuard,
@@ -32,9 +35,10 @@ impl OpenAIMock {
             serde_json::from_str(OPENAI_CHAT_STRUCTURED_RESPONSE).unwrap();
         let chat_structured_score_response: OpenAIChatResponse =
             serde_json::from_str(OPENAI_CHAT_STRUCTURED_SCORE_RESPONSE).unwrap();
-
         let chat_structured_response_params: OpenAIChatResponse =
             serde_json::from_str(OPENAI_CHAT_STRUCTURED_RESPONSE_PARAMS).unwrap();
+        let chat_structured_task_output: OpenAIChatResponse =
+            serde_json::from_str(OPENAI_CHAT_STRUCTURED_TASK_OUTPUT).unwrap();
 
         server
             .mock("POST", "/v1/chat/completions")
@@ -85,6 +89,21 @@ impl OpenAIMock {
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(serde_json::to_string(&chat_structured_score_response).unwrap())
+            .create();
+
+        server
+            .mock("POST", "/v1/chat/completions")
+            .match_body(mockito::Matcher::PartialJson(serde_json::json!({
+               "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "TaskOutput",
+                    }
+                }
+            })))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&chat_structured_task_output).unwrap())
             .create();
 
         server
