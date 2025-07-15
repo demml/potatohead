@@ -38,7 +38,7 @@ pub fn create_score_prompt(params: Option<Vec<String>>) -> Prompt {
     // If parameters are provided, append them to the user prompt in format ${param}
     if let Some(params) = params {
         for param in params {
-            user_prompt.push_str(&format!(" ${}", param));
+            user_prompt.push_str(&format!(" ${{{}}}", param));
         }
     }
 
