@@ -32,8 +32,17 @@ pub fn create_parameterized_prompt() -> Prompt {
     .unwrap()
 }
 
-pub fn create_score_prompt() -> Prompt {
-    let user_content = PromptContent::Str("What is the score?".to_string());
+pub fn create_score_prompt(params: Option<Vec<String>>) -> Prompt {
+    let mut user_prompt = "What is the score?".to_string();
+
+    // If parameters are provided, append them to the user prompt in format ${param}
+    if let Some(params) = params {
+        for param in params {
+            user_prompt.push_str(&format!(" ${}", param));
+        }
+    }
+
+    let user_content = PromptContent::Str(user_prompt);
     let system_content = PromptContent::Str("You are a helpful assistant.".to_string());
     Prompt::new_rs(
         vec![Message::new_rs(user_content)],
