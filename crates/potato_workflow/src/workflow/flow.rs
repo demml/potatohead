@@ -517,7 +517,7 @@ pub async fn execute_workflow(workflow: &Arc<RwLock<Workflow>>) -> Result<(), Wo
     // Important to remember that the workflow is an Arc<RwLock<Workflow>> is a new clone of
     // the loaded workflow. This allows us to mutate the workflow without affecting the original
     // workflow instance.
-    info!("Starting workflow execution");
+    debug!("Starting workflow execution");
 
     // Run until workflow is complete
     while !is_workflow_complete(workflow) {
@@ -528,7 +528,7 @@ pub async fn execute_workflow(workflow: &Arc<RwLock<Workflow>>) -> Result<(), Wo
         // Get tasks ready for execution
         // This will return an Arc<RwLock<Task>>
         let ready_tasks = get_ready_tasks(workflow);
-        info!("Found {} ready tasks for execution", ready_tasks.len());
+        debug!("Found {} ready tasks for execution", ready_tasks.len());
 
         // Check for circular dependencies
         if ready_tasks.is_empty() {
@@ -545,7 +545,7 @@ pub async fn execute_workflow(workflow: &Arc<RwLock<Workflow>>) -> Result<(), Wo
         await_task_completions(handles).await;
     }
 
-    info!("Workflow execution completed");
+    debug!("Workflow execution completed");
     Ok(())
 }
 
