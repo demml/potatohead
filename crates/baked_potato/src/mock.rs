@@ -101,6 +101,7 @@ impl OpenAIMock {
                     }
                 }
             })))
+            .expect_at_least(1)
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(serde_json::to_string(&chat_structured_score_response).unwrap())
@@ -111,6 +112,7 @@ impl OpenAIMock {
             .match_body(mockito::Matcher::Regex(
                 r#".*"name"\s*:\s*"Score".*"#.to_string(),
             ))
+            .expect_at_least(1)
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(serde_json::to_string(&chat_structured_score_response).unwrap())
