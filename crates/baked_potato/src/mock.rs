@@ -71,7 +71,7 @@ impl OpenAIMock {
 
                 }
             })))
-            .expect_at_least(1)
+            .expect(usize::MAX)
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(serde_json::to_string(&chat_structured_response_params).unwrap())
@@ -87,7 +87,7 @@ impl OpenAIMock {
                     }
                 }
             })))
-            .expect_at_least(1)
+            .expect(usize::MAX)
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(serde_json::to_string(&chat_structured_task_output).unwrap())
@@ -103,7 +103,18 @@ impl OpenAIMock {
                     }
                 }
             })))
-            .expect_at_least(1)
+            .expect(usize::MAX)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&chat_structured_score_response).unwrap())
+            .create();
+
+        server
+            .mock("POST", "/v1/chat/completions")
+            .match_body(mockito::Matcher::Regex(
+                r#".*"name"\s*:\s*"Score".*"#.to_string(),
+            ))
+            .expect(usize::MAX)
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(serde_json::to_string(&chat_structured_score_response).unwrap())
@@ -116,7 +127,7 @@ impl OpenAIMock {
                     "type": "json_schema"
                 }
             })))
-            .expect_at_least(1)
+            .expect(usize::MAX)
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(serde_json::to_string(&chat_structured_response).unwrap())
@@ -125,7 +136,7 @@ impl OpenAIMock {
         // Openai chat completion mock
         server
             .mock("POST", "/v1/chat/completions")
-            .expect_at_least(1)
+            .expect(usize::MAX)
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(serde_json::to_string(&chat_msg_response).unwrap())
