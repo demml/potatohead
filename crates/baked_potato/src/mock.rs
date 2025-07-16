@@ -139,6 +139,119 @@ impl Default for OpenAIMock {
     }
 }
 
+pub struct OpenAIMockAsync {
+    pub url: String,
+    pub server: mockito::ServerGuard,
+}
+
+impl OpenAIMockAsync {
+    pub async fn new() -> Self {
+        let mut server = mockito::Server::new_async().await;
+        // load the OpenAI chat completion response
+        let chat_msg_response: OpenAIChatResponse =
+            serde_json::from_str(OPENAI_CHAT_COMPLETION_RESPONSE).unwrap();
+        let chat_structured_response: OpenAIChatResponse =
+            serde_json::from_str(OPENAI_CHAT_STRUCTURED_RESPONSE).unwrap();
+        let chat_structured_score_response: OpenAIChatResponse =
+            serde_json::from_str(OPENAI_CHAT_STRUCTURED_SCORE_RESPONSE).unwrap();
+        let chat_structured_response_params: OpenAIChatResponse =
+            serde_json::from_str(OPENAI_CHAT_STRUCTURED_RESPONSE_PARAMS).unwrap();
+        let chat_structured_task_output: OpenAIChatResponse =
+            serde_json::from_str(OPENAI_CHAT_STRUCTURED_TASK_OUTPUT).unwrap();
+
+        server
+            .mock("POST", "/v1/chat/completions")
+            .match_body(mockito::Matcher::PartialJson(serde_json::json!({
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "Parameters",
+                         "schema": {
+                              "$schema": "https://json-schema.org/draft/2020-12/schema",
+                              "properties": {
+                                  "variable1": {
+                                  "format": "int32",
+                                  "type": "integer"
+                                  },
+                                  "variable2": {
+                                  "format": "int32",
+                                  "type": "integer"
+                                  }
+                              },
+                              "required": [
+                                  "variable1",
+                                  "variable2"
+                              ],
+                              "title": "Parameters",
+                              "type": "object"
+                              },
+                        "strict": true
+                    }
+
+                }
+            })))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&chat_structured_response_params).unwrap())
+            .create();
+
+        server
+            .mock("POST", "/v1/chat/completions")
+            .match_body(mockito::Matcher::PartialJson(serde_json::json!({
+               "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "TaskOutput",
+                    }
+                }
+            })))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&chat_structured_task_output).unwrap())
+            .create();
+
+        server
+            .mock("POST", "/v1/chat/completions")
+            .match_body(mockito::Matcher::PartialJson(serde_json::json!({
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "Score",
+                    }
+                }
+            })))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&chat_structured_score_response).unwrap())
+            .create();
+
+        server
+            .mock("POST", "/v1/chat/completions")
+            .match_body(mockito::Matcher::PartialJson(serde_json::json!({
+                "response_format": {
+                    "type": "json_schema"
+                }
+            })))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&chat_structured_response).unwrap())
+            .create();
+
+        // Openai chat completion mock
+        server
+            .mock("POST", "/v1/chat/completions")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&chat_msg_response).unwrap())
+            .create();
+
+        Self {
+            url: server.url(),
+            server,
+        }
+    }
+}
+
 #[pyclass]
 #[allow(dead_code)]
 pub struct OpenAITestServer {

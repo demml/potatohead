@@ -9,6 +9,7 @@ pub use potato_agent::agents::{
     task::{PyTask, Task, TaskStatus},
     types::ChatResponse,
 };
+use potato_agent::AgentResponse;
 use potato_agent::PyAgentResponse;
 use potato_prompt::parse_response_format;
 use potato_prompt::prompt::types::Role;
