@@ -1,11 +1,11 @@
 use pyo3::prelude::*;
 use schemars::JsonSchema;
+use serde::de::Error;
 use serde_json::Value;
 use std::any::type_name;
 use std::fmt;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
-
 #[pyclass(eq, eq_int)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum SaveName {
@@ -86,7 +86,17 @@ pub trait StructuredOutput: for<'de> serde::Deserialize<'de> + JsonSchema {
     /// # Returns
     /// * `Result<Self, serde_json::Error>` - The deserialized value or error
     fn model_validate_json_value(value: &Value) -> Result<Self, serde_json::Error> {
-        serde_json::from_value(value.clone())
+        match &value {
+            Value::String(json_str) => Self::model_validate_json_str(json_str),
+            Value::Object(_) => {
+                // Content is already a JSON object
+                serde_json::from_value(value.clone())
+            }
+            _ => {
+                // If the value is not a string or object, we cannot deserialize it
+                Err(Error::custom("Expected a JSON string or object"))
+            }
+        }
     }
 
     fn model_validate_json_str(value: &str) -> Result<Self, serde_json::Error> {
