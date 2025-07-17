@@ -415,6 +415,11 @@ impl Prompt {
         // Convert HashSet to Vec for return
         variables.into_iter().collect()
     }
+
+    pub fn model_dump_value(&self) -> Value {
+        // Convert the Prompt to a JSON Value
+        serde_json::to_value(self).unwrap_or(Value::Null)
+    }
 }
 
 // tests
