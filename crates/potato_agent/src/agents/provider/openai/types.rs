@@ -97,6 +97,7 @@ pub struct Choice {
     pub logprobs: Option<LogProbs>,
 }
 
+#[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct CompletionTokenDetails {
@@ -106,6 +107,7 @@ pub struct CompletionTokenDetails {
     pub rejected_prediction_tokens: u64,
 }
 
+#[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct PromptTokenDetails {

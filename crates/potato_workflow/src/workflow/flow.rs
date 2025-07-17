@@ -816,6 +816,7 @@ impl PyWorkflow {
         Ok(pydict)
     }
 
+    #[pyo3(signature = (global_context=None))]
     pub fn run(
         &self,
         py: Python,

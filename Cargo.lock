@@ -962,6 +962,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "py-potatohead"
+version = "0.2.3"
+dependencies = [
+ "potato-head",
+ "pyo3",
+]
+
+[[package]]
 name = "pyo3"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

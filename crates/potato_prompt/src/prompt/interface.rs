@@ -179,13 +179,13 @@ impl ModelSettings {
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Prompt {
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub user_message: Vec<Message>,
 
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub system_message: Vec<Message>,
 
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub model_settings: ModelSettings,
 
     pub version: String,

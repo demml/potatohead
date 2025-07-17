@@ -323,7 +323,7 @@ impl PyAgent {
         })
     }
 
-    #[pyo3(signature = (task, output_type))]
+    #[pyo3(signature = (task, output_type=None))]
     pub fn execute_task(
         &self,
         py: Python<'_>,
