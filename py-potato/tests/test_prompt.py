@@ -80,6 +80,26 @@ def test_string_prompt():
     assert msg.unwrap() == "Hello world"
 
 
+def test_bind_prompt():
+    prompt = Prompt(
+        model="gpt-4o",
+        provider="openai",
+        user_message=[
+            "Hello ${variable1}",
+            "This is ${variable2}",
+        ],
+        system_message="system_prompt",
+    )
+    bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
+    assert bound_prompt.user_message[0].unwrap() == "Hello world"
+    assert bound_prompt.user_message[1].unwrap() == "This is Foo"
+
+    # test bind mut
+    prompt.user_message[0].unwrap() == "Hello ${variable1}"
+    prompt.bind_mut("variable1", "world")
+    assert prompt.user_message[0].unwrap() == "Hello world"
+
+
 def test_image_prompt():
     prompt = Prompt(
         model="gpt-4o",
@@ -120,12 +140,16 @@ def test_document_prompt():
         provider="openai",
         user_message=[
             "What is the main content of this document?",
-            DocumentUrl(url="https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"),
+            DocumentUrl(
+                url="https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"
+            ),
         ],
         system_message="system_prompt",
     )
 
-    assert prompt.user_message[0].unwrap() == "What is the main content of this document?"
+    assert (
+        prompt.user_message[0].unwrap() == "What is the main content of this document?"
+    )
     assert isinstance(prompt.user_message[1].unwrap(), PydanticDocumentUrl)
 
 

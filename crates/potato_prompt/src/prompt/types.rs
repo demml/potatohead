@@ -446,6 +446,7 @@ pub fn get_pydantic_module<'py>(py: Python<'py>, module_name: &str) -> PyResult<
 pub struct Message {
     pub content: PromptContent,
     pub role: String,
+    pub variables: Vec<String>,
 }
 
 #[pymethods]
@@ -454,18 +455,20 @@ impl Message {
     #[pyo3(signature = (content))]
     pub fn new(content: &Bound<'_, PyAny>) -> PyResult<Self> {
         let content = PromptContent::new(content)?;
+        let variables = Self::extract_variables(&content);
         Ok(Self {
             content,
             role: Role::User.to_string(),
+            variables,
         })
     }
 
-    pub fn bind(&self, name: &str, context: &str) -> Result<Message, PromptError> {
+    pub fn bind(&self, name: &str, value: &str) -> Result<Message, PromptError> {
         let placeholder = format!("${{{name}}}");
 
         let content = match &self.content {
             PromptContent::Str(content) => {
-                let new_content = content.replace(&placeholder, context);
+                let new_content = content.replace(&placeholder, value);
                 PromptContent::Str(new_content)
             }
             _ => self.content.clone(),
@@ -474,17 +477,18 @@ impl Message {
         Ok(Message {
             content,
             role: self.role.clone(),
+            variables: self.variables.clone(),
         })
     }
 
     #[instrument(skip_all)]
-    pub fn bind_mut(&mut self, name: &str, context: &str) -> Result<(), PromptError> {
-        debug!("Binding variable: {name} with context: {context}");
+    pub fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), PromptError> {
+        debug!("Binding variable: {name} with value: {value}");
         let placeholder = format!("${{{name}}}");
 
         match &mut self.content {
             PromptContent::Str(content) => {
-                *content = content.replace(&placeholder, context);
+                *content = content.replace(&placeholder, value);
             }
             _ => return Err(PromptError::Error("Cannot bind non-string content".into())),
         }
@@ -511,16 +515,20 @@ impl Message {
 
 impl Message {
     pub fn new_rs(content: PromptContent) -> Self {
+        let variables = Self::extract_variables(&content);
         Self {
             content,
 
             role: Role::User.to_string(),
+            variables,
         }
     }
     pub fn from(content: PromptContent, role: Role) -> Self {
+        let variables = Self::extract_variables(&content);
         Self {
             content,
             role: role.to_string(),
+            variables,
         }
     }
 
@@ -531,10 +539,10 @@ impl Message {
         }
     }
 
-    pub fn extract_variables(&self) -> Vec<String> {
+    pub fn extract_variables(content: &PromptContent) -> Vec<String> {
         let mut variables = HashSet::new();
 
-        if let PromptContent::Str(content) = &self.content {
+        if let PromptContent::Str(content) = content {
             // Create regex to find all ${variable_name} patterns
             // This is lazily initialized to avoid recompiling the regex each call
             static VAR_REGEX: OnceLock<Regex> = OnceLock::new();

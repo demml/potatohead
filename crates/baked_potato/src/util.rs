@@ -32,6 +32,7 @@ pub fn create_parameterized_prompt() -> Prompt {
     .unwrap()
 }
 
+#[allow(clippy::uninlined_format_args)]
 pub fn create_score_prompt(params: Option<Vec<String>>) -> Prompt {
     let mut user_prompt = "What is the score?".to_string();
 

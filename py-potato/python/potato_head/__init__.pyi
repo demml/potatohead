@@ -201,7 +201,7 @@ class Message:
     def content(self) -> str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl:
         """The content of the message"""
 
-    def bind(self, name: str, context: str) -> "Message":
+    def bind(self, name: str, value: str) -> "Message":
         """Bind context to a specific variable in the prompt. This is an immutable operation meaning that it
         will return a new Message object with the context bound.
 
@@ -220,15 +220,17 @@ class Message:
             ```
 
         Args:
-            context (str):
-                The context to bind.
+            name (str):
+                The name of the variable to bind.
+            value (str):
+                The value to bind the variable to.
 
         Returns:
             Message:
                 The message with the context bound.
         """
 
-    def bind_mut(self, name: str, context: str) -> "Message":
+    def bind_mut(self, name: str, value: str) -> "Message":
         """Bind context to a specific variable in the prompt. This is a mutable operation meaning that it
         will modify the current Message object.
 
@@ -247,8 +249,10 @@ class Message:
             ```
 
         Args:
-            context (str):
-                The context to bind.
+            name (str):
+                The name of the variable to bind.
+            value (str):
+                The value to bind the variable to.
 
         Returns:
             Message:
@@ -495,6 +499,44 @@ class Prompt:
         Returns:
             str:
                 The JSON string.
+        """
+
+    def bind(
+        self,
+        name: str,
+        value: str,
+    ) -> "Prompt":
+        """Bind context to a specific variable in the prompt. This is an immutable operation meaning that it
+        will return a new Prompt object with the context bound. This will iterate over all user messages.
+
+        Args:
+            name (str):
+                The name of the variable to bind.
+            value (str):
+                The value to bind the variable to.
+
+        Returns:
+            Prompt:
+                The prompt with the context bound.
+        """
+
+    def bind_mut(
+        self,
+        name: str,
+        value: str,
+    ) -> "Prompt":
+        """Bind context to a specific variable in the prompt. This is a mutable operation meaning that it
+        will modify the current Prompt object. This will iterate over all user messages.
+
+        Args:
+            name (str):
+                The name of the variable to bind.
+            value (str):
+                The value to bind the variable to.
+
+        Returns:
+            Prompt:
+                The prompt with the context bound.
         """
 
     @property

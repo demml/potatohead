@@ -343,6 +343,35 @@ impl Prompt {
         PyHelperFuncs::__str__(self)
     }
 
+    /// Binds a variable in the prompt to a value. This will return a new Prompt with the variable bound to the value.
+    /// This will iterate over all user messages and bind the variable in each message.
+    /// # Arguments:
+    /// * `name`: The name of the variable to bind.
+    /// * `value`: The value to bind the variable to.
+    /// # Returns:
+    /// * `Result<Self, PromptError>`: Returns a new Prompt with the variable bound to the value.
+    pub fn bind(&self, name: &str, value: &str) -> Result<Self, PromptError> {
+        // Create a new Prompt with the bound value
+        let mut new_prompt = self.clone();
+        for message in &mut new_prompt.user_message {
+            message.bind_mut(name, value)?;
+        }
+        Ok(new_prompt)
+    }
+
+    /// Binds a variable in the prompt to a value. This will mutate the current Prompt and bind the variable in each user message.
+    /// # Arguments:
+    /// * `name`: The name of the variable to bind.
+    /// * `value`: The value to bind the variable to.
+    /// # Returns:
+    /// * `Result<(), PromptError>`: Returns Ok(()) on success or an error if the binding fails.
+    pub fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), PromptError> {
+        for message in &mut self.user_message {
+            message.bind_mut(name, value)?;
+        }
+        Ok(())
+    }
+
     #[getter]
     pub fn response_format(&self) -> Option<String> {
         Some(PyHelperFuncs::__str__(self.response_format.as_ref()))
@@ -400,14 +429,14 @@ impl Prompt {
 
         // Check system messages
         for message in system_message {
-            for var in message.extract_variables() {
+            for var in Message::extract_variables(&message.content) {
                 variables.insert(var);
             }
         }
 
         // Check user messages
         for message in user_message {
-            for var in message.extract_variables() {
+            for var in Message::extract_variables(&message.content) {
                 variables.insert(var);
             }
         }
