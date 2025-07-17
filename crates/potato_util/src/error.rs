@@ -28,6 +28,9 @@ pub enum UtilError {
 
     #[error("Failed to downcast Python object: {0}")]
     DowncastError(String),
+
+    #[error(transparent)]
+    SerdeJsonError(#[from] serde_json::Error),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for UtilError {

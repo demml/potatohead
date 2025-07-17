@@ -94,6 +94,16 @@ def test_bind_prompt():
     assert bound_prompt.user_message[0].unwrap() == "Hello world"
     assert bound_prompt.user_message[1].unwrap() == "This is Foo"
 
+    # testing binding with kwargs
+    bound_prompt = prompt.bind(variable1="world")
+    assert bound_prompt.user_message[0].unwrap() == "Hello world"
+
+    bound_prompt = prompt.bind(variable1=10)
+    assert bound_prompt.user_message[0].unwrap() == "Hello 10"
+
+    bound_prompt = prompt.bind(variable1={"key": "value"})
+    assert bound_prompt.user_message[0].unwrap() == 'Hello {"key":"value"}'
+
     # test bind mut
     prompt.user_message[0].unwrap() == "Hello ${variable1}"
     prompt.bind_mut("variable1", "world")

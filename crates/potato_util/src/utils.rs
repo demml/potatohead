@@ -269,3 +269,41 @@ pub fn update_serde_map_with(
         (_, _) => Err(UtilError::RootMustBeObjectError),
     }
 }
+
+/// Extracts a string value from a Python object.
+pub fn extract_string_value(py_value: &Bound<'_, PyAny>) -> Result<String, UtilError> {
+    // Try to extract as string first (most common case)
+    if let Ok(string_val) = py_value.extract::<String>() {
+        return Ok(string_val);
+    }
+
+    // Try to extract as integer
+    if let Ok(int_val) = py_value.extract::<i64>() {
+        return Ok(int_val.to_string());
+    }
+
+    // Try to extract as float
+    if let Ok(float_val) = py_value.extract::<f64>() {
+        return Ok(float_val.to_string());
+    }
+
+    // Try to extract as boolean
+    if let Ok(bool_val) = py_value.extract::<bool>() {
+        return Ok(bool_val.to_string());
+    }
+
+    // For complex objects, convert to JSON but extract the value without quotes
+    let json_value = pyobject_to_json(py_value)?;
+
+    match json_value {
+        Value::String(s) => Ok(s),
+        Value::Number(n) => Ok(n.to_string()),
+        Value::Bool(b) => Ok(b.to_string()),
+        Value::Null => Ok("null".to_string()),
+        _ => {
+            // For arrays and objects, serialize to JSON string
+            let json_string = serde_json::to_string(&json_value)?;
+            Ok(json_string)
+        }
+    }
+}

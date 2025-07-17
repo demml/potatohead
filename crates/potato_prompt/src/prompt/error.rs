@@ -43,6 +43,9 @@ pub enum PromptError {
 
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    UtilError(#[from] potato_util::UtilError),
 }
 
 impl From<PromptError> for PyErr {

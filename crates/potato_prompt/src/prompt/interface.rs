@@ -5,6 +5,7 @@ use crate::prompt::types::{Message, Role};
 use crate::prompt::ResponseType;
 use potato_type::SaveName;
 
+use potato_util::utils::extract_string_value;
 use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
@@ -350,11 +351,40 @@ impl Prompt {
     /// * `value`: The value to bind the variable to.
     /// # Returns:
     /// * `Result<Self, PromptError>`: Returns a new Prompt with the variable bound to the value.
-    pub fn bind(&self, name: &str, value: &str) -> Result<Self, PromptError> {
-        // Create a new Prompt with the bound value
+    #[pyo3(signature = (name=None, value=None, **kwargs))]
+    pub fn bind(
+        &self,
+        name: Option<&str>,
+        value: Option<&Bound<'_, PyAny>>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> Result<Self, PromptError> {
         let mut new_prompt = self.clone();
-        for message in &mut new_prompt.user_message {
-            message.bind_mut(name, value)?;
+        // Create a new Prompt with the bound value
+        if let (Some(name), Some(value)) = (name, value) {
+            // Bind in both user and system messages
+            for message in &mut new_prompt.user_message {
+                let var_value = extract_string_value(value)?;
+                message.bind_mut(name, &var_value)?;
+            }
+        }
+
+        if let Some(kwargs) = kwargs {
+            for (key, val) in kwargs.iter() {
+                let var_name = key.extract::<String>()?;
+                let var_value = extract_string_value(&val)?;
+
+                // Bind in both user and system messages
+                for message in &mut new_prompt.user_message {
+                    message.bind_mut(&var_name, &var_value)?;
+                }
+            }
+        }
+
+        // Validate that at least one binding method was used
+        if name.is_none() && kwargs.is_none_or(|k| k.is_empty()) {
+            return Err(PromptError::Error(
+                "Must provide either (name, value) or keyword arguments for binding".to_string(),
+            ));
         }
         Ok(new_prompt)
     }
@@ -365,9 +395,39 @@ impl Prompt {
     /// * `value`: The value to bind the variable to.
     /// # Returns:
     /// * `Result<(), PromptError>`: Returns Ok(()) on success or an error if the binding fails.
-    pub fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), PromptError> {
-        for message in &mut self.user_message {
-            message.bind_mut(name, value)?;
+    #[pyo3(signature = (name=None, value=None, **kwargs))]
+    pub fn bind_mut(
+        &mut self,
+        name: Option<&str>,
+        value: Option<&Bound<'_, PyAny>>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> Result<(), PromptError> {
+        // Create a new Prompt with the bound value
+        if let (Some(name), Some(value)) = (name, value) {
+            // Bind in both user and system messages
+            for message in &mut self.user_message {
+                let var_value = extract_string_value(value)?;
+                message.bind_mut(name, &var_value)?;
+            }
+        }
+
+        if let Some(kwargs) = kwargs {
+            for (key, val) in kwargs.iter() {
+                let var_name = key.extract::<String>()?;
+                let var_value = extract_string_value(&val)?;
+
+                // Bind in both user and system messages
+                for message in &mut self.user_message {
+                    message.bind_mut(&var_name, &var_value)?;
+                }
+            }
+        }
+
+        // Validate that at least one binding method was used
+        if name.is_none() && kwargs.is_none_or(|k| k.is_empty()) {
+            return Err(PromptError::Error(
+                "Must provide either (name, value) or keyword arguments for binding".to_string(),
+            ));
         }
         Ok(())
     }
