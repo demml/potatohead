@@ -39,6 +39,10 @@ pub struct ModelSettings {
 
     #[pyo3(get, set)]
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<i32>,
+
+    #[pyo3(get, set)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub frequency_penalty: Option<f32>,
 
     #[pyo3(get, set)]
@@ -72,7 +76,7 @@ pub struct ModelSettings {
 #[pymethods]
 impl ModelSettings {
     #[new]
-    #[pyo3(signature = (model, provider, max_tokens=None, temperature=None, top_p=None, frequency_penalty=None, presence_penalty=None, timeout=0.0, parallel_tool_calls=None, seed=None, logit_bias=None, stop_sequences=None, extra_body=None))]
+    #[pyo3(signature = (model, provider, max_tokens=None, temperature=None, top_p=None, top_k=None, frequency_penalty=None, presence_penalty=None, timeout=0.0, parallel_tool_calls=None, seed=None, logit_bias=None, stop_sequences=None, extra_body=None))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         model: &str,
@@ -80,6 +84,7 @@ impl ModelSettings {
         max_tokens: Option<usize>,
         temperature: Option<f32>,
         top_p: Option<f32>,
+        top_k: Option<i32>,
         frequency_penalty: Option<f32>,
         presence_penalty: Option<f32>,
         timeout: Option<f32>,
@@ -106,6 +111,7 @@ impl ModelSettings {
             max_tokens,
             temperature,
             top_p,
+            top_k,
             frequency_penalty,
             presence_penalty,
             timeout,

@@ -34,6 +34,9 @@ pub enum AgentError {
     #[error("Failed to get environment variable: {0}")]
     EnvVarError(#[from] std::env::VarError),
 
+    #[error("Failed to retrieve GEMINI_API_KEY from the environment: {0}")]
+    MissingGeminiApiKeyError(#[source] std::env::VarError),
+
     #[error("Failed to retrieve OPENAI_API_KEY from the environment: {0}")]
     MissingOpenAIApiKeyError(#[source] std::env::VarError),
 

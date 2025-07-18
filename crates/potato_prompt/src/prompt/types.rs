@@ -23,6 +23,7 @@ pub enum Role {
     Assistant,
     Developer,
     Tool,
+    Model,
 }
 
 impl Display for Role {
@@ -32,6 +33,7 @@ impl Display for Role {
             Role::Assistant => write!(f, "assistant"),
             Role::Developer => write!(f, "developer"),
             Role::Tool => write!(f, "tool"),
+            Role::Model => write!(f, "model"),
         }
     }
 }
@@ -240,7 +242,7 @@ impl DocumentUrl {
     }
 
     #[getter]
-    fn media_type(&self) -> Result<String, PromptError> {
+    pub fn media_type(&self) -> Result<String, PromptError> {
         guess_type(&self.url)
     }
 

@@ -25,6 +25,7 @@ potato-util = { path = "crates/potato_util", version = "0.2.3" }
 potato-head = { path = "crates/potato_head", version = "0.2.3" }
 
 anyhow = "1.0.93"
+base64 = "0.*"
 chrono = { version = "0.*", features = ["serde"] }
 colored_json = "5.*"
 mockito = "1.*"

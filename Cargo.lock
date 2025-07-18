@@ -852,6 +852,7 @@ checksum = "f84267b20a16ea918e43c6a88433c2d54fa145c92a811b5b047ccbe153674483"
 name = "potato-agent"
 version = "0.2.3"
 dependencies = [
+ "base64",
  "potato-prompt",
  "potato-type",
  "potato-util",

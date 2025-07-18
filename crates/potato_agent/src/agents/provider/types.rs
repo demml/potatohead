@@ -14,18 +14,21 @@ const TIMEOUT_SECS: u64 = 30;
 #[pyclass]
 pub enum Provider {
     OpenAI,
+    Gemini,
 }
 
 impl Provider {
     pub fn url(&self) -> &str {
         match self {
             Provider::OpenAI => "https://api.openai.com",
+            Provider::Gemini => "https://generativelanguage.googleapis.com/v1",
         }
     }
 
     pub fn from_string(s: &str) -> Result<Self, AgentError> {
         match s.to_lowercase().as_str() {
             "openai" => Ok(Provider::OpenAI),
+            "gemini" => Ok(Provider::Gemini),
             _ => Err(AgentError::UnknownProviderError(s.to_string())),
         }
     }
