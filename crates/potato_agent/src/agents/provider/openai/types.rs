@@ -1,4 +1,5 @@
 use crate::agents::error::AgentError;
+use crate::agents::provider::traits::{ResponseExtensions, TokenUsage};
 use potato_prompt::{prompt::types::PromptContent, Message};
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
@@ -49,7 +50,7 @@ pub struct Audio {
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct ChatCompletionMessage {
-    pub content: serde_json::Value,
+    pub content: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refusal: Option<String>,
     pub role: String,
@@ -124,7 +125,22 @@ pub struct Usage {
     pub total_tokens: u64,
     pub completion_tokens_details: CompletionTokenDetails,
     pub prompt_tokens_details: PromptTokenDetails,
-    pub finish_reason: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub finish_reason: Option<String>,
+}
+
+impl TokenUsage for Usage {
+    fn total_tokens(&self) -> u64 {
+        self.total_tokens
+    }
+
+    fn prompt_tokens(&self) -> u64 {
+        self.prompt_tokens
+    }
+
+    fn completion_tokens(&self) -> u64 {
+        self.completion_tokens
+    }
 }
 
 #[pyclass]
@@ -139,7 +155,14 @@ pub struct OpenAIChatResponse {
     pub usage: Usage,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub service_tier: Option<String>,
-    pub system_fingerprint: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system_fingerprint: Option<String>,
+}
+
+impl ResponseExtensions for OpenAIChatResponse {
+    fn get_content(&self) -> Option<String> {
+        self.choices.first().and_then(|c| c.message.content.clone())
+    }
 }
 
 #[pymethods]

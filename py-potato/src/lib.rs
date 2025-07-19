@@ -5,6 +5,7 @@ use ::potato_head::{
     WorkflowResult,
 };
 use pyo3::prelude::*;
+pub mod logging;
 pub mod mock;
 use pyo3::wrap_pymodule;
 
@@ -34,5 +35,6 @@ pub fn potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TaskStatus>()?;
     m.add_class::<PyAgentResponse>()?;
     m.add_wrapped(wrap_pymodule!(mock::mock))?;
+    m.add_wrapped(wrap_pymodule!(logging::logging))?;
     Ok(())
 }

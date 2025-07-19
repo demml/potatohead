@@ -2,8 +2,16 @@ import os
 from dataclasses import dataclass
 from typing import List
 
-from potato_head import Agent, Prompt, Provider, Score, Task, TaskStatus, Workflow
-from potato_head.mock import OpenAITestServer
+from potato_head import (  # type: ignore
+    Agent,
+    Prompt,
+    Provider,
+    Score,
+    Task,
+    TaskStatus,
+    Workflow,
+)
+from potato_head.mock import OpenAITestServer  # type: ignore
 from pydantic import BaseModel
 from pydantic_ai import Agent as PydanticAgent
 from pydantic_ai import RunContext, models
@@ -104,7 +112,9 @@ def test_potato_head_workflow():
         open_agent1 = Agent(Provider.OpenAI)
         open_agent2 = Agent(Provider.OpenAI)
 
-        workflow = Workflow(name="test_workflow")  # expand named argument to allow agents and tasks
+        workflow = Workflow(
+            name="test_workflow"
+        )  # expand named argument to allow agents and tasks
         workflow.add_agent(open_agent1)  # allow adding list of agents
         workflow.add_agent(open_agent2)
         workflow.add_task(  # allow adding list of tasks
@@ -183,7 +193,9 @@ def test_potato_head_workflow_structured_output():
         open_agent1 = Agent(Provider.OpenAI)
         open_agent2 = Agent(Provider.OpenAI)
 
-        workflow = Workflow(name="test_workflow")  # expand named argument to allow agents and tasks
+        workflow = Workflow(
+            name="test_workflow"
+        )  # expand named argument to allow agents and tasks
         workflow.add_agent(open_agent1)  # allow adding list of agents
         workflow.add_agent(open_agent2)
         workflow.add_task(  # allow adding list of tasks
@@ -271,8 +283,6 @@ def test_potato_head_execute_prompt():
         agent = Agent(Provider.OpenAI)
         result = agent.execute_prompt(prompt=prompt, output_type=Score)
 
-        print(result)
-
         assert isinstance(result.result, Score)
 
 
@@ -296,7 +306,9 @@ def test_workflow_param_binding():
         )
 
         agent = Agent(Provider.OpenAI)
-        workflow = Workflow(name="test_workflow")  # expand named argument to allow agents and tasks
+        workflow = Workflow(
+            name="test_workflow"
+        )  # expand named argument to allow agents and tasks
         workflow.add_agent(agent)
         workflow.add_task(
             Task(

@@ -1,11 +1,65 @@
+pub mod error;
+
+use crate::error::TypeError;
 use pyo3::prelude::*;
 use schemars::JsonSchema;
 use serde::de::Error;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::any::type_name;
 use std::fmt;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
+use tracing::error;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[pyclass]
+pub enum Provider {
+    OpenAI,
+    Gemini,
+}
+
+impl Provider {
+    pub fn url(&self) -> &str {
+        match self {
+            Provider::OpenAI => "https://api.openai.com",
+            Provider::Gemini => "https://generativelanguage.googleapis.com/v1beta/models",
+        }
+    }
+
+    pub fn from_string(s: &str) -> Result<Self, TypeError> {
+        match s.to_lowercase().as_str() {
+            "openai" => Ok(Provider::OpenAI),
+            "gemini" => Ok(Provider::Gemini),
+            _ => Err(TypeError::UnknownProviderError(s.to_string())),
+        }
+    }
+
+    /// Extract provider from a PyAny object
+    ///
+    /// # Arguments
+    /// * `provider` - PyAny object
+    ///
+    /// # Returns
+    /// * `Result<Provider, AgentError>` - Result
+    ///
+    /// # Errors
+    /// * `AgentError` - Error
+    pub fn extract_provider(provider: &Bound<'_, PyAny>) -> Result<Provider, TypeError> {
+        match provider.is_instance_of::<Provider>() {
+            true => Ok(provider.extract::<Provider>().inspect_err(|e| {
+                error!("Failed to extract provider: {}", e);
+            })?),
+            false => {
+                let provider = provider.extract::<String>().unwrap();
+                Ok(Provider::from_string(&provider).inspect_err(|e| {
+                    error!("Failed to convert string to provider: {}", e);
+                })?)
+            }
+        }
+    }
+}
+
 #[pyclass(eq, eq_int)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum SaveName {
@@ -109,18 +163,7 @@ pub trait StructuredOutput: for<'de> serde::Deserialize<'de> + JsonSchema {
     /// * `Value` - The JSON schema wrapped in OpenAI's format
     fn get_structured_output_schema() -> Value {
         let schema = ::schemars::schema_for!(Self);
-
-        //if let Some(obj) = schema.as_object_mut() {
-        //obj.insert("additionalProperties".to_string(), serde_json::json!(false));
-        //};
-
-        serde_json::json!({
-            "type": "json_schema",
-            "json_schema": {
-                "name": Self::type_name(),
-                "schema": schema,
-                "strict": true
-            }
-        })
+        schema.into()
     }
+    // add fallback parsing logic
 }

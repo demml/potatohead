@@ -1,5 +1,5 @@
 import pytest
-from potato_head import Prompt
+from potato_head import Prompt  # type: ignore
 
 
 @pytest.fixture(scope="module")

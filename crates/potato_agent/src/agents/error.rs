@@ -52,9 +52,6 @@ pub enum AgentError {
     #[error("Unsupported content type")]
     UnsupportedContentTypeError,
 
-    #[error("Unknown provider: {0}")]
-    UnknownProviderError(String),
-
     #[error("Failed to create runtime: {0}")]
     CreateRuntimeError(#[source] std::io::Error),
 
@@ -63,6 +60,9 @@ pub enum AgentError {
 
     #[error(transparent)]
     UtilError(#[from] potato_util::UtilError),
+
+    #[error(transparent)]
+    TypeError(#[from] potato_type::error::TypeError),
 
     #[error("Invalid output type: {0}")]
     InvalidOutputType(String),

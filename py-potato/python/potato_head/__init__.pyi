@@ -553,6 +553,7 @@ class Prompt:
 
 class Provider:
     OpenAI: "Provider"
+    Gemini: "Provider"
 
 class TaskStatus:
     Pending: "TaskStatus"

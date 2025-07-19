@@ -1,8 +1,8 @@
 use crate::prompt::error::PromptError;
 use mime_guess;
 use potato_type::StructuredOutput;
-use potato_util::pyobject_to_json;
 use potato_util::PyHelperFuncs;
+use potato_util::{json_to_pyobject, pyobject_to_json};
 use pyo3::types::PyAnyMethods;
 use pyo3::types::PyDict;
 use pyo3::types::PyString;
@@ -714,6 +714,12 @@ impl Score {
     #[staticmethod]
     pub fn model_validate_json(json_string: String) -> Result<Score, PromptError> {
         Ok(serde_json::from_str(&json_string)?)
+    }
+
+    #[staticmethod]
+    pub fn model_json_schema(py: Python<'_>) -> Result<PyObject, PromptError> {
+        let schema = Score::get_structured_output_schema();
+        Ok(json_to_pyobject(py, &schema)?)
     }
 
     pub fn __str__(&self) -> String {

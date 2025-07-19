@@ -1,6 +1,6 @@
 use baked_potato::{create_parameterized_prompt, create_prompt, OpenAITestServer};
-use potato_agent::{Agent, Provider, Task};
-use potato_type::StructuredOutput;
+use potato_agent::{Agent, Task};
+use potato_type::{Provider, StructuredOutput};
 use potato_workflow::Workflow;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -131,7 +131,7 @@ fn test_parameterized_workflow() {
         .unwrap()
         .content();
 
-    let _ = Parameters::model_validate_json_value(&task1_output);
+    let _ = Parameters::model_validate_json_str(&task1_output.unwrap());
 
     // assert original workflow is unmodified
     assert_eq!(workflow.task_list.len(), 2);

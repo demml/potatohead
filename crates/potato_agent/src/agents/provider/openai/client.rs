@@ -1,12 +1,12 @@
 use crate::agents::error::AgentError;
 use crate::agents::provider::openai::{OpenAIChatMessage, OpenAIChatRequest, OpenAIChatResponse};
-use crate::agents::provider::types::{build_http_client, Provider};
+use crate::agents::provider::types::build_http_client;
 use potato_prompt::Prompt;
+use potato_type::Provider;
 use reqwest::header::AUTHORIZATION;
 use reqwest::Client;
 use std::collections::HashMap;
-use tracing::{debug, error};
-
+use tracing::{debug, error, instrument};
 #[derive(Debug, Clone)]
 pub struct OpenAIClient {
     client: Client,
@@ -74,6 +74,7 @@ impl OpenAIClient {
     /// # Returns:
     /// * `Result<ChatResponse, AgentError>`: Returns a `ChatResponse` on success or an `AgentError` on failure.
     ///
+    #[instrument(skip_all)]
     pub async fn async_chat_completion(
         &self,
         prompt: &Prompt,
@@ -153,6 +154,7 @@ impl OpenAIClient {
         }
 
         let chat_response: OpenAIChatResponse = response.json().await?;
+        println!("Chat response: {:?}", chat_response);
         debug!("Chat completion successful");
 
         Ok(chat_response)

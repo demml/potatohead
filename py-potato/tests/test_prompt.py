@@ -1,7 +1,7 @@
 from typing import List
 
 import httpx
-from potato_head import (
+from potato_head import (  # type: ignore
     BinaryContent,
     DocumentUrl,
     ImageUrl,
@@ -150,16 +150,12 @@ def test_document_prompt():
         provider="openai",
         user_message=[
             "What is the main content of this document?",
-            DocumentUrl(
-                url="https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"
-            ),
+            DocumentUrl(url="https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"),
         ],
         system_message="system_prompt",
     )
 
-    assert (
-        prompt.user_message[0].unwrap() == "What is the main content of this document?"
-    )
+    assert prompt.user_message[0].unwrap() == "What is the main content of this document?"
     assert isinstance(prompt.user_message[1].unwrap(), PydanticDocumentUrl)
 
 

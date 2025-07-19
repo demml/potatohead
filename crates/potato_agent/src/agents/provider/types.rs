@@ -1,62 +1,11 @@
 use crate::agents::error::AgentError;
-use pyo3::prelude::*;
 use reqwest::header::HeaderName;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
-use tracing::error;
 
 const TIMEOUT_SECS: u64 = 30;
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[pyclass]
-pub enum Provider {
-    OpenAI,
-    Gemini,
-}
-
-impl Provider {
-    pub fn url(&self) -> &str {
-        match self {
-            Provider::OpenAI => "https://api.openai.com",
-            Provider::Gemini => "https://generativelanguage.googleapis.com/v1",
-        }
-    }
-
-    pub fn from_string(s: &str) -> Result<Self, AgentError> {
-        match s.to_lowercase().as_str() {
-            "openai" => Ok(Provider::OpenAI),
-            "gemini" => Ok(Provider::Gemini),
-            _ => Err(AgentError::UnknownProviderError(s.to_string())),
-        }
-    }
-
-    /// Extract provider from a PyAny object
-    ///
-    /// # Arguments
-    /// * `provider` - PyAny object
-    ///
-    /// # Returns
-    /// * `Result<Provider, AgentError>` - Result
-    ///
-    /// # Errors
-    /// * `AgentError` - Error
-    pub fn extract_provider(provider: &Bound<'_, PyAny>) -> Result<Provider, AgentError> {
-        match provider.is_instance_of::<Provider>() {
-            true => Ok(provider.extract::<Provider>().inspect_err(|e| {
-                error!("Failed to extract provider: {}", e);
-            })?),
-            false => {
-                let provider = provider.extract::<String>().unwrap();
-                Ok(Provider::from_string(&provider).inspect_err(|e| {
-                    error!("Failed to convert string to provider: {}", e);
-                })?)
-            }
-        }
-    }
-}
 
 /// Create the blocking HTTP client with optional headers.
 pub fn build_http_client(

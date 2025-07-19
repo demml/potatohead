@@ -1,7 +1,10 @@
 use crate::agents::error::AgentError;
+use crate::agents::provider::gemini::FunctionCall;
+use crate::agents::provider::gemini::GenerateContentResponse;
 use crate::agents::provider::openai::OpenAIChatResponse;
 use crate::agents::provider::openai::ToolCall;
 use crate::agents::provider::openai::Usage;
+use crate::agents::provider::traits::ResponseExtensions;
 use potato_prompt::{
     prompt::{PromptContent, Role},
     Message,
@@ -19,6 +22,7 @@ use tracing::warn;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ChatResponse {
     OpenAI(OpenAIChatResponse),
+    Gemini(GenerateContentResponse),
 }
 
 #[pymethods]
@@ -27,11 +31,13 @@ impl ChatResponse {
         // try unwrapping the prompt, if it exists
         match self {
             ChatResponse::OpenAI(resp) => Ok(resp.clone().into_bound_py_any(py)?),
+            ChatResponse::Gemini(resp) => Ok(resp.clone().into_bound_py_any(py)?),
         }
     }
     pub fn __str__(&self) -> String {
         match self {
             ChatResponse::OpenAI(resp) => PyHelperFuncs::__str__(resp),
+            ChatResponse::Gemini(resp) => PyHelperFuncs::__str__(resp),
         }
     }
 }
@@ -40,6 +46,7 @@ impl ChatResponse {
     pub fn is_empty(&self) -> bool {
         match self {
             ChatResponse::OpenAI(resp) => resp.choices.is_empty(),
+            ChatResponse::Gemini(resp) => resp.candidates.is_empty(),
         }
     }
 
@@ -53,9 +60,26 @@ impl ChatResponse {
                     .first()
                     .ok_or_else(|| AgentError::ClientNoResponseError)?;
 
-                let content = PromptContent::Str(first_choice.message.content.to_string());
+                let content =
+                    PromptContent::Str(first_choice.message.content.clone().unwrap_or_default());
 
                 Ok(vec![Message::from(content, role)])
+            }
+
+            ChatResponse::Gemini(resp) => {
+                let content = resp
+                    .candidates
+                    .first()
+                    .ok_or_else(|| AgentError::ClientNoResponseError)?
+                    .content
+                    .parts
+                    .first()
+                    .and_then(|part| part.text.as_ref())
+                    .map(|s| s.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                Ok(vec![Message::from(PromptContent::Str(content), role)])
             }
         }
     }
@@ -63,29 +87,55 @@ impl ChatResponse {
     pub fn to_python<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
         match self {
             ChatResponse::OpenAI(resp) => Ok(resp.clone().into_bound_py_any(py)?),
+            ChatResponse::Gemini(resp) => Ok(resp.clone().into_bound_py_any(py)?),
         }
     }
 
     pub fn id(&self) -> String {
         match self {
             ChatResponse::OpenAI(resp) => resp.id.clone(),
+            ChatResponse::Gemini(resp) => resp.response_id.clone().unwrap_or("".to_string()),
         }
     }
 
     /// Get the content of the first choice in the chat response
-    pub fn content(&self) -> Option<&Value> {
+    pub fn content(&self) -> Option<String> {
         match self {
-            ChatResponse::OpenAI(resp) => resp.choices.first().map(|c| &c.message.content),
+            ChatResponse::OpenAI(resp) => {
+                resp.choices.first().and_then(|c| c.message.content.clone())
+            }
+            ChatResponse::Gemini(resp) => resp
+                .candidates
+                .first()
+                .and_then(|c| c.content.parts.first())
+                .and_then(|part| part.text.as_ref().map(|s| s.to_string())),
         }
     }
 
     /// Check for tool calls in the chat response
-    pub fn tool_calls(&self) -> Option<&Vec<ToolCall>> {
+    pub fn tool_calls(&self) -> Option<Value> {
         match self {
             ChatResponse::OpenAI(resp) => {
                 let tool_calls: Option<&Vec<ToolCall>> =
                     resp.choices.first().map(|c| c.message.tool_calls.as_ref());
-                tool_calls
+                tool_calls.and_then(|tc| serde_json::to_value(tc).ok())
+            }
+            ChatResponse::Gemini(resp) => {
+                // Collect all function calls from all parts in the first candidate
+                let function_calls: Vec<&FunctionCall> = resp
+                    .candidates
+                    .first()?
+                    .content
+                    .parts
+                    .iter()
+                    .filter_map(|part| part.function_call.as_ref())
+                    .collect();
+
+                if function_calls.is_empty() {
+                    None
+                } else {
+                    serde_json::to_value(&function_calls).ok()
+                }
             }
         }
     }
@@ -93,30 +143,9 @@ impl ChatResponse {
     /// Extracts structured data from a chat response
     pub fn extract_structured_data(&self) -> Option<Value> {
         if let Some(content) = self.content() {
-            match content {
-                Value::String(s) => {
-                    let trimmed = s.trim();
-                    // Check if the string is a JSON object or array
-                    if (trimmed.starts_with('{') && trimmed.ends_with('}'))
-                        || (trimmed.starts_with('[') && trimmed.ends_with(']'))
-                    {
-                        serde_json::from_str(trimmed).ok()
-                    } else {
-                        None
-                    }
-                }
-                // If array or object, return as is
-                Value::Array(_) | Value::Object(_) => Some(content.clone()),
-                _ => None,
-            }
-        } else if let Some(tool_calls) = self.tool_calls() {
-            if !tool_calls.is_empty() {
-                serde_json::to_value(tool_calls).ok()
-            } else {
-                None
-            }
+            serde_json::from_str(&content).ok()
         } else {
-            None
+            self.tool_calls()
         }
     }
 }
@@ -124,26 +153,25 @@ impl ChatResponse {
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentResponse {
-    #[pyo3(get)]
     pub id: String,
     pub response: ChatResponse,
 }
 
 #[pymethods]
 impl AgentResponse {
-    #[getter]
     pub fn token_usage(&self) -> Usage {
         match &self.response {
             ChatResponse::OpenAI(resp) => resp.usage.clone(),
+            ChatResponse::Gemini(resp) => resp.get_token_usage(),
         }
     }
 
-    pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
-        let pyobj = json_to_pyobject(py, &self.content())?;
-
-        // Convert plain string output to Python string
-        Ok(pyobj.into_bound_py_any(py)?)
-    }
+    //pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+    //    let pyobj = json_to_pyobject(py, &self.content())?;
+    //
+    //    // Convert plain string output to Python string
+    //    Ok(pyobj.into_bound_py_any(py)?)
+    //}
 }
 
 impl AgentResponse {
@@ -151,12 +179,10 @@ impl AgentResponse {
         Self { id, response }
     }
 
-    pub fn content(&self) -> Value {
+    pub fn content(&self) -> Option<String> {
         match &self.response {
-            ChatResponse::OpenAI(resp) => resp
-                .choices
-                .first()
-                .map_or(Value::Null, |c| c.message.content.clone()),
+            ChatResponse::OpenAI(resp) => resp.get_content(),
+            ChatResponse::Gemini(resp) => resp.get_content(),
         }
     }
 }
@@ -199,42 +225,41 @@ impl PyAgentResponse {
     #[instrument(skip_all)]
     pub fn result<'py>(&mut self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
         let content_value = self.response.content();
+
+        // If the content is None, return None
+        if content_value.is_none() {
+            return Ok(py.None().into_bound_py_any(py)?);
+        }
         // convert content_value to string
+        let content_value = content_value.unwrap();
 
         match &self.output_type {
             Some(output_type) => {
                 // Match the value. For loading into pydantic models, it's expected that the api response is a JSON string.
-                match content_value {
-                    Value::String(s) => {
-                        // If the content is a string, we can directly convert it to a Python string
-                        let bound = output_type
-                            .bind(py)
-                            .call_method1("model_validate_json", (&s,))?;
-                        Ok(bound)
-                    }
-                    Value::Object(_) => {
-                        // Attempt to convert content_value to a JSON string
-                        let content_string = serde_json::to_string(&content_value)?;
-                        let bound = output_type
-                            .bind(py)
-                            .call_method1("model_validate_json", (&content_string,))?;
-                        Ok(bound)
-                    }
 
-                    _ => {
-                        warn!(
-                            "Expected a string for model validation, but got: {:?}. Defaulting to JSON conversion.",
-                            content_value
-                        );
+                let bound = output_type
+                    .bind(py)
+                    .call_method1("model_validate_json", (&content_value,));
+
+                match bound {
+                    Ok(obj) => {
+                        // Successfully validated the model
+                        Ok(obj)
+                    }
+                    Err(err) => {
+                        // Model validation failed
+                        // convert string to json and then to python object
+                        warn!("Failed to validate model: {}", err);
                         self.failed_conversion = true;
-                        Ok(json_to_pyobject(py, &content_value)?.into_bound_py_any(py)?)
+                        let val = serde_json::from_str::<Value>(&content_value)?;
+                        Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
                     }
                 }
-                // Convert structured output using model_validate_json
             }
             None => {
-                // Convert plain string output to Python string
-                Ok(json_to_pyobject(py, &content_value)?.into_bound_py_any(py)?)
+                // If no output type is provided, attempt to parse the content as JSON
+                let val = serde_json::from_str::<Value>(&content_value)?;
+                Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
             }
         }
     }

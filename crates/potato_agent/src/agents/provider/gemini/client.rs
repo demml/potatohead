@@ -1,12 +1,13 @@
 use crate::agents::error::AgentError;
 use crate::agents::provider::gemini::{
-    Content, GeminiGenerateContentRequest, GenerateContentResponse, GenerationConfig, Part, Schema,
+    Content, GeminiGenerateContentRequest, GenerateContentResponse, GenerationConfig, Part,
 };
-use crate::agents::provider::types::{build_http_client, Provider};
+use crate::agents::provider::types::build_http_client;
 use potato_prompt::Prompt;
+use potato_type::Provider;
 use reqwest::Client;
 use std::collections::HashMap;
-use tracing::{debug, error};
+use tracing::{debug, error, instrument};
 
 #[derive(Debug, Clone)]
 pub struct GeminiClient {
@@ -75,6 +76,7 @@ impl GeminiClient {
     /// # Returns:
     /// * `Result<ChatResponse, AgentError>`: Returns a `ChatResponse` on success or an `AgentError` on failure.
     ///
+    #[instrument(skip_all)]
     pub async fn async_generate_content(
         &self,
         prompt: &Prompt,
@@ -104,13 +106,17 @@ impl GeminiClient {
             })
         };
 
-        let response_schema = if prompt.response_format.is_some() {
-            let schema: Schema =
-                serde_json::from_value(prompt.response_format.clone().unwrap_or_default())?;
-            Some(schema)
-        } else {
-            None
-        };
+        let (response_mime_type, response) =
+            if let Some(mut response) = prompt.response_format.clone() {
+                // Remove the "type" key if the value is an object
+                if let Some(obj) = response.as_object_mut() {
+                    obj.remove("type");
+                }
+
+                (Some("application/json".to_string()), Some(response))
+            } else {
+                (None, None)
+            };
 
         let generation_config = GenerationConfig {
             temperature: settings.temperature,
@@ -121,7 +127,8 @@ impl GeminiClient {
             frequency_penalty: settings.frequency_penalty,
             presence_penalty: settings.presence_penalty,
             seed: settings.seed.as_ref().map(|v| *v as i32),
-            response_schema,
+            response_mime_type,
+            response_json_schema: response,
             ..Default::default()
         };
 
@@ -132,6 +139,8 @@ impl GeminiClient {
             generation_config: Some(generation_config),
             ..Default::default()
         };
+
+        println!("Chat request: {:?}", chat_request);
 
         // serialize the prompt to JSON
         let mut serialized_prompt =
@@ -169,6 +178,9 @@ impl GeminiClient {
             serialized_prompt
         );
 
+        let url = format!("{}/{}:generateContent", self.base_url, settings.model);
+        debug!("Gemini API URL: {}", url);
+
         let response = self
             .client
             .post(format!(
@@ -194,6 +206,8 @@ impl GeminiClient {
 
         let chat_response: GenerateContentResponse = response.json().await?;
         debug!("Chat completion successful");
+
+        print!("Chat response: {:?}", chat_response);
 
         Ok(chat_response)
     }

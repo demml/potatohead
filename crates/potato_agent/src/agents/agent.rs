@@ -1,5 +1,5 @@
+use crate::agents::provider::gemini::GeminiClient;
 use crate::agents::provider::openai::OpenAIClient;
-use crate::agents::provider::types::Provider;
 use crate::{
     agents::client::GenAiClient,
     agents::error::AgentError,
@@ -10,6 +10,7 @@ use potato_prompt::{
     parse_response_format, prompt::parse_prompt, prompt::types::Message, ModelSettings, Prompt,
     Role,
 };
+use potato_type::Provider;
 use potato_util::create_uuid7;
 use pyo3::{prelude::*, IntoPyObjectExt};
 use serde::{
@@ -41,6 +42,7 @@ impl Agent {
     ) -> Result<Self, AgentError> {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
+            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None, None, None)?),
             // Add other providers here as needed
         };
 
@@ -137,6 +139,7 @@ impl Agent {
         Ok(AgentResponse::new(task.id.clone(), chat_response))
     }
 
+    #[instrument(skip_all)]
     pub async fn execute_prompt(&self, prompt: &Prompt) -> Result<AgentResponse, AgentError> {
         // Extract the prompt from the task
         debug!("Executing prompt");
@@ -180,6 +183,7 @@ impl Agent {
         let provider = Provider::from_string(&model_settings.provider)?;
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
+            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None, None, None)?),
         };
 
         Ok(Self {
@@ -258,6 +262,11 @@ impl<'de> Deserialize<'de> for Agent {
                     Provider::OpenAI => {
                         GenAiClient::OpenAI(OpenAIClient::new(None, None, None).map_err(|e| {
                             de::Error::custom(format!("Failed to initialize OpenAIClient: {e}"))
+                        })?)
+                    }
+                    Provider::Gemini => {
+                        GenAiClient::Gemini(GeminiClient::new(None, None, None).map_err(|e| {
+                            de::Error::custom(format!("Failed to initialize GeminiClient: {e}"))
                         })?)
                     }
                 };

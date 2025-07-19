@@ -1,14 +1,16 @@
 use crate::agents::error::AgentError;
+use crate::agents::provider::gemini::GeminiClient;
 use crate::agents::provider::openai::OpenAIClient;
-use crate::agents::provider::types::Provider;
 use crate::agents::types::ChatResponse;
 use potato_prompt::Prompt;
+use potato_type::Provider;
 use pyo3::prelude::*;
 use reqwest::header::HeaderName;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
+use tracing::{error, instrument};
 const TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug, Clone)]
@@ -57,14 +59,24 @@ pub fn build_http_client(
 #[derive(Debug, Clone, PartialEq)]
 pub enum GenAiClient {
     OpenAI(OpenAIClient),
+    Gemini(GeminiClient),
 }
 
 impl GenAiClient {
+    #[instrument(skip_all)]
     pub async fn execute(&self, task: &Prompt) -> Result<ChatResponse, AgentError> {
         match self {
             GenAiClient::OpenAI(client) => {
-                let response = client.async_chat_completion(task).await?;
+                let response = client.async_chat_completion(task).await.inspect_err(|e| {
+                    error!(error = %e, "Failed to complete chat");
+                })?;
                 Ok(ChatResponse::OpenAI(response))
+            }
+            GenAiClient::Gemini(client) => {
+                let response = client.async_generate_content(task).await.inspect_err(|e| {
+                    error!(error = %e, "Failed to generate content");
+                })?;
+                Ok(ChatResponse::Gemini(response))
             }
         }
     }
@@ -72,6 +84,7 @@ impl GenAiClient {
     pub fn provider(&self) -> &Provider {
         match self {
             GenAiClient::OpenAI(client) => &client.provider,
+            GenAiClient::Gemini(client) => &client.provider,
         }
     }
 }

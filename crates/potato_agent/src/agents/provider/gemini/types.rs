@@ -1,4 +1,5 @@
-use crate::AgentError;
+use crate::agents::provider::traits::{ResponseExtensions, TokenUsage};
+use crate::{AgentError, Usage};
 use base64::prelude::*;
 use potato_prompt::{prompt::types::PromptContent, Message};
 use pyo3::prelude::*;
@@ -1026,6 +1027,23 @@ pub struct UsageMetadata {
     pub traffic_type: Option<TrafficType>,
 }
 
+impl TokenUsage for UsageMetadata {
+    /// Returns the total token count across all modalities.
+    fn total_tokens(&self) -> u64 {
+        let token_count = self.total_token_count.unwrap_or(0);
+
+        token_count as u64
+    }
+
+    fn prompt_tokens(&self) -> u64 {
+        self.prompt_token_count.unwrap_or(0) as u64
+    }
+
+    fn completion_tokens(&self) -> u64 {
+        self.candidates_token_count.unwrap_or(0) as u64
+    }
+}
+
 #[pyclass]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
@@ -1287,4 +1305,39 @@ pub struct GenerateContentResponse {
     pub prompt_feedback: Option<PromptFeedback>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage_metadata: Option<UsageMetadata>,
+}
+
+impl GenerateContentResponse {
+    /// Returns the first candidate's content text if available.
+    pub fn get_content(&self) -> Option<String> {
+        self.candidates
+            .first()
+            .and_then(|c| c.content.parts.first())
+            .and_then(|part| part.text.clone())
+    }
+
+    /// Returns the usage metadata for the response.
+    pub fn get_token_usage(&self) -> Usage {
+        let usage_metadata = self.usage_metadata.as_ref();
+
+        if let Some(usage_metadata) = usage_metadata {
+            Usage {
+                completion_tokens: usage_metadata.completion_tokens(),
+                prompt_tokens: usage_metadata.prompt_tokens(),
+                total_tokens: usage_metadata.total_tokens(),
+                ..Default::default()
+            }
+        } else {
+            Usage::default()
+        }
+    }
+}
+
+impl ResponseExtensions for GenerateContentResponse {
+    fn get_content(&self) -> Option<String> {
+        self.candidates
+            .first()
+            .and_then(|c| c.content.parts.first())
+            .and_then(|part| part.text.clone())
+    }
 }
