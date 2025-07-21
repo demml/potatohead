@@ -1,4 +1,4 @@
-class OpenAITestServer:
+class LLMTestServer:
     """
     Mock server for OpenAI API.
     This class is used to simulate the OpenAI API for testing purposes.

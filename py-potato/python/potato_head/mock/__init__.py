@@ -1,9 +1,9 @@
 # type: ignore
 from .. import mock
 
-OpenAITestServer = mock.OpenAITestServer
+LLMTestServer = mock.LLMTestServer
 
 
 __all__ = [
-    "OpenAITestServer",
+    "LLMTestServer",
 ]

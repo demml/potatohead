@@ -7,7 +7,7 @@ use crate::{
     agents::types::{AgentResponse, PyAgentResponse},
 };
 use potato_prompt::{
-    parse_response_format, prompt::parse_prompt, prompt::types::Message, ModelSettings, Prompt,
+    parse_response_to_json, prompt::parse_prompt, prompt::types::Message, ModelSettings, Prompt,
     Role,
 };
 use potato_type::Provider;
@@ -343,10 +343,10 @@ impl PyAgent {
         debug!("Executing task");
         // if output_type is not None,  mutate task prompt
         if let Some(output_type) = &output_type {
-            match parse_response_format(py, output_type) {
+            match parse_response_to_json(py, output_type) {
                 Ok((response_type, response_format)) => {
                     task.prompt.response_type = response_type;
-                    task.prompt.response_format = response_format;
+                    task.prompt.response_json_schema = response_format;
                 }
                 Err(_) => {
                     return Err(AgentError::InvalidOutputType(output_type.to_string()));
@@ -376,10 +376,10 @@ impl PyAgent {
         debug!("Executing task");
         // if output_type is not None,  mutate task prompt
         if let Some(output_type) = &output_type {
-            match parse_response_format(py, output_type) {
+            match parse_response_to_json(py, output_type) {
                 Ok((response_type, response_format)) => {
                     prompt.response_type = response_type;
-                    prompt.response_format = response_format;
+                    prompt.response_json_schema = response_format;
                 }
                 Err(_) => {
                     return Err(AgentError::InvalidOutputType(output_type.to_string()));

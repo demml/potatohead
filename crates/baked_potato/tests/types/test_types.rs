@@ -22,16 +22,8 @@ mod tests {
         };
 
         let schema = ::schemars::schema_for!(MyOutput);
-        let assert_schema = serde_json::json!({
-            "type": "json_schema",
-            "json_schema": {
-                "name": MyOutput::type_name(),
-                "schema": schema,
-                "strict": true
-            }
-        });
 
         let output = MyOutput::get_structured_output_schema();
-        assert_eq!(output, assert_schema);
+        assert_eq!(output, schema);
     }
 }

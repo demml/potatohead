@@ -1,5 +1,5 @@
 use crate::prompt::error::PromptError;
-use crate::prompt::types::parse_response_format;
+use crate::prompt::types::parse_response_to_json;
 
 use crate::prompt::types::{Message, Role};
 use crate::prompt::ResponseType;
@@ -197,7 +197,7 @@ pub struct Prompt {
 
     pub version: String,
 
-    pub response_format: Option<Value>,
+    pub response_json_schema: Option<Value>,
 
     pub parameters: Vec<String>,
 
@@ -242,7 +242,7 @@ pub fn parse_prompt(messages: &Bound<'_, PyAny>) -> Result<Vec<Message>, PromptE
 #[pymethods]
 impl Prompt {
     #[new]
-    #[pyo3(signature = (user_message, model=None, provider=None, system_message=None, model_settings=None, response_format=None))]
+    #[pyo3(signature = (user_message, model=None, provider=None, system_message=None, model_settings=None, response_json_schema=None))]
     pub fn new(
         py: Python<'_>,
         user_message: &Bound<'_, PyAny>,
@@ -250,7 +250,7 @@ impl Prompt {
         provider: Option<&str>,
         system_message: Option<&Bound<'_, PyAny>>,
         model_settings: Option<ModelSettings>,
-        response_format: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
+        response_json_schema: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
     ) -> Result<Self, PromptError> {
         // extract messages
 
@@ -274,11 +274,11 @@ impl Prompt {
             })
             .collect::<Vec<Message>>();
 
-        // validate response_format
-        let (response_type, response_format) = match response_format {
-            Some(response_format) => {
-                // check if response_format is a pydantic model and extract the model json schema
-                parse_response_format(py, response_format)?
+        // validate response_json_schema
+        let (response_type, response_json_schema) = match response_json_schema {
+            Some(response_json_schema) => {
+                // check if response_json_schema is a pydantic model and extract the model json schema
+                parse_response_to_json(py, response_json_schema)?
             }
             None => (ResponseType::Null, None),
         };
@@ -289,7 +289,7 @@ impl Prompt {
             provider,
             system_message,
             model_settings,
-            response_format,
+            response_json_schema,
             response_type,
         )
     }
@@ -439,8 +439,8 @@ impl Prompt {
     }
 
     #[getter]
-    pub fn response_format(&self) -> Option<String> {
-        Some(PyHelperFuncs::__str__(self.response_format.as_ref()))
+    pub fn response_json_schema(&self) -> Option<String> {
+        Some(PyHelperFuncs::__str__(self.response_json_schema.as_ref()))
     }
 }
 
@@ -451,7 +451,7 @@ impl Prompt {
         provider: Option<&str>,
         system_message: Vec<Message>,
         model_settings: Option<ModelSettings>,
-        response_format: Option<Value>,
+        response_json_schema: Option<Value>,
         response_type: ResponseType,
     ) -> Result<Self, PromptError> {
         // get version from crate
@@ -481,7 +481,7 @@ impl Prompt {
             version,
             system_message,
             model_settings,
-            response_format,
+            response_json_schema,
             parameters,
             response_type,
         })
@@ -706,7 +706,7 @@ mod tests {
         )
         .unwrap();
 
-        // Check if the response format is set correctly
-        assert!(prompt.response_format.is_some());
+        // Check if the response json schema is set correctly
+        assert!(prompt.response_json_schema.is_some());
     }
 }

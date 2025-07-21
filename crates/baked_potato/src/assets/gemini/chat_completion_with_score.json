@@ -1,0 +1,30 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\"score\": 85, \"reason\": \"The model performed well on the test.\"}"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "Ttl8aNWJGrWs1MkPxNyRsQQ",
+  "usageMetadata": {
+    "candidatesTokenCount": 20,
+    "promptTokenCount": 35,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 35
+      }
+    ],
+    "thoughtsTokenCount": 41,
+    "totalTokenCount": 96
+  }
+}

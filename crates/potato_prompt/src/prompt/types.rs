@@ -601,7 +601,6 @@ pub fn check_pydantic_model<'py>(
 /// A JSON schema as a serde_json::Value.
 fn get_json_schema_from_basemodel(object: &Bound<'_, PyAny>) -> Result<Value, PromptError> {
     // call staticmethod .model_json_schema()
-    let name = object.getattr("__name__")?.extract::<String>()?;
     let schema = object.getattr("model_json_schema")?.call1(())?;
 
     let mut schema = pyobject_to_json(&schema).map_err(|e| {
@@ -619,16 +618,7 @@ fn get_json_schema_from_basemodel(object: &Bound<'_, PyAny>) -> Result<Value, Pr
             .insert("additionalProperties".to_string(), serde_json::json!(false));
     }
 
-    let json_schema = serde_json::json!({
-        "type": "json_schema",
-        "json_schema": {
-             "name": name,
-             "schema": schema,
-             "strict": true
-        },
-    });
-
-    Ok(json_schema)
+    Ok(schema)
 }
 
 fn parse_pydantic_model<'py>(
@@ -672,7 +662,7 @@ fn get_json_schema_from_response_type(response_type: &ResponseType) -> Result<Va
     }
 }
 
-pub fn parse_response_format<'py>(
+pub fn parse_response_to_json<'py>(
     py: Python<'py>,
     object: &Bound<'_, PyAny>,
 ) -> Result<(ResponseType, Option<Value>), PromptError> {

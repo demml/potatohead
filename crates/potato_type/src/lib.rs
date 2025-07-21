@@ -22,7 +22,7 @@ pub enum Provider {
 impl Provider {
     pub fn url(&self) -> &str {
         match self {
-            Provider::OpenAI => "https://api.openai.com",
+            Provider::OpenAI => "https://api.openai.com/v1",
             Provider::Gemini => "https://generativelanguage.googleapis.com/v1beta/models",
         }
     }

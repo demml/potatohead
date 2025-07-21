@@ -106,17 +106,11 @@ impl GeminiClient {
             })
         };
 
-        let (response_mime_type, response) =
-            if let Some(mut response) = prompt.response_format.clone() {
-                // Remove the "type" key if the value is an object
-                if let Some(obj) = response.as_object_mut() {
-                    obj.remove("type");
-                }
-
-                (Some("application/json".to_string()), Some(response))
-            } else {
-                (None, None)
-            };
+        let response_mime_type = if let Some(_) = &prompt.response_json_schema {
+            Some("application/json".to_string())
+        } else {
+            None
+        };
 
         let generation_config = GenerationConfig {
             temperature: settings.temperature,
@@ -128,7 +122,7 @@ impl GeminiClient {
             presence_penalty: settings.presence_penalty,
             seed: settings.seed.as_ref().map(|v| *v as i32),
             response_mime_type,
-            response_json_schema: response,
+            response_json_schema: prompt.response_json_schema.clone(),
             ..Default::default()
         };
 
@@ -139,8 +133,6 @@ impl GeminiClient {
             generation_config: Some(generation_config),
             ..Default::default()
         };
-
-        println!("Chat request: {:?}", chat_request);
 
         // serialize the prompt to JSON
         let mut serialized_prompt =
@@ -178,9 +170,6 @@ impl GeminiClient {
             serialized_prompt
         );
 
-        let url = format!("{}/{}:generateContent", self.base_url, settings.model);
-        debug!("Gemini API URL: {}", url);
-
         let response = self
             .client
             .post(format!(
@@ -197,17 +186,17 @@ impl GeminiClient {
         if !status.is_success() {
             // print the response body for debugging
             error!("Gemini API request failed with status: {}", status);
+
             let body = response
                 .text()
                 .await
                 .unwrap_or_else(|_| "No response body".to_string());
+
             return Err(AgentError::ChatCompletionError(body, status));
         }
 
         let chat_response: GenerateContentResponse = response.json().await?;
         debug!("Chat completion successful");
-
-        print!("Chat response: {:?}", chat_response);
 
         Ok(chat_response)
     }

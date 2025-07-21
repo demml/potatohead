@@ -1,6 +1,6 @@
 use crate::error::MockError;
 use mockito;
-use potato_agent::agents::provider::openai::OpenAIChatResponse;
+use potato_agent::agents::provider::{gemini::GenerateContentResponse, openai::OpenAIChatResponse};
 use serde_json;
 
 use pyo3::prelude::*;
@@ -20,12 +20,18 @@ pub const OPENAI_CHAT_STRUCTURED_RESPONSE_PARAMS: &str =
 pub const OPENAI_CHAT_STRUCTURED_TASK_OUTPUT: &str =
     include_str!("assets/openai/chat_completion_structured_task_output.json");
 
-pub struct OpenAIMock {
+pub const GEMINI_CHAT_COMPLETION_RESPONSE: &str =
+    include_str!("assets/gemini/chat_completion.json");
+
+pub const GEMINI_CHAT_COMPLETION_RESPONSE_WITH_SCORE: &str =
+    include_str!("assets/gemini/chat_completion_with_score.json");
+
+pub struct LLMApiMock {
     pub url: String,
     pub server: mockito::ServerGuard,
 }
 
-impl OpenAIMock {
+impl LLMApiMock {
     pub fn new() -> Self {
         let mut server = mockito::Server::new();
         // load the OpenAI chat completion response
@@ -40,8 +46,14 @@ impl OpenAIMock {
         let chat_structured_task_output: OpenAIChatResponse =
             serde_json::from_str(OPENAI_CHAT_STRUCTURED_TASK_OUTPUT).unwrap();
 
+        // load the Gemini chat completion response
+        let gemini_chat_response: GenerateContentResponse =
+            serde_json::from_str(GEMINI_CHAT_COMPLETION_RESPONSE).unwrap();
+        let gemini_chat_response_with_score: GenerateContentResponse =
+            serde_json::from_str(GEMINI_CHAT_COMPLETION_RESPONSE_WITH_SCORE).unwrap();
+
         server
-            .mock("POST", "/v1/chat/completions")
+            .mock("POST", "/chat/completions")
             .match_body(mockito::Matcher::PartialJson(serde_json::json!({
                 "response_format": {
                     "type": "json_schema",
@@ -78,7 +90,7 @@ impl OpenAIMock {
             .create();
 
         server
-            .mock("POST", "/v1/chat/completions")
+            .mock("POST", "/chat/completions")
             .match_body(mockito::Matcher::PartialJson(serde_json::json!({
                "response_format": {
                     "type": "json_schema",
@@ -94,7 +106,7 @@ impl OpenAIMock {
             .create();
 
         server
-            .mock("POST", "/v1/chat/completions")
+            .mock("POST", "/chat/completions")
             .match_body(mockito::Matcher::PartialJson(serde_json::json!({
                 "response_format": {
                     "type": "json_schema",
@@ -110,7 +122,7 @@ impl OpenAIMock {
             .create();
 
         server
-            .mock("POST", "/v1/chat/completions")
+            .mock("POST", "/chat/completions")
             .match_body(mockito::Matcher::Regex(
                 r#".*"name"\s*:\s*"Score".*"#.to_string(),
             ))
@@ -121,7 +133,7 @@ impl OpenAIMock {
             .create();
 
         server
-            .mock("POST", "/v1/chat/completions")
+            .mock("POST", "/chat/completions")
             .match_body(mockito::Matcher::PartialJson(serde_json::json!({
                 "response_format": {
                     "type": "json_schema"
@@ -133,9 +145,53 @@ impl OpenAIMock {
             .with_body(serde_json::to_string(&chat_structured_response).unwrap())
             .create();
 
+        // mock the Gemini chat completion response
+        server
+            .mock(
+                "POST",
+                mockito::Matcher::Regex(r".*/.*:generateContent$".to_string()),
+            )
+            .match_header("x-goog-api-key", mockito::Matcher::Any)
+            .match_header("content-type", "application/json")
+            .match_body(mockito::Matcher::PartialJson(serde_json::json!({
+                "contents": [
+                    {
+                        "parts": [
+                            {
+                                "text":  "You are a helpful assistant"
+                            }
+                        ]
+                    }
+                ]
+            })))
+            .expect(usize::MAX) // More specific expectation than usize::MAX
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&gemini_chat_response).unwrap())
+            .create();
+
+        // mock structured response
+        server
+            .mock(
+                "POST",
+                mockito::Matcher::Regex(r".*/.*:generateContent$".to_string()),
+            )
+            .match_header("x-goog-api-key", mockito::Matcher::Any)
+            .match_header("content-type", "application/json")
+            .match_body(mockito::Matcher::PartialJson(serde_json::json!({
+                "generation_config": {
+                    "responseMimeType": "application/json"
+                }
+            })))
+            .expect(usize::MAX)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&gemini_chat_response_with_score).unwrap())
+            .create();
+
         // Openai chat completion mock
         server
-            .mock("POST", "/v1/chat/completions")
+            .mock("POST", "/chat/completions")
             .expect(usize::MAX)
             .with_status(200)
             .with_header("content-type", "application/json")
@@ -149,7 +205,7 @@ impl OpenAIMock {
     }
 }
 
-impl Default for OpenAIMock {
+impl Default for LLMApiMock {
     fn default() -> Self {
         Self::new()
     }
@@ -157,23 +213,23 @@ impl Default for OpenAIMock {
 
 #[pyclass]
 #[allow(dead_code)]
-pub struct OpenAITestServer {
-    openai_server: Option<OpenAIMock>,
+pub struct LLMTestServer {
+    openai_server: Option<LLMApiMock>,
 }
 
 #[pymethods]
-impl OpenAITestServer {
+impl LLMTestServer {
     #[new]
     pub fn new() -> Self {
-        OpenAITestServer {
+        LLMTestServer {
             openai_server: None,
         }
     }
 
     pub fn start_mock_server(&mut self) -> Result<(), MockError> {
-        let openai_server = OpenAIMock::new();
-        println!("Mock OpenAI Server started at {}", openai_server.url);
-        self.openai_server = Some(openai_server);
+        let llm_server = LLMApiMock::new();
+        println!("Mock LLM Server started at {}", llm_server.url);
+        self.openai_server = Some(llm_server);
         Ok(())
     }
 
@@ -183,15 +239,20 @@ impl OpenAITestServer {
             std::env::remove_var("OPENAI_API_URL");
             std::env::remove_var("OPENAI_API_KEY");
         }
-        println!("Mock OpenAI Server stopped");
+        println!("Mock LLM Server stopped");
     }
 
     pub fn set_env_vars_for_client(&self) -> Result<(), MockError> {
         {
             std::env::set_var("APP_ENV", "dev_client");
             std::env::set_var("OPENAI_API_KEY", "test_key");
+            std::env::set_var("GEMINI_API_KEY", "gemini");
             std::env::set_var(
                 "OPENAI_API_URL",
+                self.openai_server.as_ref().unwrap().url.clone(),
+            );
+            std::env::set_var(
+                "GEMINI_API_URL",
                 self.openai_server.as_ref().unwrap().url.clone(),
             );
             Ok(())
@@ -220,6 +281,8 @@ impl OpenAITestServer {
     pub fn remove_env_vars_for_client(&self) -> Result<(), MockError> {
         std::env::remove_var("OPENAI_API_URI");
         std::env::remove_var("OPENAI_API_KEY");
+        std::env::remove_var("GEMINI_API_KEY");
+        std::env::remove_var("GEMINI_API_URL");
         Ok(())
     }
 
@@ -245,7 +308,7 @@ impl OpenAITestServer {
     }
 }
 
-impl Default for OpenAITestServer {
+impl Default for LLMTestServer {
     fn default() -> Self {
         Self::new()
     }

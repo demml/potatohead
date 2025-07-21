@@ -10,7 +10,7 @@ pub use potato_agent::agents::{
     types::ChatResponse,
 };
 use potato_agent::PyAgentResponse;
-use potato_prompt::parse_response_format;
+use potato_prompt::parse_response_to_json;
 use potato_prompt::prompt::types::Role;
 use potato_prompt::Message;
 use potato_util::{create_uuid7, utils::update_serde_map_with, PyHelperFuncs};
@@ -763,8 +763,8 @@ impl PyWorkflow {
     ) -> Result<(), WorkflowError> {
         if let Some(output_type) = output_type {
             // Parse and set the response format
-            (task.prompt.response_type, task.prompt.response_format) =
-                parse_response_format(py, &output_type)
+            (task.prompt.response_type, task.prompt.response_json_schema) =
+                parse_response_to_json(py, &output_type)
                     .map_err(|e| WorkflowError::InvalidOutputType(e.to_string()))?;
 
             // Store the output type for later use

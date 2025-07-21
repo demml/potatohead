@@ -1,4 +1,4 @@
-use baked_potato::{create_parameterized_prompt, create_prompt, OpenAITestServer};
+use baked_potato::{create_parameterized_prompt, create_prompt, LLMTestServer};
 use potato_agent::{Agent, Task};
 use potato_type::{Provider, StructuredOutput};
 use potato_workflow::Workflow;
@@ -16,7 +16,7 @@ impl StructuredOutput for Parameters {}
 #[test]
 fn test_workflow() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    let mut mock = OpenAITestServer::new();
+    let mut mock = LLMTestServer::new();
     mock.start_server().unwrap();
 
     let prompt = create_prompt(None);
@@ -79,7 +79,7 @@ fn test_workflow() {
 #[test]
 fn test_parameterized_workflow() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    let mut mock = OpenAITestServer::new();
+    let mut mock = LLMTestServer::new();
     mock.start_server().unwrap();
 
     let prompt = create_prompt(Some(Parameters::get_structured_output_schema()));
