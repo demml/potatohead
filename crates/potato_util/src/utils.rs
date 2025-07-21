@@ -11,9 +11,9 @@ use serde::Serialize;
 use serde_json::json;
 use serde_json::Value;
 use serde_json::Value::{Null, Object};
+use std::ops::RangeInclusive;
 use std::path::Path;
 use uuid::Uuid;
-
 pub fn create_uuid7() -> String {
     Uuid::now_v7().to_string()
 }
@@ -305,5 +305,95 @@ pub fn extract_string_value(py_value: &Bound<'_, PyAny>) -> Result<String, UtilE
             let json_string = serde_json::to_string(&json_value)?;
             Ok(json_string)
         }
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Clone)]
+pub struct ResponseLogProbs {
+    #[pyo3(get)]
+    pub token: String,
+
+    #[pyo3(get)]
+    pub logprob: f64,
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Clone)]
+pub struct LogProbs {
+    #[pyo3(get)]
+    pub tokens: Vec<ResponseLogProbs>,
+}
+
+#[pymethods]
+impl LogProbs {
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
+}
+
+/// Calculate a weighted score base on the log probabilities of tokens 1-5.
+pub fn calculate_weighted_score(log_probs: &[ResponseLogProbs]) -> Result<Option<f64>, UtilError> {
+    let score_range = RangeInclusive::new(1, 5);
+    let mut score_probs = Vec::new();
+    let mut weighted_sum = 0.0;
+    let mut total_prob = 0.0;
+
+    for log_prob in log_probs {
+        let token = log_prob.token.parse::<u64>().ok();
+
+        if let Some(token_val) = token {
+            if score_range.contains(&token_val) {
+                let prob = log_prob.logprob.exp();
+                score_probs.push((token_val, prob));
+            }
+        }
+    }
+
+    for (score, logprob) in score_probs {
+        weighted_sum += score as f64 * logprob;
+        total_prob += logprob;
+    }
+
+    if total_prob > 0.0 {
+        Ok(Some(weighted_sum / total_prob))
+    } else {
+        Ok(None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_calculate_weighted_score() {
+        let log_probs = vec![
+            ResponseLogProbs {
+                token: "1".into(),
+                logprob: 0.9,
+            },
+            ResponseLogProbs {
+                token: "2".into(),
+                logprob: 0.8,
+            },
+            ResponseLogProbs {
+                token: "3".into(),
+                logprob: 0.7,
+            },
+        ];
+
+        let result = calculate_weighted_score(&log_probs);
+        assert!(result.is_ok());
+
+        let val = result.unwrap().unwrap();
+        // round to int
+        assert_eq!(val.round(), 2.0);
+    }
+    #[test]
+    fn test_calculate_weighted_score_empty() {
+        let log_probs: Vec<ResponseLogProbs> = vec![];
+        let result = calculate_weighted_score(&log_probs);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), None);
     }
 }

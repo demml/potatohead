@@ -123,6 +123,7 @@ impl GeminiClient {
             seed: settings.seed.as_ref().map(|v| *v as i32),
             response_mime_type,
             response_json_schema: prompt.response_json_schema.clone(),
+            response_logprobs: settings.logprobs,
             ..Default::default()
         };
 

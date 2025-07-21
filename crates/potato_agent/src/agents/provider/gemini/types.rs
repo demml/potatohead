@@ -1,7 +1,8 @@
-use crate::agents::provider::traits::{ResponseExtensions, TokenUsage};
+use crate::agents::provider::traits::{LogProbExt, ResponseExt, TokenUsage};
 use crate::{AgentError, Usage};
 use base64::prelude::*;
 use potato_prompt::{prompt::types::PromptContent, Message};
+use potato_util::utils::ResponseLogProbs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -1333,11 +1334,38 @@ impl GenerateContentResponse {
     }
 }
 
-impl ResponseExtensions for GenerateContentResponse {
+impl ResponseExt for GenerateContentResponse {
     fn get_content(&self) -> Option<String> {
         self.candidates
             .first()
             .and_then(|c| c.content.parts.first())
             .and_then(|part| part.text.clone())
+    }
+}
+
+impl LogProbExt for GenerateContentResponse {
+    fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
+        let mut probabilities = Vec::new();
+
+        if let Some(candidate) = self.candidates.first() {
+            if let Some(logprobs_result) = &candidate.logprobs_result {
+                if let Some(chosen_candidates) = &logprobs_result.chosen_candidates {
+                    for candidate in chosen_candidates {
+                        if let Some(token) = &candidate.token {
+                            if token.len() == 1 && token.chars().next().unwrap().is_ascii_digit() {
+                                if let Some(logprob) = candidate.log_probability {
+                                    probabilities.push(ResponseLogProbs {
+                                        token: token.clone(),
+                                        logprob,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        probabilities
     }
 }

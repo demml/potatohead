@@ -686,9 +686,10 @@ pub fn parse_response_to_json<'py>(
 
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)] // this ensures schemars will not allow additional fields (AdditionalProperties: false)
+#[serde(deny_unknown_fields)] // ensure strict validation
 pub struct Score {
     #[pyo3(get)]
+    #[schemars(range(min = 1, max = 5))]
     pub score: i64,
 
     #[pyo3(get)]
@@ -718,32 +719,6 @@ impl Score {
 }
 
 impl StructuredOutput for Score {}
-
-//impl Score {
-//    pub fn to_json_schema() -> Value {
-//        serde_json::json!({
-//            "type": "object",
-//            "properties": {
-//                "score": { "type": "integer" },
-//                "reason": { "type": "string" },
-//            },
-//            "required": ["score", "reason"],
-//        })
-//    }
-//
-//    pub fn get_structured_output_schema() -> Value {
-//        let json_schema = serde_json::json!({
-//            "type": "json_schema",
-//            "json_schema": {
-//                 "name": "Score",
-//                 "schema": Self::to_json_schema(),
-//                 "strict": true
-//            },
-//        });
-//
-//        json_schema
-//    }
-//}
 
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

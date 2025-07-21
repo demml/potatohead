@@ -69,6 +69,10 @@ pub struct ModelSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop_sequences: Option<Vec<String>>,
 
+    #[pyo3(get, set)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logprobs: Option<bool>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_body: Option<Value>,
 }
@@ -76,11 +80,11 @@ pub struct ModelSettings {
 #[pymethods]
 impl ModelSettings {
     #[new]
-    #[pyo3(signature = (model, provider, max_tokens=None, temperature=None, top_p=None, top_k=None, frequency_penalty=None, presence_penalty=None, timeout=0.0, parallel_tool_calls=None, seed=None, logit_bias=None, stop_sequences=None, extra_body=None))]
+    #[pyo3(signature = (model=None, provider=None, max_tokens=None, temperature=None, top_p=None, top_k=None, frequency_penalty=None, presence_penalty=None, timeout=0.0, parallel_tool_calls=None, seed=None, logit_bias=None, stop_sequences=None, logprobs=None, extra_body=None))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        model: &str,
-        provider: &str,
+        model: Option<String>,
+        provider: Option<String>,
         max_tokens: Option<usize>,
         temperature: Option<f32>,
         top_p: Option<f32>,
@@ -92,6 +96,7 @@ impl ModelSettings {
         seed: Option<u64>,
         logit_bias: Option<HashMap<String, i32>>,
         stop_sequences: Option<Vec<String>>,
+        logprobs: Option<bool>,
         extra_body: Option<&Bound<'_, PyAny>>,
     ) -> Result<Self, PromptError> {
         // check if extra body is not none.
@@ -106,8 +111,8 @@ impl ModelSettings {
             };
 
         Ok(Self {
-            model: model.to_string(),
-            provider: provider.to_string(),
+            model: model.unwrap_or_default(),
+            provider: provider.unwrap_or_default(),
             max_tokens,
             temperature,
             top_p,
@@ -119,6 +124,7 @@ impl ModelSettings {
             seed,
             logit_bias,
             stop_sequences,
+            logprobs,
             extra_body,
         })
     }
@@ -173,6 +179,9 @@ impl ModelSettings {
         if let Some(stop_sequences) = &self.stop_sequences {
             pydict.set_item("stop_sequences", stop_sequences)?;
         }
+        if let Some(logprobs) = self.logprobs {
+            pydict.set_item("logprobs", logprobs)?;
+        }
         let extra = self.extra_body(py)?;
 
         if let Some(extra) = extra {
@@ -180,6 +189,12 @@ impl ModelSettings {
         }
 
         Ok(pydict)
+    }
+}
+
+impl ModelSettings {
+    pub fn has_model_provider(&self) -> bool {
+        !self.model.is_empty() && !self.provider.is_empty()
     }
 }
 
@@ -464,11 +479,30 @@ impl Prompt {
             ));
         }
 
+        // If model_settings is provided, and model and provider are empty, settings must have both model and provider
+        if (model.is_none() || provider.is_none())
+            && model_settings.is_some()
+            && !model_settings.as_ref().unwrap().has_model_provider()
+        {
+            return Err(PromptError::Error(
+                    "Either model and provider or model_settings with both model and provider must be provided".to_string(),
+                ));
+        }
+
         let model_settings = match model_settings {
-            Some(settings) => settings,
+            Some(mut settings) => {
+                if settings.has_model_provider() {
+                    settings
+                } else {
+                    // unwrap model and provider from the parameters
+                    settings.model = model.unwrap_or_default().to_string();
+                    settings.provider = provider.unwrap_or_default().to_string();
+                    settings
+                }
+            }
             None => ModelSettings {
-                model: model.unwrap().to_string(),
-                provider: provider.unwrap().to_string(),
+                model: model.unwrap_or_default().to_string(),
+                provider: provider.unwrap_or_default().to_string(),
                 ..Default::default()
             },
         };

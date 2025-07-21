@@ -117,6 +117,7 @@ impl OpenAIClient {
             logit_bias: settings.logit_bias.clone(),
             seed: settings.seed,
             response_format: schema,
+            logprobs: settings.logprobs,
         };
 
         // serialize the prompt to JSON

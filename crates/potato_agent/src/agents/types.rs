@@ -4,11 +4,13 @@ use crate::agents::provider::gemini::GenerateContentResponse;
 use crate::agents::provider::openai::OpenAIChatResponse;
 use crate::agents::provider::openai::ToolCall;
 use crate::agents::provider::openai::Usage;
-use crate::agents::provider::traits::ResponseExtensions;
+use crate::agents::provider::traits::LogProbExt;
+use crate::agents::provider::traits::ResponseExt;
 use potato_prompt::{
     prompt::{PromptContent, Role},
     Message,
 };
+use potato_util::utils::{LogProbs, ResponseLogProbs};
 use potato_util::{json_to_pyobject, PyHelperFuncs};
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
@@ -185,6 +187,13 @@ impl AgentResponse {
             ChatResponse::Gemini(resp) => resp.get_content(),
         }
     }
+
+    pub fn log_probs(&self) -> Vec<ResponseLogProbs> {
+        match &self.response {
+            ChatResponse::OpenAI(resp) => resp.get_log_probs(),
+            ChatResponse::Gemini(resp) => resp.get_log_probs(),
+        }
+    }
 }
 
 #[pyclass(name = "AgentResponse")]
@@ -209,6 +218,13 @@ impl PyAgentResponse {
     #[getter]
     pub fn token_usage(&self) -> Usage {
         self.response.token_usage()
+    }
+
+    #[getter]
+    pub fn log_probs(&self) -> LogProbs {
+        LogProbs {
+            tokens: self.response.log_probs(),
+        }
     }
 
     /// This will map a the content of the response to a python object.

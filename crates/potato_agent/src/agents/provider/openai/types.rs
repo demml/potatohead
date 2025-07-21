@@ -1,12 +1,12 @@
 use crate::agents::error::AgentError;
-use crate::agents::provider::traits::{ResponseExtensions, TokenUsage};
+use crate::agents::provider::traits::{LogProbExt, ResponseExt, TokenUsage};
 use potato_prompt::{prompt::types::PromptContent, Message};
+use potato_util::utils::ResponseLogProbs;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Function {
@@ -159,9 +159,34 @@ pub struct OpenAIChatResponse {
     pub system_fingerprint: Option<String>,
 }
 
-impl ResponseExtensions for OpenAIChatResponse {
+impl ResponseExt for OpenAIChatResponse {
     fn get_content(&self) -> Option<String> {
         self.choices.first().and_then(|c| c.message.content.clone())
+    }
+}
+
+impl LogProbExt for OpenAIChatResponse {
+    fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
+        let mut probabilities = Vec::new();
+        if let Some(choice) = self.choices.first() {
+            if let Some(logprobs) = &choice.logprobs {
+                if let Some(content) = &logprobs.content {
+                    for log_content in content {
+                        // Look for single digit tokens (1, 2, 3, 4, 5)
+                        if log_content.token.len() == 1
+                            && log_content.token.chars().next().unwrap().is_ascii_digit()
+                        {
+                            probabilities.push(ResponseLogProbs {
+                                token: log_content.token.clone(),
+                                logprob: log_content.logprob,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        probabilities
     }
 }
 
@@ -200,6 +225,9 @@ pub struct OpenAIChatRequest {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub seed: Option<u64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logprobs: Option<bool>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<Value>,
