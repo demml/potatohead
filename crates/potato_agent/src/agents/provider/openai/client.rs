@@ -99,11 +99,10 @@ impl OpenAIClient {
         );
 
         // if prompt has response_json_schema, format it for openai
-        let schema = if let Some(schema) = &prompt.response_json_schema {
-            Some(self.create_structured_output_schema(schema))
-        } else {
-            None
-        };
+        let schema = prompt
+            .response_json_schema
+            .as_ref()
+            .map(|schema| self.create_structured_output_schema(schema));
 
         // Create the OpenAI chat request
         let chat_request = OpenAIChatRequest {

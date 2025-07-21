@@ -106,7 +106,7 @@ impl GeminiClient {
             })
         };
 
-        let response_mime_type = if let Some(_) = &prompt.response_json_schema {
+        let response_mime_type = if prompt.response_json_schema.is_some() {
             Some("application/json".to_string())
         } else {
             None
