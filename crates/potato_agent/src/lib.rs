@@ -6,6 +6,7 @@ pub use agents::provider::openai::{
 pub use agents::{
     agent::{Agent, PyAgent},
     error::AgentError,
+    provider::traits::LogProbExt,
     task::{PyTask, Task, TaskStatus},
     types::{AgentResponse, ChatResponse, PyAgentResponse},
 };
