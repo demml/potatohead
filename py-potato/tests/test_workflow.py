@@ -247,7 +247,7 @@ def test_potato_head_workflow_structured_output():
         assert len(result.events) > 0
 
 
-def test_potato_head_structured_output_score():
+def test_potato_head_structured_output_score_openai():
     with LLMTestServer():
         prompt = Prompt(
             user_message="Hello, how are you?",
@@ -264,6 +264,29 @@ def test_potato_head_structured_output_score():
         )
 
         assert isinstance(result.result, Score)
+        assert result.result.score == 5  # OpenAI mock returns a score of 5
+        assert result.result.reason == "The code is correct."
+
+
+def test_potato_head_structured_output_score_gemini():
+    with LLMTestServer():
+        prompt = Prompt(
+            user_message="Hello, how are you?",
+            system_message="You are a helpful assistant.",
+            model="gemini-2.5-flash",
+            provider="gemini",
+            response_format=Score,
+        )
+
+        agent = Agent(Provider.Gemini)
+        result = agent.execute_task(
+            Task(prompt=prompt, agent_id=agent.id, id="task1"),
+            output_type=Score,
+        )
+
+        assert isinstance(result.result, Score)
+        assert result.result.score == 90  # Gemini mock returns a score of 90
+        assert result.result.reason == "The model performed well on the gemini test."
 
 
 def test_potato_head_execute_prompt():

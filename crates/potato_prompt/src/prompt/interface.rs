@@ -242,7 +242,7 @@ pub fn parse_prompt(messages: &Bound<'_, PyAny>) -> Result<Vec<Message>, PromptE
 #[pymethods]
 impl Prompt {
     #[new]
-    #[pyo3(signature = (user_message, model=None, provider=None, system_message=None, model_settings=None, response_json_schema=None))]
+    #[pyo3(signature = (user_message, model=None, provider=None, system_message=None, model_settings=None, response_format=None))]
     pub fn new(
         py: Python<'_>,
         user_message: &Bound<'_, PyAny>,
@@ -250,7 +250,7 @@ impl Prompt {
         provider: Option<&str>,
         system_message: Option<&Bound<'_, PyAny>>,
         model_settings: Option<ModelSettings>,
-        response_json_schema: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
+        response_format: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
     ) -> Result<Self, PromptError> {
         // extract messages
 
@@ -275,10 +275,10 @@ impl Prompt {
             .collect::<Vec<Message>>();
 
         // validate response_json_schema
-        let (response_type, response_json_schema) = match response_json_schema {
-            Some(response_json_schema) => {
-                // check if response_json_schema is a pydantic model and extract the model json schema
-                parse_response_to_json(py, response_json_schema)?
+        let (response_type, response_json_schema) = match response_format {
+            Some(response_format) => {
+                // check if response_format is a pydantic model and extract the model json schema
+                parse_response_to_json(py, response_format)?
             }
             None => (ResponseType::Null, None),
         };

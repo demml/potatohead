@@ -191,4 +191,4 @@ def test_prompt_response_format():
         response_format=CityLocation,
     )
 
-    assert prompt.response_format is not None
+    assert prompt.response_json_schema is not None

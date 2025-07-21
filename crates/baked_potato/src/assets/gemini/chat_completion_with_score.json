@@ -4,7 +4,7 @@
       "content": {
         "parts": [
           {
-            "text": "{\"score\": 85, \"reason\": \"The model performed well on the test.\"}"
+            "text": "{\"score\": 90, \"reason\": \"The model performed well on the gemini test.\"}"
           }
         ],
         "role": "model"

@@ -412,9 +412,10 @@ class Prompt:
                 The model settings to use for the prompt.
                 Defaults to None which means no model settings will be used
             response_format (Optional[BaseModel | Score]):
-                The response format to use for the prompt. This is used for Structure Outputs
+                The response format to use for the prompt. This is used for Structured Outputs
                 (https://platform.openai.com/docs/guides/structured-outputs?api-mode=chat).
                 Currently, response_format only support Pydantic BaseModel classes and the PotatoHead Score class.
+                The provided response_format will be parsed into a JSON schema.
         """
 
     @property
@@ -546,7 +547,9 @@ class Prompt:
         """
 
     @property
-    def response_format(self) -> Optional[str]: ...
+    def response_json_schema(self) -> Optional[str]:
+        """The JSON schema for the response if provided."""
+
     def __str__(self): ...
 
 class Provider:
