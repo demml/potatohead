@@ -274,7 +274,7 @@ impl PyAgentResponse {
             }
             None => {
                 // If no output type is provided, attempt to parse the content as JSON
-                let val = serde_json::from_str::<Value>(&content_value)?;
+                let val = Value::String(content_value);
                 Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
             }
         }

@@ -811,8 +811,17 @@ class Workflow:
                 that the task depends on.
         """
 
-    def run(self) -> WorkflowResult:
-        """Run the workflow. This will execute all tasks in the workflow and return when all tasks are complete."""
+    def run(
+        self,
+        global_context: Optional[Dict[str, Any]] = None,
+    ) -> WorkflowResult:
+        """Run the workflow. This will execute all tasks in the workflow and return when all tasks are complete.
+
+        Args:
+            global_context (Optional[Dict[str, Any]]):
+                A dictionary of global context to bind to the workflow.
+                All tasks in the workflow will have this context bound to them.
+        """
 
     def model_dump_json(self) -> str:
         """Dump the workflow to a JSON string.
