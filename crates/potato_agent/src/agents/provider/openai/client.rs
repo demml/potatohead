@@ -68,7 +68,7 @@ impl OpenAIClient {
     /// that allows you to interact with the OpenAI API without needing Python.
     ///
     /// # Arguments:
-    /// * `user_messages`: A slice of `Message` objects representing user messages.
+    /// * `messages`: A slice of `Message` objects representing user messages.
     /// * `developer_messages`: A slice of `Message` objects representing developer messages.
     /// * `settings`: A reference to `ModelSettings` containing model configuration.
     ///
@@ -84,7 +84,7 @@ impl OpenAIClient {
 
         // get the system messages from the prompt first
         let mut messages: Vec<OpenAIChatMessage> = prompt
-            .system_message
+            .system_instruction
             .iter()
             .map(OpenAIChatMessage::from_message)
             .collect::<Result<Vec<_>, _>>()?;
@@ -92,7 +92,7 @@ impl OpenAIClient {
         // Add user messages to the chat
         messages.extend(
             prompt
-                .user_message
+                .message
                 .iter()
                 .map(OpenAIChatMessage::from_message)
                 .collect::<Result<Vec<_>, _>>()?,

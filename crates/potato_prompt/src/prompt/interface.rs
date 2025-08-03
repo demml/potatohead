@@ -3,7 +3,7 @@ use crate::prompt::types::parse_response_to_json;
 
 use crate::prompt::types::{Message, Role};
 use crate::prompt::ResponseType;
-use potato_type::SaveName;
+use potato_type::{Model, Provider, SaveName};
 
 use potato_util::utils::extract_string_value;
 use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs};
@@ -110,9 +110,12 @@ impl ModelSettings {
                 None
             };
 
+        let model = model.unwrap_or_else(|| Model::Undefined.as_str().to_string());
+        let provider = provider.unwrap_or_else(|| Provider::Undefined.as_str().to_string());
+
         Ok(Self {
-            model: model.unwrap_or_default(),
-            provider: provider.unwrap_or_default(),
+            model,
+            provider,
             max_tokens,
             temperature,
             top_p,
@@ -194,7 +197,11 @@ impl ModelSettings {
 
 impl ModelSettings {
     pub fn has_model_provider(&self) -> bool {
-        !self.model.is_empty() && !self.provider.is_empty()
+        // check if both are undefined or empty
+        self.model != Model::Undefined.as_str()
+            && self.provider != Provider::Undefined.as_str()
+            && !self.model.is_empty()
+            && !self.provider.is_empty()
     }
 }
 
@@ -202,10 +209,10 @@ impl ModelSettings {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Prompt {
     #[pyo3(get, set)]
-    pub user_message: Vec<Message>,
+    pub message: Vec<Message>,
 
     #[pyo3(get, set)]
-    pub system_message: Vec<Message>,
+    pub system_instruction: Vec<Message>,
 
     #[pyo3(get, set)]
     pub model_settings: ModelSettings,
@@ -257,20 +264,20 @@ pub fn parse_prompt(messages: &Bound<'_, PyAny>) -> Result<Vec<Message>, PromptE
 #[pymethods]
 impl Prompt {
     #[new]
-    #[pyo3(signature = (user_message, model=None, provider=None, system_message=None, model_settings=None, response_format=None))]
+    #[pyo3(signature = (message, model=None, provider=None, system_instruction=None, model_settings=None, response_format=None))]
     pub fn new(
         py: Python<'_>,
-        user_message: &Bound<'_, PyAny>,
+        message: &Bound<'_, PyAny>,
         model: Option<&str>,
         provider: Option<&str>,
-        system_message: Option<&Bound<'_, PyAny>>,
+        system_instruction: Option<&Bound<'_, PyAny>>,
         model_settings: Option<ModelSettings>,
         response_format: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
     ) -> Result<Self, PromptError> {
         // extract messages
 
-        let system_message = if let Some(system_message) = system_message {
-            parse_prompt(system_message)?
+        let system_instruction = if let Some(system_instruction) = system_instruction {
+            parse_prompt(system_instruction)?
                 .into_iter()
                 .map(|mut msg| {
                     msg.role = Role::Developer.to_string();
@@ -281,7 +288,7 @@ impl Prompt {
             vec![]
         };
 
-        let user_message = parse_prompt(user_message)?
+        let message = parse_prompt(message)?
             .into_iter()
             .map(|mut msg| {
                 msg.role = Role::User.to_string();
@@ -299,10 +306,10 @@ impl Prompt {
         };
 
         Self::new_rs(
-            user_message,
+            message,
             model,
             provider,
-            system_message,
+            system_instruction,
             model_settings,
             response_json_schema,
             response_type,
@@ -383,7 +390,7 @@ impl Prompt {
         // Create a new Prompt with the bound value
         if let (Some(name), Some(value)) = (name, value) {
             // Bind in both user and system messages
-            for message in &mut new_prompt.user_message {
+            for message in &mut new_prompt.message {
                 let var_value = extract_string_value(value)?;
                 message.bind_mut(name, &var_value)?;
             }
@@ -395,7 +402,7 @@ impl Prompt {
                 let var_value = extract_string_value(&val)?;
 
                 // Bind in both user and system messages
-                for message in &mut new_prompt.user_message {
+                for message in &mut new_prompt.message {
                     message.bind_mut(&var_name, &var_value)?;
                 }
             }
@@ -426,7 +433,7 @@ impl Prompt {
         // Create a new Prompt with the bound value
         if let (Some(name), Some(value)) = (name, value) {
             // Bind in both user and system messages
-            for message in &mut self.user_message {
+            for message in &mut self.message {
                 let var_value = extract_string_value(value)?;
                 message.bind_mut(name, &var_value)?;
             }
@@ -438,7 +445,7 @@ impl Prompt {
                 let var_value = extract_string_value(&val)?;
 
                 // Bind in both user and system messages
-                for message in &mut self.user_message {
+                for message in &mut self.message {
                     message.bind_mut(&var_name, &var_value)?;
                 }
             }
@@ -461,59 +468,45 @@ impl Prompt {
 
 impl Prompt {
     pub fn new_rs(
-        user_message: Vec<Message>,
+        message: Vec<Message>,
         model: Option<&str>,
         provider: Option<&str>,
-        system_message: Vec<Message>,
-        model_settings: Option<ModelSettings>,
+        system_instruction: Vec<Message>,
+        mut model_settings: Option<ModelSettings>,
         response_json_schema: Option<Value>,
         response_type: ResponseType,
     ) -> Result<Self, PromptError> {
         // get version from crate
         let version = potato_util::version();
 
-        // either model and provider or model_settings must be provided
-        if (model.is_none() || provider.is_none()) && model_settings.is_none() {
-            return Err(PromptError::Error(
-                "Either model and provider or model_settings must be provided".to_string(),
-            ));
-        }
+        let model_default = Model::Undefined.as_str();
+        let provider_default = Provider::Undefined.as_str();
 
-        // If model_settings is provided, and model and provider are empty, settings must have both model and provider
-        if (model.is_none() || provider.is_none())
-            && model_settings.is_some()
-            && !model_settings.as_ref().unwrap().has_model_provider()
-        {
-            return Err(PromptError::Error(
-                    "Either model and provider or model_settings with both model and provider must be provided".to_string(),
-                ));
-        }
-
-        let model_settings = match model_settings {
-            Some(mut settings) => {
-                if settings.has_model_provider() {
-                    settings
-                } else {
-                    // unwrap model and provider from the parameters
-                    settings.model = model.unwrap_or_default().to_string();
-                    settings.provider = provider.unwrap_or_default().to_string();
-                    settings
-                }
+        // If model_settings is provided, check if it has model and provider
+        if let Some(ref mut settings) = model_settings {
+            if !settings.has_model_provider() {
+                settings.model = model.unwrap_or(model_default).to_string();
+                settings.provider = provider.unwrap_or(provider_default).to_string();
             }
+        }
+
+        // If model_settings is not provided, set model and provider to undefined if missing
+        let model_settings = match model_settings {
+            Some(settings) => settings,
             None => ModelSettings {
-                model: model.unwrap_or_default().to_string(),
-                provider: provider.unwrap_or_default().to_string(),
+                model: model.unwrap_or(model_default).to_string(),
+                provider: provider.unwrap_or(provider_default).to_string(),
                 ..Default::default()
             },
         };
 
         // extract named parameters in prompt
-        let parameters = Self::extract_variables(&user_message, &system_message);
+        let parameters = Self::extract_variables(&message, &system_instruction);
 
         Ok(Self {
-            user_message,
+            message,
             version,
-            system_message,
+            system_instruction,
             model_settings,
             response_json_schema,
             parameters,
@@ -521,21 +514,23 @@ impl Prompt {
         })
     }
 
-    fn extract_variables(
-        user_message: &Vec<Message>,
-        system_message: &Vec<Message>,
-    ) -> Vec<String> {
+    pub fn set_model(&mut self, model: &str) {
+        // Set the model in model_settings
+        self.model_settings.model = model.to_string();
+    }
+
+    fn extract_variables(message: &Vec<Message>, system_instruction: &Vec<Message>) -> Vec<String> {
         let mut variables = HashSet::new();
 
         // Check system messages
-        for message in system_message {
+        for message in system_instruction {
             for var in Message::extract_variables(&message.content) {
                 variables.insert(var);
             }
         }
 
         // Check user messages
-        for message in user_message {
+        for message in message {
             for var in Message::extract_variables(&message.content) {
                 variables.insert(var);
             }
@@ -576,7 +571,7 @@ mod tests {
         .unwrap();
 
         // Check if the prompt was created successfully
-        assert_eq!(prompt.user_message.len(), 1);
+        assert_eq!(prompt.message.len(), 1);
 
         // check prompt parameters
         assert!(prompt.parameters.len() == 2);
@@ -589,7 +584,7 @@ mod tests {
         assert_eq!(parameters[1], "param2");
 
         // bind parameter
-        let bound_msg = prompt.user_message[0].bind("param1", "Value1").unwrap();
+        let bound_msg = prompt.message[0].bind("param1", "Value1").unwrap();
         let bound_msg = bound_msg.bind("param2", "Value2").unwrap();
 
         // Check if the bound message contains the correct values
@@ -625,14 +620,14 @@ mod tests {
         .unwrap();
 
         // Check the first user message
-        if let PromptContent::Str(content) = &prompt.user_message[0].content {
+        if let PromptContent::Str(content) = &prompt.message[0].content {
             assert_eq!(content, "What company is this logo from?");
         } else {
             panic!("Expected PromptContent::Str for the first user message");
         }
 
         // Check the second user message (ImageUrl)
-        if let PromptContent::Image(image_url) = &prompt.user_message[1].content {
+        if let PromptContent::Image(image_url) = &prompt.message[1].content {
             assert_eq!(image_url.url, "https://iili.io/3Hs4FMg.png");
             assert_eq!(image_url.kind, "image-url");
         } else {
@@ -667,14 +662,14 @@ mod tests {
         .unwrap();
 
         // Check the first user message
-        if let PromptContent::Str(content) = &prompt.user_message[0].content {
+        if let PromptContent::Str(content) = &prompt.message[0].content {
             assert_eq!(content, "What company is this logo from?");
         } else {
             panic!("Expected PromptContent::Str for the first user message");
         }
 
         // Check the second user message (BinaryContent)
-        if let PromptContent::Binary(binary_content) = &prompt.user_message[1].content {
+        if let PromptContent::Binary(binary_content) = &prompt.message[1].content {
             assert_eq!(binary_content.data, image_data);
             assert_eq!(binary_content.media_type, "image/png");
             assert_eq!(binary_content.kind, "binary");
@@ -707,14 +702,14 @@ mod tests {
         .unwrap();
 
         // Check the first user message
-        if let PromptContent::Str(content) = &prompt.user_message[0].content {
+        if let PromptContent::Str(content) = &prompt.message[0].content {
             assert_eq!(content, "What is the main content of this document?");
         } else {
             panic!("Expected PromptContent::Str for the first user message");
         }
 
         // Check the second user message (DocumentUrl)
-        if let PromptContent::Document(document_url) = &prompt.user_message[1].content {
+        if let PromptContent::Document(document_url) = &prompt.message[1].content {
             assert_eq!(
                 document_url.url,
                 "https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"

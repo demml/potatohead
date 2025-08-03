@@ -10,6 +10,7 @@ use potato_prompt::{
     parse_response_to_json, prompt::parse_prompt, prompt::types::Message, ModelSettings, Prompt,
     Role,
 };
+use potato_type::Model;
 use potato_type::Provider;
 use potato_util::create_uuid7;
 use pyo3::{prelude::*, IntoPyObjectExt};
@@ -23,7 +24,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;
-use tracing::{debug, instrument, warn};
+use tracing::{debug, error, instrument, warn};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Agent {
@@ -31,27 +32,31 @@ pub struct Agent {
 
     client: GenAiClient,
 
-    pub system_message: Vec<Message>,
+    pub system_instruction: Vec<Message>,
 }
 
 /// Rust method implementation of the Agent
 impl Agent {
     pub fn new(
         provider: Provider,
-        system_message: Option<Vec<Message>>,
+        system_instruction: Option<Vec<Message>>,
     ) -> Result<Self, AgentError> {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
             Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None, None, None)?),
-            // Add other providers here as needed
+            _ => {
+                let msg = "No provider specified in ModelSettings";
+                error!("{}", msg);
+                return Err(AgentError::UndefinedError(msg.to_string()));
+            } // Add other providers here as needed
         };
 
-        let system_message = system_message.unwrap_or_default();
+        let system_instruction = system_instruction.unwrap_or_default();
 
         Ok(Self {
             client,
             id: create_uuid7(),
-            system_message,
+            system_instruction,
         })
     }
 
@@ -68,7 +73,7 @@ impl Agent {
                 if let Some(messages) = context_messages.get(dep) {
                     for message in messages {
                         // prepend the messages from dependencies
-                        task.prompt.user_message.insert(0, message.clone());
+                        task.prompt.message.insert(0, message.clone());
                     }
                 }
             }
@@ -96,7 +101,7 @@ impl Agent {
             for param in &prompt.parameters {
                 // Bind parameter context to the user message
                 if let Some(value) = parameter_context.get(param) {
-                    for message in &mut prompt.user_message {
+                    for message in &mut prompt.message {
                         if message.role == "user" {
                             debug!("Binding parameter: {} with value: {}", param, value);
                             message.bind_mut(param, &value.to_string())?;
@@ -107,7 +112,7 @@ impl Agent {
                 // If global context is provided, bind it to the user message
                 if let Some(global_value) = global_context {
                     if let Some(value) = global_value.get(param) {
-                        for message in &mut prompt.user_message {
+                        for message in &mut prompt.message {
                             if message.role == "user" {
                                 debug!("Binding global parameter: {} with value: {}", param, value);
                                 message.bind_mut(param, &value.to_string())?;
@@ -120,18 +125,18 @@ impl Agent {
         Ok(())
     }
 
-    fn append_system_messages(&self, prompt: &mut Prompt) {
-        if !self.system_message.is_empty() {
-            let mut combined_messages = self.system_message.clone();
-            combined_messages.extend(prompt.system_message.clone());
-            prompt.system_message = combined_messages;
+    fn append_system_instructions(&self, prompt: &mut Prompt) {
+        if !self.system_instruction.is_empty() {
+            let mut combined_messages = self.system_instruction.clone();
+            combined_messages.extend(prompt.system_instruction.clone());
+            prompt.system_instruction = combined_messages;
         }
     }
     pub async fn execute_task(&self, task: &Task) -> Result<AgentResponse, AgentError> {
         // Extract the prompt from the task
         debug!("Executing task: {}, count: {}", task.id, task.retry_count);
         let mut prompt = task.prompt.clone();
-        self.append_system_messages(&mut prompt);
+        self.append_system_instructions(&mut prompt);
 
         // Use the client to execute the task
         let chat_response = self.client.execute(&prompt).await?;
@@ -144,7 +149,7 @@ impl Agent {
         // Extract the prompt from the task
         debug!("Executing prompt");
         let mut prompt = prompt.clone();
-        self.append_system_messages(&mut prompt);
+        self.append_system_instructions(&mut prompt);
 
         // Use the client to execute the task
         let chat_response = self.client.execute(&prompt).await?;
@@ -165,7 +170,7 @@ impl Agent {
             self.append_task_with_message_context(&mut task, &context_messages);
             self.bind_context(&mut task.prompt, &parameter_context, &global_context)?;
 
-            self.append_system_messages(&mut task.prompt);
+            self.append_system_instructions(&mut task.prompt);
             (task.prompt.clone(), task.id.clone())
         };
 
@@ -184,12 +189,17 @@ impl Agent {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
             Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None, None, None)?),
+            Provider::Undefined => {
+                let msg = "No provider specified in ModelSettings";
+                error!("{}", msg);
+                return Err(AgentError::UndefinedError(msg.to_string()));
+            }
         };
 
         Ok(Self {
             client,
             id: create_uuid7(),
-            system_message: Vec::new(),
+            system_instruction: Vec::new(),
         })
     }
 }
@@ -202,7 +212,7 @@ impl Serialize for Agent {
         let mut state = serializer.serialize_struct("Agent", 3)?;
         state.serialize_field("id", &self.id)?;
         state.serialize_field("provider", &self.client.provider())?;
-        state.serialize_field("system_message", &self.system_message)?;
+        state.serialize_field("system_instruction", &self.system_instruction)?;
         state.end()
     }
 }
@@ -236,7 +246,7 @@ impl<'de> Deserialize<'de> for Agent {
             {
                 let mut id = None;
                 let mut provider = None;
-                let mut system_message = None;
+                let mut system_instruction = None;
 
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -247,15 +257,15 @@ impl<'de> Deserialize<'de> for Agent {
                             provider = Some(map.next_value()?);
                         }
                         Field::SystemMessage => {
-                            system_message = Some(map.next_value()?);
+                            system_instruction = Some(map.next_value()?);
                         }
                     }
                 }
 
                 let id = id.ok_or_else(|| de::Error::missing_field("id"))?;
                 let provider = provider.ok_or_else(|| de::Error::missing_field("provider"))?;
-                let system_message =
-                    system_message.ok_or_else(|| de::Error::missing_field("system_message"))?;
+                let system_instruction = system_instruction
+                    .ok_or_else(|| de::Error::missing_field("system_instruction"))?;
 
                 // Re-initialize the client based on the provider
                 let client = match provider {
@@ -269,17 +279,23 @@ impl<'de> Deserialize<'de> for Agent {
                             de::Error::custom(format!("Failed to initialize GeminiClient: {e}"))
                         })?)
                     }
+
+                    Provider::Undefined => {
+                        let msg = "No provider specified in ModelSettings";
+                        error!("{}", msg);
+                        return Err(de::Error::custom(msg));
+                    }
                 };
 
                 Ok(Agent {
                     id,
                     client,
-                    system_message,
+                    system_instruction,
                 })
             }
         }
 
-        const FIELDS: &[&str] = &["id", "provider", "system_message"];
+        const FIELDS: &[&str] = &["id", "provider", "system_instruction"];
         deserializer.deserialize_struct("Agent", FIELDS, AgentVisitor)
     }
 }
@@ -294,7 +310,7 @@ pub struct PyAgent {
 #[pymethods]
 impl PyAgent {
     #[new]
-    #[pyo3(signature = (provider, system_message = None))]
+    #[pyo3(signature = (provider, system_instruction = None))]
     /// Creates a new Agent instance.
     ///
     /// # Arguments:
@@ -303,13 +319,13 @@ impl PyAgent {
     ///
     pub fn new(
         provider: &Bound<'_, PyAny>,
-        system_message: Option<&Bound<'_, PyAny>>,
+        system_instruction: Option<&Bound<'_, PyAny>>,
     ) -> Result<Self, AgentError> {
         let provider = Provider::extract_provider(provider)?;
 
-        let system_message = if let Some(system_message) = system_message {
+        let system_instruction = if let Some(system_instruction) = system_instruction {
             Some(
-                parse_prompt(system_message)?
+                parse_prompt(system_instruction)?
                     .into_iter()
                     .map(|mut msg| {
                         msg.role = Role::Developer.to_string();
@@ -321,7 +337,7 @@ impl PyAgent {
             None
         };
 
-        let agent = Agent::new(provider, system_message)?;
+        let agent = Agent::new(provider, system_instruction)?;
 
         Ok(Self {
             agent: Arc::new(agent),
@@ -332,15 +348,17 @@ impl PyAgent {
         })
     }
 
-    #[pyo3(signature = (task, output_type=None))]
+    #[pyo3(signature = (task, output_type=None, model=None))]
     pub fn execute_task(
         &self,
         py: Python<'_>,
         task: &mut Task,
         output_type: Option<Bound<'_, PyAny>>,
+        model: Option<&str>,
     ) -> Result<PyAgentResponse, AgentError> {
         // Extract the prompt from the task
         debug!("Executing task");
+
         // if output_type is not None,  mutate task prompt
         if let Some(output_type) = &output_type {
             match parse_response_to_json(py, output_type) {
@@ -354,6 +372,18 @@ impl PyAgent {
             }
         }
 
+        // if model is none and task.prompt.model is None, fail
+        if model.is_none() && task.prompt.model() == Model::Undefined.as_str() {
+            return Err(AgentError::UndefinedError(
+                "Model must be specified either as an argument or in the Task prompt".to_string(),
+            ));
+        }
+
+        // if model is not None, set task prompt model (this will override the task prompt model)
+        if let Some(model) = model {
+            task.prompt.set_model(model);
+        }
+
         let chat_response = self
             .runtime
             .block_on(async { self.agent.execute_task(task).await })?;
@@ -365,12 +395,13 @@ impl PyAgent {
         Ok(response)
     }
 
-    #[pyo3(signature = (prompt, output_type=None))]
+    #[pyo3(signature = (prompt, output_type=None, model=None))]
     pub fn execute_prompt(
         &self,
         py: Python<'_>,
         prompt: &mut Prompt,
         output_type: Option<Bound<'_, PyAny>>,
+        model: Option<&str>,
     ) -> Result<PyAgentResponse, AgentError> {
         // Extract the prompt from the task
         debug!("Executing task");
@@ -387,6 +418,18 @@ impl PyAgent {
             }
         }
 
+        // if model is none and task.prompt.model is None, fail
+        if model.is_none() && prompt.model() == Model::Undefined.as_str() {
+            return Err(AgentError::UndefinedError(
+                "Model must be specified either as an argument or in the Task prompt".to_string(),
+            ));
+        }
+
+        // if model is not None, set task prompt model (this will override the task prompt model)
+        if let Some(model) = model {
+            prompt.set_model(model);
+        }
+
         let chat_response = self
             .runtime
             .block_on(async { self.agent.execute_prompt(prompt).await })?;
@@ -399,8 +442,15 @@ impl PyAgent {
     }
 
     #[getter]
-    pub fn system_message<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
-        Ok(self.agent.system_message.clone().into_bound_py_any(py)?)
+    pub fn system_instruction<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyAny>, AgentError> {
+        Ok(self
+            .agent
+            .system_instruction
+            .clone()
+            .into_bound_py_any(py)?)
     }
 
     #[getter]

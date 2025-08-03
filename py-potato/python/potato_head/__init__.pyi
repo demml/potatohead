@@ -189,7 +189,9 @@ class DocumentUrl:
         """The format of the document URL."""
 
 class Message:
-    def __init__(self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl) -> None:
+    def __init__(
+        self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl
+    ) -> None:
         """Create a Message object.
 
         Args:
@@ -210,13 +212,13 @@ class Message:
             ```python
                 prompt = Prompt(
                     model="openai:gpt-4o",
-                    user_message=[
+                    message=[
                         "My prompt variable is ${variable}",
                         "This is another message",
                     ],
-                    system_message="system_prompt",
+                    system_instruction="system_prompt",
                 )
-                bounded_prompt = prompt.user_message[0].bind("variable", "hello world").unwrap() # we bind "hello world" to "variable"
+                bounded_prompt = prompt.message[0].bind("variable", "hello world").unwrap() # we bind "hello world" to "variable"
             ```
 
         Args:
@@ -239,13 +241,13 @@ class Message:
             ```python
                 prompt = Prompt(
                     model="openai:gpt-4o",
-                    user_message=[
+                    message=[
                         "My prompt variable is ${variable}",
                         "This is another message",
                     ],
-                    system_message="system_prompt",
+                    system_instruction="system_prompt",
                 )
-                prompt.user_message[0].bind_mut("variable", "hello world") # we bind "hello world" to "variable"
+                prompt.message[0].bind_mut("variable", "hello world") # we bind "hello world" to "variable"
             ```
 
         Args:
@@ -387,7 +389,7 @@ class ModelSettings:
 class Prompt:
     def __init__(
         self,
-        user_message: (
+        message: (
             str
             | Sequence[str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl]
             | Message
@@ -396,20 +398,20 @@ class Prompt:
         ),
         model: Optional[str] = None,
         provider: Optional[str] = None,
-        system_message: Optional[str | List[str]] = None,
+        system_instruction: Optional[str | List[str]] = None,
         model_settings: Optional[ModelSettings] = None,
         response_format: Optional[Any] = None,
     ) -> None:
         """Prompt for interacting with an LLM API.
 
         Args:
-            user_message (str | Sequence[str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl] | Message | List[Message]):
+            message (str | Sequence[str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl] | Message | List[Message]):
                 The prompt to use.
             model (str | None):
                 The model to use for the prompt. Required if model_settings is not provided.
             provider (str | None):
                 The provider to use for the prompt. Required if model_settings is not provided.
-            system_message (Optional[str | List[str]]):
+            system_instruction (Optional[str | List[str]]):
                 The system prompt to use in the prompt.
             model_settings (None):
                 The model settings to use for the prompt.
@@ -438,13 +440,13 @@ class Prompt:
             ```python
                 prompt = Prompt(
                     model="gpt-4o",
-                    user_message="My prompt variable is ${variable}",
-                    system_message="system_message",
+                    message="My prompt variable is ${variable}",
+                    system_instruction="system_instruction",
                     provider="openai",
                 )
                 agent = Agent(
                     prompt.model_identifier, # "openai:gpt-4o"
-                    system_messages=prompt.system_message[0].unwrap(),
+                    system_instructions=prompt.system_instruction[0].unwrap(),
                 )
             ```
         """
@@ -454,13 +456,13 @@ class Prompt:
         """The model settings to use for the prompt."""
 
     @property
-    def user_message(
+    def message(
         self,
     ) -> List[Message]:
         """The user message to use in the prompt."""
 
     @property
-    def system_message(self) -> List[Message]:
+    def system_instruction(self) -> List[Message]:
         """The system message to use in the prompt."""
 
     def save_prompt(self, path: Optional[Path] = None) -> None:
@@ -650,7 +652,7 @@ class Agent:
     def __init__(
         self,
         provider: Provider | str,
-        system_message: Optional[str | List[str] | Message | List[Message]] = None,
+        system_instruction: Optional[str | List[str] | Message | List[Message]] = None,
     ) -> None:
         """Create an Agent object.
 
@@ -658,7 +660,7 @@ class Agent:
             provider (Provider | str):
                 The provider to use for the agent. This can be a Provider enum or a string
                 representing the provider.
-            system_message (Optional[str | List[str] | Message | List[Message]]):
+            system_instruction (Optional[str | List[str] | Message | List[Message]]):
                 The system message to use for the agent. This can be a string, a list of strings,
                 a Message object, or a list of Message objects. If None, no system message will be used.
                 This is added to all tasks that the agent executes. If a given task contains it's own
@@ -668,13 +670,13 @@ class Agent:
         ```python
             agent = Agent(
                 provider=Provider.OpenAI,
-                system_message="You are a helpful assistant.",
+                system_instruction="You are a helpful assistant.",
             )
         ```
         """
 
     @property
-    def system_message(self) -> List[Message]:
+    def system_instruction(self) -> List[Message]:
         """The system message to use for the agent. This is a list of Message objects."""
 
     def execute_task(
@@ -832,7 +834,9 @@ class Workflow:
         """
 
     @staticmethod
-    def model_validate_json(json_string: str, output_types: Optional[Dict[str, Any]]) -> "Workflow":
+    def model_validate_json(
+        json_string: str, output_types: Optional[Dict[str, Any]]
+    ) -> "Workflow":
         """Load a workflow from a JSON string.
 
         Args:
@@ -956,8 +960,8 @@ class Score:
     ```python
         Prompt(
             model="openai:gpt-4o",
-            user_message="What is the score of this response?",
-            system_message="system_prompt",
+            message="What is the score of this response?",
+            system_instruction="system_prompt",
             response_format=Score,
         )
     ```

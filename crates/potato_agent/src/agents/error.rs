@@ -69,6 +69,9 @@ pub enum AgentError {
 
     #[error("Failed to create tokio runtime: {0}")]
     RuntimeError(String),
+
+    #[error("Undefined error: {0}")]
+    UndefinedError(String),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {

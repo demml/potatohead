@@ -35,23 +35,23 @@ class Prompts:
 def test_simple_workflow(prompt_step1: Prompt):
     agent = PydanticAgent(
         prompt_step1.model_identifier,
-        system_prompt=prompt_step1.system_message[0].unwrap(),
+        system_prompt=prompt_step1.system_instruction[0].unwrap(),
     )
 
     with agent.override(model=TestModel()):
-        agent.run_sync(prompt_step1.user_message[0].unwrap())
+        agent.run_sync(prompt_step1.message[0].unwrap())
 
 
 def test_simple_dep_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
     agent = PydanticAgent(
         prompt_step1.model_identifier,
-        system_prompt=prompt_step1.system_message[0].unwrap(),
+        system_prompt=prompt_step1.system_instruction[0].unwrap(),
         deps_type=Prompts,
     )
 
     @agent.system_prompt
-    def get_system_message(ctx: RunContext[Prompts]) -> str:
-        return ctx.deps.prompt_step1.system_message[0].unwrap()
+    def get_system_instruction(ctx: RunContext[Prompts]) -> str:
+        return ctx.deps.prompt_step1.system_instruction[0].unwrap()
 
     with agent.override(model=TestModel()):
         agent.run_sync(
@@ -66,13 +66,13 @@ def test_simple_dep_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
 def test_binding_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
     agent = PydanticAgent(
         "openai:gpt-4o",
-        system_prompt=prompt_step1.system_message[0].unwrap(),
+        system_prompt=prompt_step1.system_instruction[0].unwrap(),
         deps_type=Prompts,
     )
 
     @agent.tool
     def bind_context(ctx: RunContext[Prompts], search_query: str) -> str:
-        bound = ctx.deps.prompt_step1.user_message[0].bind("1", search_query).unwrap()
+        bound = ctx.deps.prompt_step1.message[0].bind("1", search_query).unwrap()
         return bound
 
     with agent.override(model=TestModel()):
@@ -91,8 +91,8 @@ def test_binding_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
 def test_potato_head_task_execution():
     with LLMTestServer():
         prompt = Prompt(
-            user_message="Hello, how are you?",
-            system_message="You are a helpful assistant.",
+            message="Hello, how are you?",
+            system_instruction="You are a helpful assistant.",
             model="gpt-4o",
             provider="openai",
         )
@@ -103,8 +103,8 @@ def test_potato_head_task_execution():
 def test_potato_head_workflow():
     with LLMTestServer():
         prompt = Prompt(
-            user_message="Hello, how are you?",
-            system_message="You are a helpful assistant.",
+            message="Hello, how are you?",
+            system_instruction="You are a helpful assistant.",
             model="gpt-4o",
             provider="openai",
         )
@@ -112,7 +112,9 @@ def test_potato_head_workflow():
         open_agent1 = Agent(Provider.OpenAI)
         open_agent2 = Agent(Provider.OpenAI)
 
-        workflow = Workflow(name="test_workflow")  # expand named argument to allow agents and tasks
+        workflow = Workflow(
+            name="test_workflow"
+        )  # expand named argument to allow agents and tasks
         workflow.add_agent(open_agent1)  # allow adding list of agents
         workflow.add_agent(open_agent2)
         workflow.add_task(  # allow adding list of tasks
@@ -163,8 +165,8 @@ def test_potato_head_workflow():
 def test_potato_head_structured_output():
     with LLMTestServer():
         prompt = Prompt(
-            user_message="Hello, how are you?",
-            system_message="You are a helpful assistant.",
+            message="Hello, how are you?",
+            system_instruction="You are a helpful assistant.",
             model="gpt-4o",
             provider="openai",
             response_format=StructuredTaskOutput,
@@ -182,8 +184,8 @@ def test_potato_head_structured_output():
 def test_potato_head_workflow_structured_output():
     with LLMTestServer():
         prompt = Prompt(
-            user_message="Hello, how are you?",
-            system_message="You are a helpful assistant.",
+            message="Hello, how are you?",
+            system_instruction="You are a helpful assistant.",
             model="gpt-4o",
             provider="openai",
         )
@@ -191,7 +193,9 @@ def test_potato_head_workflow_structured_output():
         open_agent1 = Agent(Provider.OpenAI)
         open_agent2 = Agent(Provider.OpenAI)
 
-        workflow = Workflow(name="test_workflow")  # expand named argument to allow agents and tasks
+        workflow = Workflow(
+            name="test_workflow"
+        )  # expand named argument to allow agents and tasks
         workflow.add_agent(open_agent1)  # allow adding list of agents
         workflow.add_agent(open_agent2)
         workflow.add_task(  # allow adding list of tasks
@@ -250,8 +254,8 @@ def test_potato_head_workflow_structured_output():
 def test_potato_head_structured_output_score_openai():
     with LLMTestServer():
         prompt = Prompt(
-            user_message="Hello, how are you?",
-            system_message="You are a helpful assistant.",
+            message="Hello, how are you?",
+            system_instruction="You are a helpful assistant.",
             model="gpt-4o",
             provider="openai",
             response_format=Score,
@@ -271,8 +275,8 @@ def test_potato_head_structured_output_score_openai():
 def test_potato_head_structured_output_score_gemini():
     with LLMTestServer():
         prompt = Prompt(
-            user_message="Hello, how are you?",
-            system_message="You are a helpful assistant.",
+            message="Hello, how are you?",
+            system_instruction="You are a helpful assistant.",
             model="gemini-2.5-flash",
             provider="gemini",
             response_format=Score,
@@ -292,8 +296,8 @@ def test_potato_head_structured_output_score_gemini():
 def test_potato_head_execute_prompt():
     with LLMTestServer():
         prompt = Prompt(
-            user_message="Hello, how are you?",
-            system_message="You are a helpful assistant.",
+            message="Hello, how are you?",
+            system_instruction="You are a helpful assistant.",
             model="gpt-4o",
             provider="openai",
             response_format=Score,
@@ -309,8 +313,8 @@ def test_workflow_param_binding():
     with LLMTestServer():
         # this should return a Score object
         start_prompt = Prompt(
-            user_message="Hello, how are you?",
-            system_message="You are a helpful assistant.",
+            message="Hello, how are you?",
+            system_instruction="You are a helpful assistant.",
             model="gpt-4o",
             provider="openai",
             response_format=Score,
@@ -319,13 +323,15 @@ def test_workflow_param_binding():
         # this should receive the score and reason from the previous step returned response
         # we assert this at the end of the test
         param_prompt = Prompt(
-            user_message="The score is ${score} and the reason is ${reason}.",
+            message="The score is ${score} and the reason is ${reason}.",
             model="gpt-4o",
             provider="openai",
         )
 
         agent = Agent(Provider.OpenAI)
-        workflow = Workflow(name="test_workflow")  # expand named argument to allow agents and tasks
+        workflow = Workflow(
+            name="test_workflow"
+        )  # expand named argument to allow agents and tasks
         workflow.add_agent(agent)
         workflow.add_task(
             Task(
@@ -346,14 +352,14 @@ def test_workflow_param_binding():
         result = workflow.run()
 
         # param task should contain first task output as context
-        assert len(result.tasks["param_task"].prompt.user_message) == 2
+        assert len(result.tasks["param_task"].prompt.message) == 2
 
 
 def test_potato_head_workflow_serialization():
     with LLMTestServer():
         prompt = Prompt(
-            user_message="Hello, how are you?",
-            system_message="You are a helpful assistant.",
+            message="Hello, how are you?",
+            system_instruction="You are a helpful assistant.",
             model="gpt-4o",
             provider="openai",
         )

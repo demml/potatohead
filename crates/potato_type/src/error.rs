@@ -10,6 +10,9 @@ pub enum TypeError {
 
     #[error("Unknown provider: {0}")]
     UnknownProviderError(String),
+
+    #[error("Unknown model: {0}")]
+    UnknownModelError(String),
 }
 
 impl From<TypeError> for PyErr {

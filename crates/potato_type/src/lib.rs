@@ -14,9 +14,30 @@ use tracing::error;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[pyclass]
+pub enum Model {
+    Undefined,
+}
+
+impl Model {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Model::Undefined => "undefined",
+        }
+    }
+
+    pub fn from_string(s: &str) -> Result<Self, TypeError> {
+        match s.to_lowercase().as_str() {
+            "undefined" => Ok(Model::Undefined),
+            _ => Err(TypeError::UnknownModelError(s.to_string())),
+        }
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[pyclass]
 pub enum Provider {
     OpenAI,
     Gemini,
+    Undefined, // Added Undefined for better error handling
 }
 
 impl Provider {
@@ -24,6 +45,10 @@ impl Provider {
         match self {
             Provider::OpenAI => "https://api.openai.com/v1",
             Provider::Gemini => "https://generativelanguage.googleapis.com/v1beta/models",
+            Provider::Undefined => {
+                error!("Undefined provider URL requested");
+                "https://undefined.provider.url"
+            }
         }
     }
 
@@ -31,6 +56,7 @@ impl Provider {
         match s.to_lowercase().as_str() {
             "openai" => Ok(Provider::OpenAI),
             "gemini" => Ok(Provider::Gemini),
+            "undefined" => Ok(Provider::Undefined), // Handle undefined case
             _ => Err(TypeError::UnknownProviderError(s.to_string())),
         }
     }
@@ -56,6 +82,14 @@ impl Provider {
                     error!("Failed to convert string to provider: {}", e);
                 })?)
             }
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            Provider::OpenAI => "openai",
+            Provider::Gemini => "gemini",
+            Provider::Undefined => "undefined", // Added Undefined case
         }
     }
 }

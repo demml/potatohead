@@ -151,7 +151,7 @@ fn test_parameterized_workflow() {
         .is_empty());
 
     let binding = result.read().unwrap().task_list.get_task("task2").unwrap();
-    let task2_output = &binding.read().unwrap().prompt.user_message;
+    let task2_output = &binding.read().unwrap().prompt.message;
 
     // assert task2_output len is 2
     assert_eq!(task2_output.len(), 2);

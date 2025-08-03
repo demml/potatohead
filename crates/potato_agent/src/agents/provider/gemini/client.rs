@@ -69,7 +69,7 @@ impl GeminiClient {
     /// that allows you to interact with the OpenAI API without needing Python.
     ///
     /// # Arguments:
-    /// * `user_messages`: A slice of `Message` objects representing user messages.
+    /// * `messages`: A slice of `Message` objects representing user messages.
     /// * `developer_messages`: A slice of `Message` objects representing developer messages.
     /// * `settings`: A reference to `ModelSettings` containing model configuration.
     ///
@@ -85,17 +85,17 @@ impl GeminiClient {
 
         // get the user messages from the prompt first
         let contents: Vec<Content> = prompt
-            .user_message
+            .message
             .iter()
             .map(Content::from_message)
             .collect::<Result<Vec<_>, _>>()?;
 
         // system messages are optional and can only be content with multiple parts
-        let system_instruction: Option<Content> = if prompt.system_message.is_empty() {
+        let system_instruction: Option<Content> = if prompt.system_instruction.is_empty() {
             None
         } else {
             let parts: Result<Vec<Part>, AgentError> = prompt
-                .system_message
+                .system_instruction
                 .iter()
                 .map(Part::from_message)
                 .collect();
