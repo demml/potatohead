@@ -130,6 +130,21 @@ impl Workflow {
         events
     }
 
+    pub fn total_duration(&self) -> i32 {
+        let tracker = self.event_tracker.read().unwrap();
+
+        if tracker.is_empty() {
+            0
+        } else {
+            //iter over each tracker event and get the details for each task event and get duration
+            let mut total_duration = chrono::Duration::zero();
+            for event in tracker.events.read().unwrap().iter() {
+                total_duration += event.details.duration.unwrap_or(chrono::Duration::zero());
+            }
+            total_duration.subsec_millis()
+        }
+    }
+
     pub fn get_new_workflow(&self, global_context: Option<Value>) -> Result<Self, WorkflowError> {
         // set new id for the new workflow
         let id = create_uuid7();

@@ -114,6 +114,8 @@ fn test_parameterized_workflow() {
     // assert original workflow is unmodified
     assert_eq!(workflow.task_list.len(), 2);
     assert_eq!(workflow.pending_count(), 2);
+    // assert result.total_duration is greater than 0
+    assert!(result.read().unwrap().total_duration() > 0);
 
     // assert result id is not the same as workflow id
     assert_ne!(result.read().unwrap().id, workflow.id);
