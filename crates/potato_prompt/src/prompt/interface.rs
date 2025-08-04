@@ -519,6 +519,11 @@ impl Prompt {
         self.model_settings.model = model.to_string();
     }
 
+    pub fn set_provider(&mut self, provider: &str) {
+        // Set the provider in model_settings
+        self.model_settings.provider = provider.to_string();
+    }
+
     fn extract_variables(message: &Vec<Message>, system_instruction: &Vec<Message>) -> Vec<String> {
         let mut variables = HashSet::new();
 

@@ -189,9 +189,7 @@ class DocumentUrl:
         """The format of the document URL."""
 
 class Message:
-    def __init__(
-        self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl
-    ) -> None:
+    def __init__(self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl) -> None:
         """Create a Message object.
 
         Args:
@@ -299,8 +297,10 @@ class ModelSettings:
         Args:
             model (Optional[str]):
                 The model to use. This is required if model is not provided in the prompt.
+                If not provided, defaults to `undefined`.
             provider (Optional[str]):
                 The provider to use. This is required if provider is not provided in the prompt.
+                If not provided, defaults to `undefined`.
             max_tokens (Optional[int]):
                 The maximum number of tokens to generate.
             temperature (Optional[float]):
@@ -409,8 +409,10 @@ class Prompt:
                 The prompt to use.
             model (str | None):
                 The model to use for the prompt. Required if model_settings is not provided.
+                If not provided, defaults to `undefined`.
             provider (str | None):
                 The provider to use for the prompt. Required if model_settings is not provided.
+                If not provided, defaults `undefined`.
             system_instruction (Optional[str | List[str]]):
                 The system prompt to use in the prompt.
             model_settings (None):
@@ -421,6 +423,7 @@ class Prompt:
                 (https://platform.openai.com/docs/guides/structured-outputs?api-mode=chat).
                 Currently, response_format only support Pydantic BaseModel classes and the PotatoHead Score class.
                 The provided response_format will be parsed into a JSON schema.
+
         """
 
     @property
@@ -683,6 +686,7 @@ class Agent:
         self,
         task: Task,
         output_type: Optional[Any] = None,
+        model: Optional[str] = None,
     ) -> AgentResponse:
         """Execute a task.
 
@@ -692,6 +696,9 @@ class Agent:
             output_type (Optional[Any]):
                 The output type to use for the task. This can either be a Pydantic `BaseModel` class
                 or a supported PotatoHead response type such as `Score`.
+            model (Optional[str]):
+                The model to use for the task. If not provided, defaults to the `model` provided within
+                the Task's prompt. If the Task's prompt does not have a model, an error will be raised.
 
         Returns:
             AgentResponse:
@@ -702,15 +709,19 @@ class Agent:
         self,
         prompt: Prompt,
         output_type: Optional[Any] = None,
+        model: Optional[str] = None,
     ) -> AgentResponse:
         """Execute a prompt.
 
         Args:
-            prompt (Prompt):
+            prompt (Prompt):`
                 The prompt to execute.
             output_type (Optional[Any]):
                 The output type to use for the task. This can either be a Pydantic `BaseModel` class
                 or a supported potato_head response type such as `Score`.
+            model (Optional[str]):
+                The model to use for the task. If not provided, defaults to the `model` provided within
+                the Prompt. If the Prompt does not have a model, an error will be raised.
 
         Returns:
             AgentResponse:
@@ -834,9 +845,7 @@ class Workflow:
         """
 
     @staticmethod
-    def model_validate_json(
-        json_string: str, output_types: Optional[Dict[str, Any]]
-    ) -> "Workflow":
+    def model_validate_json(json_string: str, output_types: Optional[Dict[str, Any]]) -> "Workflow":
         """Load a workflow from a JSON string.
 
         Args:

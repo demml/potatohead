@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 from typing import List
 
+import pytest
 from potato_head import (  # type: ignore
     Agent,
     Prompt,
@@ -11,11 +12,15 @@ from potato_head import (  # type: ignore
     TaskStatus,
     Workflow,
 )
+from potato_head.logging import LoggingConfig, LogLevel, RustyLogger  # type: ignore
 from potato_head.mock import LLMTestServer  # type: ignore
 from pydantic import BaseModel
 from pydantic_ai import Agent as PydanticAgent
 from pydantic_ai import RunContext, models
 from pydantic_ai.models.test import TestModel
+
+# Sets up logging for tests
+RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
 
 models.ALLOW_MODEL_REQUESTS = False
 os.environ["OPENAI_API_KEY"] = "mock_api_key"
@@ -98,6 +103,34 @@ def test_potato_head_task_execution():
         )
         agent = Agent(Provider.OpenAI)
         agent.execute_task(Task(prompt=prompt, agent_id=agent.id, id="task1"))
+
+
+def test_potato_agent_no_model():
+    with LLMTestServer():
+        prompt = Prompt(
+            message="Hello, how are you?",
+            system_instruction="You are a helpful assistant.",
+        )
+        agent = Agent(Provider.OpenAI)
+
+        with pytest.raises(
+            RuntimeError,
+            match="Undefined error: Model must be specified either as an argument or in the Task prompt",
+        ):
+            agent.execute_task(Task(prompt=prompt, agent_id=agent.id, id="task1"))
+
+        with pytest.raises(
+            RuntimeError,
+            match="Undefined error: Model must be specified either as an argument or in the Prompt",
+        ):
+            agent.execute_prompt(prompt=prompt)
+
+        agent.execute_task(
+            Task(prompt=prompt, agent_id=agent.id, id="task1"),
+            model="gpt-4o",
+        )
+
+        agent.execute_prompt(prompt=prompt, model="gpt-4o")
 
 
 def test_potato_head_workflow():

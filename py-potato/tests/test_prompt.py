@@ -150,9 +150,7 @@ def test_document_prompt():
         provider="openai",
         message=[
             "What is the main content of this document?",
-            DocumentUrl(
-                url="https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"
-            ),
+            DocumentUrl(url="https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"),
         ],
         system_instruction="system_prompt",
     )
@@ -194,3 +192,12 @@ def test_prompt_response_format():
     )
 
     assert prompt.response_json_schema is not None
+
+
+def test_prompt_no_args():
+    prompt = Prompt(
+        message="My prompt",
+        system_instruction="system_prompt",
+    )
+
+    assert prompt.message[0].unwrap() == "My prompt"

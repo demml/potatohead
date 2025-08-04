@@ -228,7 +228,7 @@ impl<'de> Deserialize<'de> for Agent {
         enum Field {
             Id,
             Provider,
-            SystemMessage,
+            SystemInstruction,
         }
 
         struct AgentVisitor;
@@ -256,7 +256,7 @@ impl<'de> Deserialize<'de> for Agent {
                         Field::Provider => {
                             provider = Some(map.next_value()?);
                         }
-                        Field::SystemMessage => {
+                        Field::SystemInstruction => {
                             system_instruction = Some(map.next_value()?);
                         }
                     }
@@ -384,6 +384,14 @@ impl PyAgent {
             task.prompt.set_model(model);
         }
 
+        // check if prompt.provider is None, if so, set it to the agent provider
+        if task.prompt.provider() == Model::Undefined.as_str() {
+            task.prompt.set_provider(self.agent.provider().as_str());
+        }
+
+        println!("Task prompt model: {}", task.prompt.model());
+        println!("Task prompt provider: {}", task.prompt.provider());
+
         let chat_response = self
             .runtime
             .block_on(async { self.agent.execute_task(task).await })?;
@@ -421,13 +429,17 @@ impl PyAgent {
         // if model is none and task.prompt.model is None, fail
         if model.is_none() && prompt.model() == Model::Undefined.as_str() {
             return Err(AgentError::UndefinedError(
-                "Model must be specified either as an argument or in the Task prompt".to_string(),
+                "Model must be specified either as an argument or in the Prompt".to_string(),
             ));
         }
 
         // if model is not None, set task prompt model (this will override the task prompt model)
         if let Some(model) = model {
             prompt.set_model(model);
+        }
+
+        if prompt.provider() == Model::Undefined.as_str() {
+            prompt.set_provider(self.agent.provider().as_str());
         }
 
         let chat_response = self
