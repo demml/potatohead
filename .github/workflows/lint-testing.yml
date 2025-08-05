@@ -68,14 +68,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Create virtual environment
-        working-directory: ./py-opsml
+        working-directory: ./py-potato
         run: make setup.project
 
       - name: Lints
-        working-directory: ./py-opsml
+        working-directory: ./py-potato
         run: make lints.ci
 
       - name: Run tests and report coverage
-        working-directory: ./py-opsml
+        working-directory: ./py-potato
         run: |
           make test.unit
