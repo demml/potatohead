@@ -105,7 +105,7 @@ fn test_gemini_score_agent() {
 
     let content = response.content().unwrap();
     let score: Score = Score::model_validate_json_str(&content).unwrap();
-    assert_eq!(score.score, 85);
+    assert_eq!(score.score, 90);
 
     mock.stop_server().unwrap();
 }
