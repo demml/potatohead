@@ -35,3 +35,47 @@ jobs:
         run: make test
         env:
           RUST_BACKTRACE: 1
+
+  test-python:
+    name: test ${{ matrix.os }}-${{ matrix.python-version }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu, macos]
+        python-version: ["3.10", "3.11", "3.12"]
+
+    runs-on: ${{ matrix.os }}-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}-${{ matrix.python-version }}-v1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Create virtual environment
+        working-directory: ./py-potato
+        run: make setup.project
+
+      - name: Lints
+        working-directory: ./py-potato
+        run: make lints.ci
+
+      - name: Run tests and report coverage
+        working-directory: ./py-potato
+        run: |
+          make test.unit
