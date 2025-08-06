@@ -3,6 +3,7 @@ name = "baked-potato"
 version = { workspace = true }
 edition = "2021"
 description = "Test module for all potato crates"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
