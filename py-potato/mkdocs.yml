@@ -55,6 +55,7 @@ nav:
   - Overview: "index.md"
   - Prompts: "prompts.md"
   - Providers: "providers.md"
+  - Workflows: "workflow.md"
 
 markdown_extensions:
   - tables
