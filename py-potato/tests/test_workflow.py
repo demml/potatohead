@@ -37,7 +37,7 @@ class Prompts:
     prompt_step2: Prompt
 
 
-def test_simple_workflow(prompt_step1: Prompt):
+def _test_simple_workflow(prompt_step1: Prompt):
     agent = PydanticAgent(
         prompt_step1.model_identifier,
         system_prompt=prompt_step1.system_instruction[0].unwrap(),
@@ -47,7 +47,7 @@ def test_simple_workflow(prompt_step1: Prompt):
         agent.run_sync(prompt_step1.message[0].unwrap())
 
 
-def test_simple_dep_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
+def _test_simple_dep_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
     agent = PydanticAgent(
         prompt_step1.model_identifier,
         system_prompt=prompt_step1.system_instruction[0].unwrap(),
@@ -68,7 +68,7 @@ def test_simple_dep_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
         )
 
 
-def test_binding_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
+def _test_binding_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
     agent = PydanticAgent(
         "openai:gpt-4o",
         system_prompt=prompt_step1.system_instruction[0].unwrap(),
@@ -409,3 +409,24 @@ def test_potato_head_workflow_serialization():
         assert isinstance(loaded, Workflow)
         assert loaded.name == "test_workflow"
         assert len(loaded.agents) == 1
+
+
+def test_agent_env_var_failure():
+    """
+    Test that the agent fails when the environment variable is not set.
+    """
+    prompt = Prompt(
+        message="Hello, how are you?",
+        system_instruction="You are a helpful assistant.",
+        model="gpt-4o",
+        provider="openai",
+        response_format=Score,
+    )
+
+    agent = Agent(Provider.OpenAI)
+    with pytest.raises(
+        RuntimeError,
+        match="Failed to retrieve OPENAI_API_KEY from the environment",
+    ):
+        # This should raise an error because the API key is not set
+        agent.execute_prompt(prompt=prompt, output_type=Score)

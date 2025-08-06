@@ -295,6 +295,7 @@ impl LLMTestServer {
 
     fn __enter__(mut self_: PyRefMut<Self>) -> Result<PyRefMut<Self>, MockError> {
         self_.start_server()?;
+
         Ok(self_)
     }
 

@@ -32,6 +32,25 @@ impl Model {
         }
     }
 }
+
+pub enum Common {
+    Undefined,
+}
+
+impl Common {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Common::Undefined => "undefined",
+        }
+    }
+}
+
+impl Display for Common {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[pyclass]
 pub enum Provider {
