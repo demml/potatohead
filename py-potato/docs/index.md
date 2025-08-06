@@ -52,6 +52,8 @@ response = agent.execute_prompt(prompt=prompt) # (2)
 
 
 print(response.result)
+# Why did the potato win the talent show?
+# Because it was outstanding in its field!
 ```
 
 1. Create an agent with the provider you want to use

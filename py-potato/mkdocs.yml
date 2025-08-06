@@ -53,6 +53,8 @@ repo_name: potatohead
 repo_url: https://github.com/demml/potatohead
 nav:
   - Overview: "index.md"
+  - Prompts: "prompts.md"
+  - Providers: "providers.md"
 
 markdown_extensions:
   - tables
