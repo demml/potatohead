@@ -1501,7 +1501,7 @@ wheels = [
 
 [[package]]
 name = "potato-head"
-version = "0.0.1"
+version = "0.3.0"
 source = { editable = "." }
 
 [package.dev-dependencies]
