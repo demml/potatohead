@@ -4,6 +4,7 @@ use crate::agents::provider::gemini::{
 };
 use crate::agents::provider::types::build_http_client;
 use potato_prompt::Prompt;
+use potato_type::Common;
 use potato_type::Provider;
 use reqwest::Client;
 use std::collections::HashMap;
@@ -14,6 +15,7 @@ pub struct GeminiClient {
     client: Client,
     api_key: String,
     base_url: String,
+    api_key_set: bool, // Indicates if the API key was set or not
     pub provider: Provider,
 }
 
@@ -42,12 +44,18 @@ impl GeminiClient {
     ) -> Result<Self, AgentError> {
         let client = build_http_client(headers)?;
 
-        //  if optional api_key is None, check the environment variable `GEMINI_API_KEY`
-        let api_key = match api_key {
-            Some(key) => key,
-            None => {
-                std::env::var("GEMINI_API_KEY").map_err(AgentError::MissingGeminiApiKeyError)?
-            }
+        let (api_key, api_key_set) = match api_key {
+            // If api_key is provided, use it
+            Some(key) => (key, true),
+
+            // If api_key is None, check the environment variable
+            None => match std::env::var("GEMINI_API_KEY") {
+                // If the environment variable is set, use it
+                Ok(env_key) if !env_key.is_empty() => (env_key, true),
+
+                // If the environment variable is not set, use a placeholder and set api_key_set to false
+                _ => (Common::Undefined.to_string(), false),
+            },
         };
 
         // if optional base_url is None, use the default Gemini API URL
@@ -62,6 +70,7 @@ impl GeminiClient {
             api_key,
             base_url,
             provider: Provider::Gemini,
+            api_key_set,
         })
     }
 
@@ -81,6 +90,11 @@ impl GeminiClient {
         &self,
         prompt: &Prompt,
     ) -> Result<GenerateContentResponse, AgentError> {
+        // Cant make a request without an API key
+        if !self.api_key_set {
+            return Err(AgentError::MissingGeminiApiKeyError);
+        }
+
         let settings = &prompt.model_settings;
 
         // get the user messages from the prompt first
