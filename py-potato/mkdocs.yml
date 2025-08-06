@@ -56,6 +56,10 @@ nav:
   - Prompts: "prompts.md"
   - Providers: "providers.md"
   - Workflows: "workflow.md"
+  - API Documentation:
+      - PotatoHead: "docs/api/potato_head.md"
+      - Mock: "docs/api/mock.md"
+      - Logging: "docs/api/logging.md"
 
 markdown_extensions:
   - tables
