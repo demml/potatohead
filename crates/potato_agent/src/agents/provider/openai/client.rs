@@ -41,16 +41,20 @@ impl OpenAIClient {
         headers: Option<HashMap<String, String>>,
     ) -> Result<Self, AgentError> {
         let client = build_http_client(headers)?;
-        let mut api_key_set = true;
 
         //  if optional api_key is None, check the environment variable `OPENAI_API_KEY`
-        let api_key = match api_key {
-            Some(key) => key,
-            None => std::env::var("OPENAI_API_KEY").unwrap_or({
-                // We use this to indicate that the API key was not set, which is checked when making requests.
-                api_key_set = false;
-                Common::Undefined.to_string()
-            }),
+        let (api_key, api_key_set) = match api_key {
+            // If api_key is provided, use it
+            Some(key) => (key, true),
+
+            // If api_key is None, check the environment variable
+            None => match std::env::var("OPENAI_API_KEY") {
+                // If the environment variable is set, use it
+                Ok(env_key) if !env_key.is_empty() => (env_key, true),
+
+                // If the environment variable is not set, use a placeholder and set api_key_set to false
+                _ => (Common::Undefined.to_string(), false),
+            },
         };
 
         // if optional base_url is None, use the default OpenAI API URL
@@ -86,6 +90,7 @@ impl OpenAIClient {
         prompt: &Prompt,
     ) -> Result<OpenAIChatResponse, AgentError> {
         // Cant make a request without an API key
+
         if !self.api_key_set {
             return Err(AgentError::MissingOpenAIApiKeyError);
         }
