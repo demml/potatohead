@@ -1,0 +1,35 @@
+name: Publish-Github-Pages
+
+on:
+  push:
+    branches:
+      - main
+
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  BuildDocs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build Docs
+        working-directory: ./py-potato
+        run: |
+          make setup.docs
+          make publish.docs
