@@ -4,6 +4,7 @@ use crate::agents::provider::gemini::{
 };
 use crate::agents::provider::types::build_http_client;
 use potato_prompt::Prompt;
+use potato_type::Common;
 use potato_type::Provider;
 use reqwest::Client;
 use std::collections::HashMap;
@@ -14,6 +15,7 @@ pub struct GeminiClient {
     client: Client,
     api_key: String,
     base_url: String,
+    api_key_set: bool, // Indicates if the API key was set or not
     pub provider: Provider,
 }
 
@@ -41,12 +43,17 @@ impl GeminiClient {
         headers: Option<HashMap<String, String>>,
     ) -> Result<Self, AgentError> {
         let client = build_http_client(headers)?;
+        let mut api_key_set = true;
 
         //  if optional api_key is None, check the environment variable `GEMINI_API_KEY`
         let api_key = match api_key {
             Some(key) => key,
             None => {
-                std::env::var("GEMINI_API_KEY").map_err(AgentError::MissingGeminiApiKeyError)?
+                std::env::var("GEMINI_API_KEY").unwrap_or({
+                    // We use this to indicate that the API key was not set, which is checked when making requests.
+                    api_key_set = false;
+                    Common::Undefined.to_string()
+                })
             }
         };
 
@@ -62,6 +69,7 @@ impl GeminiClient {
             api_key,
             base_url,
             provider: Provider::Gemini,
+            api_key_set,
         })
     }
 
@@ -81,6 +89,11 @@ impl GeminiClient {
         &self,
         prompt: &Prompt,
     ) -> Result<GenerateContentResponse, AgentError> {
+        // Cant make a request without an API key
+        if !self.api_key_set {
+            return Err(AgentError::MissingGeminiApiKeyError);
+        }
+
         let settings = &prompt.model_settings;
 
         // get the user messages from the prompt first
