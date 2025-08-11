@@ -5,11 +5,6 @@ edition = "2021"
 description = "Test module for all potato crates"
 license = "MIT"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[lib]
-name = "baked_potato"
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
 potato-agent = { workspace = true }
 potato-prompt = { workspace = true }
