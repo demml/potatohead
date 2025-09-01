@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import List, Optional
 
 class Modality:
     """Represents different modalities for content generation."""
@@ -10,6 +10,7 @@ class Modality:
 
 class ThinkingConfig:
     """Configuration for thinking/reasoning capabilities."""
+
     def __init__(
         self,
         include_thoughts: Optional[bool] = None,
@@ -26,6 +27,7 @@ class MediaResolution:
 
 class SpeechConfig:
     """Configuration for speech generation."""
+
     def __init__(
         self,
         voice_config: Optional["VoiceConfig"] = None,
@@ -34,6 +36,7 @@ class SpeechConfig:
 
 class PrebuiltVoiceConfig:
     """Configuration for prebuilt voice models."""
+
     def __init__(
         self,
         voice_name: str,
@@ -44,6 +47,7 @@ class VoiceConfigMode:
 
 class VoiceConfig:
     """Configuration for voice generation."""
+
     def __init__(self, voice_config: VoiceConfigMode) -> None: ...
 
 class GenerationConfig:
@@ -220,9 +224,7 @@ class FunctionCallingConfig:
     def mode(self) -> Optional[Mode]: ...
     @property
     def allowed_function_names(self) -> Optional[list[str]]: ...
-    def __init__(
-        self, mode: Optional[Mode], allowed_function_names: Optional[list[str]]
-    ) -> None: ...
+    def __init__(self, mode: Optional[Mode], allowed_function_names: Optional[list[str]]) -> None: ...
 
 class LatLng:
     @property

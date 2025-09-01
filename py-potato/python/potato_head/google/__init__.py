@@ -1,7 +1,6 @@
 # type: ignore
 from .. import google
 
-
 Modality = google.Modality
 ThinkingConfig = google.ThinkingConfig
 MediaResolution = google.MediaResolution
