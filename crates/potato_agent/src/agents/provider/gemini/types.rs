@@ -663,6 +663,7 @@ pub enum HarmBlockThreshold {
 /// Specifies whether the threshold is used for probability or severity score.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[pyclass]
 pub enum HarmBlockMethod {
     HarmBlockMethodUnspecified,
     Severity,
@@ -672,6 +673,7 @@ pub enum HarmBlockMethod {
 /// Safety settings for harm blocking.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct SafetySetting {
     /// Required. The harm category.
     pub category: HarmCategory,
@@ -680,6 +682,22 @@ pub struct SafetySetting {
     /// Optional. Specify if the threshold is used for probability or severity score.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub method: Option<HarmBlockMethod>,
+}
+
+#[pymethods]
+impl SafetySetting {
+    #[new]
+    pub fn new(
+        category: HarmCategory,
+        threshold: HarmBlockThreshold,
+        method: Option<HarmBlockMethod>,
+    ) -> Self {
+        SafetySetting {
+            category,
+            threshold,
+            method,
+        }
+    }
 }
 
 #[pyclass]
@@ -968,6 +986,7 @@ impl GenerationConfig {
 }
 
 #[derive(Debug, Serialize, Clone, Default)]
+#[serde(rename_all = "camelCase", default)]
 pub struct GeminiGenerateContentRequest {
     pub contents: Vec<Content>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1514,4 +1533,11 @@ impl LogProbExt for GenerateContentResponse {
 
         probabilities
     }
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
+pub struct GeminiSettings {
+    generation_config: GenerationConfig,
+    safety_settings: Option<Vec<SafetySetting>>,
 }
