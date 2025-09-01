@@ -27,6 +27,7 @@ from .potato_head import (  # noqa
     WorkflowResult,
     logging,
     mock,
+    google,
 )
 
 __all__ = [

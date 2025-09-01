@@ -4,6 +4,7 @@ use ::potato_head::{
     PyAgentResponse, PyTask, PyWorkflow, Score, Task, TaskEvent, TaskList, TaskStatus, Usage,
     WorkflowResult,
 };
+pub mod google;
 use pyo3::prelude::*;
 pub mod logging;
 pub mod mock;
@@ -36,5 +37,6 @@ pub fn potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyAgentResponse>()?;
     m.add_wrapped(wrap_pymodule!(mock::mock))?;
     m.add_wrapped(wrap_pymodule!(logging::logging))?;
+    m.add_wrapped(wrap_pymodule!(google::google))?;
     Ok(())
 }
