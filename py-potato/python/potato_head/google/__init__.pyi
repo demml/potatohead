@@ -141,3 +141,69 @@ class GenerationConfig:
                 Whether to enable emotional dialog features
         """
         ...
+
+class HarmCategory:
+    HarmCategoryUnspecified: "HarmCategory"
+    HarmCategoryHateSpeech: "HarmCategory"
+    HarmCategoryDangerousContent: "HarmCategory"
+    HarmCategoryHarassment: "HarmCategory"
+    HarmCategorySexuallyExplicit: "HarmCategory"
+    HarmCategoryImageHate: "HarmCategory"
+    HarmCategoryImageDangerousContent: "HarmCategory"
+    HarmCategoryImageHarassment: "HarmCategory"
+    HarmCategoryImageSexuallyExplicit: "HarmCategory"
+
+class HarmBlockThreshold:
+    HarmBlockThresholdUnspecified: "HarmBlockThreshold"
+    BlockLowAndAbove: "HarmBlockThreshold"
+    BlockMediumAndAbove: "HarmBlockThreshold"
+    BlockOnlyHigh: "HarmBlockThreshold"
+    BlockNone: "HarmBlockThreshold"
+    Off: "HarmBlockThreshold"
+
+class HarmBlockMethod:
+    HarmBlockMethodUnspecified: "HarmBlockMethod"
+    Severity: "HarmBlockMethod"
+    Probability: "HarmBlockMethod"
+
+class ModelArmorConfig:
+    prompt_template_name: Optional[str]
+    response_template_name: Optional[str]
+
+    def __init__(
+        self,
+        prompt_template_name: Optional[str],
+        response_template_name: Optional[str],
+    ) -> None:
+        self.prompt_template_name = prompt_template_name
+        self.response_template_name = response_template_name
+
+        """
+        Args:
+            prompt_template_name (Optional[str]):
+                The name of the prompt template to use.
+            response_template_name (Optional[str]):
+                The name of the response template to use.
+        """
+
+class SafetySetting:
+    category: HarmCategory
+    threshold: HarmBlockThreshold
+    method: Optional[HarmBlockMethod]
+
+    def __init__(
+        self,
+        category: HarmCategory,
+        threshold: HarmBlockThreshold,
+        method: Optional[HarmBlockMethod] = None,
+    ) -> None:
+        """Initialize SafetySetting with required and optional parameters.
+
+        Args:
+            category (HarmCategory):
+                The category of harm to protect against.
+            threshold (HarmBlockThreshold):
+                The threshold for blocking content.
+            method (Optional[HarmBlockMethod]):
+                The method used for blocking (if any).
+        """

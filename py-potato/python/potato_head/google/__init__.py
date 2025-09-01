@@ -10,6 +10,10 @@ PrebuiltVoiceConfig = google.PrebuiltVoiceConfig
 VoiceConfigMode = google.VoiceConfigMode
 VoiceConfig = google.VoiceConfig
 GenerationConfig = google.GenerationConfig
+HarmCategory = google.HarmCategory
+HarmBlockThreshold = google.HarmBlockThreshold
+HarmBlockMethod = google.HarmBlockMethod
+SafetySetting = google.SafetySetting
 
 __all__ = [
     "Modality",

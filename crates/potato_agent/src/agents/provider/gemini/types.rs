@@ -3,6 +3,7 @@ use crate::{AgentError, Usage};
 use base64::prelude::*;
 use potato_prompt::{prompt::types::PromptContent, Message};
 use potato_util::utils::ResponseLogProbs;
+use potato_util::{pyobject_to_json, UtilError};
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -994,6 +995,8 @@ pub struct GeminiGenerateContentRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<Tool>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_armor_config: Option<ModelArmorConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub safety_settings: Option<Vec<SafetySetting>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub generation_config: Option<GenerationConfig>,
@@ -1537,7 +1540,147 @@ impl LogProbExt for GenerateContentResponse {
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ModelArmorConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_template_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_template_name: Option<String>,
+}
+
+#[pymethods]
+impl ModelArmorConfig {
+    #[new]
+    pub fn new(
+        prompt_template_name: Option<String>,
+        response_template_name: Option<String>,
+    ) -> Self {
+        ModelArmorConfig {
+            prompt_template_name,
+            response_template_name,
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Mode {
+    ModeUnspecified,
+    Any,
+    #[default]
+    Auto,
+    None,
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct FunctionCallingConfig {
+    #[pyo3(get)]
+    pub mode: Option<Mode>,
+    #[pyo3(get)]
+    pub allowed_function_names: Option<Vec<String>>,
+}
+
+#[pymethods]
+impl FunctionCallingConfig {
+    #[new]
+    pub fn new(mode: Option<Mode>, allowed_function_names: Option<Vec<String>>) -> Self {
+        FunctionCallingConfig {
+            mode,
+            allowed_function_names,
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct LatLng {
+    #[pyo3(get)]
+    pub latitude: f64,
+    #[pyo3(get)]
+    pub longitude: f64,
+}
+
+#[pymethods]
+impl LatLng {
+    #[new]
+    pub fn new(latitude: f64, longitude: f64) -> Self {
+        LatLng {
+            latitude,
+            longitude,
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct RetrievalConfig {
+    #[pyo3(get)]
+    pub lat_lng: LatLng,
+
+    #[pyo3(get)]
+    pub language_code: String,
+}
+
+#[pymethods]
+impl RetrievalConfig {
+    #[new]
+    pub fn new(lat_lng: LatLng, language_code: String) -> Self {
+        RetrievalConfig {
+            lat_lng,
+            language_code,
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ToolConfig {
+    #[pyo3(get)]
+    function_calling_config: Option<FunctionCallingConfig>,
+    #[pyo3(get)]
+    retrieval_config: Option<RetrievalConfig>,
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct GeminiSettings {
-    generation_config: GenerationConfig,
-    safety_settings: Option<Vec<SafetySetting>>,
+    pub labels: HashMap<String, String>,
+    pub tool_config: Option<ToolConfig>,
+    pub generation_config: Option<GenerationConfig>,
+    pub safety_settings: Option<Vec<SafetySetting>>,
+    pub model_armor_config: Option<ModelArmorConfig>,
+    pub extra_body: Option<Value>,
+}
+
+#[pymethods]
+impl GeminiSettings {
+    #[new]
+    pub fn new(
+        labels: HashMap<String, String>,
+        tool_config: Option<ToolConfig>,
+        generation_config: Option<GenerationConfig>,
+        safety_settings: Option<Vec<SafetySetting>>,
+        model_armor_config: Option<ModelArmorConfig>,
+        extra_body: Option<&Bound<'_, PyAny>>,
+    ) -> Result<Self, UtilError> {
+        let extra = match extra_body {
+            Some(obj) => Some(pyobject_to_json(obj)?),
+            None => None,
+        };
+
+        Ok(GeminiSettings {
+            labels,
+            tool_config,
+            generation_config,
+            safety_settings,
+            model_armor_config,
+            extra_body: extra,
+        })
+    }
 }
