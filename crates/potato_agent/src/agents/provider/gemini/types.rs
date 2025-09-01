@@ -694,6 +694,7 @@ pub enum Modality {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[pyclass]
 pub enum MediaResolution {
     MediaResolutionUnspecified,
     MediaResolutionLow,
@@ -712,11 +713,23 @@ pub enum ModelRoutingPreference {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct ThinkingConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub include_thoughts: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking_budget: Option<i32>,
+}
+
+#[pymethods]
+impl ThinkingConfig {
+    #[new]
+    pub fn new(include_thoughts: Option<bool>, thinking_budget: Option<i32>) -> Self {
+        ThinkingConfig {
+            include_thoughts,
+            thinking_budget,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -735,6 +748,7 @@ pub struct ManualRoutingMode {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
+
 pub enum RoutingConfigMode {
     AutoMode(AutoRoutingMode),
     ManualMode(ManualRoutingMode),
@@ -749,31 +763,70 @@ pub struct RoutingConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct PrebuiltVoiceConfig {
     pub voice_name: String,
+}
+
+#[pymethods]
+impl PrebuiltVoiceConfig {
+    #[new]
+    pub fn new(voice_name: String) -> Self {
+        PrebuiltVoiceConfig { voice_name }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
+#[pyclass]
 pub enum VoiceConfigMode {
     PrebuiltVoiceConfig(PrebuiltVoiceConfig),
 }
 
+#[pymethods]
+impl VoiceConfigMode {
+    #[new]
+    pub fn new(prebuilt_voice_config: PrebuiltVoiceConfig) -> Self {
+        VoiceConfigMode::PrebuiltVoiceConfig(prebuilt_voice_config)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct VoiceConfig {
     #[serde(flatten)]
     pub voice_config: VoiceConfigMode,
 }
 
+#[pymethods]
+impl VoiceConfig {
+    #[new]
+    pub fn new(voice_config: VoiceConfigMode) -> Self {
+        VoiceConfig { voice_config }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct SpeechConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub voice_config: Option<VoiceConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language_code: Option<String>,
+}
+
+#[pymethods]
+impl SpeechConfig {
+    #[new]
+    pub fn new(voice_config: Option<VoiceConfig>, language_code: Option<String>) -> Self {
+        SpeechConfig {
+            voice_config,
+            language_code,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
@@ -827,7 +880,7 @@ pub struct GenerationConfig {
 #[pymethods]
 impl GenerationConfig {
     #[new]
-    #[pyo3(signature = (stop_sequences=None, response_mime_type=None, response_modalities=None, thinking_config=None, temperature=None, top_p=None, top_k=None, candidate_count=None, max_output_tokens=None, response_logprobs=None, logprobs=None, presence_penalty=None, frequency_penalty=None, seed=None, response_schema=None, response_json_schema=None, routing_config=None, audio_timestamp=None, media_resolution=None, speech_config=None, enable_affective_dialog=None))]
+    #[pyo3(signature = (stop_sequences=None, response_mime_type=None, response_modalities=None, thinking_config=None, temperature=None, top_p=None, top_k=None, candidate_count=None, max_output_tokens=None, response_logprobs=None, logprobs=None, presence_penalty=None, frequency_penalty=None, seed=None, audio_timestamp=None, media_resolution=None, speech_config=None, enable_affective_dialog=None))]
     pub fn new(
         stop_sequences: Option<Vec<String>>,
         response_mime_type: Option<String>,
@@ -843,9 +896,9 @@ impl GenerationConfig {
         presence_penalty: Option<f32>,
         frequency_penalty: Option<f32>,
         seed: Option<i32>,
-        response_schema: Option<Schema>,
-        response_json_schema: Option<Value>,
-        routing_config: Option<RoutingConfig>,
+        //response_schema: Option<Schema>,
+        //response_json_schema: Option<Value>,
+        //routing_config: Option<RoutingConfig>,
         audio_timestamp: Option<bool>,
         media_resolution: Option<MediaResolution>,
         speech_config: Option<SpeechConfig>,
@@ -866,13 +919,11 @@ impl GenerationConfig {
             presence_penalty,
             frequency_penalty,
             seed,
-            response_schema,
-            response_json_schema,
-            routing_config,
             audio_timestamp,
             media_resolution,
             speech_config,
             enable_affective_dialog,
+            ..Default::default()
         }
     }
 }
