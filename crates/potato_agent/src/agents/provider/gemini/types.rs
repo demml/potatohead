@@ -834,46 +834,84 @@ impl SpeechConfig {
 #[pyclass]
 pub struct GenerationConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub stop_sequences: Option<Vec<String>>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub response_mime_type: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub response_modalities: Option<Vec<Modality>>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub thinking_config: Option<ThinkingConfig>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub temperature: Option<f32>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub top_p: Option<f32>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub top_k: Option<i32>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub candidate_count: Option<i32>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub max_output_tokens: Option<i32>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub response_logprobs: Option<bool>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub logprobs: Option<i32>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub presence_penalty: Option<f32>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub frequency_penalty: Option<f32>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub seed: Option<i32>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_schema: Option<Schema>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_json_schema: Option<Value>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub routing_config: Option<RoutingConfig>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub audio_timestamp: Option<bool>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub media_resolution: Option<MediaResolution>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub speech_config: Option<SpeechConfig>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub enable_affective_dialog: Option<bool>,
 }
 
@@ -896,6 +934,7 @@ impl GenerationConfig {
         presence_penalty: Option<f32>,
         frequency_penalty: Option<f32>,
         seed: Option<i32>,
+        //TODO: revisit this later
         //response_schema: Option<Schema>,
         //response_json_schema: Option<Value>,
         //routing_config: Option<RoutingConfig>,
