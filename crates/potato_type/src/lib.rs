@@ -63,7 +63,10 @@ impl Provider {
     pub fn url(&self) -> &str {
         match self {
             Provider::OpenAI => "https://api.openai.com/v1",
-            Provider::Gemini => "https://aiplatform.googleapis.com/v1beta1/models",
+
+            //https://cloud.google.com/vertex-ai/generative-ai/docs/migrate/migrate-google-ai
+            Provider::Gemini => "https://aiplatform.googleapis.com/v1beta1/",
+
             Provider::Undefined => {
                 error!("Undefined provider URL requested");
                 "https://undefined.provider.url"

@@ -160,9 +160,9 @@ impl GeminiClient {
             {
                 // Merge the extra_body fields into prompt
                 for (key, value) in extra_obj {
-                    // if key is "generation_config", we need to merge it into the existing generation_config
-                    if key == "generation_config" {
-                        if let Some(gen_config) = prompt_obj.get_mut("generation_config") {
+                    // if key is "generationConfig", we need to merge it into the existing generationConfig
+                    if key == "generationConfig" {
+                        if let Some(gen_config) = prompt_obj.get_mut("generationConfig") {
                             if let (Some(gen_config_obj), Some(extra_gen_config)) =
                                 (gen_config.as_object_mut(), value.as_object())
                             {
