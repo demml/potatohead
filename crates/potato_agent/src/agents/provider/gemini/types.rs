@@ -2,9 +2,8 @@ use crate::agents::provider::traits::{LogProbExt, ResponseExt, TokenUsage};
 use crate::{AgentError, Usage};
 use base64::prelude::*;
 use potato_prompt::{prompt::types::PromptContent, Message};
-use potato_util::json_to_pydict;
 use potato_util::utils::ResponseLogProbs;
-use potato_util::{pyobject_to_json, UtilError};
+use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use serde::{Deserialize, Serialize};
@@ -989,6 +988,10 @@ impl GenerationConfig {
             ..Default::default()
         }
     }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
 }
 
 #[derive(Debug, Serialize, Clone, Default)]
@@ -1708,5 +1711,9 @@ impl GeminiSettings {
                 json_to_pydict(py, v, &pydict)
             })
             .transpose()
+    }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
     }
 }
