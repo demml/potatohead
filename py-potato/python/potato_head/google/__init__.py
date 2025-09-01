@@ -13,6 +13,13 @@ HarmCategory = google.HarmCategory
 HarmBlockThreshold = google.HarmBlockThreshold
 HarmBlockMethod = google.HarmBlockMethod
 SafetySetting = google.SafetySetting
+ToolConfig = google.ToolConfig
+FunctionCallingConfig = google.FunctionCallingConfig
+RetrievalConfig = google.RetrievalConfig
+LatLng = google.LatLng
+ModelArmorConfig = google.ModelArmorConfig
+Mode = google.Mode
+GeminiSettings = google.GeminiSettings
 
 __all__ = [
     "Modality",
@@ -23,4 +30,15 @@ __all__ = [
     "VoiceConfigMode",
     "VoiceConfig",
     "GenerationConfig",
+    "ToolConfig",
+    "FunctionCallingConfig",
+    "RetrievalConfig",
+    "LatLng",
+    "ModelArmorConfig",
+    "Mode",
+    "GeminiSettings",
+    "HarmCategory",
+    "HarmBlockThreshold",
+    "HarmBlockMethod",
+    "SafetySetting",
 ]

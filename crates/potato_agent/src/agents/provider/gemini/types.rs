@@ -692,6 +692,7 @@ pub struct SafetySetting {
 #[pymethods]
 impl SafetySetting {
     #[new]
+    #[pyo3(signature = (category, threshold, method=None))]
     pub fn new(
         category: HarmCategory,
         threshold: HarmBlockThreshold,
@@ -1559,6 +1560,7 @@ pub struct ModelArmorConfig {
 #[pymethods]
 impl ModelArmorConfig {
     #[new]
+    #[pyo3(signature = (prompt_template_name=None, response_template_name=None))]
     pub fn new(
         prompt_template_name: Option<String>,
         response_template_name: Option<String>,
@@ -1656,6 +1658,21 @@ pub struct ToolConfig {
     retrieval_config: Option<RetrievalConfig>,
 }
 
+#[pymethods]
+impl ToolConfig {
+    #[new]
+    #[pyo3(signature = (function_calling_config=None, retrieval_config=None))]
+    pub fn new(
+        function_calling_config: Option<FunctionCallingConfig>,
+        retrieval_config: Option<RetrievalConfig>,
+    ) -> Self {
+        ToolConfig {
+            function_calling_config,
+            retrieval_config,
+        }
+    }
+}
+
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct GeminiSettings {
@@ -1675,6 +1692,7 @@ pub struct GeminiSettings {
 #[pymethods]
 impl GeminiSettings {
     #[new]
+    #[pyo3(signature = (labels=None, tool_config=None, generation_config=None, safety_settings=None, model_armor_config=None, extra_body=None))]
     pub fn new(
         labels: Option<HashMap<String, String>>,
         tool_config: Option<ToolConfig>,
