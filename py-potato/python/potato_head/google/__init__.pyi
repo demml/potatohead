@@ -167,17 +167,11 @@ class HarmBlockMethod:
     Probability: "HarmBlockMethod"
 
 class ModelArmorConfig:
-    prompt_template_name: Optional[str]
-    response_template_name: Optional[str]
-
     def __init__(
         self,
         prompt_template_name: Optional[str],
         response_template_name: Optional[str],
     ) -> None:
-        self.prompt_template_name = prompt_template_name
-        self.response_template_name = response_template_name
-
         """
         Args:
             prompt_template_name (Optional[str]):
@@ -185,6 +179,11 @@ class ModelArmorConfig:
             response_template_name (Optional[str]):
                 The name of the response template to use.
         """
+
+    @property
+    def prompt_template_name(self) -> Optional[str]: ...
+    @property
+    def response_template_name(self) -> Optional[str]: ...
 
 class SafetySetting:
     category: HarmCategory
@@ -207,3 +206,102 @@ class SafetySetting:
             method (Optional[HarmBlockMethod]):
                 The method used for blocking (if any).
         """
+
+class Mode:
+    ModeUnspecified: "Mode"
+    Any: "Mode"
+    Auto: "Mode"
+    None_Mode: "Mode"  # type: ignore
+
+class FunctionCallingConfig:
+    @property
+    def mode(self) -> Optional[Mode]: ...
+    @property
+    def allowed_function_names(self) -> Optional[list[str]]: ...
+    def __init__(
+        self, mode: Optional[Mode], allowed_function_names: Optional[list[str]]
+    ) -> None: ...
+
+class LatLng:
+    @property
+    def latitude(self) -> float: ...
+    @property
+    def longitude(self) -> float: ...
+    def __init__(self, latitude: float, longitude: float) -> None:
+        """Initialize LatLng with latitude and longitude.
+
+        Args:
+            latitude (float):
+                The latitude value.
+            longitude (float):
+                The longitude value.
+        """
+
+class RetrievalConfig:
+    @property
+    def lat_lng(self) -> LatLng: ...
+    @property
+    def language_code(self) -> str: ...
+    def __init__(self, lat_lng: LatLng, language_code: str) -> None:
+        """Initialize RetrievalConfig with latitude/longitude and language code.
+
+        Args:
+            lat_lng (LatLng):
+                The latitude and longitude configuration.
+            language_code (str):
+                The language code for the retrieval.
+        """
+
+class ToolConfig:
+    @property
+    def function_calling_config(self) -> Optional[FunctionCallingConfig]: ...
+    @property
+    def retrieval_config(self) -> Optional[RetrievalConfig]: ...
+    def __init__(
+        self,
+        function_calling_config: Optional[FunctionCallingConfig],
+        retrieval_config: Optional[RetrievalConfig],
+    ) -> None: ...
+
+class GeminiSettings:
+    def __init__(
+        self,
+        labels: Optional[dict[str, str]] = None,
+        tool_config: Optional[ToolConfig] = None,
+        generation_config: Optional[GenerationConfig] = None,
+        safety_settings: Optional[list[SafetySetting]] = None,
+        model_armor_config: Optional[ModelArmorConfig] = None,
+        extra_body: Optional[dict] = None,
+    ) -> None:
+        """Settings to pass to the Gemini API when creating a request
+
+        Reference:
+            https://cloud.google.com/vertex-ai/generative-ai/docs/reference/rest/v1beta1/projects.locations.endpoints/generateContent
+
+        Args:
+            labels (Optional[dict[str, str]]):
+                An optional dictionary of labels for the settings.
+            tool_config (Optional[ToolConfig]):
+                Configuration for tools like function calling and retrieval.
+            generation_config (Optional[GenerationConfig]):
+                Configuration for content generation parameters.
+            safety_settings (Optional[list[SafetySetting]]):
+                List of safety settings to apply.
+            model_armor_config (Optional[ModelArmorConfig]):
+                Configuration for model armor templates.
+            extra_body (Optional[dict]):
+                Additional configuration as a dictionary.
+        """
+
+    @property
+    def labels(self) -> Optional[dict[str, str]]: ...
+    @property
+    def tool_config(self) -> Optional[ToolConfig]: ...
+    @property
+    def generation_config(self) -> Optional[GenerationConfig]: ...
+    @property
+    def safety_settings(self) -> Optional[list[SafetySetting]]: ...
+    @property
+    def model_armor_config(self) -> Optional[ModelArmorConfig]: ...
+    @property
+    def extra_body(self) -> Optional[dict]: ...

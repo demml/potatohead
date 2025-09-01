@@ -1,6 +1,8 @@
 use potato_head::agents::provider::gemini::{
-    GenerationConfig, HarmBlockMethod, HarmBlockThreshold, HarmCategory, MediaResolution, Modality,
-    PrebuiltVoiceConfig, SafetySetting, SpeechConfig, ThinkingConfig, VoiceConfig, VoiceConfigMode,
+    FunctionCallingConfig, GeminiSettings, GenerationConfig, HarmBlockMethod, HarmBlockThreshold,
+    HarmCategory, LatLng, MediaResolution, Modality, Mode, ModelArmorConfig, PrebuiltVoiceConfig,
+    RetrievalConfig, SafetySetting, SpeechConfig, ThinkingConfig, ToolConfig, VoiceConfig,
+    VoiceConfigMode,
 };
 use pyo3::prelude::*;
 
@@ -18,5 +20,12 @@ pub fn google(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<HarmBlockMethod>()?;
     m.add_class::<HarmBlockThreshold>()?;
     m.add_class::<SafetySetting>()?;
+    m.add_class::<ToolConfig>()?;
+    m.add_class::<FunctionCallingConfig>()?;
+    m.add_class::<RetrievalConfig>()?;
+    m.add_class::<LatLng>()?;
+    m.add_class::<ModelArmorConfig>()?;
+    m.add_class::<Mode>()?;
+    m.add_class::<GeminiSettings>()?;
     Ok(())
 }

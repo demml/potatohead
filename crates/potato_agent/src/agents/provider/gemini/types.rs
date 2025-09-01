@@ -2,9 +2,11 @@ use crate::agents::provider::traits::{LogProbExt, ResponseExt, TokenUsage};
 use crate::{AgentError, Usage};
 use base64::prelude::*;
 use potato_prompt::{prompt::types::PromptContent, Message};
+use potato_util::json_to_pydict;
 use potato_util::utils::ResponseLogProbs;
 use potato_util::{pyobject_to_json, UtilError};
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -677,11 +679,14 @@ pub enum HarmBlockMethod {
 #[pyclass]
 pub struct SafetySetting {
     /// Required. The harm category.
+    #[pyo3(get)]
     pub category: HarmCategory,
     /// Required. The harm block threshold.
+    #[pyo3(get)]
     pub threshold: HarmBlockThreshold,
     /// Optional. Specify if the threshold is used for probability or severity score.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
     pub method: Option<HarmBlockMethod>,
 }
 
@@ -1570,6 +1575,7 @@ pub enum Mode {
     Any,
     #[default]
     Auto,
+    #[pyo3(name = "None_Mode")]
     None,
 }
 
@@ -1650,10 +1656,15 @@ pub struct ToolConfig {
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct GeminiSettings {
-    pub labels: HashMap<String, String>,
+    #[pyo3(get)]
+    pub labels: Option<HashMap<String, String>>,
+    #[pyo3(get)]
     pub tool_config: Option<ToolConfig>,
+    #[pyo3(get)]
     pub generation_config: Option<GenerationConfig>,
+    #[pyo3(get)]
     pub safety_settings: Option<Vec<SafetySetting>>,
+    #[pyo3(get)]
     pub model_armor_config: Option<ModelArmorConfig>,
     pub extra_body: Option<Value>,
 }
@@ -1662,7 +1673,7 @@ pub struct GeminiSettings {
 impl GeminiSettings {
     #[new]
     pub fn new(
-        labels: HashMap<String, String>,
+        labels: Option<HashMap<String, String>>,
         tool_config: Option<ToolConfig>,
         generation_config: Option<GenerationConfig>,
         safety_settings: Option<Vec<SafetySetting>>,
@@ -1682,5 +1693,20 @@ impl GeminiSettings {
             model_armor_config,
             extra_body: extra,
         })
+    }
+
+    #[getter]
+    pub fn extra_body<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Option<Bound<'py, PyDict>>, UtilError> {
+        // error if extra body is None
+        self.extra_body
+            .as_ref()
+            .map(|v| {
+                let pydict = PyDict::new(py);
+                json_to_pydict(py, v, &pydict)
+            })
+            .transpose()
     }
 }
