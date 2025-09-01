@@ -771,7 +771,6 @@ pub struct ManualRoutingMode {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
-
 pub enum RoutingConfigMode {
     AutoMode(AutoRoutingMode),
     ManualMode(ManualRoutingMode),
@@ -942,6 +941,7 @@ pub struct GenerationConfig {
 impl GenerationConfig {
     #[new]
     #[pyo3(signature = (stop_sequences=None, response_mime_type=None, response_modalities=None, thinking_config=None, temperature=None, top_p=None, top_k=None, candidate_count=None, max_output_tokens=None, response_logprobs=None, logprobs=None, presence_penalty=None, frequency_penalty=None, seed=None, audio_timestamp=None, media_resolution=None, speech_config=None, enable_affective_dialog=None))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         stop_sequences: Option<Vec<String>>,
         response_mime_type: Option<String>,
