@@ -778,6 +778,7 @@ pub struct SpeechConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct GenerationConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop_sequences: Option<Vec<String>>,
@@ -821,6 +822,59 @@ pub struct GenerationConfig {
     pub speech_config: Option<SpeechConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enable_affective_dialog: Option<bool>,
+}
+
+#[pymethods]
+impl GenerationConfig {
+    #[new]
+    #[pyo3(signature = (stop_sequences=None, response_mime_type=None, response_modalities=None, thinking_config=None, temperature=None, top_p=None, top_k=None, candidate_count=None, max_output_tokens=None, response_logprobs=None, logprobs=None, presence_penalty=None, frequency_penalty=None, seed=None, response_schema=None, response_json_schema=None, routing_config=None, audio_timestamp=None, media_resolution=None, speech_config=None, enable_affective_dialog=None))]
+    pub fn new(
+        stop_sequences: Option<Vec<String>>,
+        response_mime_type: Option<String>,
+        response_modalities: Option<Vec<Modality>>,
+        thinking_config: Option<ThinkingConfig>,
+        temperature: Option<f32>,
+        top_p: Option<f32>,
+        top_k: Option<i32>,
+        candidate_count: Option<i32>,
+        max_output_tokens: Option<i32>,
+        response_logprobs: Option<bool>,
+        logprobs: Option<i32>,
+        presence_penalty: Option<f32>,
+        frequency_penalty: Option<f32>,
+        seed: Option<i32>,
+        response_schema: Option<Schema>,
+        response_json_schema: Option<Value>,
+        routing_config: Option<RoutingConfig>,
+        audio_timestamp: Option<bool>,
+        media_resolution: Option<MediaResolution>,
+        speech_config: Option<SpeechConfig>,
+        enable_affective_dialog: Option<bool>,
+    ) -> Self {
+        Self {
+            stop_sequences,
+            response_mime_type,
+            response_modalities,
+            thinking_config,
+            temperature,
+            top_p,
+            top_k,
+            candidate_count,
+            max_output_tokens,
+            response_logprobs,
+            logprobs,
+            presence_penalty,
+            frequency_penalty,
+            seed,
+            response_schema,
+            response_json_schema,
+            routing_config,
+            audio_timestamp,
+            media_resolution,
+            speech_config,
+            enable_affective_dialog,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Clone, Default)]
