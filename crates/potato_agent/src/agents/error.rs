@@ -72,6 +72,12 @@ pub enum AgentError {
 
     #[error("Undefined error: {0}")]
     UndefinedError(String),
+
+    #[error("Failed to create tool: {0}")]
+    ToolCreationError(String),
+
+    #[error("Invalid tool definition")]
+    InvalidToolDefinitionError,
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {
