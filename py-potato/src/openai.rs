@@ -1,7 +1,7 @@
 use potato_head::agents::provider::openai::{
     AllowedTools, AudioParam, Content, ContentPart, CustomChoice, CustomDefinition, CustomTool,
-    CustomToolChoice, CustomToolFormat, FunctionChoice, FunctionChoice, FunctionDefinition,
-    FunctionTool, Grammar, OpenAIChatSettings, Prediction, StreamOptions, Tool, ToolChoice,
+    CustomToolChoice, CustomToolFormat, FunctionChoice, FunctionDefinition, FunctionTool, Grammar,
+    OpenAIChatSettings, Prediction, StreamOptions, Tool, ToolChoice,
 };
 use pyo3::prelude::*;
 

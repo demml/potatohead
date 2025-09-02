@@ -5,9 +5,10 @@ use ::potato_head::{
     WorkflowResult,
 };
 pub mod google;
-use pyo3::prelude::*;
 pub mod logging;
 pub mod mock;
+pub mod openai;
+use pyo3::prelude::*;
 use pyo3::wrap_pymodule;
 
 #[pymodule]
