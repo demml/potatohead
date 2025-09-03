@@ -53,14 +53,19 @@ impl ModelSettings {
 
 impl ModelSettings {
     pub fn validate_provider(&self, provider: &Provider) -> Result<(), PromptError> {
-        match self {
-            ModelSettings::OpenAIChat(_) if provider != &Provider::OpenAI => {
-                Err(PromptError::InvalidProvider)
-            }
-            ModelSettings::GoogleChat(_) if provider != &Provider::Gemini => {
-                Err(PromptError::InvalidProvider)
-            }
-            _ => Ok(()),
+        match provider {
+            Provider::OpenAI => match self {
+                ModelSettings::OpenAIChat(_) => Ok(()),
+                _ => Err(PromptError::InvalidModelSettings),
+            },
+            Provider::Gemini => match self {
+                ModelSettings::GoogleChat(_) => Ok(()),
+                _ => Err(PromptError::InvalidModelSettings),
+            },
+            Provider::Undefined => match self {
+                ModelSettings::OpenAIChat(_) => Ok(()),
+                ModelSettings::GoogleChat(_) => Ok(()),
+            },
         }
     }
 

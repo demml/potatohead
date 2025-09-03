@@ -295,8 +295,12 @@ impl Prompt {
         let version = potato_util::version();
         // If model_settings is not provided, set model and provider to undefined if missing
         let model_settings = match model_settings {
-            Some(settings) => settings,
-            None => ModelSettings::default(),
+            Some(settings) => {
+                // validates if provider and settings are compatible
+                settings.validate_provider(&provider)?;
+                settings
+            }
+            None => ModelSettings::provider_default_settings(&provider),
         };
 
         // extract named parameters in prompt
