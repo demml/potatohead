@@ -13,6 +13,9 @@ pub enum TypeError {
 
     #[error("Unknown model: {0}")]
     UnknownModelError(String),
+
+    #[error("{0}")]
+    InvalidInput(String),
 }
 
 impl From<TypeError> for PyErr {

@@ -11,6 +11,8 @@ use std::fmt;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
 use tracing::error;
+pub mod google;
+pub mod openai;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[pyclass]
