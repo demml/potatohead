@@ -280,8 +280,7 @@ impl Prompt {
         // get version from crate
         let version = potato_util::version();
 
-        let provider = Provider::from_str(provider)
-            .map_err(|e| PromptError::Error(format!("Invalid provider: {e}")))?;
+        let provider = Provider::from_string(provider)?;
 
         // If model_settings is not provided, set model and provider to undefined if missing
         let model_settings = match model_settings {

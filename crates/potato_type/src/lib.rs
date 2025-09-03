@@ -1,6 +1,6 @@
 pub mod error;
 
-use crate::error::TypeError;
+pub use crate::error::TypeError;
 use pyo3::prelude::*;
 use schemars::JsonSchema;
 use serde::de::Error;
