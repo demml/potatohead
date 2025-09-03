@@ -4,6 +4,7 @@ use potato_type::{google::chat::GeminiSettings, openai::chat::OpenAIChatSettings
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -74,6 +75,25 @@ impl ModelSettings {
             Provider::OpenAI => ModelSettings::OpenAIChat(OpenAIChatSettings::default()),
             Provider::Gemini => ModelSettings::GoogleChat(GeminiSettings::default()),
             _ => ModelSettings::OpenAIChat(OpenAIChatSettings::default()), // Fallback to OpenAI settings
+        }
+    }
+
+    pub fn get_openai_settings(&self) -> Result<OpenAIChatSettings, PromptError> {
+        match self {
+            ModelSettings::OpenAIChat(settings) => {
+                let mut cloned_settings = settings.clone();
+                // set extra body to None
+                cloned_settings.extra_body = None;
+                Ok(cloned_settings)
+            }
+            _ => Err(PromptError::OpenAIChatSettingsNotFound),
+        }
+    }
+
+    pub fn extra_body(&self) -> Option<&Value> {
+        match self {
+            ModelSettings::OpenAIChat(settings) => settings.extra_body.as_ref(),
+            ModelSettings::GoogleChat(settings) => settings.extra_body.as_ref(),
         }
     }
 }

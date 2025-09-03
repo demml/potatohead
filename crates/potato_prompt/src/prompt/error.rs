@@ -55,6 +55,9 @@ pub enum PromptError {
 
     #[error("Invalid provider provided. Provider must be either a Provider enum or a string.")]
     InvalidProvider,
+
+    #[error("OpenAIChatSettings not found.")]
+    OpenAIChatSettingsNotFound,
 }
 
 impl From<PromptError> for PyErr {
