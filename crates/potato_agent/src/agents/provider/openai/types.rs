@@ -386,26 +386,14 @@ impl StreamOptions {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ToolChoiceMode {
-    None,
+    #[serde(rename = "none")]
+    NA,
     Auto,
     Required,
 }
 
 #[pymethods]
 impl ToolChoiceMode {
-    #[new]
-    #[pyo3(signature = (mode))]
-    pub fn new(mode: &str) -> PyResult<Self> {
-        match mode.to_lowercase().as_str() {
-            "none" => Ok(ToolChoiceMode::None),
-            "auto" => Ok(ToolChoiceMode::Auto),
-            "required" => Ok(ToolChoiceMode::Required),
-            _ => Err(pyo3::exceptions::PyValueError::new_err(
-                "Invalid tool choice mode. Must be 'none', 'auto', or 'required'.",
-            )),
-        }
-    }
-
     fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
     }
@@ -543,18 +531,6 @@ pub enum AllowedToolsMode {
 
 #[pymethods]
 impl AllowedToolsMode {
-    #[new]
-    #[pyo3(signature = (mode))]
-    pub fn new(mode: &str) -> PyResult<Self> {
-        match mode.to_lowercase().as_str() {
-            "auto" => Ok(AllowedToolsMode::Auto),
-            "required" => Ok(AllowedToolsMode::Required),
-            _ => Err(pyo3::exceptions::PyValueError::new_err(
-                "Invalid allowed tools mode. Must be 'auto' or 'required'.",
-            )),
-        }
-    }
-
     fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
     }
@@ -562,13 +538,20 @@ impl AllowedToolsMode {
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct InnerAllowedTools {
+    #[pyo3(get)]
+    pub mode: AllowedToolsMode,
+    #[pyo3(get)]
+    pub tools: Vec<ToolDefinition>,
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct AllowedTools {
     #[pyo3(get)]
     pub r#type: String,
-    #[pyo3(get, set)]
-    pub mode: AllowedToolsMode,
-    #[pyo3(get, set)]
-    pub tools: Vec<ToolDefinition>,
+    #[pyo3(get)]
+    pub allowed_tools: InnerAllowedTools,
 }
 
 #[pymethods]
@@ -578,8 +561,7 @@ impl AllowedTools {
     pub fn new(mode: AllowedToolsMode, tools: Vec<ToolDefinition>) -> Self {
         Self {
             r#type: "allowed_tools".to_string(),
-            mode,
-            tools,
+            allowed_tools: InnerAllowedTools { mode, tools },
         }
     }
 
@@ -620,8 +602,8 @@ impl ToolChoice {
     /// Create tool choice from mode string
     #[staticmethod]
     #[pyo3(signature = (mode))]
-    pub fn from_mode(mode: &str) -> PyResult<Self> {
-        Ok(ToolChoice::Mode(ToolChoiceMode::new(mode)?))
+    pub fn from_mode(mode: &ToolChoiceMode) -> Self {
+        ToolChoice::Mode(mode.clone())
     }
 
     /// Create tool choice for specific function
