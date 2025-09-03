@@ -1,4 +1,5 @@
 use crate::PromptError;
+use potato_type::Provider;
 use potato_type::{google::chat::GeminiSettings, openai::chat::OpenAIChatSettings};
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
@@ -47,5 +48,27 @@ impl ModelSettings {
 
     pub fn model_dump_json(&self) -> String {
         serde_json::to_string(self).unwrap()
+    }
+}
+
+impl ModelSettings {
+    pub fn validate_provider(&self, provider: &Provider) -> Result<(), PromptError> {
+        match self {
+            ModelSettings::OpenAIChat(_) if provider != &Provider::OpenAI => {
+                Err(PromptError::InvalidProvider)
+            }
+            ModelSettings::GoogleChat(_) if provider != &Provider::Gemini => {
+                Err(PromptError::InvalidProvider)
+            }
+            _ => Ok(()),
+        }
+    }
+
+    pub fn provider_default_settings(provider: &Provider) -> Self {
+        match provider {
+            Provider::OpenAI => ModelSettings::OpenAIChat(OpenAIChatSettings::default()),
+            Provider::Gemini => ModelSettings::GoogleChat(GeminiSettings::default()),
+            _ => ModelSettings::OpenAIChat(OpenAIChatSettings::default()), // Fallback to OpenAI settings
+        }
     }
 }
