@@ -1,6 +1,6 @@
 use ::potato_head::{
-    AudioUrl, BinaryContent, ChatResponse, CompletionTokenDetails, DocumentUrl, EventDetails,
-    ImageUrl, Message, ModelSettings, Prompt, PromptTokenDetails, Provider, PyAgent,
+    prompt::settings::ModelSettings, AudioUrl, BinaryContent, ChatResponse, CompletionTokenDetails,
+    DocumentUrl, EventDetails, ImageUrl, Message, Prompt, PromptTokenDetails, Provider, PyAgent,
     PyAgentResponse, PyTask, PyWorkflow, Score, Task, TaskEvent, TaskList, TaskStatus, Usage,
     WorkflowResult,
 };

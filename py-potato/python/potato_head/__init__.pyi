@@ -3,6 +3,8 @@
 import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Sequence
+from .google import GeminiSettings
+from .openai import OpenAIChatSettings
 
 class PromptTokenDetails:
     """Details about the prompt tokens used in a request."""
@@ -189,7 +191,9 @@ class DocumentUrl:
         """The format of the document URL."""
 
 class Message:
-    def __init__(self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl) -> None:
+    def __init__(
+        self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl
+    ) -> None:
         """Create a Message object.
 
         Args:
@@ -275,116 +279,20 @@ class Message:
         """
 
 class ModelSettings:
-    def __init__(
-        self,
-        model: Optional[str] = None,
-        provider: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        top_p: Optional[float] = None,
-        frequency_penalty: Optional[float] = None,
-        presence_penalty: Optional[float] = None,
-        timeout: Optional[float] = None,
-        parallel_tool_calls: Optional[bool] = None,
-        seed: Optional[int] = None,
-        logit_bias: Optional[dict[str, int]] = None,
-        stop_sequences: Optional[List[str]] = None,
-        logprobs: Optional[bool] = None,
-        extra_body: Optional[dict[str, Any]] = None,
-    ) -> None:
+    def __init__(self, settings: OpenAIChatSettings | GeminiSettings) -> None:
         """ModelSettings for configuring the model.
 
         Args:
-            model (Optional[str]):
-                The model to use. This is required if model is not provided in the prompt.
-                If not provided, defaults to `undefined`.
-            provider (Optional[str]):
-                The provider to use. This is required if provider is not provided in the prompt.
-                If not provided, defaults to `undefined`.
-            max_tokens (Optional[int]):
-                The maximum number of tokens to generate.
-            temperature (Optional[float]):
-                The amount of randomness to use.
-            top_p (Optional[float]):
-                The top p to use.
-            frequency_penalty (Optional[float]):
-                The frequency penalty to use. Penalizes new tokens based on their
-                frequency in the text.
-            presence_penalty (Optional[float]):
-                The presence penalty to use. Penalizes new tokens based
-                on whether they already appear in  the text.
-            timeout (Optional[float]):
-                The timeout to use.
-            parallel_tool_calls (Optional[bool]):
-                Whether to allow parallel tool calls.
-            seed (Optional[int]):
-                The seed to use for the model allowing for reproducible results.
-            logit_bias (Optional[dict[str, int]]):
-                The logit bias to use. Modifies the likelihood of specified tokens appearing in
-                the generated text.
-            stop_sequences (Optional[List[str]]):
-                The stop sequences to use that will cause the model to stop generating text.
-            logprobs (Optional[bool]):
-                Whether to include log probabilities in the response. This is a gemini specific setting.
-            extra_body (Optional[dict[str, Any]]):
-                The extra body to use. Must be a dictionary
-
+            settings (OpenAIChatSettings | GeminiSettings):
+                The settings to use for the model. Currently supports OpenAI and Gemini settings.
         """
 
     @property
-    def model(self) -> str:
-        """The model to use."""
+    def settings(self) -> OpenAIChatSettings | GeminiSettings:
+        """The settings to use for the model."""
 
-    @property
-    def provider(self) -> str:
-        """The provider to use."""
-
-    @property
-    def max_tokens(self) -> Optional[int]:
-        """The maximum number of tokens to generate."""
-
-    @property
-    def temperature(self) -> Optional[float]:
-        """The amount of randomness to use."""
-
-    @property
-    def top_p(self) -> Optional[float]:
-        """The top p to use."""
-
-    @property
-    def frequency_penalty(self) -> Optional[float]:
-        """The frequency penalty to use."""
-
-    @property
-    def presence_penalty(self) -> Optional[float]:
-        """The presence penalty to use."""
-
-    @property
-    def timeout(self) -> Optional[float]:
-        """The timeout to use."""
-
-    @property
-    def parallel_tool_calls(self) -> Optional[bool]:
-        """Whether to allow parallel tool calls."""
-
-    @property
-    def seed(self) -> Optional[int]:
-        """The seed to use for the model allowing for reproducible results."""
-
-    @property
-    def logit_bias(self) -> Optional[dict[str, int]]:
-        """The logit bias to use."""
-
-    @property
-    def stop_sequences(self) -> Optional[List[str]]:
-        """The stop sequences to use."""
-
-    @property
-    def extra_body(self) -> Optional[dict[str, Any]]:
-        """The extra body to use."""
-
-    def model_dump(self) -> Dict[str, Any]:
-        """The model settings to use for the prompt."""
+    def model_dump_json(self) -> str:
+        """The JSON representation of the model settings."""
 
 class Prompt:
     def __init__(
@@ -396,8 +304,8 @@ class Prompt:
             | List[Message]
             | List[Dict[str, Any]]
         ),
-        model: Optional[str] = None,
-        provider: Optional[str] = None,
+        model: str,
+        provider: Provider | str,
         system_instruction: Optional[str | List[str]] = None,
         model_settings: Optional[ModelSettings] = None,
         response_format: Optional[Any] = None,
@@ -407,12 +315,10 @@ class Prompt:
         Args:
             message (str | Sequence[str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl] | Message | List[Message]):
                 The prompt to use.
-            model (str | None):
-                The model to use for the prompt. Required if model_settings is not provided.
-                If not provided, defaults to `undefined`.
-            provider (str | None):
-                The provider to use for the prompt. Required if model_settings is not provided.
-                If not provided, defaults `undefined`.
+            model (str):
+                The model to use for the prompt
+            provider (Provider | str):
+                The provider to use for the prompt.
             system_instruction (Optional[str | List[str]]):
                 The system prompt to use in the prompt.
             model_settings (None):
@@ -845,7 +751,9 @@ class Workflow:
         """
 
     @staticmethod
-    def model_validate_json(json_string: str, output_types: Optional[Dict[str, Any]]) -> "Workflow":
+    def model_validate_json(
+        json_string: str, output_types: Optional[Dict[str, Any]]
+    ) -> "Workflow":
         """Load a workflow from a JSON string.
 
         Args:
