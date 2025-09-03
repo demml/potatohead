@@ -1,4 +1,4 @@
-use potato_head::agents::provider::openai::{
+use potato_head::openai_types::chat::{
     AllowedTools, AllowedToolsMode, AudioParam, Content, ContentPart, CustomChoice,
     CustomDefinition, CustomTool, CustomToolChoice, CustomToolFormat, FunctionChoice,
     FunctionDefinition, FunctionTool, FunctionToolChoice, Grammar, GrammarFormat,

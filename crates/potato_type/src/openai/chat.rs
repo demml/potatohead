@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use crate::error::TypeError;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[pyclass]
 pub struct AudioParam {
     #[pyo3(get, set)]
@@ -23,7 +23,7 @@ impl AudioParam {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[pyclass]
 pub struct ContentPart {
     #[pyo3(get, set)]
@@ -40,7 +40,7 @@ impl ContentPart {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 #[pyclass]
 pub enum Content {
@@ -63,7 +63,7 @@ impl Content {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[pyclass]
 pub struct Prediction {
     #[pyo3(get, set)]
@@ -80,7 +80,7 @@ impl Prediction {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[pyclass]
 pub struct StreamOptions {
     #[pyo3(get, set)]
@@ -581,7 +581,7 @@ impl Tool {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[pyclass]
 pub struct OpenAIChatSettings {
     #[pyo3(get, set)]
@@ -777,5 +777,41 @@ impl OpenAIChatSettings {
 
     fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
+    }
+}
+
+impl Default for OpenAIChatSettings {
+    fn default() -> Self {
+        OpenAIChatSettings {
+            max_completion_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            frequency_penalty: None,
+            timeout: None,
+            parallel_tool_calls: None,
+            seed: None,
+            logit_bias: None,
+            stop_sequences: None,
+            logprobs: None,
+            audio: None,
+            metadata: None,
+            modalities: None,
+            n: None,
+            prediction: None,
+            presence_penalty: None,
+            prompt_cache_key: None,
+            reasoning_effort: None,
+            safety_identifier: None,
+            service_tier: None,
+            store: None,
+            stream: None,
+            stream_options: None,
+            tool_choice: None,
+            tools: None,
+            top_logprobs: None,
+            verbosity: None,
+            extra_body: None,
+        }
     }
 }

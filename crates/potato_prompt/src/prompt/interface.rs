@@ -5,205 +5,15 @@ use crate::prompt::types::{Message, Role};
 use crate::prompt::ResponseType;
 use potato_type::{Model, Provider, SaveName};
 
+use crate::prompt::settings::ModelSettings;
 use potato_util::utils::extract_string_value;
-use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs};
+use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
-
-#[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
-
-pub struct ModelSettings {
-    #[pyo3(get, set)]
-    pub model: String,
-
-    #[pyo3(get, set)]
-    pub provider: String,
-
-    #[pyo3(get, set)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_tokens: Option<usize>,
-
-    #[pyo3(get, set)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub temperature: Option<f32>,
-
-    #[pyo3(get, set)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub top_p: Option<f32>,
-
-    #[pyo3(get, set)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub top_k: Option<i32>,
-
-    #[pyo3(get, set)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub frequency_penalty: Option<f32>,
-
-    #[pyo3(get, set)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub presence_penalty: Option<f32>,
-
-    #[pyo3(get, set)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub timeout: Option<f32>,
-
-    #[pyo3(get, set)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parallel_tool_calls: Option<bool>,
-
-    #[pyo3(get, set)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub seed: Option<u64>,
-
-    #[pyo3(get, set)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub logit_bias: Option<HashMap<String, i32>>,
-
-    #[pyo3(get, set)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stop_sequences: Option<Vec<String>>,
-
-    #[pyo3(get, set)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub logprobs: Option<bool>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub extra_body: Option<Value>,
-}
-
-#[pymethods]
-impl ModelSettings {
-    #[new]
-    #[pyo3(signature = (model=None, provider=None, max_tokens=None, temperature=None, top_p=None, top_k=None, frequency_penalty=None, presence_penalty=None, timeout=0.0, parallel_tool_calls=None, seed=None, logit_bias=None, stop_sequences=None, logprobs=None, extra_body=None))]
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        model: Option<String>,
-        provider: Option<String>,
-        max_tokens: Option<usize>,
-        temperature: Option<f32>,
-        top_p: Option<f32>,
-        top_k: Option<i32>,
-        frequency_penalty: Option<f32>,
-        presence_penalty: Option<f32>,
-        timeout: Option<f32>,
-        parallel_tool_calls: Option<bool>,
-        seed: Option<u64>,
-        logit_bias: Option<HashMap<String, i32>>,
-        stop_sequences: Option<Vec<String>>,
-        logprobs: Option<bool>,
-        extra_body: Option<&Bound<'_, PyAny>>,
-    ) -> Result<Self, PromptError> {
-        // check if extra body is not none.
-        // if not none, conver to py any and attempt pyobject_to_json
-        let extra_body =
-            if let Some(extra_body) = extra_body {
-                Some(pyobject_to_json(extra_body).map_err(|e| {
-                    PromptError::Error(format!("Failed to convert extra body: {e}"))
-                })?)
-            } else {
-                None
-            };
-
-        let model = model.unwrap_or_else(|| Model::Undefined.as_str().to_string());
-        let provider = provider.unwrap_or_else(|| Provider::Undefined.as_str().to_string());
-
-        Ok(Self {
-            model,
-            provider,
-            max_tokens,
-            temperature,
-            top_p,
-            top_k,
-            frequency_penalty,
-            presence_penalty,
-            timeout,
-            parallel_tool_calls,
-            seed,
-            logit_bias,
-            stop_sequences,
-            logprobs,
-            extra_body,
-        })
-    }
-
-    #[getter]
-    pub fn extra_body<'py>(
-        &self,
-        py: Python<'py>,
-    ) -> Result<Option<Bound<'py, PyDict>>, PromptError> {
-        // error if extra body is None
-        self.extra_body
-            .as_ref()
-            .map(|v| {
-                let pydict = PyDict::new(py);
-                json_to_pydict(py, v, &pydict)
-            })
-            .transpose()
-            .map_err(|e| PromptError::Error(format!("Failed to get extra body: {e}")))
-    }
-
-    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, PromptError> {
-        // iterate over each field in model_settings and add to the dict if it is not None
-        let pydict = PyDict::new(py);
-
-        pydict.set_item("model", &self.model)?;
-        pydict.set_item("provider", &self.provider)?;
-
-        if let Some(max_tokens) = self.max_tokens {
-            pydict.set_item("max_tokens", max_tokens)?;
-        }
-        if let Some(temperature) = self.temperature {
-            pydict.set_item("temperature", temperature)?;
-        }
-        if let Some(top_p) = self.top_p {
-            pydict.set_item("top_p", top_p)?;
-        }
-        if let Some(frequency_penalty) = self.frequency_penalty {
-            pydict.set_item("frequency_penalty", frequency_penalty)?;
-        }
-        if let Some(presence_penalty) = self.presence_penalty {
-            pydict.set_item("presence_penalty", presence_penalty)?;
-        }
-        if let Some(parallel_tool_calls) = self.parallel_tool_calls {
-            pydict.set_item("parallel_tool_calls", parallel_tool_calls)?;
-        }
-        if let Some(seed) = self.seed {
-            pydict.set_item("seed", seed)?;
-        }
-        if let Some(logit_bias) = &self.logit_bias {
-            pydict.set_item("logit_bias", logit_bias)?;
-        }
-        if let Some(stop_sequences) = &self.stop_sequences {
-            pydict.set_item("stop_sequences", stop_sequences)?;
-        }
-        if let Some(logprobs) = self.logprobs {
-            pydict.set_item("logprobs", logprobs)?;
-        }
-        let extra = self.extra_body(py)?;
-
-        if let Some(extra) = extra {
-            pydict.set_item("extra_body", extra)?;
-        }
-
-        Ok(pydict)
-    }
-}
-
-impl ModelSettings {
-    pub fn has_model_provider(&self) -> bool {
-        // check if both are undefined or empty
-        self.model != Model::Undefined.as_str()
-            && self.provider != Provider::Undefined.as_str()
-            && !self.model.is_empty()
-            && !self.provider.is_empty()
-    }
-}
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -216,6 +26,12 @@ pub struct Prompt {
 
     #[pyo3(get, set)]
     pub model_settings: ModelSettings,
+
+    #[pyo3(get)]
+    pub model: String,
+
+    #[pyo3(get, set)]
+    pub provider: String,
 
     pub version: String,
 
@@ -264,12 +80,12 @@ pub fn parse_prompt(messages: &Bound<'_, PyAny>) -> Result<Vec<Message>, PromptE
 #[pymethods]
 impl Prompt {
     #[new]
-    #[pyo3(signature = (message, model=None, provider=None, system_instruction=None, model_settings=None, response_format=None))]
+    #[pyo3(signature = (message, model, provider, system_instruction=None, model_settings=None, response_format=None))]
     pub fn new(
         py: Python<'_>,
         message: &Bound<'_, PyAny>,
-        model: Option<&str>,
-        provider: Option<&str>,
+        model: &str,
+        provider: &str,
         system_instruction: Option<&Bound<'_, PyAny>>,
         model_settings: Option<ModelSettings>,
         response_format: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
@@ -317,23 +133,8 @@ impl Prompt {
     }
 
     #[getter]
-    pub fn model(&self) -> &str {
-        // error if model is None
-        &self.model_settings.model
-    }
-
-    #[getter]
-    pub fn provider(&self) -> &str {
-        // error if model is None
-        &self.model_settings.provider
-    }
-
-    #[getter]
     pub fn model_identifier(&self) -> String {
-        format!(
-            "{}:{}",
-            self.model_settings.provider, self.model_settings.model
-        )
+        format!("{}:{}", self.provider, self.model)
     }
 
     #[pyo3(signature = (path = None))]
@@ -469,8 +270,8 @@ impl Prompt {
 impl Prompt {
     pub fn new_rs(
         message: Vec<Message>,
-        model: Option<&str>,
-        provider: Option<&str>,
+        model: &str,
+        provider: &str,
         system_instruction: Vec<Message>,
         mut model_settings: Option<ModelSettings>,
         response_json_schema: Option<Value>,
@@ -479,25 +280,13 @@ impl Prompt {
         // get version from crate
         let version = potato_util::version();
 
-        let model_default = Model::Undefined.as_str();
-        let provider_default = Provider::Undefined.as_str();
-
-        // If model_settings is provided, check if it has model and provider
-        if let Some(ref mut settings) = model_settings {
-            if !settings.has_model_provider() {
-                settings.model = model.unwrap_or(model_default).to_string();
-                settings.provider = provider.unwrap_or(provider_default).to_string();
-            }
-        }
+        let provider = Provider::from_str(provider)
+            .map_err(|e| PromptError::Error(format!("Invalid provider: {e}")))?;
 
         // If model_settings is not provided, set model and provider to undefined if missing
         let model_settings = match model_settings {
             Some(settings) => settings,
-            None => ModelSettings {
-                model: model.unwrap_or(model_default).to_string(),
-                provider: provider.unwrap_or(provider_default).to_string(),
-                ..Default::default()
-            },
+            None => ModelSettings::default(),
         };
 
         // extract named parameters in prompt

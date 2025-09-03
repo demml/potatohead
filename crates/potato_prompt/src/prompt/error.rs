@@ -46,6 +46,9 @@ pub enum PromptError {
 
     #[error(transparent)]
     UtilError(#[from] potato_util::UtilError),
+
+    #[error("Invalid settings provided. ModelSettings expects either OpenAIChatSettings or GeminiSettings.")]
+    InvalidModelSettings,
 }
 
 impl From<PromptError> for PyErr {
