@@ -1,4 +1,4 @@
-use potato_head::agents::provider::gemini::{
+use potato_head::google_types::chat::{
     FunctionCallingConfig, GeminiSettings, GenerationConfig, HarmBlockMethod, HarmBlockThreshold,
     HarmCategory, LatLng, MediaResolution, Modality, Mode, ModelArmorConfig, PrebuiltVoiceConfig,
     RetrievalConfig, SafetySetting, SpeechConfig, ThinkingConfig, ToolConfig, VoiceConfig,

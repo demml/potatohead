@@ -1,9 +1,10 @@
 use crate::agents::error::AgentError;
 use crate::agents::provider::gemini::{
-    Content, GeminiGenerateContentRequest, GenerateContentResponse, GenerationConfig, Part,
+    Content, GeminiGenerateContentRequest, GenerateContentResponse, Part,
 };
 use crate::agents::provider::types::build_http_client;
 use potato_prompt::Prompt;
+use potato_type::google::chat::GenerationConfig;
 use potato_type::Common;
 use potato_type::Provider;
 use reqwest::Client;
