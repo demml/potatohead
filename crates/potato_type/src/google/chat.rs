@@ -626,7 +626,7 @@ impl GeminiSettings {
 }
 
 impl GeminiSettings {
-    pub fn configure_for_structured_output(&mut self) -> () {
+    pub fn configure_for_structured_output(&mut self) {
         // Ensure generation_config exists and set response_mime_type
         match self.generation_config.as_mut() {
             Some(generation_config) => {
