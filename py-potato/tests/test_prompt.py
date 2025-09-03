@@ -152,9 +152,7 @@ def test_document_prompt():
         provider="openai",
         message=[
             "What is the main content of this document?",
-            DocumentUrl(
-                url="https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"
-            ),
+            DocumentUrl(url="https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"),
         ],
         system_instruction="system_prompt",
     )
