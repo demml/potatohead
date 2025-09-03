@@ -52,6 +52,9 @@ pub enum PromptError {
 
     #[error("Invalid settings provided. ModelSettings expects either OpenAIChatSettings or GeminiSettings.")]
     InvalidModelSettings,
+
+    #[error("Invalid provider provided. Provider must be either a Provider enum or a string.")]
+    InvalidProvider,
 }
 
 impl From<PromptError> for PyErr {

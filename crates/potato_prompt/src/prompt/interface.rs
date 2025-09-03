@@ -3,7 +3,7 @@ use crate::prompt::types::parse_response_to_json;
 
 use crate::prompt::types::{Message, Role};
 use crate::prompt::ResponseType;
-use potato_type::{Model, Provider, SaveName};
+use potato_type::{Provider, SaveName};
 
 use crate::prompt::settings::ModelSettings;
 use potato_util::utils::extract_string_value;
@@ -27,11 +27,11 @@ pub struct Prompt {
     #[pyo3(get, set)]
     pub model_settings: ModelSettings,
 
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub model: String,
 
     #[pyo3(get, set)]
-    pub provider: String,
+    pub provider: Provider,
 
     pub version: String,
 
@@ -77,6 +77,17 @@ pub fn parse_prompt(messages: &Bound<'_, PyAny>) -> Result<Vec<Message>, PromptE
     }
 }
 
+fn extract_provider(provider: &Bound<'_, PyAny>) -> Result<Provider, PromptError> {
+    if provider.is_instance_of::<Provider>() {
+        Ok(provider.extract::<Provider>()?)
+    } else if provider.is_instance_of::<PyString>() {
+        let provider = provider.extract::<String>()?;
+        Ok(Provider::from_string(&provider)?)
+    } else {
+        Err(PromptError::InvalidProvider)
+    }
+}
+
 #[pymethods]
 impl Prompt {
     #[new]
@@ -85,12 +96,15 @@ impl Prompt {
         py: Python<'_>,
         message: &Bound<'_, PyAny>,
         model: &str,
-        provider: &str,
+        provider: &Bound<'_, PyAny>,
         system_instruction: Option<&Bound<'_, PyAny>>,
         model_settings: Option<ModelSettings>,
         response_format: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
     ) -> Result<Self, PromptError> {
         // extract messages
+
+        // extract provider
+        let provider = extract_provider(provider)?;
 
         let system_instruction = if let Some(system_instruction) = system_instruction {
             parse_prompt(system_instruction)?
@@ -134,7 +148,7 @@ impl Prompt {
 
     #[getter]
     pub fn model_identifier(&self) -> String {
-        format!("{}:{}", self.provider, self.model)
+        format!("{}:{}", self.provider.as_str(), self.model)
     }
 
     #[pyo3(signature = (path = None))]
@@ -271,17 +285,14 @@ impl Prompt {
     pub fn new_rs(
         message: Vec<Message>,
         model: &str,
-        provider: &str,
+        provider: Provider,
         system_instruction: Vec<Message>,
-        mut model_settings: Option<ModelSettings>,
+        model_settings: Option<ModelSettings>,
         response_json_schema: Option<Value>,
         response_type: ResponseType,
     ) -> Result<Self, PromptError> {
         // get version from crate
         let version = potato_util::version();
-
-        let provider = Provider::from_string(provider)?;
-
         // If model_settings is not provided, set model and provider to undefined if missing
         let model_settings = match model_settings {
             Some(settings) => settings,
@@ -299,17 +310,9 @@ impl Prompt {
             response_json_schema,
             parameters,
             response_type,
+            model: model.to_string(),
+            provider,
         })
-    }
-
-    pub fn set_model(&mut self, model: &str) {
-        // Set the model in model_settings
-        self.model_settings.model = model.to_string();
-    }
-
-    pub fn set_provider(&mut self, provider: &str) {
-        // Set the provider in model_settings
-        self.model_settings.provider = provider.to_string();
     }
 
     fn extract_variables(message: &Vec<Message>, system_instruction: &Vec<Message>) -> Vec<String> {
@@ -354,8 +357,8 @@ mod tests {
         let prompt_content = PromptContent::Str("Test prompt. ${param1} ${param2}".to_string());
         let prompt = Prompt::new_rs(
             vec![Message::new_rs(prompt_content)],
-            Some("gpt-4o"),
-            Some("openai"),
+            "gpt-4o",
+            Provider::OpenAI,
             vec![],
             None,
             None,
@@ -401,8 +404,8 @@ mod tests {
                     kind: "image-url".to_string(),
                 })),
             ],
-            Some("gpt-4o"),
-            Some("openai"),
+            "gpt-4o",
+            Provider::OpenAI,
             vec![Message::new_rs(PromptContent::Str(
                 "system_prompt".to_string(),
             ))],
@@ -443,8 +446,8 @@ mod tests {
                     kind: "binary".to_string(),
                 })),
             ],
-            Some("gpt-4o"),
-            Some("openai"),
+            "gpt-4o",
+            Provider::OpenAI,
             vec![Message::new_rs(PromptContent::Str(
                 "system_prompt".to_string(),
             ))],
@@ -483,8 +486,8 @@ mod tests {
                     kind: "document-url".to_string(),
                 })),
             ],
-            Some("gpt-4o"),
-            Some("openai"),
+             "gpt-4o",
+            Provider::OpenAI,
             vec![Message::new_rs(PromptContent::Str(
                 "system_prompt".to_string(),
             ))],
@@ -519,8 +522,8 @@ mod tests {
             vec![Message::new_rs(PromptContent::Str(
                 "Rate the quality of this response.".to_string(),
             ))],
-            Some("gpt-4o"),
-            Some("openai"),
+            "gpt-4o",
+            Provider::OpenAI,
             vec![],
             None,
             Some(Score::get_structured_output_schema()),
