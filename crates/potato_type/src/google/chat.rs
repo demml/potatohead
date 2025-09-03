@@ -1,3 +1,4 @@
+use crate::TypeError;
 use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -622,6 +623,14 @@ impl GeminiSettings {
 
     pub fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
+    }
+
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
+        // iterate over each field in model_settings and add to the dict if it is not None
+        let json = serde_json::to_value(self)?;
+        let pydict = PyDict::new(py);
+        json_to_pydict(py, &json, &pydict)?;
+        Ok(pydict)
     }
 }
 

@@ -8,7 +8,9 @@ from potato_head import (  # type: ignore
     Message,
     ModelSettings,
     Prompt,
+    Provider,
 )
+from potato_head.openai import OpenAIChatSettings  # type: ignore
 from pydantic import BaseModel
 from pydantic_ai import BinaryContent as PydanticBinaryContent
 from pydantic_ai import DocumentUrl as PydanticDocumentUrl
@@ -36,7 +38,7 @@ def test_string_prompt():
     # test string message
     prompt = Prompt(
         model="gpt-4o",
-        provider="openai",
+        provider=Provider.OPENAI,
         message=Message(content="My prompt"),
         system_instruction="system_prompt",
     )
@@ -150,7 +152,9 @@ def test_document_prompt():
         provider="openai",
         message=[
             "What is the main content of this document?",
-            DocumentUrl(url="https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"),
+            DocumentUrl(
+                url="https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"
+            ),
         ],
         system_instruction="system_prompt",
     )
@@ -161,14 +165,14 @@ def test_document_prompt():
 
 def test_model_settings_prompt():
     settings = ModelSettings(
-        model="gpt-4o",
-        provider="openai",
-        temperature=0.5,
-        max_tokens=100,
-        top_p=0.9,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        extra_body={"key": "value"},
+        settings=OpenAIChatSettings(
+            temperature=0.5,
+            max_tokens=100,
+            top_p=0.9,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            extra_body={"key": "value"},
+        )
     )
 
     prompt = Prompt(

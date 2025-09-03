@@ -1,10 +1,11 @@
+use crate::error::TypeError;
+use potato_util::json_to_pydict;
 use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-
-use crate::error::TypeError;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[pyclass]
@@ -20,6 +21,14 @@ impl AudioParam {
     #[new]
     pub fn new(format: String, voice: String) -> Self {
         AudioParam { format, voice }
+    }
+
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
+        // iterate over each field in model_settings and add to the dict if it is not None
+        let pydict = PyDict::new(py);
+        pydict.set_item("format", &self.format)?;
+        pydict.set_item("voice", &self.voice)?;
+        Ok(pydict)
     }
 }
 
@@ -37,6 +46,15 @@ impl ContentPart {
     #[new]
     pub fn new(r#type: String, text: String) -> Self {
         ContentPart { r#type, text }
+    }
+
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
+        // iterate over each field in model_settings and add to the dict if it is not None
+        let pydict = PyDict::new(py);
+
+        pydict.set_item("type", &self.r#type)?;
+        pydict.set_item("text", &self.text)?;
+        Ok(pydict)
     }
 }
 
@@ -777,5 +795,29 @@ impl OpenAIChatSettings {
 
     fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
+    }
+
+    #[getter]
+    pub fn extra_body<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Option<Bound<'py, PyDict>>, TypeError> {
+        // error if extra body is None
+        Ok(self
+            .extra_body
+            .as_ref()
+            .map(|v| {
+                let pydict = PyDict::new(py);
+                json_to_pydict(py, v, &pydict)
+            })
+            .transpose()?)
+    }
+
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
+        // iterate over each field in model_settings and add to the dict if it is not None
+        let json = serde_json::to_value(self)?;
+        let pydict = PyDict::new(py);
+        json_to_pydict(py, &json, &pydict)?;
+        Ok(pydict)
     }
 }
