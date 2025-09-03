@@ -1,5 +1,6 @@
 use crate::agents::error::AgentError;
 use crate::agents::provider::openai::{OpenAIChatMessage, OpenAIChatRequest, OpenAIChatResponse};
+use crate::agents::provider::types::add_extra_body_to_prompt;
 use crate::agents::provider::types::build_http_client;
 use potato_prompt::Prompt;
 use potato_type::{Common, Provider};
@@ -123,7 +124,7 @@ impl OpenAIClient {
         let chat_request = OpenAIChatRequest {
             model: prompt.model.clone(),
             messages,
-            settings: prompt.model_settings.get_openai_settings()?,
+            settings: prompt.model_settings.get_openai_settings(),
             response_format: schema,
         };
 
@@ -133,14 +134,7 @@ impl OpenAIClient {
 
         // if settings.extra_body is provided, merge it with the prompt
         if let Some(extra_body) = settings.extra_body() {
-            if let (Some(prompt_obj), Some(extra_obj)) =
-                (serialized_prompt.as_object_mut(), extra_body.as_object())
-            {
-                // Merge the extra_body fields into prompt
-                for (key, value) in extra_obj {
-                    prompt_obj.insert(key.clone(), value.clone());
-                }
-            }
+            add_extra_body_to_prompt(&mut serialized_prompt, extra_body);
         }
 
         debug!(

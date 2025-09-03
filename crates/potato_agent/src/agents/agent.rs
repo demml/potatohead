@@ -6,11 +6,10 @@ use crate::{
     agents::task::Task,
     agents::types::{AgentResponse, PyAgentResponse},
 };
+use potato_prompt::prompt::settings::ModelSettings;
 use potato_prompt::{
-    parse_response_to_json, prompt::parse_prompt, prompt::types::Message, ModelSettings, Prompt,
-    Role,
+    parse_response_to_json, prompt::parse_prompt, prompt::types::Message, Prompt, Role,
 };
-use potato_type::Model;
 use potato_type::Provider;
 use potato_util::create_uuid7;
 use pyo3::{prelude::*, IntoPyObjectExt};
@@ -185,7 +184,7 @@ impl Agent {
     }
 
     pub fn from_model_settings(model_settings: &ModelSettings) -> Result<Self, AgentError> {
-        let provider = Provider::from_string(&model_settings.provider)?;
+        let provider = model_settings.provider();
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
             Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None, None, None)?),
@@ -372,25 +371,23 @@ impl PyAgent {
             }
         }
 
-        // if model is none and task.prompt.model is None, fail
-        if model.is_none() && task.prompt.model() == Model::Undefined.as_str() {
-            return Err(AgentError::UndefinedError(
-                "Model must be specified either as an argument or in the Task prompt".to_string(),
+        // if model is not None, set task prompt model (this will override the task prompt model)
+        if let Some(model) = model {
+            task.prompt.model = model.to_string();
+        }
+
+        // agent provider and task.prompt provider must match
+        if task.prompt.provider != *self.agent.provider() {
+            return Err(AgentError::ProviderMismatch(
+                task.prompt.provider.to_string(),
+                self.agent.provider().as_str().to_string(),
             ));
         }
 
-        // if model is not None, set task prompt model (this will override the task prompt model)
-        if let Some(model) = model {
-            task.prompt.set_model(model);
-        }
-
-        // check if prompt.provider is None, if so, set it to the agent provider
-        if task.prompt.provider() == Model::Undefined.as_str() {
-            task.prompt.set_provider(self.agent.provider().as_str());
-        }
-
-        println!("Task prompt model: {}", task.prompt.model());
-        println!("Task prompt provider: {}", task.prompt.provider());
+        debug!(
+            "Task prompt model identifier: {}",
+            task.prompt.model_identifier()
+        );
 
         let chat_response = self
             .runtime
@@ -426,20 +423,17 @@ impl PyAgent {
             }
         }
 
-        // if model is none and task.prompt.model is None, fail
-        if model.is_none() && prompt.model() == Model::Undefined.as_str() {
-            return Err(AgentError::UndefinedError(
-                "Model must be specified either as an argument or in the Prompt".to_string(),
-            ));
-        }
-
         // if model is not None, set task prompt model (this will override the task prompt model)
         if let Some(model) = model {
-            prompt.set_model(model);
+            prompt.model = model.to_string();
         }
 
-        if prompt.provider() == Model::Undefined.as_str() {
-            prompt.set_provider(self.agent.provider().as_str());
+        // agent provider and task.prompt provider must match
+        if prompt.provider != *self.agent.provider() {
+            return Err(AgentError::ProviderMismatch(
+                prompt.provider.to_string(),
+                self.agent.provider().as_str().to_string(),
+            ));
         }
 
         let chat_response = self

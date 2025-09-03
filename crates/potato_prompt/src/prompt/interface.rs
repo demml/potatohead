@@ -77,17 +77,6 @@ pub fn parse_prompt(messages: &Bound<'_, PyAny>) -> Result<Vec<Message>, PromptE
     }
 }
 
-fn extract_provider(provider: &Bound<'_, PyAny>) -> Result<Provider, PromptError> {
-    if provider.is_instance_of::<Provider>() {
-        Ok(provider.extract::<Provider>()?)
-    } else if provider.is_instance_of::<PyString>() {
-        let provider = provider.extract::<String>()?;
-        Ok(Provider::from_string(&provider)?)
-    } else {
-        Err(PromptError::InvalidProvider)
-    }
-}
-
 #[pymethods]
 impl Prompt {
     #[new]
@@ -104,8 +93,7 @@ impl Prompt {
         // extract messages
 
         // extract provider
-        let provider = extract_provider(provider)?;
-
+        let provider = Provider::extract_provider(provider)?;
         let system_instruction = if let Some(system_instruction) = system_instruction {
             parse_prompt(system_instruction)?
                 .into_iter()

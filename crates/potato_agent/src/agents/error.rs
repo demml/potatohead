@@ -81,6 +81,9 @@ pub enum AgentError {
 
     #[error("{0}")]
     InvalidInput(String),
+
+    #[error("Provider mismatch: prompt provider {0}, agent provider {1}")]
+    ProviderMismatch(String, String),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {

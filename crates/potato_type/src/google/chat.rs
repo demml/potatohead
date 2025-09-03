@@ -624,3 +624,20 @@ impl GeminiSettings {
         PyHelperFuncs::__str__(self)
     }
 }
+
+impl GeminiSettings {
+    pub fn configure_for_structured_output(&mut self) -> () {
+        // Ensure generation_config exists and set response_mime_type
+        match self.generation_config.as_mut() {
+            Some(generation_config) => {
+                generation_config.response_mime_type = Some("application/json".to_string());
+            }
+            None => {
+                self.generation_config = Some(GenerationConfig {
+                    response_mime_type: Some("application/json".to_string()),
+                    ..Default::default()
+                });
+            }
+        }
+    }
+}

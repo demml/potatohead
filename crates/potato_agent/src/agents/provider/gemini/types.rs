@@ -2,9 +2,7 @@ use crate::agents::provider::traits::{LogProbExt, ResponseExt, TokenUsage};
 use crate::{AgentError, Usage};
 use base64::prelude::*;
 use potato_prompt::{prompt::types::PromptContent, Message};
-use potato_type::google::chat::{
-    GenerationConfig, HarmBlockThreshold, HarmCategory, Modality, ModelArmorConfig, SafetySetting,
-};
+use potato_type::google::chat::{GeminiSettings, HarmBlockThreshold, HarmCategory, Modality};
 use potato_util::utils::ResponseLogProbs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -674,16 +672,16 @@ pub struct RoutingConfig {
 #[serde(rename_all = "camelCase", default)]
 pub struct GeminiGenerateContentRequest {
     pub contents: Vec<Content>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_instruction: Option<Content>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<Tool>>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub model_armor_config: Option<ModelArmorConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub safety_settings: Option<Vec<SafetySetting>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub generation_config: Option<GenerationConfig>,
+    #[serde(flatten)]
+    pub settings: Option<GeminiSettings>,
 }
 
 #[pyclass]

@@ -78,15 +78,27 @@ impl ModelSettings {
         }
     }
 
-    pub fn get_openai_settings(&self) -> Result<OpenAIChatSettings, PromptError> {
+    pub fn get_openai_settings(&self) -> Option<OpenAIChatSettings> {
         match self {
             ModelSettings::OpenAIChat(settings) => {
                 let mut cloned_settings = settings.clone();
                 // set extra body to None
                 cloned_settings.extra_body = None;
-                Ok(cloned_settings)
+                Some(cloned_settings)
             }
-            _ => Err(PromptError::OpenAIChatSettingsNotFound),
+            _ => None,
+        }
+    }
+
+    pub fn get_gemini_settings(&self) -> Option<GeminiSettings> {
+        match self {
+            ModelSettings::GoogleChat(settings) => {
+                let mut cloned_settings = settings.clone();
+                // set extra body to None
+                cloned_settings.extra_body = None;
+                Some(cloned_settings)
+            }
+            _ => None,
         }
     }
 
@@ -94,6 +106,13 @@ impl ModelSettings {
         match self {
             ModelSettings::OpenAIChat(settings) => settings.extra_body.as_ref(),
             ModelSettings::GoogleChat(settings) => settings.extra_body.as_ref(),
+        }
+    }
+
+    pub fn provider(&self) -> Provider {
+        match self {
+            ModelSettings::OpenAIChat(_) => Provider::OpenAI,
+            ModelSettings::GoogleChat(_) => Provider::Gemini,
         }
     }
 }
