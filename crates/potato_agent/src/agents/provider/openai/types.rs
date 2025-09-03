@@ -334,12 +334,12 @@ pub enum Content {
 impl Content {
     #[new]
     #[pyo3(signature = (text=None, parts=None))]
-    pub fn new(text: Option<String>, parts: Option<Vec<ContentPart>>) -> PyResult<Self> {
+    pub fn new(text: Option<String>, parts: Option<Vec<ContentPart>>) -> Result<Self, AgentError> {
         match (text, parts) {
             (Some(t), None) => Ok(Content::Text(t)),
             (None, Some(p)) => Ok(Content::Array(p)),
-            _ => Err(pyo3::exceptions::PyValueError::new_err(
-                "Either text or parts must be provided, but not both.",
+            _ => Err(AgentError::InvalidInput(
+                "Either text or parts must be provided, but not both.".to_string(),
             )),
         }
     }

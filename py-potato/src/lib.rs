@@ -39,5 +39,6 @@ pub fn potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(mock::mock))?;
     m.add_wrapped(wrap_pymodule!(logging::logging))?;
     m.add_wrapped(wrap_pymodule!(google::google))?;
+    m.add_wrapped(wrap_pymodule!(openai::openai))?;
     Ok(())
 }

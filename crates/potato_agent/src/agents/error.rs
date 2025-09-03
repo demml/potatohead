@@ -78,6 +78,9 @@ pub enum AgentError {
 
     #[error("Invalid tool definition")]
     InvalidToolDefinitionError,
+
+    #[error("{0}")]
+    InvalidInput(String),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {

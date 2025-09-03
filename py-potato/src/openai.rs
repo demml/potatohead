@@ -1,7 +1,9 @@
 use potato_head::agents::provider::openai::{
-    AllowedTools, AudioParam, Content, ContentPart, CustomChoice, CustomDefinition, CustomTool,
-    CustomToolChoice, CustomToolFormat, FunctionChoice, FunctionDefinition, FunctionTool, Grammar,
-    OpenAIChatSettings, Prediction, StreamOptions, Tool, ToolChoice,
+    AllowedTools, AllowedToolsMode, AudioParam, Content, ContentPart, CustomChoice,
+    CustomDefinition, CustomTool, CustomToolChoice, CustomToolFormat, FunctionChoice,
+    FunctionDefinition, FunctionTool, FunctionToolChoice, Grammar, GrammarFormat,
+    OpenAIChatSettings, Prediction, StreamOptions, TextFormat, Tool, ToolChoice, ToolChoiceMode,
+    ToolDefinition,
 };
 use pyo3::prelude::*;
 
@@ -25,5 +27,11 @@ pub fn openai(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<StreamOptions>()?;
     m.add_class::<Tool>()?;
     m.add_class::<ToolChoice>()?;
+    m.add_class::<ToolChoiceMode>()?;
+    m.add_class::<FunctionToolChoice>()?;
+    m.add_class::<ToolDefinition>()?;
+    m.add_class::<AllowedToolsMode>()?;
+    m.add_class::<GrammarFormat>()?;
+    m.add_class::<TextFormat>()?;
     Ok(())
 }
