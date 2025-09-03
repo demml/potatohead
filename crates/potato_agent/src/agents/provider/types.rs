@@ -2,7 +2,7 @@ use crate::agents::error::AgentError;
 use reqwest::header::HeaderName;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Client;
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
 const TIMEOUT_SECS: u64 = 30;
