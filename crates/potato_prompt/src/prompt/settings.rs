@@ -9,6 +9,7 @@ use serde_json::Value;
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum ModelSettings {
     OpenAIChat(OpenAIChatSettings),
     GoogleChat(GeminiSettings),
