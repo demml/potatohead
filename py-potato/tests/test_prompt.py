@@ -38,7 +38,7 @@ def test_string_prompt():
     # test string message
     prompt = Prompt(
         model="gpt-4o",
-        provider=Provider.OPENAI,
+        provider=Provider.OpenAI,
         message=Message(content="My prompt"),
         system_instruction="system_prompt",
     )
@@ -152,7 +152,9 @@ def test_document_prompt():
         provider="openai",
         message=[
             "What is the main content of this document?",
-            DocumentUrl(url="https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"),
+            DocumentUrl(
+                url="https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"
+            ),
         ],
         system_instruction="system_prompt",
     )
@@ -165,7 +167,7 @@ def test_model_settings_prompt():
     settings = ModelSettings(
         settings=OpenAIChatSettings(
             temperature=0.5,
-            max_tokens=100,
+            max_completion_tokens=500,
             top_p=0.9,
             frequency_penalty=0.0,
             presence_penalty=0.0,
@@ -174,6 +176,8 @@ def test_model_settings_prompt():
     )
 
     prompt = Prompt(
+        model="gpt-4o",
+        provider="openai",
         message=[
             "My prompt ${1} is ${2}",
             "My prompt ${3} is ${4}",
@@ -198,6 +202,8 @@ def test_prompt_response_format():
 
 def test_prompt_no_args():
     prompt = Prompt(
+        model="gpt-4o",
+        provider="openai",
         message="My prompt",
         system_instruction="system_prompt",
     )
