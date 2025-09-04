@@ -1,4 +1,4 @@
-use crate::TypeError;
+use crate::{SettingsType, TypeError};
 use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -631,6 +631,10 @@ impl GeminiSettings {
         let pydict = PyDict::new(py);
         json_to_pydict(py, &json, &pydict)?;
         Ok(pydict)
+    }
+
+    pub fn settings_type(&self) -> SettingsType {
+        SettingsType::GoogleChat
     }
 }
 

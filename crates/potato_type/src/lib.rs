@@ -231,3 +231,11 @@ pub trait StructuredOutput: for<'de> serde::Deserialize<'de> + JsonSchema {
     }
     // add fallback parsing logic
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[pyclass]
+pub enum SettingsType {
+    GoogleChat,
+    OpenAIChat,
+    ModelSettings,
+}

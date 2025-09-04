@@ -1,4 +1,5 @@
 use crate::error::TypeError;
+use crate::SettingsType;
 use potato_util::json_to_pydict;
 use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
@@ -819,5 +820,9 @@ impl OpenAIChatSettings {
         let pydict = PyDict::new(py);
         json_to_pydict(py, &json, &pydict)?;
         Ok(pydict)
+    }
+
+    pub fn settings_type(&self) -> SettingsType {
+        SettingsType::OpenAIChat
     }
 }
