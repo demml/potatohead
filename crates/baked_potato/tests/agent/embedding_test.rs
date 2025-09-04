@@ -1,5 +1,5 @@
 use baked_potato::LLMTestServer;
-use potato_agent::{Agent, Task};
+use potato_agent::{e, Agent, Embedder, Task};
 use potato_prompt::{
     prompt::{Message, Prompt, PromptContent, ResponseType},
     Score,
@@ -11,31 +11,22 @@ use potato_type::StructuredOutput;
 /// Because of this, we need to use a tokio runtime to run the async code within the test.
 #[test]
 fn test_openai_agent() {
+    use potato_type::openai::embedding::OpenAIEmbeddingSettings;
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let mut mock = LLMTestServer::new();
+
     mock.start_server().unwrap();
 
-    let prompt_content = PromptContent::Str("Test prompt. ${param1} ${param2}".to_string());
-    let prompt = Prompt::new_rs(
-        vec![Message::new_rs(prompt_content)],
-        "gpt-4o",
-        Provider::OpenAI,
-        vec![],
-        None,
-        None,
-        ResponseType::Null,
-    )
-    .unwrap();
+    let embedder = Embedder::new(Provider::OpenAI).unwrap();
 
-    let agent = Agent::new(Provider::OpenAI, None).unwrap();
-    let task = Task::new(&agent.id, prompt, "task1", None, None);
+    let inputs = vec!["Test input 1".to_string(), "Test input 2".to_string()];
+    let settings = OpenAIEmbeddingSettings {
+        model: "text-embedding-3-small".to_string(),
+        ..Default::default()
+    };
 
     runtime.block_on(async {
-        agent.execute_task(&task).await.unwrap();
-    });
-
-    runtime.block_on(async {
-        agent.execute_prompt(&task.prompt).await.unwrap();
+        embedder.create(inputs, settings).await.unwrap();
     });
 
     mock.stop_server().unwrap();
