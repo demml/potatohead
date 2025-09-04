@@ -5,8 +5,9 @@
 # 2. Evaluates the quality of the reformulated query.
 # 3. Returns a score and reason for how well the reformulation improves the query.
 
-from potato_head import Prompt, Agent, Provider, Workflow, Task, Score
-from potato_head.logging import RustyLogger, LoggingConfig, LogLevel
+from potato_head import Agent, Prompt, Provider, Score, Task, Workflow
+from potato_head.google import GeminiSettings, GenerationConfig, ThinkingConfig
+from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
 
 RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
 
@@ -46,6 +47,11 @@ def create_reformulation_evaluation_prompt():
         ),
         model="gemini-2.5-flash-lite-preview-06-17",
         provider="gemini",
+        model_settings=GeminiSettings(
+            generation_config=GenerationConfig(
+                thinking_config=ThinkingConfig(thinking_budget=0),
+            ),
+        ),
     )
 
 
@@ -66,8 +72,13 @@ def create_query_reformulation_prompt():
             "${user_query}\n\n"
             "Reformulated Query:"
         ),
-        model="gemini-2.5-flash-lite-preview-06-17",
+        model="gemini-2.5-flash-lite",
         provider="gemini",
+        model_settings=GeminiSettings(
+            generation_config=GenerationConfig(
+                thinking_config=ThinkingConfig(thinking_budget=0),
+            ),
+        ),
     )
 
 

@@ -1,11 +1,11 @@
 use crate::prompt::error::PromptError;
 use crate::prompt::types::parse_response_to_json;
-
 use crate::prompt::types::{Message, Role};
 use crate::prompt::ResponseType;
 use potato_type::google::chat::GeminiSettings;
 use potato_type::openai::chat::OpenAIChatSettings;
-use potato_type::{Model, Provider, SaveName};
+use potato_type::SettingsType;
+use potato_type::{Provider, SaveName};
 
 use crate::prompt::settings::ModelSettings;
 use potato_util::utils::extract_string_value;
@@ -78,18 +78,23 @@ pub fn parse_prompt(messages: &Bound<'_, PyAny>) -> Result<Vec<Message>, PromptE
         Ok(vec![Message::new(messages)?])
     }
 }
-
+/// Extract model settings from the settings_type attribute. This function will return the appropriate
+/// ModelSettings variant based on the type of settings provided.
 fn extract_model_settings(model_settings: &Bound<'_, PyAny>) -> Result<ModelSettings, PromptError> {
-    if model_settings.is_instance_of::<ModelSettings>() {
-        Ok(model_settings.extract::<ModelSettings>()?)
-    } else if model_settings.is_instance_of::<GeminiSettings>() {
-        let gemini_settings = model_settings.extract::<GeminiSettings>()?;
-        Ok(ModelSettings::GoogleChat(gemini_settings))
-    } else if model_settings.is_instance_of::<OpenAIChatSettings>() {
-        let openai_settings = model_settings.extract::<OpenAIChatSettings>()?;
-        Ok(ModelSettings::OpenAIChat(openai_settings))
-    } else {
-        Err(PromptError::Error("Invalid model settings".into()))
+    let settings_type = model_settings.call_method0("settings_type")?;
+    match settings_type.extract::<SettingsType>()? {
+        SettingsType::OpenAIChat => {
+            let openai_settings = model_settings.extract::<OpenAIChatSettings>()?;
+            Ok(ModelSettings::OpenAIChat(openai_settings))
+        }
+        SettingsType::GoogleChat => {
+            let gemini_settings = model_settings.extract::<GeminiSettings>()?;
+            Ok(ModelSettings::GoogleChat(gemini_settings))
+        }
+        SettingsType::ModelSettings => {
+            let model_settings = model_settings.extract::<ModelSettings>()?;
+            Ok(model_settings)
+        }
     }
 }
 
@@ -106,9 +111,10 @@ impl Prompt {
         model_settings: Option<&Bound<'_, PyAny>>,
         response_format: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
     ) -> Result<Self, PromptError> {
-        // extract messages
-
-        // extract provider
+        let model_settings = model_settings
+            .as_ref()
+            .map(|s| extract_model_settings(s))
+            .transpose()?;
         let provider = Provider::extract_provider(provider)?;
         let system_instruction = if let Some(system_instruction) = system_instruction {
             parse_prompt(system_instruction)?

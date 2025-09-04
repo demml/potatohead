@@ -1,7 +1,8 @@
 # type: ignore
-from pydantic import BaseModel
-from potato_head import Prompt, Agent, Provider
 from typing import List
+
+from potato_head import Agent, Prompt, Provider
+from pydantic import BaseModel
 
 
 class StructuredTaskOutput(BaseModel):

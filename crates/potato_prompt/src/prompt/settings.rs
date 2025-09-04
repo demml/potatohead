@@ -1,6 +1,7 @@
 use crate::PromptError;
 use potato_type::{google::chat::GeminiSettings, openai::chat::OpenAIChatSettings};
 use potato_type::{Provider, SettingsType};
+use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::IntoPyObjectExt;
@@ -62,6 +63,10 @@ impl ModelSettings {
 
     pub fn settings_type(&self) -> SettingsType {
         SettingsType::ModelSettings
+    }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
     }
 }
 

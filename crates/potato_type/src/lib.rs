@@ -67,7 +67,7 @@ impl Provider {
             Provider::OpenAI => "https://api.openai.com/v1",
 
             //https://cloud.google.com/vertex-ai/generative-ai/docs/migrate/migrate-google-ai
-            Provider::Gemini => "https://aiplatform.googleapis.com/v1beta1/",
+            Provider::Gemini => "https://generativelanguage.googleapis.com/v1beta/models",
 
             Provider::Undefined => {
                 error!("Undefined provider URL requested");

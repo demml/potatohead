@@ -190,6 +190,7 @@ pub struct ThinkingConfig {
 #[pymethods]
 impl ThinkingConfig {
     #[new]
+    #[pyo3(signature = (include_thoughts=None, thinking_budget=None))]
     pub fn new(include_thoughts: Option<bool>, thinking_budget: Option<i32>) -> Self {
         ThinkingConfig {
             include_thoughts,
@@ -567,15 +568,26 @@ impl ToolConfig {
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct GeminiSettings {
     #[pyo3(get)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<HashMap<String, String>>,
+
     #[pyo3(get)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_config: Option<ToolConfig>,
+
     #[pyo3(get)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub generation_config: Option<GenerationConfig>,
+
     #[pyo3(get)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub safety_settings: Option<Vec<SafetySetting>>,
+
     #[pyo3(get)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub model_armor_config: Option<ModelArmorConfig>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_body: Option<Value>,
 }
 
