@@ -8,7 +8,10 @@ from potato_head import (  # type: ignore
     Message,
     ModelSettings,
     Prompt,
+    Provider,
 )
+from potato_head.google import GeminiSettings, GenerationConfig  # type: ignore
+from potato_head.openai import OpenAIChatSettings  # type: ignore
 from pydantic import BaseModel
 from pydantic_ai import BinaryContent as PydanticBinaryContent
 from pydantic_ai import DocumentUrl as PydanticDocumentUrl
@@ -36,7 +39,7 @@ def test_string_prompt():
     # test string message
     prompt = Prompt(
         model="gpt-4o",
-        provider="openai",
+        provider=Provider.OpenAI,
         message=Message(content="My prompt"),
         system_instruction="system_prompt",
     )
@@ -161,17 +164,19 @@ def test_document_prompt():
 
 def test_model_settings_prompt():
     settings = ModelSettings(
-        model="gpt-4o",
-        provider="openai",
-        temperature=0.5,
-        max_tokens=100,
-        top_p=0.9,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        extra_body={"key": "value"},
+        settings=OpenAIChatSettings(
+            temperature=0.5,
+            max_completion_tokens=500,
+            top_p=0.9,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            extra_body={"key": "value"},
+        )
     )
 
     prompt = Prompt(
+        model="gpt-4o",
+        provider="openai",
         message=[
             "My prompt ${1} is ${2}",
             "My prompt ${3} is ${4}",
@@ -180,6 +185,39 @@ def test_model_settings_prompt():
     )
 
     settings = PydanticModelSettings(**prompt.model_settings.model_dump())
+
+
+def test_openai_settings_direct():
+    # test openai settings directly
+    Prompt(
+        model="gpt-4o",
+        provider="openai",
+        message=[
+            "My prompt ${1} is ${2}",
+            "My prompt ${3} is ${4}",
+        ],
+        model_settings=OpenAIChatSettings(
+            temperature=0.5,
+            max_completion_tokens=500,
+            top_p=0.9,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            extra_body={"key": "value"},
+        ),
+    )
+
+
+def test_gemini_settings_direct():
+    # test gemini settings directly
+    Prompt(
+        model="gpt-4o",
+        provider="gemini",
+        message=[
+            "My prompt ${1} is ${2}",
+            "My prompt ${3} is ${4}",
+        ],
+        model_settings=GeminiSettings(generation_config=GenerationConfig(temperature=0.5)),
+    )
 
 
 def test_prompt_response_format():
@@ -196,6 +234,8 @@ def test_prompt_response_format():
 
 def test_prompt_no_args():
     prompt = Prompt(
+        model="gpt-4o",
+        provider="openai",
         message="My prompt",
         system_instruction="system_prompt",
     )

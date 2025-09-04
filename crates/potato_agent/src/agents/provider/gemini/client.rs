@@ -1,7 +1,8 @@
 use crate::agents::error::AgentError;
 use crate::agents::provider::gemini::{
-    Content, GeminiGenerateContentRequest, GenerateContentResponse, GenerationConfig, Part,
+    Content, GeminiGenerateContentRequest, GenerateContentResponse, Part,
 };
+use crate::agents::provider::types::add_extra_body_to_prompt;
 use crate::agents::provider::types::build_http_client;
 use potato_prompt::Prompt;
 use potato_type::Common;
@@ -120,32 +121,17 @@ impl GeminiClient {
             })
         };
 
-        let response_mime_type = if prompt.response_json_schema.is_some() {
-            Some("application/json".to_string())
-        } else {
-            None
-        };
+        let mut gemini_settings = settings.get_gemini_settings().unwrap_or_default();
 
-        let generation_config = GenerationConfig {
-            temperature: settings.temperature,
-            top_p: settings.top_p,
-            max_output_tokens: settings.max_tokens.as_ref().map(|v| *v as i32),
-            top_k: settings.top_k,
-            stop_sequences: settings.stop_sequences.clone(),
-            frequency_penalty: settings.frequency_penalty,
-            presence_penalty: settings.presence_penalty,
-            seed: settings.seed.as_ref().map(|v| *v as i32),
-            response_mime_type,
-            response_json_schema: prompt.response_json_schema.clone(),
-            response_logprobs: settings.logprobs,
-            ..Default::default()
-        };
+        if prompt.response_json_schema.is_some() {
+            gemini_settings.configure_for_structured_output();
+        }
 
         // Create the Gemini generate content request
         let chat_request = GeminiGenerateContentRequest {
             contents,
             system_instruction,
-            generation_config: Some(generation_config),
+            settings: Some(gemini_settings),
             ..Default::default()
         };
 
@@ -154,30 +140,8 @@ impl GeminiClient {
             serde_json::to_value(chat_request).map_err(AgentError::SerializationError)?;
 
         // if settings.extra_body is provided, merge it with the prompt
-        if let Some(extra_body) = &settings.extra_body {
-            if let (Some(prompt_obj), Some(extra_obj)) =
-                (serialized_prompt.as_object_mut(), extra_body.as_object())
-            {
-                // Merge the extra_body fields into prompt
-                for (key, value) in extra_obj {
-                    // if key is "generation_config", we need to merge it into the existing generation_config
-                    if key == "generation_config" {
-                        if let Some(gen_config) = prompt_obj.get_mut("generation_config") {
-                            if let (Some(gen_config_obj), Some(extra_gen_config)) =
-                                (gen_config.as_object_mut(), value.as_object())
-                            {
-                                for (gen_key, gen_value) in extra_gen_config {
-                                    gen_config_obj.insert(gen_key.clone(), gen_value.clone());
-                                }
-                            }
-                        } else {
-                            prompt_obj.insert(key.clone(), value.clone());
-                        }
-                    } else {
-                        prompt_obj.insert(key.clone(), value.clone());
-                    }
-                }
-            }
+        if let Some(extra_body) = settings.extra_body() {
+            add_extra_body_to_prompt(&mut serialized_prompt, extra_body);
         }
 
         debug!(
@@ -189,7 +153,7 @@ impl GeminiClient {
             .client
             .post(format!(
                 "{}/{}:generateContent",
-                self.base_url, settings.model
+                self.base_url, prompt.model
             ))
             .header("x-goog-api-key", &self.api_key)
             .json(&serialized_prompt)

@@ -13,6 +13,15 @@ pub enum TypeError {
 
     #[error("Unknown model: {0}")]
     UnknownModelError(String),
+
+    #[error("{0}")]
+    InvalidInput(String),
+
+    #[error(transparent)]
+    UtilError(#[from] potato_util::UtilError),
+
+    #[error(transparent)]
+    SerdeError(#[from] serde_json::Error),
 }
 
 impl From<TypeError> for PyErr {

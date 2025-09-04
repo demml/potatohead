@@ -7,8 +7,8 @@ pub fn create_prompt(response_format: Option<Value>) -> Prompt {
     let system_content = PromptContent::Str("You are a helpful assistant.".to_string());
     Prompt::new_rs(
         vec![Message::new_rs(user_content)],
-        Some("gpt-4o"),
-        Some("openai"),
+        "gpt-4o",
+        potato_type::Provider::OpenAI,
         vec![Message::new_rs(system_content)],
         None,
         response_format,
@@ -22,8 +22,8 @@ pub fn create_parameterized_prompt() -> Prompt {
     let system_content = PromptContent::Str("You are a helpful assistant.".to_string());
     Prompt::new_rs(
         vec![Message::new_rs(user_content)],
-        Some("gpt-4o"),
-        Some("openai"),
+        "gpt-4o",
+        potato_type::Provider::OpenAI,
         vec![Message::new_rs(system_content)],
         None,
         None,
@@ -47,8 +47,8 @@ pub fn create_score_prompt(params: Option<Vec<String>>) -> Prompt {
     let system_content = PromptContent::Str("You are a helpful assistant.".to_string());
     Prompt::new_rs(
         vec![Message::new_rs(user_content)],
-        Some("gpt-4o"),
-        Some("openai"),
+        "gpt-4o",
+        potato_type::Provider::OpenAI,
         vec![Message::new_rs(system_content)],
         None,
         Some(Score::get_structured_output_schema()),

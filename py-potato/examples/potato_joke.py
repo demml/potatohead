@@ -1,6 +1,6 @@
 # type: ignore
-from potato_head import Prompt, Agent, Provider
-from potato_head.logging import RustyLogger, LoggingConfig, LogLevel
+from potato_head import Agent, Prompt, Provider
+from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
 
 RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
 

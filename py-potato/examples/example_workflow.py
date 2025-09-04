@@ -1,5 +1,5 @@
 # type: ignore
-from potato_head import Prompt, Agent, Provider, Workflow, Task
+from potato_head import Agent, Prompt, Provider, Task, Workflow
 from pydantic import BaseModel
 
 

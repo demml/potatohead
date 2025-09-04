@@ -958,8 +958,8 @@ mod tests {
         let prompt_content = PromptContent::Str("Test prompt".to_string());
         let prompt = Prompt::new_rs(
             vec![Message::new_rs(prompt_content)],
-            Some("gpt-4o"),
-            Some("openai"),
+            "gpt-4o",
+            potato_type::Provider::OpenAI,
             vec![],
             None,
             None,

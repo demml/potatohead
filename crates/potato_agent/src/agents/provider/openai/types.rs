@@ -1,12 +1,13 @@
 use crate::agents::error::AgentError;
 use crate::agents::provider::traits::{LogProbExt, ResponseExt, TokenUsage};
 use potato_prompt::{prompt::types::PromptContent, Message};
+use potato_type::openai::chat::OpenAIChatSettings;
 use potato_util::utils::ResponseLogProbs;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Function {
@@ -203,34 +204,11 @@ pub struct OpenAIChatRequest {
     pub messages: Vec<OpenAIChatMessage>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_completion_tokens: Option<usize>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub temperature: Option<f32>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub top_p: Option<f32>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub frequency_penalty: Option<f32>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub presence_penalty: Option<f32>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parallel_tool_calls: Option<bool>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub logit_bias: Option<HashMap<String, i32>>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub seed: Option<u64>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub logprobs: Option<bool>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(flatten)]
+    pub settings: Option<OpenAIChatSettings>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

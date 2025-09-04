@@ -36,16 +36,11 @@ test.unit:
 		--cov-report xml:./coverage.xml \
 		--cov-report term
 
-test.integration.api:
-	uv run pytest -s tests/integration/api
+test.integration.gemini:
+	uv run examples/query_reformulation.py
 
-test.integration.queue:
-	uv run pytest -s tests/integration/queue
-
-test.integration.client:
-	uv run pytest -s tests/integration/client
-
-test.integration: test.integration.queue test.integration.api test.integration.client
+test.integration.openai:
+	uv run examples/structured_output.py
 
 uv.pre.patch:
 	uv version prepatch

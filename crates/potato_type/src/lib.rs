@@ -1,6 +1,6 @@
 pub mod error;
 
-use crate::error::TypeError;
+pub use crate::error::TypeError;
 use pyo3::prelude::*;
 use schemars::JsonSchema;
 use serde::de::Error;
@@ -11,6 +11,8 @@ use std::fmt;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
 use tracing::error;
+pub mod google;
+pub mod openai;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[pyclass]
@@ -63,7 +65,10 @@ impl Provider {
     pub fn url(&self) -> &str {
         match self {
             Provider::OpenAI => "https://api.openai.com/v1",
+
+            //https://cloud.google.com/vertex-ai/generative-ai/docs/migrate/migrate-google-ai
             Provider::Gemini => "https://generativelanguage.googleapis.com/v1beta/models",
+
             Provider::Undefined => {
                 error!("Undefined provider URL requested");
                 "https://undefined.provider.url"
@@ -110,6 +115,12 @@ impl Provider {
             Provider::Gemini => "gemini",
             Provider::Undefined => "undefined", // Added Undefined case
         }
+    }
+}
+
+impl Display for Provider {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -219,4 +230,12 @@ pub trait StructuredOutput: for<'de> serde::Deserialize<'de> + JsonSchema {
         schema.into()
     }
     // add fallback parsing logic
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[pyclass]
+pub enum SettingsType {
+    GoogleChat,
+    OpenAIChat,
+    ModelSettings,
 }

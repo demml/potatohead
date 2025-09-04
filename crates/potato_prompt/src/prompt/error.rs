@@ -46,6 +46,18 @@ pub enum PromptError {
 
     #[error(transparent)]
     UtilError(#[from] potato_util::UtilError),
+
+    #[error(transparent)]
+    TypeError(#[from] potato_type::TypeError),
+
+    #[error("Invalid settings provided. ModelSettings expects either OpenAIChatSettings or GeminiSettings.")]
+    InvalidModelSettings,
+
+    #[error("Invalid provider provided. Provider must be either a Provider enum or a string.")]
+    InvalidProvider,
+
+    #[error("OpenAIChatSettings not found.")]
+    OpenAIChatSettingsNotFound,
 }
 
 impl From<PromptError> for PyErr {

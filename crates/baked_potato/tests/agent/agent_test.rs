@@ -18,8 +18,8 @@ fn test_openai_agent() {
     let prompt_content = PromptContent::Str("Test prompt. ${param1} ${param2}".to_string());
     let prompt = Prompt::new_rs(
         vec![Message::new_rs(prompt_content)],
-        Some("gpt-4o"),
-        Some("openai"),
+        "gpt-4o",
+        Provider::OpenAI,
         vec![],
         None,
         None,
@@ -50,8 +50,8 @@ fn test_gemini_agent() {
     let prompt_content = PromptContent::Str("You are a helpful assistant".to_string());
     let prompt = Prompt::new_rs(
         vec![Message::new_rs(prompt_content)],
-        Some("gemini-2.5-flash"),
-        Some("gemini"),
+        "gemini-2.5-flash",
+        Provider::Gemini,
         vec![],
         None,
         None,
@@ -85,8 +85,8 @@ fn test_gemini_score_agent() {
     );
     let prompt = Prompt::new_rs(
         vec![Message::new_rs(prompt_content)],
-        Some("gemini-2.5-flash"),
-        Some("gemini"),
+        "gemini-2.5-flash",
+        Provider::Gemini,
         vec![],
         None,
         Some(Score::get_structured_output_schema()),

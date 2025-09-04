@@ -37,7 +37,7 @@ class Prompts:
     prompt_step2: Prompt
 
 
-def _test_simple_workflow(prompt_step1: Prompt):
+def test_simple_workflow(prompt_step1: Prompt):
     agent = PydanticAgent(
         prompt_step1.model_identifier,
         system_prompt=prompt_step1.system_instruction[0].unwrap(),
@@ -47,7 +47,7 @@ def _test_simple_workflow(prompt_step1: Prompt):
         agent.run_sync(prompt_step1.message[0].unwrap())
 
 
-def _test_simple_dep_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
+def test_simple_dep_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
     agent = PydanticAgent(
         prompt_step1.model_identifier,
         system_prompt=prompt_step1.system_instruction[0].unwrap(),
@@ -68,7 +68,7 @@ def _test_simple_dep_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
         )
 
 
-def _test_binding_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
+def test_binding_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
     agent = PydanticAgent(
         "openai:gpt-4o",
         system_prompt=prompt_step1.system_instruction[0].unwrap(),
@@ -108,22 +108,12 @@ def test_potato_head_task_execution():
 def test_potato_agent_no_model():
     with LLMTestServer():
         prompt = Prompt(
+            model="gpt-4o",
+            provider="openai",
             message="Hello, how are you?",
             system_instruction="You are a helpful assistant.",
         )
         agent = Agent(Provider.OpenAI)
-
-        with pytest.raises(
-            RuntimeError,
-            match="Undefined error: Model must be specified either as an argument or in the Task prompt",
-        ):
-            agent.execute_task(Task(prompt=prompt, agent_id=agent.id, id="task1"))
-
-        with pytest.raises(
-            RuntimeError,
-            match="Undefined error: Model must be specified either as an argument or in the Prompt",
-        ):
-            agent.execute_prompt(prompt=prompt)
 
         agent.execute_task(
             Task(prompt=prompt, agent_id=agent.id, id="task1"),

@@ -25,8 +25,10 @@ from .potato_head import (  # noqa
     Usage,
     Workflow,
     WorkflowResult,
+    google,
     logging,
     mock,
+    openai,
 )
 
 __all__ = [

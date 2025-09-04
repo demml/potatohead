@@ -2,11 +2,14 @@ use crate::agents::provider::traits::{LogProbExt, ResponseExt, TokenUsage};
 use crate::{AgentError, Usage};
 use base64::prelude::*;
 use potato_prompt::{prompt::types::PromptContent, Message};
+use potato_type::google::chat::{GeminiSettings, HarmBlockThreshold, HarmCategory, Modality};
 use potato_util::utils::ResponseLogProbs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+
+//https://cloud.google.com/vertex-ai/generative-ai/docs/reference/rest/v1beta1/Content
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -628,77 +631,6 @@ pub struct Tool {
     pub computer_use: Option<ComputerUse>,
 }
 
-#[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum HarmCategory {
-    #[default]
-    HarmCategoryUnspecified,
-    HarmCategoryHateSpeech,
-    HarmCategoryDangerousContent,
-    HarmCategoryHarassment,
-    HarmCategorySexuallyExplicit,
-    HarmCategoryImageHate,
-    HarmCategoryImageDangerousContent,
-    HarmCategoryImageHarassment,
-    HarmCategoryImageSexuallyExplicit,
-}
-
-/// Probability-based threshold levels for blocking.
-#[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum HarmBlockThreshold {
-    HarmBlockThresholdUnspecified,
-    BlockLowAndAbove,
-    BlockMediumAndAbove,
-    BlockOnlyHigh,
-    BlockNone,
-    #[default]
-    Off,
-}
-
-/// Specifies whether the threshold is used for probability or severity score.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum HarmBlockMethod {
-    HarmBlockMethodUnspecified,
-    Severity,
-    Probability,
-}
-
-/// Safety settings for harm blocking.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct SafetySetting {
-    /// Required. The harm category.
-    pub category: HarmCategory,
-    /// Required. The harm block threshold.
-    pub threshold: HarmBlockThreshold,
-    /// Optional. Specify if the threshold is used for probability or severity score.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub method: Option<HarmBlockMethod>,
-}
-
-#[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Modality {
-    ModalityUnspecified,
-    Text,
-    Image,
-    Audio,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum MediaResolution {
-    MediaResolutionUnspecified,
-    MediaResolutionLow,
-    MediaResolutionMedium,
-    MediaResolutionHigh,
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ModelRoutingPreference {
@@ -706,15 +638,6 @@ pub enum ModelRoutingPreference {
     PrioritizeQuality,
     Balanced,
     PrioritizeCost,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-#[serde(rename_all = "camelCase", default)]
-pub struct ThinkingConfig {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub include_thoughts: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub thinking_budget: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -745,93 +668,20 @@ pub struct RoutingConfig {
     pub routing_config: RoutingConfigMode,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct PrebuiltVoiceConfig {
-    pub voice_name: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-#[serde(untagged)]
-pub enum VoiceConfigMode {
-    PrebuiltVoiceConfig(PrebuiltVoiceConfig),
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct VoiceConfig {
-    #[serde(flatten)]
-    pub voice_config: VoiceConfigMode,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-#[serde(rename_all = "camelCase", default)]
-pub struct SpeechConfig {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub voice_config: Option<VoiceConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub language_code: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
-#[serde(rename_all = "camelCase", default)]
-pub struct GenerationConfig {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stop_sequences: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_mime_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_modalities: Option<Vec<Modality>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub thinking_config: Option<ThinkingConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub temperature: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub top_p: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub top_k: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub candidate_count: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_output_tokens: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_logprobs: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub logprobs: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub presence_penalty: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub frequency_penalty: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub seed: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_schema: Option<Schema>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_json_schema: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub routing_config: Option<RoutingConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub audio_timestamp: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub media_resolution: Option<MediaResolution>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub speech_config: Option<SpeechConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub enable_affective_dialog: Option<bool>,
-}
-
 #[derive(Debug, Serialize, Clone, Default)]
+#[serde(rename_all = "camelCase", default)]
 pub struct GeminiGenerateContentRequest {
     pub contents: Vec<Content>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_instruction: Option<Content>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<Tool>>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub safety_settings: Option<Vec<SafetySetting>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub generation_config: Option<GenerationConfig>,
+    #[serde(flatten)]
+    pub settings: Option<GeminiSettings>,
 }
 
 #[pyclass]
