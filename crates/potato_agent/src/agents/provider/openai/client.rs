@@ -1,14 +1,34 @@
 use crate::agents::error::AgentError;
-use crate::agents::provider::openai::{OpenAIChatMessage, OpenAIChatRequest, OpenAIChatResponse};
+
+use crate::agents::provider::openai::{
+    OpenAIChatMessage, OpenAIChatRequest, OpenAIChatResponse, OpenAIEmbeddingRequest,
+};
 use crate::agents::provider::types::add_extra_body_to_prompt;
 use crate::agents::provider::types::build_http_client;
 use potato_prompt::Prompt;
+use potato_type::openai::embedding::{OpenAIEmbeddingResponse, OpenAIEmbeddingSettings};
 use potato_type::{Common, Provider};
 use reqwest::header::AUTHORIZATION;
 use reqwest::Client;
+use reqwest::Response;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{debug, error, instrument};
+
+enum OpenAIPaths {
+    ChatCompletions,
+    Embeddings,
+}
+
+impl OpenAIPaths {
+    fn path(&self) -> &str {
+        match self {
+            OpenAIPaths::ChatCompletions => "chat/completions",
+            OpenAIPaths::Embeddings => "embeddings",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct OpenAIClient {
     client: Client,
@@ -72,6 +92,31 @@ impl OpenAIClient {
             provider: Provider::OpenAI,
             api_key_set,
         })
+    }
+
+    /// Generic helper for executing a request to reduce boilerplate
+    async fn make_request(&self, path: &str, object: &Value) -> Result<Response, AgentError> {
+        let response = self
+            .client
+            .post(format!("{}/{}", self.base_url, path))
+            .header(AUTHORIZATION, format!("Bearer {}", self.api_key))
+            .json(object)
+            .send()
+            .await
+            .map_err(AgentError::RequestError)?;
+
+        let status = response.status();
+        if !status.is_success() {
+            // print the response body for debugging
+            error!("OpenAI API request failed with status: {}", status);
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "No response body".to_string());
+            return Err(AgentError::ChatCompletionError(body, status));
+        }
+
+        Ok(response)
     }
 
     /// Sends a chat completion request to the OpenAI API. This is a rust-only method
@@ -143,24 +188,8 @@ impl OpenAIClient {
         );
 
         let response = self
-            .client
-            .post(format!("{}/chat/completions", self.base_url))
-            .header(AUTHORIZATION, format!("Bearer {}", self.api_key))
-            .json(&serialized_prompt)
-            .send()
-            .await
-            .map_err(AgentError::RequestError)?;
-
-        let status = response.status();
-        if !status.is_success() {
-            // print the response body for debugging
-            error!("OpenAI API request failed with status: {}", status);
-            let body = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "No response body".to_string());
-            return Err(AgentError::ChatCompletionError(body, status));
-        }
+            .make_request(OpenAIPaths::ChatCompletions.path(), &serialized_prompt)
+            .await?;
 
         let chat_response: OpenAIChatResponse = response.json().await?;
         debug!("Chat completion successful");
@@ -183,5 +212,25 @@ impl OpenAIClient {
                 "strict": true
             }
         })
+    }
+
+    #[instrument(skip_all)]
+    pub async fn async_create_embedding(
+        &self,
+        inputs: Vec<String>,
+        settings: OpenAIEmbeddingSettings,
+    ) -> Result<OpenAIEmbeddingResponse, AgentError> {
+        if !self.api_key_set {
+            return Err(AgentError::MissingOpenAIApiKeyError);
+        }
+
+        let request = serde_json::to_value(OpenAIEmbeddingRequest::new(inputs, settings))
+            .map_err(AgentError::SerializationError)?;
+
+        let response = self
+            .make_request(OpenAIPaths::Embeddings.path(), &request)
+            .await?;
+
+        Ok(response.json().await?)
     }
 }

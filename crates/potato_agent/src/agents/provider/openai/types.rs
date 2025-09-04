@@ -2,6 +2,7 @@ use crate::agents::error::AgentError;
 use crate::agents::provider::traits::{LogProbExt, ResponseExt, TokenUsage};
 use potato_prompt::{prompt::types::PromptContent, Message};
 use potato_type::openai::chat::OpenAIChatSettings;
+use potato_type::openai::embedding::OpenAIEmbeddingSettings;
 use potato_util::utils::ResponseLogProbs;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
@@ -263,5 +264,22 @@ impl OpenAIChatMessage {
             role: message.role.to_string(),
             content,
         })
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OpenAIEmbeddingRequest {
+    pub inputs: Vec<String>,
+
+    #[serde(flatten)]
+    pub settings: OpenAIEmbeddingSettings,
+}
+
+impl OpenAIEmbeddingRequest {
+    pub fn new(inputs: Vec<String>, settings: OpenAIEmbeddingSettings) -> Self {
+        Self {
+            inputs: inputs,
+            settings: settings,
+        }
     }
 }
