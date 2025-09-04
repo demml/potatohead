@@ -3,6 +3,8 @@ use crate::agents::provider::gemini::GeminiClient;
 use crate::agents::provider::openai::OpenAIClient;
 use crate::agents::types::ChatResponse;
 use potato_prompt::Prompt;
+use potato_type::openai::embedding::OpenAIEmbeddingResponse;
+use potato_type::openai::embedding::OpenAIEmbeddingSettings;
 use potato_type::Provider;
 use pyo3::prelude::*;
 use reqwest::header::HeaderName;
@@ -77,6 +79,30 @@ impl GenAiClient {
                     error!(error = %e, "Failed to generate content");
                 })?;
                 Ok(ChatResponse::Gemini(response))
+            }
+        }
+    }
+
+    #[instrument(skip_all)]
+    pub async fn create_embedding(
+        &self,
+        inputs: Vec<String>,
+        settings: OpenAIEmbeddingSettings,
+    ) -> Result<OpenAIEmbeddingResponse, AgentError> {
+        match self {
+            GenAiClient::OpenAI(client) => {
+                let response = client
+                    .async_create_embedding(inputs, settings)
+                    .await
+                    .inspect_err(|e| {
+                        error!(error = %e, "Failed to create embedding");
+                    })?;
+                Ok(response)
+            }
+            GenAiClient::Gemini(_client) => {
+                let msg = "Gemini embeddings not implemented yet";
+                error!("{}", msg);
+                Err(AgentError::UndefinedError(msg.to_string()))
             }
         }
     }

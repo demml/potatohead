@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod client;
+pub mod embed;
 pub mod error;
 pub mod provider;
 pub mod task;

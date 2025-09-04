@@ -1,17 +1,38 @@
 use potato_type::Provider;
 
-use crate::agents::provider;
+use crate::agents::client::GenAiClient;
+use crate::agents::provider::gemini::GeminiClient;
+use crate::agents::provider::openai::OpenAIClient;
+use crate::AgentError;
+use potato_type::openai::embedding::{OpenAIEmbeddingResponse, OpenAIEmbeddingSettings};
 
+use tracing::error;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Embedder {
-    provider: Provider,
+    client: GenAiClient,
 }
 
 impl Embedder {
-    pub fn new(provider: Provider) -> Self {
-        Self { provider }
+    pub fn new(provider: Provider) -> Result<Self, AgentError> {
+        let client = match provider {
+            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
+            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None, None, None)?),
+            _ => {
+                let msg = "No provider specified in ModelSettings";
+                error!("{}", msg);
+                return Err(AgentError::UndefinedError(msg.to_string()));
+            } // Add other providers here as needed
+        };
+
+        Ok(Self { client })
     }
-    pub fn create(&self) -> Result<OpenAIEmbeddingResponse, AgentError> {
+
+    pub async fn create(
+        &self,
+        inputs: Vec<String>,
+        settings: OpenAIEmbeddingSettings,
+    ) -> Result<OpenAIEmbeddingResponse, AgentError> {
         // Implementation for creating an embedding
+        self.client.create_embedding(inputs, settings).await
     }
 }
