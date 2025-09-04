@@ -34,5 +34,5 @@ jobs:
         with:
           command: release
         env:
-          GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_REGISTRY_TOKEN }}
