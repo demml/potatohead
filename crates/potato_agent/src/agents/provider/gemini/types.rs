@@ -216,6 +216,17 @@ impl Content {
             parts: content,
         })
     }
+
+    fn from_vec(parts: Vec<String>) -> Self {
+        let parts = parts
+            .into_iter()
+            .map(|text| Part {
+                text: Some(text),
+                ..Default::default()
+            })
+            .collect();
+        Self { parts, role: None }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -1217,5 +1228,29 @@ impl LogProbExt for GenerateContentResponse {
         }
 
         probabilities
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GeminiEmbeddingRequest<T>
+where
+    T: Serialize,
+{
+    pub content: Content,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(flatten)]
+    pub embedding_config: Option<T>,
+}
+
+impl<T> GeminiEmbeddingRequest<T>
+where
+    T: Serialize,
+{
+    pub fn new(inputs: Vec<String>, config: T) -> Self {
+        Self {
+            content: Content::from_vec(inputs),
+            embedding_config: Some(config),
+        }
     }
 }

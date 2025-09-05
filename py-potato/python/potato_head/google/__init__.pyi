@@ -310,3 +310,41 @@ class GeminiSettings:
     @property
     def extra_body(self) -> Optional[dict]: ...
     def __str__(self) -> str: ...
+
+class EmbeddingTaskType:
+    TaskTypeUnspecified = "EmbeddingTaskType"
+    RetrievalQuery = "EmbeddingTaskType"
+    RetrievalDocument = "EmbeddingTaskType"
+    SemanticSimilarity = "EmbeddingTaskType"
+    Classification = "EmbeddingTaskType"
+    Clustering = "EmbeddingTaskType"
+    QuestionAnswering = "EmbeddingTaskType"
+    FactVerification = "EmbeddingTaskType"
+    CodeRetrievalQuery = "EmbeddingTaskType"
+
+class GeminiEmbeddingConfig:
+    def __init__(
+        self,
+        model: Optional[str] = None,
+        output_dimensionality: Optional[int] = None,
+        task_type: Optional[EmbeddingTaskType] = None,
+    ) -> None:
+        """Configuration to pass to the Gemini Embedding API when creating a request
+
+
+        Args:
+            model (Optional[str]):
+                The embedding model to use. If not specified, the default gemini model will be used.
+            output_dimensionality (Optional[int]):
+                The output dimensionality of the embeddings. If not specified, a default value will be used.
+            task_type (Optional[EmbeddingTaskType]):
+                The type of embedding task to perform. If not specified, the default gemini task type will be used.
+        """
+
+class ContentEmbedding:
+    @property
+    def values(self) -> List[float]: ...
+
+class GeminiEmbeddingResponse:
+    @property
+    def embedding(self) -> ContentEmbedding: ...

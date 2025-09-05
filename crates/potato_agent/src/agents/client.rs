@@ -1,3 +1,5 @@
+use crate::agents::embed::EmbeddingConfig;
+use crate::agents::embed::EmbeddingResponse;
 use crate::agents::error::AgentError;
 use crate::agents::provider::gemini::GeminiClient;
 use crate::agents::provider::openai::OpenAIClient;
@@ -77,6 +79,35 @@ impl GenAiClient {
                     error!(error = %e, "Failed to generate content");
                 })?;
                 Ok(ChatResponse::Gemini(response))
+            }
+        }
+    }
+
+    #[instrument(skip_all)]
+    pub async fn create_embedding(
+        &self,
+        inputs: Vec<String>,
+        config: EmbeddingConfig,
+    ) -> Result<EmbeddingResponse, AgentError> {
+        match self {
+            GenAiClient::OpenAI(client) => {
+                let response = client
+                    .async_create_embedding(inputs, config)
+                    .await
+                    .inspect_err(|e| {
+                        error!(error = %e, "Failed to create embedding");
+                    })?;
+                Ok(response)
+            }
+            GenAiClient::Gemini(client) => {
+                let response = client
+                    .async_create_embedding(inputs, config)
+                    .await
+                    .inspect_err(|e| {
+                        error!(error = %e, "Failed to create embedding");
+                    })?;
+
+                Ok(response)
             }
         }
     }

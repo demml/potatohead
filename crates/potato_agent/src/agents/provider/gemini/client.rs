@@ -1,15 +1,35 @@
+use crate::agents::embed::EmbeddingResponse;
 use crate::agents::error::AgentError;
+use crate::agents::provider::gemini::GeminiEmbeddingRequest;
 use crate::agents::provider::gemini::{
     Content, GeminiGenerateContentRequest, GenerateContentResponse, Part,
 };
 use crate::agents::provider::types::add_extra_body_to_prompt;
 use crate::agents::provider::types::build_http_client;
 use potato_prompt::Prompt;
+use potato_type::google::EmbeddingConfigTrait;
+use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::Common;
 use potato_type::Provider;
 use reqwest::Client;
+use reqwest::Response;
+use serde::Serialize;
+use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{debug, error, instrument};
+enum GeminiPaths {
+    GenerateContent,
+    Embeddings,
+}
+
+impl GeminiPaths {
+    fn path(&self) -> &str {
+        match self {
+            GeminiPaths::GenerateContent => "generateContent",
+            GeminiPaths::Embeddings => "embedContent",
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct GeminiClient {
@@ -73,6 +93,32 @@ impl GeminiClient {
             provider: Provider::Gemini,
             api_key_set,
         })
+    }
+
+    async fn make_request(&self, path: &str, object: &Value) -> Result<Response, AgentError> {
+        let response = self
+            .client
+            .post(format!("{}/{}", self.base_url, path))
+            .header("x-goog-api-key", &self.api_key)
+            .json(&object)
+            .send()
+            .await
+            .map_err(AgentError::RequestError)?;
+
+        let status = response.status();
+        if !status.is_success() {
+            // print the response body for debugging
+            error!("Gemini API request failed with status: {}", status);
+
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "No response body".to_string());
+
+            return Err(AgentError::CompletionError(body, status));
+        }
+
+        Ok(response)
     }
 
     /// Sends a chat completion request to the OpenAI API. This is a rust-only method
@@ -150,33 +196,39 @@ impl GeminiClient {
         );
 
         let response = self
-            .client
-            .post(format!(
-                "{}/{}:generateContent",
-                self.base_url, prompt.model
-            ))
-            .header("x-goog-api-key", &self.api_key)
-            .json(&serialized_prompt)
-            .send()
-            .await
-            .map_err(AgentError::RequestError)?;
-
-        let status = response.status();
-        if !status.is_success() {
-            // print the response body for debugging
-            error!("Gemini API request failed with status: {}", status);
-
-            let body = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "No response body".to_string());
-
-            return Err(AgentError::ChatCompletionError(body, status));
-        }
-
+            .make_request(
+                &format!("{}:{}", prompt.model, GeminiPaths::GenerateContent.path()),
+                &serialized_prompt,
+            )
+            .await?;
         let chat_response: GenerateContentResponse = response.json().await?;
         debug!("Chat completion successful");
 
         Ok(chat_response)
+    }
+
+    #[instrument(skip_all)]
+    pub async fn async_create_embedding<T>(
+        &self,
+        inputs: Vec<String>,
+        config: T,
+    ) -> Result<EmbeddingResponse, AgentError>
+    where
+        T: Serialize + EmbeddingConfigTrait,
+    {
+        if !self.api_key_set {
+            return Err(AgentError::MissingGeminiApiKeyError);
+        }
+
+        let model = config.get_model();
+        let path = format!("{}:{}", model, GeminiPaths::Embeddings.path());
+
+        let request = serde_json::to_value(GeminiEmbeddingRequest::new(inputs, config))
+            .map_err(AgentError::SerializationError)?;
+
+        let response = self.make_request(&path, &request).await?;
+        let embedding_response: GeminiEmbeddingResponse = response.json().await?;
+
+        Ok(EmbeddingResponse::Gemini(embedding_response))
     }
 }

@@ -25,6 +25,8 @@ CustomDefinition = openai.CustomDefinition
 CustomTool = openai.CustomTool
 Tool = openai.Tool
 OpenAIChatSettings = openai.OpenAIChatSettings
+OpenAIEmbeddingConfig = openai.OpenAIEmbeddingConfig
+OpenAIEmbeddingResponse = openai.OpenAIEmbeddingResponse
 
 __all__ = [
     "AudioParam",
@@ -51,4 +53,6 @@ __all__ = [
     "CustomTool",
     "Tool",
     "OpenAIChatSettings",
+    "OpenAIEmbeddingConfig",
+    "OpenAIEmbeddingResponse",
 ]

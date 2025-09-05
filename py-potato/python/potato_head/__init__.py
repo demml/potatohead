@@ -9,6 +9,7 @@ from .potato_head import (  # noqa
     ChatResponse,
     CompletionTokenDetails,
     DocumentUrl,
+    Embedder,
     EventDetails,
     ImageUrl,
     Message,
@@ -55,4 +56,5 @@ __all__ = [
     "TaskEvent",
     "WorkflowResult",
     "Score",
+    "Embedder",
 ]

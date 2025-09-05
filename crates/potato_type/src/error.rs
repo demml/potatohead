@@ -22,6 +22,9 @@ pub enum TypeError {
 
     #[error(transparent)]
     SerdeError(#[from] serde_json::Error),
+
+    #[error("Failed to create GeminiEmbeddingConfig: {0}")]
+    GeminiEmbeddingConfigError(String),
 }
 
 impl From<TypeError> for PyErr {

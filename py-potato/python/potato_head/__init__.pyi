@@ -2,10 +2,10 @@
 
 import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Sequence
+from typing import Any, Dict, List, Literal, Optional, Sequence, overload
 
-from .google import GeminiSettings
-from .openai import OpenAIChatSettings
+from .google import GeminiEmbeddingConfig, GeminiEmbeddingResponse, GeminiSettings
+from .openai import OpenAIChatSettings, OpenAIEmbeddingConfig, OpenAIEmbeddingResponse
 
 class PromptTokenDetails:
     """Details about the prompt tokens used in a request."""
@@ -636,6 +636,75 @@ class Agent:
     @property
     def id(self) -> str:
         """The ID of the agent. This is a random uuid7 that is generated when the agent is created."""
+
+class Embedder:
+    """Class for creating embeddings."""
+
+    def __init__(self, provider: Provider | str) -> None:
+        """Create an Embedder object.
+
+        Args:
+            provider (Provider | str):
+                The provider to use for the embedder. This can be a Provider enum or a string
+                representing the provider.
+        """
+
+    @overload
+    def embed(
+        self,
+        input: str,
+        config: Optional[OpenAIEmbeddingConfig] = None,
+    ) -> OpenAIEmbeddingResponse:
+        """Create embeddings for a single input using OpenAI provider.
+
+        Args:
+            input (str):
+                The input to create embeddings for.
+            config (Optional[OpenAIEmbeddingConfig]):
+                The OpenAI configuration to use for the embedder.
+
+        Returns:
+            OpenAIEmbeddingResponse:
+                The response from the OpenAI embedder.
+        """
+
+    @overload
+    def embed(
+        self,
+        input: str,
+        config: Optional[GeminiEmbeddingConfig] = None,
+    ) -> GeminiEmbeddingResponse:
+        """Create embeddings for a single input using Gemini provider.
+
+        Args:
+            input (str):
+                The input to create embeddings for.
+            config (Optional[GeminiEmbeddingConfig]):
+                The Gemini configuration to use for the embedder.
+
+        Returns:
+            GeminiEmbeddingResponse:
+                The response from the Gemini embedder.
+        """
+
+    def embed(  # type: ignore
+        self,
+        input: str,
+        config: Optional[OpenAIEmbeddingConfig | GeminiEmbeddingConfig] = None,
+    ) -> GeminiEmbeddingResponse | OpenAIEmbeddingResponse:
+        """Create embeddings for a single input.
+
+        Args:
+            input (str):
+                The input to create embeddings for.
+            config (Optional[OpenAIEmbeddingConfig | GeminiEmbeddingConfig]):
+                The configuration to use for the embedder. This can be a Pydantic BaseModel class
+                representing the configuration for the provider.
+
+        Returns:
+            Any:
+                The response from the embedder after creating the embeddings.
+        """
 
 class Workflow:
     def __init__(self, name: str) -> None:

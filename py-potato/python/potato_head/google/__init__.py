@@ -20,6 +20,8 @@ LatLng = google.LatLng
 ModelArmorConfig = google.ModelArmorConfig
 Mode = google.Mode
 GeminiSettings = google.GeminiSettings
+GeminiEmbeddingConfig = google.GeminiEmbeddingConfig
+GeminiEmbeddingResponse = google.GeminiEmbeddingResponse
 
 __all__ = [
     "Modality",
@@ -41,4 +43,6 @@ __all__ = [
     "HarmBlockThreshold",
     "HarmBlockMethod",
     "SafetySetting",
+    "GeminiEmbeddingConfig",
+    "GeminiEmbeddingResponse",
 ]

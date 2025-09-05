@@ -25,8 +25,8 @@ pub enum AgentError {
     #[error("Failed to serialize chat request: {0}")]
     SerializationError(#[from] serde_json::Error),
 
-    #[error("Failed to get chat completion response: {0} with status code {1}")]
-    ChatCompletionError(String, StatusCode),
+    #[error("Failed to get response: {0} with status code {1}")]
+    CompletionError(String, StatusCode),
 
     #[error("Failed to downcast Python object: {0}")]
     DowncastError(String),
@@ -84,6 +84,15 @@ pub enum AgentError {
 
     #[error("Provider mismatch: prompt provider {0}, agent provider {1}")]
     ProviderMismatch(String, String),
+
+    #[error("Invalid response type")]
+    InvalidResponseType(String),
+
+    #[error("Failed to extract embedding config. Check provider and config compatibility: {0}")]
+    EmbeddingConfigExtractionError(String),
+
+    #[error("Provider not supported: {0}")]
+    ProviderNotSupportedError(String),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {
