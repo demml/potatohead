@@ -1,3 +1,4 @@
+use crate::agents::embed::EmbeddingResponse;
 use crate::agents::error::AgentError;
 use crate::agents::provider::gemini::GeminiEmbeddingRequest;
 use crate::agents::provider::gemini::{
@@ -211,7 +212,7 @@ impl GeminiClient {
         &self,
         inputs: Vec<String>,
         config: T,
-    ) -> Result<GeminiEmbeddingResponse, AgentError>
+    ) -> Result<EmbeddingResponse, AgentError>
     where
         T: Serialize + EmbeddingConfigTrait,
     {
@@ -226,9 +227,8 @@ impl GeminiClient {
             .map_err(AgentError::SerializationError)?;
 
         let response = self.make_request(&path, &request).await?;
-
         let embedding_response: GeminiEmbeddingResponse = response.json().await?;
 
-        Ok(embedding_response)
+        Ok(EmbeddingResponse::Gemini(embedding_response))
     }
 }

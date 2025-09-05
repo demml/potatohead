@@ -84,6 +84,9 @@ pub enum AgentError {
 
     #[error("Provider mismatch: prompt provider {0}, agent provider {1}")]
     ProviderMismatch(String, String),
+
+    #[error("Invalid response type")]
+    InvalidResponseType(String),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {

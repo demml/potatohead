@@ -1,5 +1,6 @@
 use crate::agents::error::AgentError;
 
+use crate::agents::embed::EmbeddingResponse;
 use crate::agents::provider::openai::{
     OpenAIChatMessage, OpenAIChatRequest, OpenAIChatResponse, OpenAIEmbeddingRequest,
 };
@@ -220,7 +221,7 @@ impl OpenAIClient {
         &self,
         inputs: Vec<String>,
         config: T,
-    ) -> Result<OpenAIEmbeddingResponse, AgentError>
+    ) -> Result<EmbeddingResponse, AgentError>
     where
         T: Serialize,
     {
@@ -235,6 +236,7 @@ impl OpenAIClient {
             .make_request(OpenAIPaths::Embeddings.path(), &request)
             .await?;
 
-        Ok(response.json().await?)
+        let embedding_response: OpenAIEmbeddingResponse = response.json().await?;
+        Ok(EmbeddingResponse::OpenAI(embedding_response))
     }
 }
