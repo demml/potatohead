@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[pyclass]
-pub struct OpenAIEmbeddingSettings {
+pub struct OpenAIEmbeddingConfig {
     pub model: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]

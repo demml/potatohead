@@ -4,7 +4,16 @@ use crate::agents::client::GenAiClient;
 use crate::agents::provider::gemini::GeminiClient;
 use crate::agents::provider::openai::OpenAIClient;
 use crate::AgentError;
-use potato_type::openai::embedding::{OpenAIEmbeddingResponse, OpenAIEmbeddingSettings};
+use potato_type::google::GeminiEmbeddingConfig;
+use potato_type::openai::embedding::{OpenAIEmbeddingConfig, OpenAIEmbeddingResponse};
+use serde::Serialize;
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum EmbeddingConfig {
+    OpenAI(OpenAIEmbeddingConfig),
+    Gemini(GeminiEmbeddingConfig),
+}
 
 use tracing::error;
 #[derive(Debug, Clone, PartialEq)]
@@ -30,7 +39,7 @@ impl Embedder {
     pub async fn create(
         &self,
         inputs: Vec<String>,
-        settings: OpenAIEmbeddingSettings,
+        settings: EmbeddingConfig,
     ) -> Result<OpenAIEmbeddingResponse, AgentError> {
         // Implementation for creating an embedding
         self.client.create_embedding(inputs, settings).await

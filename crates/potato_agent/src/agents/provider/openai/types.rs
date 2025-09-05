@@ -2,7 +2,6 @@ use crate::agents::error::AgentError;
 use crate::agents::provider::traits::{LogProbExt, ResponseExt, TokenUsage};
 use potato_prompt::{prompt::types::PromptContent, Message};
 use potato_type::openai::chat::OpenAIChatSettings;
-use potato_type::openai::embedding::OpenAIEmbeddingSettings;
 use potato_util::utils::ResponseLogProbs;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
@@ -268,18 +267,29 @@ impl OpenAIChatMessage {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct OpenAIEmbeddingRequest {
+pub struct OpenAIEmbeddingRequest<T>
+where
+    T: Serialize,
+{
     pub inputs: Vec<String>,
 
     #[serde(flatten)]
-    pub settings: OpenAIEmbeddingSettings,
+    pub settings: T,
 }
 
-impl OpenAIEmbeddingRequest {
-    pub fn new(inputs: Vec<String>, settings: OpenAIEmbeddingSettings) -> Self {
-        Self {
-            inputs: inputs,
-            settings: settings,
-        }
+impl<T> OpenAIEmbeddingRequest<T>
+where
+    T: Serialize,
+{
+    /// Creates a new OpenAI embedding request with generic settings
+    ///
+    /// # Arguments
+    /// * `inputs` - Vector of strings to embed
+    /// * `settings` - Any configuration type that implements Serialize
+    ///
+    /// # Returns
+    /// * `Self` - New embedding request instance
+    pub fn new(inputs: Vec<String>, settings: T) -> Self {
+        Self { inputs, settings }
     }
 }

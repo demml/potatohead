@@ -52,6 +52,16 @@ impl GeminiEmbeddingConfig {
     }
 }
 
+pub trait EmbeddingConfigTrait {
+    fn get_model(&self) -> &str;
+}
+
+impl EmbeddingConfigTrait for GeminiEmbeddingConfig {
+    fn get_model(&self) -> &str {
+        self.model.as_deref().unwrap_or("embedding-001")
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 pub struct ContentEmbedding {
     pub values: Vec<f32>,

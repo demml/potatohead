@@ -6,11 +6,12 @@ use crate::agents::provider::openai::{
 use crate::agents::provider::types::add_extra_body_to_prompt;
 use crate::agents::provider::types::build_http_client;
 use potato_prompt::Prompt;
-use potato_type::openai::embedding::{OpenAIEmbeddingResponse, OpenAIEmbeddingSettings};
+use potato_type::openai::embedding::OpenAIEmbeddingResponse;
 use potato_type::{Common, Provider};
 use reqwest::header::AUTHORIZATION;
 use reqwest::Client;
 use reqwest::Response;
+use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{debug, error, instrument};
@@ -215,16 +216,19 @@ impl OpenAIClient {
     }
 
     #[instrument(skip_all)]
-    pub async fn async_create_embedding(
+    pub async fn async_create_embedding<T>(
         &self,
         inputs: Vec<String>,
-        settings: OpenAIEmbeddingSettings,
-    ) -> Result<OpenAIEmbeddingResponse, AgentError> {
+        config: T,
+    ) -> Result<OpenAIEmbeddingResponse, AgentError>
+    where
+        T: Serialize,
+    {
         if !self.api_key_set {
             return Err(AgentError::MissingOpenAIApiKeyError);
         }
 
-        let request = serde_json::to_value(OpenAIEmbeddingRequest::new(inputs, settings))
+        let request = serde_json::to_value(OpenAIEmbeddingRequest::new(inputs, config))
             .map_err(AgentError::SerializationError)?;
 
         let response = self

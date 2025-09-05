@@ -6,15 +6,16 @@ use crate::agents::provider::gemini::{
 use crate::agents::provider::types::add_extra_body_to_prompt;
 use crate::agents::provider::types::build_http_client;
 use potato_prompt::Prompt;
-use potato_type::google::embedding::{GeminiEmbeddingConfig, GeminiEmbeddingResponse};
+use potato_type::google::EmbeddingConfigTrait;
+use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::Common;
 use potato_type::Provider;
 use reqwest::Client;
 use reqwest::Response;
+use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{debug, error, instrument};
-
 enum GeminiPaths {
     GenerateContent,
     Embeddings,
@@ -206,21 +207,25 @@ impl GeminiClient {
     }
 
     #[instrument(skip_all)]
-    pub async fn async_create_embedding(
+    pub async fn async_create_embedding<T>(
         &self,
         inputs: Vec<String>,
-        config: GeminiEmbeddingConfig,
-    ) -> Result<GeminiEmbeddingResponse, AgentError> {
+        config: T,
+    ) -> Result<GeminiEmbeddingResponse, AgentError>
+    where
+        T: Serialize + EmbeddingConfigTrait,
+    {
         if !self.api_key_set {
             return Err(AgentError::MissingGeminiApiKeyError);
         }
 
+        let model = config.get_model();
+        let path = format!("{}:{}", model, GeminiPaths::Embeddings.path());
+
         let request = serde_json::to_value(GeminiEmbeddingRequest::new(inputs, config))
             .map_err(AgentError::SerializationError)?;
 
-        let response = self
-            .make_request(GeminiPaths::Embeddings.path(), &request)
-            .await?;
+        let response = self.make_request(&path, &request).await?;
 
         let embedding_response: GeminiEmbeddingResponse = response.json().await?;
 

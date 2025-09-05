@@ -1,10 +1,10 @@
+use crate::agents::embed::EmbeddingConfig;
 use crate::agents::error::AgentError;
 use crate::agents::provider::gemini::GeminiClient;
 use crate::agents::provider::openai::OpenAIClient;
 use crate::agents::types::ChatResponse;
 use potato_prompt::Prompt;
 use potato_type::openai::embedding::OpenAIEmbeddingResponse;
-use potato_type::openai::embedding::OpenAIEmbeddingSettings;
 use potato_type::Provider;
 use pyo3::prelude::*;
 use reqwest::header::HeaderName;
@@ -87,12 +87,12 @@ impl GenAiClient {
     pub async fn create_embedding(
         &self,
         inputs: Vec<String>,
-        settings: OpenAIEmbeddingSettings,
+        config: EmbeddingConfig,
     ) -> Result<OpenAIEmbeddingResponse, AgentError> {
         match self {
             GenAiClient::OpenAI(client) => {
                 let response = client
-                    .async_create_embedding(inputs, settings)
+                    .async_create_embedding(inputs, config)
                     .await
                     .inspect_err(|e| {
                         error!(error = %e, "Failed to create embedding");
