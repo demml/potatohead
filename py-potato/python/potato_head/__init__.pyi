@@ -192,7 +192,9 @@ class DocumentUrl:
         """The format of the document URL."""
 
 class Message:
-    def __init__(self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl) -> None:
+    def __init__(
+        self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl
+    ) -> None:
         """Create a Message object.
 
         Args:
@@ -637,6 +639,18 @@ class Agent:
     def id(self) -> str:
         """The ID of the agent. This is a random uuid7 that is generated when the agent is created."""
 
+class Embedder:
+    """Class for creating embeddings."""
+
+    def __init__(self, provider: Provider | str) -> None:
+        """Create an Embedder object.
+
+        Args:
+            provider (Provider | str):
+                The provider to use for the embedder. This can be a Provider enum or a string
+                representing the provider.
+        """
+
 class Workflow:
     def __init__(self, name: str) -> None:
         """Create a Workflow object.
@@ -750,7 +764,9 @@ class Workflow:
         """
 
     @staticmethod
-    def model_validate_json(json_string: str, output_types: Optional[Dict[str, Any]]) -> "Workflow":
+    def model_validate_json(
+        json_string: str, output_types: Optional[Dict[str, Any]]
+    ) -> "Workflow":
         """Load a workflow from a JSON string.
 
         Args:

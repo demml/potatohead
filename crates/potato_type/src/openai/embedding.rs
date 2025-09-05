@@ -1,5 +1,7 @@
-use pyo3::prelude::*;
+use pyo3::{prelude::*, IntoPyObjectExt};
 use serde::{Deserialize, Serialize};
+
+use crate::TypeError;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[pyclass]
@@ -39,4 +41,11 @@ pub struct OpenAIEmbeddingResponse {
 
     #[serde(default)]
     pub usage: UsageObject,
+}
+
+impl OpenAIEmbeddingResponse {
+    pub fn into_py_bound_any<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        let bound = Py::new(py, self.clone())?;
+        Ok(bound.into_bound_py_any(py)?)
+    }
 }

@@ -237,6 +237,7 @@ impl OpenAIClient {
             .await?;
 
         let embedding_response: OpenAIEmbeddingResponse = response.json().await?;
+
         Ok(EmbeddingResponse::OpenAI(embedding_response))
     }
 }

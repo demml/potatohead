@@ -1,7 +1,7 @@
-use pyo3::prelude::*;
-use serde::{Deserialize, Serialize};
-
 use crate::TypeError;
+use pyo3::prelude::*;
+use pyo3::IntoPyObjectExt;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[pyclass(eq, eq_int)]
@@ -71,4 +71,11 @@ pub struct ContentEmbedding {
 #[pyclass]
 pub struct GeminiEmbeddingResponse {
     pub embedding: ContentEmbedding,
+}
+
+impl GeminiEmbeddingResponse {
+    pub fn into_py_bound_any<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        let bound = Py::new(py, self.clone())?;
+        Ok(bound.into_bound_py_any(py)?)
+    }
 }

@@ -87,6 +87,12 @@ pub enum AgentError {
 
     #[error("Invalid response type")]
     InvalidResponseType(String),
+
+    #[error("Failed to extract embedding config. Check provider and config compatibility: {0}")]
+    EmbeddingConfigExtractionError(String),
+
+    #[error("Provider not supported: {0}")]
+    ProviderNotSupportedError(String),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {
