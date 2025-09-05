@@ -271,7 +271,7 @@ pub struct OpenAIEmbeddingRequest<T>
 where
     T: Serialize,
 {
-    pub inputs: Vec<String>,
+    pub input: Vec<String>,
 
     #[serde(flatten)]
     pub settings: T,
@@ -289,7 +289,7 @@ where
     ///
     /// # Returns
     /// * `Self` - New embedding request instance
-    pub fn new(inputs: Vec<String>, settings: T) -> Self {
-        Self { inputs, settings }
+    pub fn new(input: Vec<String>, settings: T) -> Self {
+        Self { input, settings }
     }
 }

@@ -4,7 +4,7 @@ import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Sequence, overload
 
-from .google import GeminiSettings, GeminiEmbeddingConfig, GeminiEmbeddingResponse
+from .google import GeminiEmbeddingConfig, GeminiEmbeddingResponse, GeminiSettings
 from .openai import OpenAIChatSettings, OpenAIEmbeddingConfig, OpenAIEmbeddingResponse
 
 class PromptTokenDetails:
@@ -192,9 +192,7 @@ class DocumentUrl:
         """The format of the document URL."""
 
 class Message:
-    def __init__(
-        self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl
-    ) -> None:
+    def __init__(self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl) -> None:
         """Create a Message object.
 
         Args:
@@ -652,7 +650,7 @@ class Embedder:
         """
 
     @overload
-    def create(
+    def embed(
         self,
         input: str,
         config: Optional[OpenAIEmbeddingConfig] = None,
@@ -671,7 +669,7 @@ class Embedder:
         """
 
     @overload
-    def create(
+    def embed(
         self,
         input: str,
         config: Optional[GeminiEmbeddingConfig] = None,
@@ -689,7 +687,7 @@ class Embedder:
                 The response from the Gemini embedder.
         """
 
-    def create(  # type: ignore
+    def embed(  # type: ignore
         self,
         input: str,
         config: Optional[OpenAIEmbeddingConfig | GeminiEmbeddingConfig] = None,
@@ -821,9 +819,7 @@ class Workflow:
         """
 
     @staticmethod
-    def model_validate_json(
-        json_string: str, output_types: Optional[Dict[str, Any]]
-    ) -> "Workflow":
+    def model_validate_json(json_string: str, output_types: Optional[Dict[str, Any]]) -> "Workflow":
         """Load a workflow from a JSON string.
 
         Args:

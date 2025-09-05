@@ -115,7 +115,7 @@ impl OpenAIClient {
                 .text()
                 .await
                 .unwrap_or_else(|_| "No response body".to_string());
-            return Err(AgentError::ChatCompletionError(body, status));
+            return Err(AgentError::CompletionError(body, status));
         }
 
         Ok(response)
@@ -231,6 +231,8 @@ impl OpenAIClient {
 
         let request = serde_json::to_value(OpenAIEmbeddingRequest::new(inputs, config))
             .map_err(AgentError::SerializationError)?;
+
+        debug!("Sending embedding request to OpenAI API: {:?}", request);
 
         let response = self
             .make_request(OpenAIPaths::Embeddings.path(), &request)

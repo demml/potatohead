@@ -27,6 +27,7 @@ dev = [
     "pydantic>=2.10.5",
     "pydantic-ai>=0.0.41",
     "httpx>=0.28.1",
+    "numpy>=2.2.6",
 ]
 docs = [
     "mkdocs-material >= 9.5.4, < 10.0.0",

@@ -115,7 +115,7 @@ impl GeminiClient {
                 .await
                 .unwrap_or_else(|_| "No response body".to_string());
 
-            return Err(AgentError::ChatCompletionError(body, status));
+            return Err(AgentError::CompletionError(body, status));
         }
 
         Ok(response)

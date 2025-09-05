@@ -25,8 +25,8 @@ pub enum AgentError {
     #[error("Failed to serialize chat request: {0}")]
     SerializationError(#[from] serde_json::Error),
 
-    #[error("Failed to get chat completion response: {0} with status code {1}")]
-    ChatCompletionError(String, StatusCode),
+    #[error("Failed to get response: {0} with status code {1}")]
+    CompletionError(String, StatusCode),
 
     #[error("Failed to downcast Python object: {0}")]
     DowncastError(String),

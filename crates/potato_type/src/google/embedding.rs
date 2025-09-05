@@ -64,13 +64,23 @@ impl EmbeddingConfigTrait for GeminiEmbeddingConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
+#[pyclass]
 pub struct ContentEmbedding {
     pub values: Vec<f32>,
+}
+
+#[pymethods]
+impl ContentEmbedding {
+    #[getter]
+    pub fn values(&self) -> &Vec<f32> {
+        &self.values
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[pyclass]
 pub struct GeminiEmbeddingResponse {
+    #[pyo3(get)]
     pub embedding: ContentEmbedding,
 }
 

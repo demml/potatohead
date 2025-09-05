@@ -158,6 +158,7 @@ impl PyEmbedder {
     /// # Arguments
     /// * `inputs`: The input string to embed.
     /// * `config`: The configuration for the embedding.
+    #[pyo3(signature = (input, config=None))]
     pub fn embed<'py>(
         &self,
         py: Python<'py>,

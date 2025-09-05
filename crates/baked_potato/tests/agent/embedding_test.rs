@@ -22,7 +22,7 @@ fn test_openai_embedding() {
         ..Default::default()
     });
 
-    let embeddings = runtime.block_on(async { embedder.create(inputs, config).await.unwrap() });
+    let embeddings = runtime.block_on(async { embedder.embed(inputs, config).await.unwrap() });
 
     let openai_response = embeddings.to_openai_response().unwrap();
 
@@ -48,7 +48,7 @@ fn test_gemini_embedding() {
         ..Default::default()
     });
 
-    let _embeddings = runtime.block_on(async { embedder.create(inputs, config).await.unwrap() });
+    let _embeddings = runtime.block_on(async { embedder.embed(inputs, config).await.unwrap() });
 
     mock.stop_server().unwrap();
 }
