@@ -94,7 +94,7 @@ impl Embedder {
         Ok(Self { client })
     }
 
-    pub async fn create(
+    pub async fn embed(
         &self,
         inputs: Vec<String>,
         config: EmbeddingConfig,
@@ -158,7 +158,7 @@ impl PyEmbedder {
     /// # Arguments
     /// * `inputs`: The input string to embed.
     /// * `config`: The configuration for the embedding.
-    pub fn create<'py>(
+    pub fn embed<'py>(
         &self,
         py: Python<'py>,
         input: String,
@@ -168,7 +168,7 @@ impl PyEmbedder {
         let embedder = self.embedder.clone();
         let embeddings = self
             .runtime
-            .block_on(async { embedder.create(vec![input], config).await })?;
+            .block_on(async { embedder.embed(vec![input], config).await })?;
         Ok(embeddings.into_py_bound_any(py)?)
     }
 }
