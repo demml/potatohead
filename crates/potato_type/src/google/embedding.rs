@@ -34,6 +34,7 @@ pub struct GeminiEmbeddingConfig {
 #[pymethods]
 impl GeminiEmbeddingConfig {
     #[new]
+    #[pyo3(signature = (model=None, output_dimensionality=None, task_type=None))]
     pub fn new(
         model: Option<String>,
         output_dimensionality: Option<i32>,
