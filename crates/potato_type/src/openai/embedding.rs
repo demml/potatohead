@@ -24,20 +24,11 @@ pub struct EmbeddingObject {
     pub index: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[pyclass]
 pub struct UsageObject {
     pub prompt_tokens: u32,
     pub total_tokens: u32,
-}
-
-impl Default for UsageObject {
-    fn default() -> Self {
-        Self {
-            prompt_tokens: 0,
-            total_tokens: 0,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]

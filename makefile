@@ -17,4 +17,4 @@ test.baked:
 
 
 test.baked.llm:
-	cargo test -p baked-potato test_openai_embedding -- --nocapture --test-threads=1
+	cargo test -p baked-potato test_gemini_embedding -- --nocapture --test-threads=1
