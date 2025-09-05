@@ -1,3 +1,4 @@
+use ::potato_head::agents::embed::PyEmbedder;
 use ::potato_head::{
     prompt::settings::ModelSettings, AudioUrl, BinaryContent, ChatResponse, CompletionTokenDetails,
     DocumentUrl, EventDetails, ImageUrl, Message, Prompt, PromptTokenDetails, Provider, PyAgent,
@@ -36,6 +37,7 @@ pub fn potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TaskList>()?;
     m.add_class::<TaskStatus>()?;
     m.add_class::<PyAgentResponse>()?;
+    m.add_class::<PyEmbedder>()?;
     m.add_wrapped(wrap_pymodule!(mock::mock))?;
     m.add_wrapped(wrap_pymodule!(logging::logging))?;
     m.add_wrapped(wrap_pymodule!(google::google))?;
