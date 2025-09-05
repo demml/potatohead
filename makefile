@@ -14,7 +14,3 @@ test.prompt:
 
 test.baked:
 	cargo test -p baked-potato -- --nocapture --test-threads=1
-
-
-test.baked.llm:
-	cargo test -p baked-potato test_gemini_embedding -- --nocapture --test-threads=1

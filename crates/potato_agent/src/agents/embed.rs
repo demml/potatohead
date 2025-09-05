@@ -165,11 +165,11 @@ impl PyEmbedder {
         input: String,
         config: Option<&Bound<'py, PyAny>>,
     ) -> Result<Bound<'py, PyAny>, AgentError> {
-        let config = EmbeddingConfig::extract_config(config, &self.embedder.client.provider())?;
+        let config = EmbeddingConfig::extract_config(config, self.embedder.client.provider())?;
         let embedder = self.embedder.clone();
         let embeddings = self
             .runtime
             .block_on(async { embedder.embed(vec![input], config).await })?;
-        Ok(embeddings.into_py_bound_any(py)?)
+        embeddings.into_py_bound_any(py)
     }
 }
