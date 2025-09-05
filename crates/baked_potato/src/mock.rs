@@ -1,15 +1,15 @@
 use crate::error::MockError;
 use mockito;
-use potato_agent::agents::{
-    embed,
-    provider::{gemini::GenerateContentResponse, openai::OpenAIChatResponse},
-};
+use potato_agent::agents::provider::{gemini::GenerateContentResponse, openai::OpenAIChatResponse};
+use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::openai::embedding::OpenAIEmbeddingResponse;
 use serde_json;
 
 use pyo3::prelude::*;
 
 pub const OPENAI_EMBEDDING_RESPONSE: &str = include_str!("assets/openai/embedding_response.json");
+
+pub const GEMINI_EMBEDDING_RESPONSE: &str = include_str!("assets/gemini/embedding_response.json");
 
 pub const OPENAI_CHAT_COMPLETION_RESPONSE: &str =
     include_str!("assets/openai/openai_chat_completion_response.json");
@@ -41,7 +41,7 @@ impl LLMApiMock {
     pub fn new() -> Self {
         let mut server = mockito::Server::new();
         // load the OpenAI chat completion response
-        let embedding_response: OpenAIEmbeddingResponse =
+        let openai_embedding_response: OpenAIEmbeddingResponse =
             serde_json::from_str(OPENAI_EMBEDDING_RESPONSE).unwrap();
         let chat_msg_response: OpenAIChatResponse =
             serde_json::from_str(OPENAI_CHAT_COMPLETION_RESPONSE).unwrap();
@@ -59,6 +59,8 @@ impl LLMApiMock {
             serde_json::from_str(GEMINI_CHAT_COMPLETION_RESPONSE).unwrap();
         let gemini_chat_response_with_score: GenerateContentResponse =
             serde_json::from_str(GEMINI_CHAT_COMPLETION_RESPONSE_WITH_SCORE).unwrap();
+        let gemini_embedding_response: GeminiEmbeddingResponse =
+            serde_json::from_str(GEMINI_EMBEDDING_RESPONSE).unwrap();
 
         server
             .mock("POST", "/chat/completions")
@@ -211,7 +213,18 @@ impl LLMApiMock {
             .expect(usize::MAX)
             .with_status(200)
             .with_header("content-type", "application/json")
-            .with_body(serde_json::to_string(&embedding_response).unwrap())
+            .with_body(serde_json::to_string(&openai_embedding_response).unwrap())
+            .create();
+
+        server
+            .mock(
+                "POST",
+                mockito::Matcher::Regex(r".*/.*:embedContent$".to_string()),
+            )
+            .expect(usize::MAX)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&gemini_embedding_response).unwrap())
             .create();
 
         Self {

@@ -3,6 +3,7 @@ use crate::{AgentError, Usage};
 use base64::prelude::*;
 use potato_prompt::{prompt::types::PromptContent, Message};
 use potato_type::google::chat::{GeminiSettings, HarmBlockThreshold, HarmCategory, Modality};
+use potato_type::google::embedding::GeminiEmbeddingConfig;
 use potato_util::utils::ResponseLogProbs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -215,6 +216,17 @@ impl Content {
             role: Some(message.role.to_string()),
             parts: content,
         })
+    }
+
+    fn from_vec(parts: Vec<String>) -> Self {
+        let parts = parts
+            .into_iter()
+            .map(|text| Part {
+                text: Some(text),
+                ..Default::default()
+            })
+            .collect();
+        Self { parts, role: None }
     }
 }
 
@@ -1217,5 +1229,23 @@ impl LogProbExt for GenerateContentResponse {
         }
 
         probabilities
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GeminiEmbeddingRequest {
+    pub content: Content,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(flatten)]
+    pub embedding_config: Option<GeminiEmbeddingConfig>,
+}
+
+impl GeminiEmbeddingRequest {
+    pub fn new(inputs: Vec<String>, settings: GeminiEmbeddingConfig) -> Self {
+        Self {
+            content: Content::from_vec(inputs),
+            embedding_config: Some(settings),
+        }
     }
 }

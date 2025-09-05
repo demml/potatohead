@@ -1,10 +1,12 @@
 use crate::agents::error::AgentError;
+use crate::agents::provider::gemini::GeminiEmbeddingRequest;
 use crate::agents::provider::gemini::{
     Content, GeminiGenerateContentRequest, GenerateContentResponse, Part,
 };
 use crate::agents::provider::types::add_extra_body_to_prompt;
 use crate::agents::provider::types::build_http_client;
 use potato_prompt::Prompt;
+use potato_type::google::embedding::{GeminiEmbeddingConfig, GeminiEmbeddingResponse};
 use potato_type::Common;
 use potato_type::Provider;
 use reqwest::Client;
@@ -12,6 +14,20 @@ use reqwest::Response;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{debug, error, instrument};
+
+enum GeminiPaths {
+    GenerateContent,
+    Embeddings,
+}
+
+impl GeminiPaths {
+    fn path(&self) -> &str {
+        match self {
+            GeminiPaths::GenerateContent => "generateContent",
+            GeminiPaths::Embeddings => "embedContent",
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct GeminiClient {
@@ -179,7 +195,7 @@ impl GeminiClient {
 
         let response = self
             .make_request(
-                &format!("{}:generateContent", prompt.model),
+                &format!("{}:{}", prompt.model, GeminiPaths::GenerateContent.path()),
                 &serialized_prompt,
             )
             .await?;
@@ -187,5 +203,27 @@ impl GeminiClient {
         debug!("Chat completion successful");
 
         Ok(chat_response)
+    }
+
+    #[instrument(skip_all)]
+    pub async fn async_create_embedding(
+        &self,
+        inputs: Vec<String>,
+        config: GeminiEmbeddingConfig,
+    ) -> Result<GeminiEmbeddingResponse, AgentError> {
+        if !self.api_key_set {
+            return Err(AgentError::MissingGeminiApiKeyError);
+        }
+
+        let request = serde_json::to_value(GeminiEmbeddingRequest::new(inputs, config))
+            .map_err(AgentError::SerializationError)?;
+
+        let response = self
+            .make_request(GeminiPaths::Embeddings.path(), &request)
+            .await?;
+
+        let embedding_response: GeminiEmbeddingResponse = response.json().await?;
+
+        Ok(embedding_response)
     }
 }
