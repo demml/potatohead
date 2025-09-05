@@ -1,5 +1,4 @@
 use crate::TypeError;
-use pyo3::types::PyList;
 use pyo3::{prelude::*, IntoPyObjectExt};
 use serde::{Deserialize, Serialize};
 
