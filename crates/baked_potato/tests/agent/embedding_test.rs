@@ -1,16 +1,11 @@
 use baked_potato::LLMTestServer;
-use potato_agent::{e, Agent, Embedder, Task};
-use potato_prompt::{
-    prompt::{Message, Prompt, PromptContent, ResponseType},
-    Score,
-};
+use potato_agent::Embedder;
 use potato_type::Provider;
-use potato_type::StructuredOutput;
 
 /// This test is performed in a sync context in order to maintain compatibility with python (LLMTestServer can be used in rust and python)
 /// Because of this, we need to use a tokio runtime to run the async code within the test.
 #[test]
-fn test_openai_agent() {
+fn test_openai_embedding() {
     use potato_type::openai::embedding::OpenAIEmbeddingSettings;
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let mut mock = LLMTestServer::new();
@@ -25,9 +20,11 @@ fn test_openai_agent() {
         ..Default::default()
     };
 
-    runtime.block_on(async {
-        embedder.create(inputs, settings).await.unwrap();
-    });
+    let embeddings = runtime.block_on(async { embedder.create(inputs, settings).await.unwrap() });
+
+    // get usage
+    assert_eq!(embeddings.usage.prompt_tokens, 8);
+    assert_eq!(embeddings.usage.total_tokens, 8);
 
     mock.stop_server().unwrap();
 }

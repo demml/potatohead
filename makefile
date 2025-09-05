@@ -14,3 +14,7 @@ test.prompt:
 
 test.baked:
 	cargo test -p baked-potato -- --nocapture --test-threads=1
+
+
+test.baked.llm:
+	cargo test -p baked-potato test_openai_embedding -- --nocapture --test-threads=1

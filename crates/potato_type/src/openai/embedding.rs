@@ -24,11 +24,20 @@ pub struct EmbeddingObject {
     pub index: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[pyclass]
 pub struct UsageObject {
     pub prompt_tokens: u32,
     pub total_tokens: u32,
+}
+
+impl Default for UsageObject {
+    fn default() -> Self {
+        Self {
+            prompt_tokens: 0,
+            total_tokens: 0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -36,5 +45,7 @@ pub struct UsageObject {
 pub struct OpenAIEmbeddingResponse {
     pub object: String,
     pub data: Vec<EmbeddingObject>,
-    pub usage: Option<UsageObject>,
+
+    #[serde(default)]
+    pub usage: UsageObject,
 }
