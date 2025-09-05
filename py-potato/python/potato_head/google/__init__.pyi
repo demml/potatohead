@@ -342,3 +342,11 @@ class GeminiEmbeddingConfig:
             task_type (Optional[EmbeddingTaskType]):
                 The type of embedding task to perform. If not specified, the default gemini task type will be used.
         """
+
+class ContentEmbedding:
+    @property
+    def values(self) -> List[float]: ...
+
+class GeminiEmbeddingResponse:
+    @property
+    def embedding(self) -> ContentEmbedding: ...
