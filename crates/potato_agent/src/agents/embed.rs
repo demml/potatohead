@@ -131,6 +131,20 @@ impl EmbeddingResponse {
             EmbeddingResponse::Gemini(response) => Ok(response.into_py_bound_any(py)?),
         }
     }
+
+    pub fn values(&self) -> Result<&Vec<f32>, AgentError> {
+        match self {
+            EmbeddingResponse::OpenAI(response) => {
+                let first = response
+                    .data
+                    .first()
+                    .ok_or_else(|| AgentError::NoEmbeddingsFound)?;
+                Ok(&first.embedding)
+            }
+
+            EmbeddingResponse::Gemini(response) => Ok(&response.embedding.values),
+        }
+    }
 }
 
 #[pyclass(name = "Embedder")]

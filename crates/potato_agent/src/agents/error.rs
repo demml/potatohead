@@ -93,6 +93,9 @@ pub enum AgentError {
 
     #[error("Provider not supported: {0}")]
     ProviderNotSupportedError(String),
+
+    #[error("No embeddings found in the response")]
+    NoEmbeddingsFound,
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {
