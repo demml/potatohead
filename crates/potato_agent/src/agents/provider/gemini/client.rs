@@ -211,7 +211,7 @@ impl GeminiClient {
     pub async fn async_create_embedding<T>(
         &self,
         inputs: Vec<String>,
-        config: &T,
+        config: T,
     ) -> Result<EmbeddingResponse, AgentError>
     where
         T: Serialize + EmbeddingConfigTrait,

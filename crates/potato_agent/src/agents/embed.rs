@@ -77,11 +77,10 @@ use tracing::error;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Embedder {
     client: GenAiClient,
-    config: EmbeddingConfig,
 }
 
 impl Embedder {
-    pub fn new(provider: Provider, config: EmbeddingConfig) -> Result<Self, AgentError> {
+    pub fn new(provider: Provider) -> Result<Self, AgentError> {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
             Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None, None, None)?),
@@ -92,12 +91,16 @@ impl Embedder {
             } // Add other providers here as needed
         };
 
-        Ok(Self { client, config })
+        Ok(Self { client })
     }
 
-    pub async fn embed(&self, inputs: Vec<String>) -> Result<EmbeddingResponse, AgentError> {
+    pub async fn embed(
+        &self,
+        inputs: Vec<String>,
+        config: EmbeddingConfig,
+    ) -> Result<EmbeddingResponse, AgentError> {
         // Implementation for creating an embedding
-        self.client.create_embedding(inputs, &self.config).await
+        self.client.create_embedding(inputs, config).await
     }
 }
 
@@ -139,14 +142,9 @@ pub struct PyEmbedder {
 #[pymethods]
 impl PyEmbedder {
     #[new]
-    #[pyo3(signature = (provider, config=None))]
-    fn new(
-        provider: &Bound<'_, PyAny>,
-        config: Option<&Bound<'_, PyAny>>,
-    ) -> Result<Self, AgentError> {
+    fn new(provider: &Bound<'_, PyAny>) -> Result<Self, AgentError> {
         let provider = Provider::extract_provider(provider)?;
-        let config = EmbeddingConfig::extract_config(config, &provider)?;
-        let embedder = Arc::new(Embedder::new(provider, config).unwrap());
+        let embedder = Arc::new(Embedder::new(provider).unwrap());
         Ok(Self {
             embedder,
             runtime: Arc::new(
@@ -160,16 +158,18 @@ impl PyEmbedder {
     /// # Arguments
     /// * `inputs`: The input string to embed.
     /// * `config`: The configuration for the embedding.
-    #[pyo3(signature = (input))]
+    #[pyo3(signature = (input, config=None))]
     pub fn embed<'py>(
         &self,
         py: Python<'py>,
         input: String,
+        config: Option<&Bound<'py, PyAny>>,
     ) -> Result<Bound<'py, PyAny>, AgentError> {
+        let config = EmbeddingConfig::extract_config(config, self.embedder.client.provider())?;
         let embedder = self.embedder.clone();
         let embeddings = self
             .runtime
-            .block_on(async { embedder.embed(vec![input]).await })?;
+            .block_on(async { embedder.embed(vec![input], config).await })?;
         embeddings.into_py_bound_any(py)
     }
 }

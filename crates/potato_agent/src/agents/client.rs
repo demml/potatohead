@@ -87,7 +87,7 @@ impl GenAiClient {
     pub async fn create_embedding(
         &self,
         inputs: Vec<String>,
-        config: &EmbeddingConfig,
+        config: EmbeddingConfig,
     ) -> Result<EmbeddingResponse, AgentError> {
         match self {
             GenAiClient::OpenAI(client) => {
