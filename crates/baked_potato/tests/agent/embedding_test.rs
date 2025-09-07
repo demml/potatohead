@@ -13,16 +13,16 @@ fn test_openai_embedding() {
     let mut mock = LLMTestServer::new();
 
     mock.start_server().unwrap();
-
-    let embedder = Embedder::new(Provider::OpenAI).unwrap();
-
-    let inputs = vec!["Test input 1".to_string(), "Test input 2".to_string()];
     let config = EmbeddingConfig::OpenAI(OpenAIEmbeddingConfig {
         model: "text-embedding-3-small".to_string(),
         ..Default::default()
     });
 
-    let embeddings = runtime.block_on(async { embedder.embed(inputs, config).await.unwrap() });
+    let embedder = Embedder::new(Provider::OpenAI, config).unwrap();
+
+    let inputs = vec!["Test input 1".to_string(), "Test input 2".to_string()];
+
+    let embeddings = runtime.block_on(async { embedder.embed(inputs).await.unwrap() });
 
     let openai_response = embeddings.to_openai_response().unwrap();
 
@@ -40,15 +40,15 @@ fn test_gemini_embedding() {
 
     mock.start_server().unwrap();
 
-    let embedder = Embedder::new(Provider::Gemini).unwrap();
-
-    let inputs = vec!["Test input 1".to_string()];
     let config = EmbeddingConfig::Gemini(GeminiEmbeddingConfig {
         model: Some("gemini-embedding-001".to_string()),
         ..Default::default()
     });
+    let embedder = Embedder::new(Provider::Gemini, config).unwrap();
 
-    let _embeddings = runtime.block_on(async { embedder.embed(inputs, config).await.unwrap() });
+    let inputs = vec!["Test input 1".to_string()];
+
+    let _embeddings = runtime.block_on(async { embedder.embed(inputs).await.unwrap() });
 
     mock.stop_server().unwrap();
 }

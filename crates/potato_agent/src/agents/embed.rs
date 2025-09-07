@@ -81,6 +81,10 @@ pub struct Embedder {
 }
 
 impl Embedder {
+    /// Create a new Embedder instance that can be used to generate embeddings.
+    /// # Arguments
+    /// * `provider`: The provider to use for generating embeddings.
+    /// * `config`: The configuration for the embedding.
     pub fn new(provider: Provider, config: EmbeddingConfig) -> Result<Self, AgentError> {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
