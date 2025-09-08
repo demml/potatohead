@@ -1,5 +1,6 @@
 pub mod agents;
 
+pub use agents::provider::gemini::GenerateContentResponse;
 pub use agents::provider::openai::{
     CompletionTokenDetails, OpenAIChatMessage, OpenAIChatResponse, PromptTokenDetails, Usage,
 };
