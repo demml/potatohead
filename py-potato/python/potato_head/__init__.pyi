@@ -2,7 +2,7 @@
 
 import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Sequence, overload
+from typing import Any, Dict, List, Literal, Optional, Sequence
 
 from .google import GeminiEmbeddingConfig, GeminiEmbeddingResponse, GeminiSettings
 from .openai import OpenAIChatSettings, OpenAIEmbeddingConfig, OpenAIEmbeddingResponse
@@ -192,7 +192,9 @@ class DocumentUrl:
         """The format of the document URL."""
 
 class Message:
-    def __init__(self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl) -> None:
+    def __init__(
+        self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl
+    ) -> None:
         """Create a Message object.
 
         Args:
@@ -640,70 +642,38 @@ class Agent:
 class Embedder:
     """Class for creating embeddings."""
 
-    def __init__(self, provider: Provider | str) -> None:
+    def __init__(
+        self,
+        provider: Provider | str,
+        config: Optional[OpenAIEmbeddingConfig | GeminiEmbeddingConfig] = None,
+    ) -> None:
         """Create an Embedder object.
 
         Args:
             provider (Provider | str):
                 The provider to use for the embedder. This can be a Provider enum or a string
                 representing the provider.
+            config (Optional[OpenAIEmbeddingConfig | GeminiEmbeddingConfig]):
+                The configuration to use for the embedder. This can be a Pydantic BaseModel class
+                representing the configuration for the provider. If no config is provided,
+                defaults to OpenAI provider configuration.
         """
 
-    @overload
     def embed(
         self,
         input: str,
-        config: Optional[OpenAIEmbeddingConfig] = None,
-    ) -> OpenAIEmbeddingResponse:
-        """Create embeddings for a single input using OpenAI provider.
-
-        Args:
-            input (str):
-                The input to create embeddings for.
-            config (Optional[OpenAIEmbeddingConfig]):
-                The OpenAI configuration to use for the embedder.
-
-        Returns:
-            OpenAIEmbeddingResponse:
-                The response from the OpenAI embedder.
-        """
-
-    @overload
-    def embed(
-        self,
-        input: str,
-        config: Optional[GeminiEmbeddingConfig] = None,
-    ) -> GeminiEmbeddingResponse:
-        """Create embeddings for a single input using Gemini provider.
-
-        Args:
-            input (str):
-                The input to create embeddings for.
-            config (Optional[GeminiEmbeddingConfig]):
-                The Gemini configuration to use for the embedder.
-
-        Returns:
-            GeminiEmbeddingResponse:
-                The response from the Gemini embedder.
-        """
-
-    def embed(  # type: ignore
-        self,
-        input: str,
-        config: Optional[OpenAIEmbeddingConfig | GeminiEmbeddingConfig] = None,
-    ) -> GeminiEmbeddingResponse | OpenAIEmbeddingResponse:
+    ) -> OpenAIEmbeddingResponse | GeminiEmbeddingResponse:
         """Create embeddings for a single input.
 
         Args:
             input (str):
                 The input to create embeddings for.
-            config (Optional[OpenAIEmbeddingConfig | GeminiEmbeddingConfig]):
-                The configuration to use for the embedder. This can be a Pydantic BaseModel class
-                representing the configuration for the provider.
 
         Returns:
-            Any:
+            (OpenAIEmbeddingResponse | GeminiEmbeddingResponse):
                 The response from the embedder after creating the embeddings.
+                Returns OpenAIEmbeddingResponse if initialized with OpenAIEmbeddingConfig or no config.
+                Returns GeminiEmbeddingResponse if initialized with GeminiEmbeddingConfig.
         """
 
 class Workflow:
@@ -819,7 +789,9 @@ class Workflow:
         """
 
     @staticmethod
-    def model_validate_json(json_string: str, output_types: Optional[Dict[str, Any]]) -> "Workflow":
+    def model_validate_json(
+        json_string: str, output_types: Optional[Dict[str, Any]]
+    ) -> "Workflow":
         """Load a workflow from a JSON string.
 
         Args:
