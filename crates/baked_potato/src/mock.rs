@@ -35,7 +35,7 @@ pub const GEMINI_CHAT_COMPLETION_RESPONSE_WITH_SCORE: &str =
 fn randomize_openai_embedding_response(
     response: OpenAIEmbeddingResponse,
 ) -> OpenAIEmbeddingResponse {
-    // create random Vec<f32> of length 1536
+    // create random Vec<f32> of length 512
     let mut cloned_response = response.clone();
     let mut rng = rand::rng();
     let embedding: Vec<f32> = (0..512).map(|_| rng.random_range(-1.0..1.0)).collect();
@@ -48,7 +48,7 @@ fn randomize_gemini_embedding_response(
 ) -> GeminiEmbeddingResponse {
     let mut cloned_response = response.clone();
     let mut rng = rand::rng();
-    let embedding: Vec<f32> = (0..1536).map(|_| rng.random_range(-1.0..1.0)).collect();
+    let embedding: Vec<f32> = (0..512).map(|_| rng.random_range(-1.0..1.0)).collect();
     cloned_response.embedding.values = embedding;
     cloned_response
 }
