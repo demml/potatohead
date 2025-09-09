@@ -135,9 +135,7 @@ def test_potato_head_workflow():
         open_agent1 = Agent(Provider.OpenAI)
         open_agent2 = Agent(Provider.OpenAI)
 
-        workflow = Workflow(
-            name="test_workflow"
-        )  # expand named argument to allow agents and tasks
+        workflow = Workflow(name="test_workflow")  # expand named argument to allow agents and tasks
         workflow.add_agent(open_agent1)  # allow adding list of agents
         workflow.add_agent(open_agent2)
         workflow.add_task(  # allow adding list of tasks
@@ -216,9 +214,7 @@ def test_potato_head_workflow_structured_output():
         open_agent1 = Agent(Provider.OpenAI)
         open_agent2 = Agent(Provider.OpenAI)
 
-        workflow = Workflow(
-            name="test_workflow"
-        )  # expand named argument to allow agents and tasks
+        workflow = Workflow(name="test_workflow")  # expand named argument to allow agents and tasks
         workflow.add_agent(open_agent1)  # allow adding list of agents
         workflow.add_agent(open_agent2)
         workflow.add_task(  # allow adding list of tasks
@@ -352,9 +348,7 @@ def test_workflow_param_binding():
         )
 
         agent = Agent(Provider.OpenAI)
-        workflow = Workflow(
-            name="test_workflow"
-        )  # expand named argument to allow agents and tasks
+        workflow = Workflow(name="test_workflow")  # expand named argument to allow agents and tasks
         workflow.add_agent(agent)
         workflow.add_task(
             Task(
