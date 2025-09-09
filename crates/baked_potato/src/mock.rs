@@ -234,12 +234,15 @@ impl LLMApiMock {
             .expect(usize::MAX)
             .with_status(200)
             .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&randomize_openai_embedding_response(
-                    openai_embedding_response,
-                ))
-                .unwrap(),
-            )
+            .with_chunked_body(move |w| {
+                let randomized_response =
+                    randomize_openai_embedding_response(openai_embedding_response.clone());
+                w.write_all(
+                    serde_json::to_string(&randomized_response)
+                        .unwrap()
+                        .as_bytes(),
+                )
+            })
             .create();
 
         server
@@ -250,12 +253,15 @@ impl LLMApiMock {
             .expect(usize::MAX)
             .with_status(200)
             .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&randomize_gemini_embedding_response(
-                    gemini_embedding_response,
-                ))
-                .unwrap(),
-            )
+            .with_chunked_body(move |w| {
+                let randomized_response =
+                    randomize_gemini_embedding_response(gemini_embedding_response.clone());
+                w.write_all(
+                    serde_json::to_string(&randomized_response)
+                        .unwrap()
+                        .as_bytes(),
+                )
+            })
             .create();
 
         Self {
