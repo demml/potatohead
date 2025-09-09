@@ -53,6 +53,61 @@ fn randomize_gemini_embedding_response(
     cloned_response
 }
 
+fn randomize_structured_openai_score_response(response: &OpenAIChatResponse) -> OpenAIChatResponse {
+    let mut cloned_response = response.clone();
+    let mut rng = rand::rng();
+
+    // Generate random score between 1 and 5
+    let score = rng.random_range(1..=5);
+
+    // Generate random reason from a set of predefined reasons
+    let reasons = [
+        "The code is excellent and follows best practices.",
+        "The implementation is solid with minor improvements possible.",
+        "The code works but could use some optimization.",
+        "The solution is functional but needs refactoring.",
+        "The code has significant issues that need addressing.",
+    ];
+    let reason = reasons[rng.random_range(0..reasons.len())];
+
+    cloned_response.choices[0].message.content = Some(format!(
+        "{{ \"score\": {}, \"reason\": \"{}\" }}",
+        score, reason
+    ));
+
+    cloned_response
+}
+
+fn randomize_gemini_score_response(response: GenerateContentResponse) -> GenerateContentResponse {
+    let mut cloned_response = response.clone();
+    let mut rng = rand::rng();
+
+    // Generate random score between 1 and 100 (typical for Gemini scoring)
+    let score = rng.random_range(1..=100);
+
+    // Generate random reason from a set of predefined reasons
+    let reasons = [
+        "The model performed exceptionally well on the evaluation.",
+        "Good performance with room for minor improvements.",
+        "Satisfactory results with some areas for optimization.",
+        "Adequate performance but needs significant improvements.",
+        "Performance below expectations, requires major adjustments.",
+    ];
+    let reason = reasons[rng.random_range(0..reasons.len())];
+
+    // Update the first candidate's content
+    if let Some(candidate) = cloned_response.candidates.get_mut(0) {
+        if let Some(part) = candidate.content.parts.get_mut(0) {
+            part.text = Some(format!(
+                "{{\"score\": {}, \"reason\": \"{}\"}}",
+                score, reason
+            ));
+        }
+    }
+
+    cloned_response
+}
+
 pub struct LLMApiMock {
     pub url: String,
     pub server: mockito::ServerGuard,
@@ -150,6 +205,15 @@ impl LLMApiMock {
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(serde_json::to_string(&chat_structured_score_response).unwrap())
+            .with_body_from_request({
+                let chat_structured_score_response = chat_structured_score_response.clone();
+                move |_request| {
+                    let randomized_response = randomize_structured_openai_score_response(
+                        &chat_structured_score_response.clone(),
+                    );
+                    serde_json::to_string(&randomized_response).unwrap().into()
+                }
+            })
             .create();
 
         server
@@ -160,7 +224,15 @@ impl LLMApiMock {
             .expect(usize::MAX)
             .with_status(200)
             .with_header("content-type", "application/json")
-            .with_body(serde_json::to_string(&chat_structured_score_response).unwrap())
+            .with_body_from_request({
+                let chat_structured_score_response = chat_structured_score_response.clone();
+                move |_request| {
+                    let randomized_response = randomize_structured_openai_score_response(
+                        &chat_structured_score_response.clone(),
+                    );
+                    serde_json::to_string(&randomized_response).unwrap().into()
+                }
+            })
             .create();
 
         server
@@ -217,7 +289,11 @@ impl LLMApiMock {
             .expect(usize::MAX)
             .with_status(200)
             .with_header("content-type", "application/json")
-            .with_body(serde_json::to_string(&gemini_chat_response_with_score).unwrap())
+            .with_body_from_request(move |_request| {
+                let randomized_response =
+                    randomize_gemini_score_response(gemini_chat_response_with_score.clone());
+                serde_json::to_string(&randomized_response).unwrap().into()
+            })
             .create();
 
         // Openai chat completion mock
