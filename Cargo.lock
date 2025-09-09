@@ -95,6 +95,7 @@ dependencies = [
  "potato-util",
  "potato-workflow",
  "pyo3",
+ "rand",
  "schemars",
  "serde",
  "serde_json",

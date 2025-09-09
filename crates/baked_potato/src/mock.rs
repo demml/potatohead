@@ -3,9 +3,9 @@ use mockito;
 use potato_agent::agents::provider::{gemini::GenerateContentResponse, openai::OpenAIChatResponse};
 use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::openai::embedding::OpenAIEmbeddingResponse;
-use serde_json;
-
 use pyo3::prelude::*;
+use rand::Rng;
+use serde_json;
 
 pub const OPENAI_EMBEDDING_RESPONSE: &str = include_str!("assets/openai/embedding_response.json");
 
@@ -31,6 +31,27 @@ pub const GEMINI_CHAT_COMPLETION_RESPONSE: &str =
 
 pub const GEMINI_CHAT_COMPLETION_RESPONSE_WITH_SCORE: &str =
     include_str!("assets/gemini/chat_completion_with_score.json");
+
+fn randomize_openai_embedding_response(
+    response: OpenAIEmbeddingResponse,
+) -> OpenAIEmbeddingResponse {
+    // create random Vec<f32> of length 1536
+    let mut cloned_response = response.clone();
+    let mut rng = rand::rng();
+    let embedding: Vec<f32> = (0..512).map(|_| rng.random_range(-1.0..1.0)).collect();
+    cloned_response.data[0].embedding = embedding;
+    cloned_response
+}
+
+fn randomize_gemini_embedding_response(
+    response: GeminiEmbeddingResponse,
+) -> GeminiEmbeddingResponse {
+    let mut cloned_response = response.clone();
+    let mut rng = rand::rng();
+    let embedding: Vec<f32> = (0..1536).map(|_| rng.random_range(-1.0..1.0)).collect();
+    cloned_response.embedding.values = embedding;
+    cloned_response
+}
 
 pub struct LLMApiMock {
     pub url: String,
@@ -213,7 +234,12 @@ impl LLMApiMock {
             .expect(usize::MAX)
             .with_status(200)
             .with_header("content-type", "application/json")
-            .with_body(serde_json::to_string(&openai_embedding_response).unwrap())
+            .with_body(
+                serde_json::to_string(&randomize_openai_embedding_response(
+                    openai_embedding_response,
+                ))
+                .unwrap(),
+            )
             .create();
 
         server
@@ -224,7 +250,12 @@ impl LLMApiMock {
             .expect(usize::MAX)
             .with_status(200)
             .with_header("content-type", "application/json")
-            .with_body(serde_json::to_string(&gemini_embedding_response).unwrap())
+            .with_body(
+                serde_json::to_string(&randomize_gemini_embedding_response(
+                    gemini_embedding_response,
+                ))
+                .unwrap(),
+            )
             .create();
 
         Self {

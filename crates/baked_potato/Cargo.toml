@@ -13,6 +13,7 @@ potato-workflow = { workspace = true }
 potato-util = { workspace = true }
 mockito = { workspace = true }
 pyo3 = { workspace = true }
+rand = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true}
 serde_json = { workspace = true }
