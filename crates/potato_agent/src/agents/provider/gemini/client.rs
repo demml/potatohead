@@ -60,7 +60,9 @@ impl GeminiClient {
         let client = build_http_client(headers)?;
 
         let auth = GeminiAuth::from_env().await?;
-        let base_url = auth.base_url();
+
+        let env_base_url = std::env::var("GEMINI_API_URL").ok();
+        let base_url = env_base_url.unwrap_or_else(|| auth.base_url());
 
         debug!("Creating GeminiClient with base URL: {}", base_url);
 

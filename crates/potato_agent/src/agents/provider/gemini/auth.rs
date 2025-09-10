@@ -89,9 +89,9 @@ impl CredentialBuilder {
             .or_else(|_| env::var("GOOGLE_APPLICATION_CREDENTIALS"))
             .is_ok()
         {
-            return Ok(CredentialsFile::new()
+            return CredentialsFile::new()
                 .await
-                .map_err(GoogleError::GCloudAuthError)?);
+                .map_err(GoogleError::GCloudAuthError);
         }
 
         Err(GoogleError::NoCredentialsFound)
