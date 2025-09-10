@@ -28,6 +28,8 @@ anyhow = "1.0.93"
 base64 = "0.*"
 chrono = { version = "0.*", features = ["serde"] }
 colored_json = "5.*"
+http = "1.*"
+gcloud-auth = { version = "1.*" }
 mockito = "1.*"
 mime_guess = "2.*"
 pyo3 = { version = "0.25.*", features = ["extension-module", "anyhow", "serde", "chrono"] }
@@ -40,6 +42,7 @@ serde = { version = "1.*", features = ["derive", "rc"] }
 serde_json = "1.*"
 thiserror = "2.*"
 tokio = { version = ">1.13.0", features = ["rt", "rt-multi-thread", "macros"] }
+token-source = "1.*"
 tracing = "0.*"
 uuid = { version = "1.*", features = ["v7"] }
 walkdir = "2.*"

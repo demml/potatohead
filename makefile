@@ -14,3 +14,6 @@ test.prompt:
 
 test.baked:
 	cargo test -p baked-potato -- --nocapture --test-threads=1
+
+test.creds:
+	cargo test -p potato-agent test_get_gemini_credentials_token -- --nocapture --test-threads=1

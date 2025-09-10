@@ -1,5 +1,6 @@
 use crate::agents::embed::EmbeddingResponse;
 use crate::agents::error::AgentError;
+use crate::agents::provider::gemini::credentials::GoogleCredentials;
 use crate::agents::provider::gemini::GeminiEmbeddingRequest;
 use crate::agents::provider::gemini::{
     Content, GeminiGenerateContentRequest, GenerateContentResponse, Part,
@@ -31,12 +32,13 @@ impl GeminiPaths {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct GeminiClient {
     client: Client,
     api_key: String,
     base_url: String,
     api_key_set: bool, // Indicates if the API key was set or not
+    credential: Option<GoogleCredentials>,
     pub provider: Provider,
 }
 

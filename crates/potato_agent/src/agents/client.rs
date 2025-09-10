@@ -58,7 +58,7 @@ pub fn build_http_client(
     Ok(client)
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum GenAiClient {
     OpenAI(OpenAIClient),
     Gemini(GeminiClient),

@@ -74,7 +74,7 @@ impl EmbeddingConfigTrait for EmbeddingConfig {
 }
 
 use tracing::error;
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Embedder {
     client: GenAiClient,
     config: EmbeddingConfig,

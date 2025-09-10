@@ -25,7 +25,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use tracing::{debug, error, instrument, warn};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Agent {
     pub id: String,
 
