@@ -113,7 +113,7 @@ impl PartialEq for Workflow {
 
 impl Workflow {
     pub fn new(name: &str) -> Self {
-        info!("Creating new workflow: {}", name);
+        debug!("Creating new workflow: {}", name);
         let id = create_uuid7();
         Self {
             id: id.clone(),
@@ -166,7 +166,7 @@ impl Workflow {
         &self,
         global_context: Option<Value>,
     ) -> Result<Arc<RwLock<Workflow>>, WorkflowError> {
-        info!("Running workflow: {}", self.name);
+        debug!("Running workflow: {}", self.name);
 
         let run_workflow = Arc::new(RwLock::new(self.get_new_workflow(global_context)?));
 
@@ -703,7 +703,7 @@ impl PyWorkflow {
     #[new]
     #[pyo3(signature = (name))]
     pub fn new(name: &str) -> Result<Self, WorkflowError> {
-        info!("Creating new workflow: {}", name);
+        debug!("Creating new workflow: {}", name);
         Ok(Self {
             workflow: Workflow::new(name),
             output_types: HashMap::new(),
@@ -837,7 +837,7 @@ impl PyWorkflow {
         py: Python,
         global_context: Option<Bound<'_, PyDict>>,
     ) -> Result<WorkflowResult, WorkflowError> {
-        info!("Running workflow: {}", self.workflow.name);
+        debug!("Running workflow: {}", self.workflow.name);
 
         // Convert the global context from PyDict to serde_json::Value if provided
         let global_context = if let Some(context) = global_context {

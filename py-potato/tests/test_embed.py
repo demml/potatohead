@@ -15,18 +15,18 @@ def test_openai_embedding():
         assert response.data[0].embedding is not None
 
         nd_array = np.array(response.data[0].embedding)
-        assert nd_array.shape == (41,)
+        assert nd_array.shape == (512,)
 
 
 def test_gemini_embedding():
     with LLMTestServer():
-        embedder = Embedder(Provider.Gemini)
-        response = embedder.embed(
-            "Test input",
+        embedder = Embedder(
+            Provider.Gemini,
             GeminiEmbeddingConfig(model="gemini-embedding-001"),
         )
+        response = embedder.embed("Test input")
 
         assert len(response.embedding.values) > 0
 
         nd_array = np.array(response.embedding.values)
-        assert nd_array.shape == (19,)
+        assert nd_array.shape == (512,)

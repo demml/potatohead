@@ -86,7 +86,7 @@ dependencies = [
 
 [[package]]
 name = "baked-potato"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "mockito",
  "potato-agent",
@@ -95,6 +95,7 @@ dependencies = [
  "potato-util",
  "potato-workflow",
  "pyo3",
+ "rand",
  "schemars",
  "serde",
  "serde_json",
@@ -933,7 +934,7 @@ checksum = "f84267b20a16ea918e43c6a88433c2d54fa145c92a811b5b047ccbe153674483"
 
 [[package]]
 name = "potato-agent"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64",
  "potato-prompt",
@@ -950,7 +951,7 @@ dependencies = [
 
 [[package]]
 name = "potato-head"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "baked-potato",
  "potato-agent",
@@ -962,7 +963,7 @@ dependencies = [
 
 [[package]]
 name = "potato-prompt"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "mime_guess",
  "potato-type",
@@ -978,7 +979,7 @@ dependencies = [
 
 [[package]]
 name = "potato-type"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "potato-util",
  "pyo3",
@@ -991,7 +992,7 @@ dependencies = [
 
 [[package]]
 name = "potato-util"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "colored_json",
  "pyo3",
@@ -1005,7 +1006,7 @@ dependencies = [
 
 [[package]]
 name = "potato-workflow"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "chrono",
  "potato-agent",
@@ -1055,7 +1056,7 @@ dependencies = [
 
 [[package]]
 name = "py-potatohead"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "potato-head",
  "pyo3",
