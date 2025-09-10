@@ -18,7 +18,9 @@ fn test_openai_embedding() {
         ..Default::default()
     });
 
-    let embedder = Embedder::new(Provider::OpenAI, config).unwrap();
+    let embedder = runtime
+        .block_on(async { Embedder::new(Provider::OpenAI, config).await })
+        .unwrap();
 
     let inputs = vec!["Test input 1".to_string(), "Test input 2".to_string()];
 
@@ -44,7 +46,9 @@ fn test_gemini_embedding() {
         model: Some("gemini-embedding-001".to_string()),
         ..Default::default()
     });
-    let embedder = Embedder::new(Provider::Gemini, config).unwrap();
+    let embedder = runtime
+        .block_on(async { Embedder::new(Provider::Gemini, config).await })
+        .unwrap();
 
     let inputs = vec!["Test input 1".to_string()];
 
