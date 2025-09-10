@@ -37,6 +37,17 @@ impl GoogleCredentials {
             token_provider,
         })
     }
+
+    pub async fn get_access_token(&self) -> Result<String, GoogleError> {
+        let token = self
+            .token_provider
+            .token_source()
+            .token()
+            .await
+            .map_err(|e| GoogleError::TokenError(e.to_string()))?;
+
+        Ok(token)
+    }
 }
 
 #[allow(unused_imports)]
@@ -97,6 +108,7 @@ impl CredentialBuilder {
 pub enum GeminiAuth {
     ApiKey(String),
     GoogleCredentials(GoogleCredentials),
+    NotSet,
 }
 
 impl GeminiAuth {
@@ -115,7 +127,7 @@ impl GeminiAuth {
         // Then try Google credentials
         match create_token_provider().await {
             Ok(credentials) => Ok(Self::GoogleCredentials(credentials)),
-            Err(_) => Err(GoogleError::MissingAuthenticationError),
+            Err(_) => Ok(Self::NotSet),
         }
     }
 
@@ -133,6 +145,7 @@ impl GeminiAuth {
                     creds.location
                 )
             }
+            Self::NotSet => "https://generativelanguage.googleapis.com/v1beta/models".to_string(),
         }
     }
 }

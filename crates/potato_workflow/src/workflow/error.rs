@@ -38,6 +38,12 @@ pub enum WorkflowError {
 
     #[error("Failed to acquire read lock on workflow")]
     ReadLockAcquireError,
+
+    #[error("Failed to acquire write lock on workflow")]
+    WriteLockAcquireError,
+
+    #[error(transparent)]
+    AgentError(#[from] potato_agent::AgentError),
 }
 
 impl From<WorkflowError> for PyErr {

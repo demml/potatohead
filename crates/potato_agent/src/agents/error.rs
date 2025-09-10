@@ -96,6 +96,12 @@ pub enum AgentError {
 
     #[error("No embeddings found in the response")]
     NoEmbeddingsFound,
+
+    #[error(transparent)]
+    GoogleError(#[from] crate::agents::provider::gemini::error::GoogleError),
+
+    #[error("No provider specified in GenAiClient")]
+    NoProviderError,
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {

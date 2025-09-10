@@ -25,24 +25,43 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use tracing::{debug, error, instrument, warn};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Agent {
     pub id: String,
-
-    client: GenAiClient,
-
+    client: Arc<GenAiClient>,
+    pub provider: Provider,
     pub system_instruction: Vec<Message>,
 }
 
 /// Rust method implementation of the Agent
 impl Agent {
-    pub fn new(
+    /// Helper method to rebuild the client, useful for deserialization
+    #[instrument(skip_all)]
+    pub async fn rebuild_client(&self) -> Result<Self, AgentError> {
+        let client = match self.provider {
+            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
+            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None).await?),
+            _ => {
+                let msg = "No provider specified in ModelSettings";
+                error!("{}", msg);
+                return Err(AgentError::UndefinedError(msg.to_string()));
+            } // Add other providers here as needed
+        };
+
+        Ok(Self {
+            id: self.id.clone(),
+            client: Arc::new(client),
+            system_instruction: self.system_instruction.clone(),
+            provider: self.provider.clone(),
+        })
+    }
+    pub async fn new(
         provider: Provider,
         system_instruction: Option<Vec<Message>>,
     ) -> Result<Self, AgentError> {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
-            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None, None, None)?),
+            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None).await?),
             _ => {
                 let msg = "No provider specified in ModelSettings";
                 error!("{}", msg);
@@ -53,9 +72,10 @@ impl Agent {
         let system_instruction = system_instruction.unwrap_or_default();
 
         Ok(Self {
-            client,
+            client: Arc::new(client),
             id: create_uuid7(),
             system_instruction,
+            provider,
         })
     }
 
@@ -183,11 +203,11 @@ impl Agent {
         self.client.provider()
     }
 
-    pub fn from_model_settings(model_settings: &ModelSettings) -> Result<Self, AgentError> {
+    pub async fn from_model_settings(model_settings: &ModelSettings) -> Result<Self, AgentError> {
         let provider = model_settings.provider();
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
-            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None, None, None)?),
+            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None).await?),
             Provider::Undefined => {
                 let msg = "No provider specified in ModelSettings";
                 error!("{}", msg);
@@ -196,9 +216,10 @@ impl Agent {
         };
 
         Ok(Self {
-            client,
+            client: Arc::new(client),
             id: create_uuid7(),
             system_instruction: Vec::new(),
+            provider,
         })
     }
 }
@@ -266,30 +287,14 @@ impl<'de> Deserialize<'de> for Agent {
                 let system_instruction = system_instruction
                     .ok_or_else(|| de::Error::missing_field("system_instruction"))?;
 
-                // Re-initialize the client based on the provider
-                let client = match provider {
-                    Provider::OpenAI => {
-                        GenAiClient::OpenAI(OpenAIClient::new(None, None, None).map_err(|e| {
-                            de::Error::custom(format!("Failed to initialize OpenAIClient: {e}"))
-                        })?)
-                    }
-                    Provider::Gemini => {
-                        GenAiClient::Gemini(GeminiClient::new(None, None, None).map_err(|e| {
-                            de::Error::custom(format!("Failed to initialize GeminiClient: {e}"))
-                        })?)
-                    }
-
-                    Provider::Undefined => {
-                        let msg = "No provider specified in ModelSettings";
-                        error!("{}", msg);
-                        return Err(de::Error::custom(msg));
-                    }
-                };
-
+                // Deserialize is a sync op, so we can't await here (gemini requires async to init)
+                // After deserialization, we re-initialize the client based on the provider
+                let client = GenAiClient::Undefined;
                 Ok(Agent {
                     id,
-                    client,
+                    client: Arc::new(client),
                     system_instruction,
+                    provider,
                 })
             }
         }
@@ -336,14 +341,14 @@ impl PyAgent {
             None
         };
 
-        let agent = Agent::new(provider, system_instruction)?;
+        let runtime =
+            tokio::runtime::Runtime::new().map_err(|e| AgentError::RuntimeError(e.to_string()))?;
+
+        let agent = runtime.block_on(async { Agent::new(provider, system_instruction).await })?;
 
         Ok(Self {
             agent: Arc::new(agent),
-            runtime: Arc::new(
-                tokio::runtime::Runtime::new()
-                    .map_err(|e| AgentError::RuntimeError(e.to_string()))?,
-            ),
+            runtime: Arc::new(runtime),
         })
     }
 

@@ -85,10 +85,10 @@ impl Embedder {
     /// # Arguments
     /// * `provider`: The provider to use for generating embeddings.
     /// * `config`: The configuration for the embedding.
-    pub fn new(provider: Provider, config: EmbeddingConfig) -> Result<Self, AgentError> {
+    pub async fn new(provider: Provider, config: EmbeddingConfig) -> Result<Self, AgentError> {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
-            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None, None, None)?),
+            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None).await?),
             _ => {
                 let msg = "No provider specified in ModelSettings";
                 error!("{}", msg);
@@ -164,13 +164,14 @@ impl PyEmbedder {
     ) -> Result<Self, AgentError> {
         let provider = Provider::extract_provider(provider)?;
         let config = EmbeddingConfig::extract_config(config, &provider)?;
-        let embedder = Arc::new(Embedder::new(provider, config).unwrap());
+        let runtime = Arc::new(
+            tokio::runtime::Runtime::new().map_err(|e| AgentError::RuntimeError(e.to_string()))?,
+        );
+        let embedder = runtime.block_on(async { Embedder::new(provider, config).await })?;
+
         Ok(Self {
-            embedder,
-            runtime: Arc::new(
-                tokio::runtime::Runtime::new()
-                    .map_err(|e| AgentError::RuntimeError(e.to_string()))?,
-            ),
+            embedder: Arc::new(embedder),
+            runtime,
         })
     }
 

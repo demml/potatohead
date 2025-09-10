@@ -20,4 +20,7 @@ pub enum GoogleError {
 
     #[error("Missing authentication information. Failed to find GEMINI_API_KEY or Google credentials in environment variables.")]
     MissingAuthenticationError,
+
+    #[error("Failed to retrieve access token: {0}")]
+    TokenError(String),
 }

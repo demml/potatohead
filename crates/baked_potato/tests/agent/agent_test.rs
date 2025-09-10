@@ -27,7 +27,9 @@ fn test_openai_agent() {
     )
     .unwrap();
 
-    let agent = Agent::new(Provider::OpenAI, None).unwrap();
+    let agent = runtime
+        .block_on(async { Agent::new(Provider::OpenAI, None).await })
+        .unwrap();
     let task = Task::new(&agent.id, prompt, "task1", None, None);
 
     runtime.block_on(async {
@@ -59,7 +61,9 @@ fn test_gemini_agent() {
     )
     .unwrap();
 
-    let agent = Agent::new(Provider::Gemini, None).unwrap();
+    let agent = runtime
+        .block_on(async { Agent::new(Provider::Gemini, None).await })
+        .unwrap();
     let task = Task::new(&agent.id, prompt, "task1", None, None);
 
     runtime.block_on(async {
@@ -94,7 +98,9 @@ fn test_gemini_score_agent() {
     )
     .unwrap();
 
-    let agent = Agent::new(Provider::Gemini, None).unwrap();
+    let agent = runtime
+        .block_on(async { Agent::new(Provider::Gemini, None).await })
+        .unwrap();
     let task = Task::new(&agent.id, prompt, "task1", None, None);
 
     runtime.block_on(async {

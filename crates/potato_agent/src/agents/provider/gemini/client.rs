@@ -1,6 +1,7 @@
 use crate::agents::embed::EmbeddingResponse;
 use crate::agents::error::AgentError;
-use crate::agents::provider::gemini::credentials::GoogleCredentials;
+use crate::agents::provider::gemini::auth::GeminiAuth;
+use crate::agents::provider::gemini::error::GoogleError;
 use crate::agents::provider::gemini::GeminiEmbeddingRequest;
 use crate::agents::provider::gemini::{
     Content, GeminiGenerateContentRequest, GenerateContentResponse, Part,
@@ -10,7 +11,6 @@ use crate::agents::provider::types::build_http_client;
 use potato_prompt::Prompt;
 use potato_type::google::EmbeddingConfigTrait;
 use potato_type::google::GeminiEmbeddingResponse;
-use potato_type::Common;
 use potato_type::Provider;
 use reqwest::Client;
 use reqwest::Response;
@@ -35,18 +35,14 @@ impl GeminiPaths {
 #[derive(Debug)]
 pub struct GeminiClient {
     client: Client,
-    api_key: String,
+    auth: GeminiAuth,
     base_url: String,
-    api_key_set: bool, // Indicates if the API key was set or not
-    credential: Option<GoogleCredentials>,
     pub provider: Provider,
 }
 
 impl PartialEq for GeminiClient {
     fn eq(&self, other: &Self) -> bool {
-        self.api_key == other.api_key
-            && self.base_url == other.base_url
-            && self.provider == other.provider
+        self.base_url == other.base_url && self.provider == other.provider
     }
 }
 
@@ -60,52 +56,38 @@ impl GeminiClient {
     ///
     /// # Returns:
     /// * `Result<OpenAIClient, AgentError>`: Returns an `OpenAIClient` instance on success or an `AgentError` on failure.
-    pub fn new(
-        api_key: Option<String>,
-        base_url: Option<String>,
-        headers: Option<HashMap<String, String>>,
-    ) -> Result<Self, AgentError> {
+    pub async fn new(headers: Option<HashMap<String, String>>) -> Result<Self, AgentError> {
         let client = build_http_client(headers)?;
 
-        let (api_key, api_key_set) = match api_key {
-            // If api_key is provided, use it
-            Some(key) => (key, true),
+        let auth = GeminiAuth::from_env().await?;
+        let base_url = auth.base_url();
 
-            // If api_key is None, check the environment variable
-            None => match std::env::var("GEMINI_API_KEY") {
-                // If the environment variable is set, use it
-                Ok(env_key) if !env_key.is_empty() => (env_key, true),
-
-                // If the environment variable is not set, use a placeholder and set api_key_set to false
-                _ => (Common::Undefined.to_string(), false),
-            },
-        };
-
-        // if optional base_url is None, use the default Gemini API URL
-        let env_base_url = std::env::var("GEMINI_API_URL").ok();
-        let base_url = base_url
-            .unwrap_or_else(|| env_base_url.unwrap_or_else(|| Provider::Gemini.url().to_string()));
-
-        debug!("Creating GeminiClient with base URL with key: {}", base_url);
+        debug!("Creating GeminiClient with base URL: {}", base_url);
 
         Ok(Self {
             client,
-            api_key,
+            auth,
             base_url,
             provider: Provider::Gemini,
-            api_key_set,
         })
     }
 
     async fn make_request(&self, path: &str, object: &Value) -> Result<Response, AgentError> {
-        let response = self
+        let mut request = self
             .client
             .post(format!("{}/{}", self.base_url, path))
-            .header("x-goog-api-key", &self.api_key)
-            .json(&object)
-            .send()
-            .await
-            .map_err(AgentError::RequestError)?;
+            .json(&object);
+
+        // match on the auth type to set the appropriate headers
+        request = match &self.auth {
+            GeminiAuth::ApiKey(api_key) => request.header("x-goog-api-key", api_key),
+            GeminiAuth::GoogleCredentials(creds) => {
+                request.header("Authorization", creds.get_access_token().await?)
+            }
+            GeminiAuth::NotSet => request,
+        };
+
+        let response = request.send().await.map_err(AgentError::RequestError)?;
 
         let status = response.status();
         if !status.is_success() {
@@ -140,8 +122,8 @@ impl GeminiClient {
         prompt: &Prompt,
     ) -> Result<GenerateContentResponse, AgentError> {
         // Cant make a request without an API key
-        if !self.api_key_set {
-            return Err(AgentError::MissingGeminiApiKeyError);
+        if let GeminiAuth::NotSet = self.auth {
+            return Err(GoogleError::MissingAuthenticationError.into());
         }
 
         let settings = &prompt.model_settings;
@@ -218,8 +200,8 @@ impl GeminiClient {
     where
         T: Serialize + EmbeddingConfigTrait,
     {
-        if !self.api_key_set {
-            return Err(AgentError::MissingGeminiApiKeyError);
+        if let GeminiAuth::NotSet = self.auth {
+            return Err(GoogleError::MissingAuthenticationError.into());
         }
 
         let model = config.get_model();

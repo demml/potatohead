@@ -62,6 +62,7 @@ pub fn build_http_client(
 pub enum GenAiClient {
     OpenAI(OpenAIClient),
     Gemini(GeminiClient),
+    Undefined,
 }
 
 impl GenAiClient {
@@ -80,6 +81,7 @@ impl GenAiClient {
                 })?;
                 Ok(ChatResponse::Gemini(response))
             }
+            GenAiClient::Undefined => Err(AgentError::NoProviderError),
         }
     }
 
@@ -109,6 +111,7 @@ impl GenAiClient {
 
                 Ok(response)
             }
+            GenAiClient::Undefined => Err(AgentError::NoProviderError),
         }
     }
 
@@ -116,6 +119,7 @@ impl GenAiClient {
         match self {
             GenAiClient::OpenAI(client) => &client.provider,
             GenAiClient::Gemini(client) => &client.provider,
+            GenAiClient::Undefined => &Provider::Undefined,
         }
     }
 }
