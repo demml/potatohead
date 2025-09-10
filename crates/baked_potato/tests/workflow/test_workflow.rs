@@ -22,8 +22,12 @@ fn test_workflow() {
     let prompt = create_prompt(None);
     let mut workflow = Workflow::new("My Workflow");
 
-    let agent1 = Agent::new(Provider::OpenAI, None).unwrap();
-    let agent2 = Agent::new(Provider::OpenAI, None).unwrap();
+    let agent1 = runtime
+        .block_on(async { Agent::new(Provider::OpenAI, None).await })
+        .unwrap();
+    let agent2 = runtime
+        .block_on(async { Agent::new(Provider::OpenAI, None).await })
+        .unwrap();
 
     workflow.add_agent(&agent1);
     workflow.add_agent(&agent2);
@@ -89,7 +93,9 @@ fn test_parameterized_workflow() {
     assert_eq!(parameterized_prompt.parameters.len(), 2);
 
     let mut workflow = Workflow::new("My Workflow");
-    let agent1 = Agent::new(Provider::OpenAI, None).unwrap();
+    let agent1 = runtime
+        .block_on(async { Agent::new(Provider::OpenAI, None).await })
+        .unwrap();
     workflow.add_agent(&agent1);
 
     workflow
