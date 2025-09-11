@@ -18,16 +18,98 @@ use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{debug, error, instrument};
-enum GeminiPaths {
-    GenerateContent,
-    Embeddings,
+
+#[derive(Debug)]
+pub enum GeminiServiceType {
+    Generate,
+    Embed,
 }
 
-impl GeminiPaths {
-    fn path(&self) -> &str {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GeminiEndpoint {
+    GenerateContent,
+    EmbedContent,
+    Predict,
+}
+
+impl GeminiEndpoint {
+    /// Get the endpoint path string
+    fn path(&self) -> &'static str {
         match self {
-            GeminiPaths::GenerateContent => "generateContent",
-            GeminiPaths::Embeddings => "embedContent",
+            Self::GenerateContent => "generateContent",
+            Self::EmbedContent => "embedContent",
+            Self::Predict => "predict",
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct GeminiApiConfig {
+    base_url: String,
+    service_type: GeminiServiceType,
+}
+
+impl GeminiApiConfig {
+    /// Create a new API configuration based on auth and service type
+    pub fn new(auth: &GeminiAuth, service_type: GeminiServiceType) -> Self {
+        let base_url = match auth {
+            GeminiAuth::ApiKey(_) => {
+                "https://generativelanguage.googleapis.com/v1beta/models".to_string()
+            }
+            GeminiAuth::GoogleCredentials(creds) => {
+                let base = format!(
+                    "https://{}-aiplatform.googleapis.com/v1/projects/{}/locations/{}",
+                    creds.location, creds.project_id, creds.location
+                );
+                match service_type {
+                    GeminiServiceType::Generate => {
+                        format!("{}/publishers/google/models", base)
+                    }
+                    GeminiServiceType::Embed => base,
+                }
+            }
+            GeminiAuth::NotSet => {
+                "https://generativelanguage.googleapis.com/v1beta/models".to_string()
+            }
+        };
+
+        Self {
+            base_url,
+            service_type,
+        }
+    }
+
+    /// Helper for constructing the full URL for a given model and auth method
+    pub fn build_url(&self, model: &str, auth: &GeminiAuth) -> String {
+        let endpoint = self.get_endpoint(auth);
+        match auth {
+            GeminiAuth::GoogleCredentials(_)
+                if matches!(self.service_type, GeminiServiceType::Embed) =>
+            {
+                // Vertex AI embedding uses models/{model}:predict
+                format!("{}/models/{}:{}", self.base_url, model, endpoint.path())
+            }
+            _ => {
+                // Standard format: {base_url}/{model}:{endpoint}
+                format!("{}/{}:{}", self.base_url, model, endpoint.path())
+            }
+        }
+    }
+
+    /// Get the appropriate endpoint based on service type and auth method
+    /// Currently generateContent is supported for both gemini and vertex AI
+    /// embedContent is supported for API key auth
+    /// predict is used for Vertex AI embeddings with Google credentials
+    /// # Arguments
+    /// * `auth`: The authentication method being used
+    /// # Returns
+    /// * `GeminiEndpoint`: The appropriate endpoint for the request
+    fn get_endpoint(&self, auth: &GeminiAuth) -> GeminiEndpoint {
+        match (&self.service_type, auth) {
+            (GeminiServiceType::Generate, _) => GeminiEndpoint::GenerateContent,
+            (GeminiServiceType::Embed, GeminiAuth::ApiKey(_)) => GeminiEndpoint::EmbedContent,
+            (GeminiServiceType::Embed, GeminiAuth::GoogleCredentials(_)) => GeminiEndpoint::Predict,
+            (GeminiServiceType::Embed, GeminiAuth::NotSet) => GeminiEndpoint::EmbedContent,
         }
     }
 }
@@ -36,18 +118,26 @@ impl GeminiPaths {
 pub struct GeminiClient {
     client: Client,
     auth: GeminiAuth,
-    base_url: String,
+    config: GeminiApiConfig,
     pub provider: Provider,
 }
 
 impl PartialEq for GeminiClient {
     fn eq(&self, other: &Self) -> bool {
-        self.base_url == other.base_url && self.provider == other.provider
+        // Compare auth types without exposing internal details
+        matches!(
+            (&self.auth, &other.auth),
+            (GeminiAuth::ApiKey(_), GeminiAuth::ApiKey(_))
+                | (
+                    GeminiAuth::GoogleCredentials(_),
+                    GeminiAuth::GoogleCredentials(_)
+                )
+                | (GeminiAuth::NotSet, GeminiAuth::NotSet)
+        ) && self.provider == other.provider
     }
 }
-
 impl GeminiClient {
-    /// Creates a new GeminiClient instance. This is a shared method that can be used in both Python and Rust.
+    /// Creates a new GeminiClient embedding instance. This is a shared method that can be used in both Python and Rust.
     ///
     /// # Arguments:
     /// * `api_key`: The API key for authenticating with the Gemini API.
@@ -55,36 +145,33 @@ impl GeminiClient {
     /// * `headers`: Optional headers to include in the HTTP requests.
     ///
     /// # Returns:
-    /// * `Result<OpenAIClient, AgentError>`: Returns an `OpenAIClient` instance on success or an `AgentError` on failure.
-    pub async fn new(headers: Option<HashMap<String, String>>) -> Result<Self, AgentError> {
+    /// * `Result<GeminiClient, AgentError>`: Returns a `GeminiClient` instance on success or an `AgentError` on failure.
+    pub async fn new(
+        headers: Option<HashMap<String, String>>,
+        service_type: GeminiServiceType,
+    ) -> Result<Self, AgentError> {
         let client = build_http_client(headers)?;
-
         let auth = GeminiAuth::from_env().await?;
-
-        let env_base_url = std::env::var("GEMINI_API_URL").ok();
-        let base_url = env_base_url.unwrap_or_else(|| auth.base_url());
-
-        debug!("Creating GeminiClient with base URL: {}", base_url);
+        let config = GeminiApiConfig::new(&auth, service_type);
 
         Ok(Self {
             client,
             auth,
-            base_url,
+            config,
             provider: Provider::Gemini,
         })
     }
 
-    async fn make_request(&self, path: &str, object: &Value) -> Result<Response, AgentError> {
-        let mut request = self
-            .client
-            .post(format!("{}/{}", self.base_url, path))
-            .json(&object);
+    async fn make_request(&self, model: &str, object: &Value) -> Result<Response, AgentError> {
+        let url = self.config.build_url(model, &self.auth);
+        let mut request = self.client.post(url).json(&object);
 
         // match on the auth type to set the appropriate headers
         request = match &self.auth {
             GeminiAuth::ApiKey(api_key) => request.header("x-goog-api-key", api_key),
             GeminiAuth::GoogleCredentials(creds) => {
-                request.header("Authorization", creds.get_access_token().await?)
+                let token = creds.get_access_token().await?;
+                request.header("Authorization", format!("Bearer {}", token))
             }
             GeminiAuth::NotSet => request,
         };
@@ -181,12 +268,7 @@ impl GeminiClient {
             serialized_prompt
         );
 
-        let response = self
-            .make_request(
-                &format!("{}:{}", prompt.model, GeminiPaths::GenerateContent.path()),
-                &serialized_prompt,
-            )
-            .await?;
+        let response = self.make_request(&prompt.model, &serialized_prompt).await?;
         let chat_response: GenerateContentResponse = response.json().await?;
         debug!("Chat completion successful");
 
@@ -207,12 +289,10 @@ impl GeminiClient {
         }
 
         let model = config.get_model();
-        let path = format!("{}:{}", model, GeminiPaths::Embeddings.path());
-
         let request = serde_json::to_value(GeminiEmbeddingRequest::new(inputs, config))
             .map_err(AgentError::SerializationError)?;
 
-        let response = self.make_request(&path, &request).await?;
+        let response = self.make_request(&model, &request).await?;
         let embedding_response: GeminiEmbeddingResponse = response.json().await?;
 
         Ok(EmbeddingResponse::Gemini(embedding_response))

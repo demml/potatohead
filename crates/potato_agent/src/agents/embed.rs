@@ -2,6 +2,7 @@ use potato_type::google::EmbeddingConfigTrait;
 use potato_type::Provider;
 
 use crate::agents::client::GenAiClient;
+use crate::agents::provider::gemini::client::GeminiServiceType;
 use crate::agents::provider::gemini::GeminiClient;
 use crate::agents::provider::openai::OpenAIClient;
 use crate::AgentError;
@@ -88,7 +89,9 @@ impl Embedder {
     pub async fn new(provider: Provider, config: EmbeddingConfig) -> Result<Self, AgentError> {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
-            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None).await?),
+            Provider::Gemini => {
+                GenAiClient::Gemini(GeminiClient::new(None, GeminiServiceType::Embed).await?)
+            }
             _ => {
                 let msg = "No provider specified in ModelSettings";
                 error!("{}", msg);

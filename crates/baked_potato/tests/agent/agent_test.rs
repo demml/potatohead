@@ -114,3 +114,40 @@ fn test_gemini_score_agent() {
 
     mock.stop_server().unwrap();
 }
+
+#[test]
+fn test_gemini_score_agent_integration() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let mut mock = LLMTestServer::new();
+    mock.start_server().unwrap();
+
+    let prompt_content = PromptContent::Str(
+        "Return a json object with the attributes score and explanation".to_string(),
+    );
+    let prompt = Prompt::new_rs(
+        vec![Message::new_rs(prompt_content)],
+        "gemini-2.5-flash",
+        Provider::Gemini,
+        vec![],
+        None,
+        Some(Score::get_structured_output_schema()),
+        ResponseType::Score,
+    )
+    .unwrap();
+
+    let agent = runtime
+        .block_on(async { Agent::new(Provider::Gemini, None).await })
+        .unwrap();
+    let task = Task::new(&agent.id, prompt, "task1", None, None);
+
+    runtime.block_on(async {
+        agent.execute_task(&task).await.unwrap();
+    });
+
+    let response = runtime.block_on(async { agent.execute_prompt(&task.prompt).await.unwrap() });
+
+    let content = response.content().unwrap();
+    let _score: Score = Score::model_validate_json_str(&content).unwrap();
+
+    mock.stop_server().unwrap();
+}

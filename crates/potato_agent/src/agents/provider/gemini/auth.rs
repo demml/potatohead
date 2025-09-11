@@ -3,8 +3,8 @@ use base64::prelude::*;
 use gcloud_auth::credentials::CredentialsFile;
 use gcloud_auth::{project::Config, token::DefaultTokenSourceProvider};
 use std::env;
+use tracing::{debug, instrument};
 
-const AUDIENCE: &str = "https://www.aiplatform.googleapis.com/";
 const SCOPES: [&str; 1] = ["https://www.googleapis.com/auth/cloud-platform"];
 
 #[derive(Debug)]
@@ -56,9 +56,7 @@ use token_source::TokenSourceProvider;
 pub async fn create_token_provider() -> Result<GoogleCredentials, GoogleError> {
     let creds = CredentialBuilder::new().await?.creds;
 
-    let config = Config::default()
-        .with_scopes(&SCOPES)
-        .with_audience(AUDIENCE);
+    let config = Config::default().with_scopes(&SCOPES);
 
     let provider =
         DefaultTokenSourceProvider::new_with_credentials(config, Box::new(creds)).await?;
@@ -78,23 +76,19 @@ impl CredentialBuilder {
         Ok(creds)
     }
 
+    #[instrument(skip_all)]
     async fn build() -> Result<CredentialsFile, GoogleError> {
         if let Ok(base64_creds) = env::var("GOOGLE_ACCOUNT_JSON_BASE64") {
-            return Ok(
-                CredentialsFile::new_from_str(&Self::decode_base64_str(&base64_creds)?).await?,
-            );
+            debug!("Using GOOGLE_ACCOUNT_JSON_BASE64 for credentials");
+            let decoded_creds = Self::decode_base64_str(&base64_creds)?;
+
+            return Ok(CredentialsFile::new_from_str(&decoded_creds).await?);
         }
 
-        if env::var("GOOGLE_APPLICATION_CREDENTIALS_JSON")
-            .or_else(|_| env::var("GOOGLE_APPLICATION_CREDENTIALS"))
-            .is_ok()
-        {
-            return CredentialsFile::new()
-                .await
-                .map_err(GoogleError::GCloudAuthError);
-        }
-
-        Err(GoogleError::NoCredentialsFound)
+        debug!("Using GOOGLE_APPLICATION_CREDENTIALS for credentials",);
+        return CredentialsFile::new()
+            .await
+            .map_err(GoogleError::GCloudAuthError);
     }
 
     fn decode_base64_str(service_base64_creds: &str) -> Result<String, GoogleError> {
@@ -116,18 +110,27 @@ impl GeminiAuth {
     /// This will first look for a `GEMINI_API_KEY`.
     /// If not found, it will attempt to use Google Application Credentials
     /// to create a token source for authentication.
+    ///
+    #[instrument(skip_all)]
     pub async fn from_env() -> Result<Self, GoogleError> {
         // First try API key
         if let Ok(api_key) = std::env::var("GEMINI_API_KEY") {
             if !api_key.is_empty() {
+                debug!("Using GEMINI_API_KEY for authentication");
                 return Ok(Self::ApiKey(api_key));
             }
         }
 
         // Then try Google credentials
         match create_token_provider().await {
-            Ok(credentials) => Ok(Self::GoogleCredentials(credentials)),
-            Err(_) => Ok(Self::NotSet),
+            Ok(credentials) => {
+                debug!("Using Google Application Credentials for authentication");
+                Ok(Self::GoogleCredentials(credentials))
+            }
+            Err(e) => {
+                debug!("Failed to create Google token provider: {}", e);
+                Ok(Self::NotSet)
+            }
         }
     }
 
@@ -139,7 +142,7 @@ impl GeminiAuth {
             }
             Self::GoogleCredentials(creds) => {
                 format!(
-                    "https://{}-aiplatform.googleapis.com/v1/projects/{}/locations/{}/publishers/google/models",
+                    "https://{}-aiplatform.googleapis.com/v1beta1/projects/{}/locations/{}/publishers/google/models",
                     creds.location,
                     creds.project_id,
                     creds.location

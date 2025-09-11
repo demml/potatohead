@@ -1,3 +1,4 @@
+use crate::agents::provider::gemini::client::GeminiServiceType;
 use crate::agents::provider::gemini::GeminiClient;
 use crate::agents::provider::openai::OpenAIClient;
 use crate::{
@@ -40,7 +41,9 @@ impl Agent {
     pub async fn rebuild_client(&self) -> Result<Self, AgentError> {
         let client = match self.provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
-            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None).await?),
+            Provider::Gemini => {
+                GenAiClient::Gemini(GeminiClient::new(None, GeminiServiceType::Generate).await?)
+            }
             _ => {
                 let msg = "No provider specified in ModelSettings";
                 error!("{}", msg);
@@ -61,7 +64,9 @@ impl Agent {
     ) -> Result<Self, AgentError> {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
-            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None).await?),
+            Provider::Gemini => {
+                GenAiClient::Gemini(GeminiClient::new(None, GeminiServiceType::Generate).await?)
+            }
             _ => {
                 let msg = "No provider specified in ModelSettings";
                 error!("{}", msg);
@@ -207,7 +212,9 @@ impl Agent {
         let provider = model_settings.provider();
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
-            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None).await?),
+            Provider::Gemini => {
+                GenAiClient::Gemini(GeminiClient::new(None, GeminiServiceType::Generate).await?)
+            }
             Provider::Undefined => {
                 let msg = "No provider specified in ModelSettings";
                 error!("{}", msg);

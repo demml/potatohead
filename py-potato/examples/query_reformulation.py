@@ -45,7 +45,7 @@ def create_reformulation_evaluation_prompt():
             "${reformulated_query}\n\n"
             "Evaluation:"
         ),
-        model="gemini-2.5-flash-lite-preview-06-17",
+        model="gemini-2.5-flash-lite",
         provider="gemini",
         model_settings=GeminiSettings(
             generation_config=GenerationConfig(
