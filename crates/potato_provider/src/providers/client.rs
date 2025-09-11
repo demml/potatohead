@@ -6,7 +6,6 @@ use crate::providers::openai::OpenAIClient;
 use crate::providers::types::ChatResponse;
 use potato_prompt::Prompt;
 use potato_type::Provider;
-use pyo3::prelude::*;
 use reqwest::header::HeaderName;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Client;
@@ -14,24 +13,6 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use tracing::{error, instrument};
 const TIMEOUT_SECS: u64 = 30;
-
-#[derive(Debug, Clone)]
-#[pyclass]
-pub enum ClientType {
-    OpenAI,
-}
-
-pub enum ClientUrl {
-    OpenAI,
-}
-
-impl ClientUrl {
-    pub fn url(&self) -> &str {
-        match self {
-            ClientUrl::OpenAI => "https://api.openai.com",
-        }
-    }
-}
 
 /// Create the blocking HTTP client with optional headers.
 pub fn build_http_client(

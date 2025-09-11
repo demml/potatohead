@@ -21,90 +21,43 @@ use std::collections::HashMap;
 use tracing::{debug, error, instrument};
 
 #[derive(Debug)]
-pub enum VertexServiceType {
-    Generate,
-    Embed,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VertexEndpoint {
-    GenerateContent,
-    EmbedContent,
-}
-
-impl VertexEndpoint {
-    /// Get the endpoint path string
-    fn path(&self) -> &'static str {
-        match self {
-            Self::GenerateContent => "generateContent",
-            Self::EmbedContent => "predict",
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct GeminiApiConfig {
+pub struct VertexApiConfig {
     base_url: String,
-    service_type: GeminiServiceType,
+    service_type: ServiceType,
+    auth: GoogleAuth,
 }
 
-impl GeminiApiConfig {
-    /// Create a new API configuration based on auth and service type
-    pub fn new(auth: &GeminiAuth, service_type: GeminiServiceType) -> Self {
-        let base_url = match auth {
-            GeminiAuth::ApiKey(_) => {
-                "https://generativelanguage.googleapis.com/v1beta/models".to_string()
-            }
-            GeminiAuth::GoogleCredentials(creds) => {
-                // use the vertex AI endpoint format
-                format!(
-                    "https://{}-aiplatform.googleapis.com/v1beta1/projects/{}/locations/{}/publishers/google/models",
-                    creds.location, creds.project_id, creds.location
-                )
-            }
-            GeminiAuth::NotSet => {
-                "https://generativelanguage.googleapis.com/v1beta/models".to_string()
-            }
-        };
+impl ApiConfigExt for VertexApiConfig {
+    fn new(auth: GoogleAuth, service_type: ServiceType) -> Self {
+        let base_url = GoogleUrl::Vertex.root_url(&auth);
 
         Self {
             base_url,
             service_type,
+            auth,
         }
     }
 
-    /// Helper for constructing the full URL for a given model and auth method
-    pub fn build_url(&self, model: &str, auth: &GeminiAuth) -> String {
-        let endpoint = self.get_endpoint(auth);
+    fn build_url(&self, model: &str) -> String {
+        let endpoint = self.get_endpoint();
+        format!("{}/{}:{}", self.base_url, model, endpoint)
+    }
+
+    fn set_auth_header(
+        &self,
+        req: reqwest::RequestBuilder,
+        auth: &GoogleAuth,
+    ) -> Result<reqwest::RequestBuilder, ProviderError> {
         match auth {
-            GeminiAuth::GoogleCredentials(_)
-                if matches!(self.service_type, GeminiServiceType::Embed) =>
-            {
-                // Vertex AI embedding uses models/{model}:predict
-                format!("{}/models/{}:{}", self.base_url, model, endpoint.path())
-            }
-            _ => {
-                // Standard format: {base_url}/{model}:{endpoint}
-                format!("{}/{}:{}", self.base_url, model, endpoint.path())
-            }
+            GoogleAuth::ApiKey(api_key) => Ok(req.header("x-goog-api-key", api_key)),
+            GoogleAuth::GoogleCredentials(_) => Err(ProviderError::MissingAuthenticationError),
+            GoogleAuth::NotSet => Err(ProviderError::MissingAuthenticationError),
         }
     }
 
-    /// Get the appropriate endpoint based on service type and auth method
-    /// Currently generateContent is supported for both gemini and vertex AI
-    /// embedContent is supported for API key auth
-    /// predict is used for Vertex AI embeddings with Google credentials
-    /// # Arguments
-    /// * `auth`: The authentication method being used
-    /// # Returns
-    /// * `GeminiEndpoint`: The appropriate endpoint for the request
-    fn get_endpoint(&self, auth: &GeminiAuth) -> GeminiEndpoint {
-        match (&self.service_type, auth) {
-            (GeminiServiceType::Generate, _) => GeminiEndpoint::GenerateContent,
-            (GeminiServiceType::Embed, GeminiAuth::ApiKey(_)) => GeminiEndpoint::EmbedContent,
-            (GeminiServiceType::Embed, GeminiAuth::GoogleCredentials(_)) => GeminiEndpoint::Predict,
-            (GeminiServiceType::Embed, GeminiAuth::NotSet) => GeminiEndpoint::EmbedContent,
-        }
+    fn get_endpoint(&self) -> &'static str {
+        // Need to return the vertex endpoint here
+        &self.service_type.vertex_endpoint()
     }
 }
 
