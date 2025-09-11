@@ -52,7 +52,6 @@ pub trait RequestClient {
         let response = request.send().await.map_err(AgentError::RequestError)?;
         let status = response.status();
         if !status.is_success() {
-            // print the response body for debugging
             error!("API request failed with status: {}", status);
 
             let body = response
