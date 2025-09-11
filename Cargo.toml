@@ -19,6 +19,7 @@ repository = "https://github.com/demml/potatohead"
 baked-potato = { path = "crates/baked_potato", version = "0.6.0" }
 potato-agent = { path = "crates/potato_agent", version = "0.6.0" }
 potato-prompt = { path = "crates/potato_prompt", version = "0.6.0" }
+potato-provider = { path = "crates/potato_provider", version = "0.6.0" }
 potato-type = { path = "crates/potato_type", version = "0.6.0" }
 potato-workflow = { path = "crates/potato_workflow", version = "0.6.0" }
 potato-util = { path = "crates/potato_util", version = "0.6.0" }

@@ -1,8 +1,8 @@
+pub mod client;
 use crate::agents::embed::EmbeddingResponse;
 use crate::agents::error::AgentError;
-use crate::agents::provider::google::auth::{GeminiAuth, GoogleAuth, GoogleUrls};
+use crate::agents::provider::google::auth::GeminiAuth;
 use crate::agents::provider::google::error::GoogleError;
-use crate::agents::provider::google::traits::{ApiConfigExt, RequestClient, ServiceType};
 use crate::agents::provider::google::GeminiEmbeddingRequest;
 use crate::agents::provider::google::{
     Content, GeminiGenerateContentRequest, GenerateContentResponse, Part,
@@ -21,48 +21,141 @@ use std::collections::HashMap;
 use tracing::{debug, error, instrument};
 
 #[derive(Debug)]
-pub struct GeminiApiConfig {
-    base_url: String,
-    service_type: ServiceType,
-    auth: GoogleAuth,
+pub enum VertexServiceType {
+    Generate,
+    Embed,
 }
 
-impl ApiConfigExt for GeminiApiConfig {
-    fn new(auth: GoogleAuth, service_type: ServiceType) -> Self {
-        let base_url = GoogleUrl::Gemini.root_url(auth);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VertexEndpoint {
+    GenerateContent,
+    EmbedContent,
+}
+
+impl VertexEndpoint {
+    /// Get the endpoint path string
+    fn path(&self) -> &'static str {
+        match self {
+            Self::GenerateContent => "generateContent",
+            Self::EmbedContent => "predict",
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct GeminiApiConfig {
+    base_url: String,
+    service_type: GeminiServiceType,
+}
+
+impl GeminiApiConfig {
+    /// Create a new API configuration based on auth and service type
+    pub fn new(auth: &GeminiAuth, service_type: GeminiServiceType) -> Self {
+        let base_url = match auth {
+            GeminiAuth::ApiKey(_) => {
+                "https://generativelanguage.googleapis.com/v1beta/models".to_string()
+            }
+            GeminiAuth::GoogleCredentials(creds) => {
+                // use the vertex AI endpoint format
+                format!(
+                    "https://{}-aiplatform.googleapis.com/v1beta1/projects/{}/locations/{}/publishers/google/models",
+                    creds.location, creds.project_id, creds.location
+                )
+            }
+            GeminiAuth::NotSet => {
+                "https://generativelanguage.googleapis.com/v1beta/models".to_string()
+            }
+        };
 
         Self {
             base_url,
             service_type,
-            auth,
         }
     }
 
-    fn build_url(&self, model: &str) -> String {
-        let endpoint = self.get_endpoint();
-        format!("{}/{}:{}", self.base_url, model, endpoint.path())
-    }
-
-    fn set_auth_header(&self, req: &mut reqwest::RequestBuilder, auth: &GoogleAuth) {
+    /// Helper for constructing the full URL for a given model and auth method
+    pub fn build_url(&self, model: &str, auth: &GeminiAuth) -> String {
+        let endpoint = self.get_endpoint(auth);
         match auth {
-            GoogleAuth::ApiKey(api_key) => {
-                req.header("x-goog-api-key", api_key);
+            GeminiAuth::GoogleCredentials(_)
+                if matches!(self.service_type, GeminiServiceType::Embed) =>
+            {
+                // Vertex AI embedding uses models/{model}:predict
+                format!("{}/models/{}:{}", self.base_url, model, endpoint.path())
             }
-            GoogleAuth::GoogleCredentials(token) => {
-                req.bearer_auth(token);
+            _ => {
+                // Standard format: {base_url}/{model}:{endpoint}
+                format!("{}/{}:{}", self.base_url, model, endpoint.path())
             }
-            GoogleAuth::NotSet => {}
-        };
+        }
     }
 
-    fn get_endpoint(&self) -> &'static str {
-        // Need to return the gemini endpoint here
-        &self.service_type.gemini_endpoint()
+    /// Get the appropriate endpoint based on service type and auth method
+    /// Currently generateContent is supported for both gemini and vertex AI
+    /// embedContent is supported for API key auth
+    /// predict is used for Vertex AI embeddings with Google credentials
+    /// # Arguments
+    /// * `auth`: The authentication method being used
+    /// # Returns
+    /// * `GeminiEndpoint`: The appropriate endpoint for the request
+    fn get_endpoint(&self, auth: &GeminiAuth) -> GeminiEndpoint {
+        match (&self.service_type, auth) {
+            (GeminiServiceType::Generate, _) => GeminiEndpoint::GenerateContent,
+            (GeminiServiceType::Embed, GeminiAuth::ApiKey(_)) => GeminiEndpoint::EmbedContent,
+            (GeminiServiceType::Embed, GeminiAuth::GoogleCredentials(_)) => GeminiEndpoint::Predict,
+            (GeminiServiceType::Embed, GeminiAuth::NotSet) => GeminiEndpoint::EmbedContent,
+        }
     }
 }
 
 struct GeminiRequestClient;
-impl RequestClient for GeminiRequestClient {}
+
+impl GeminiRequestClient {
+    /// Generic method for making requests to the Gemini API
+    /// # Arguments
+    /// * `client`: The HTTP client to use for the request
+    /// * `config`: The Gemini API configuration
+    /// * `auth`: The authentication method to use
+    /// * `model`: The model to use for the request
+    /// * `object`: The JSON body of the request
+    /// # Returns
+    /// * `Result<Response, AgentError>`: The HTTP response or an error
+    async fn make_request(
+        client: &Client,
+        config: &GeminiApiConfig,
+        auth: &GeminiAuth,
+        model: &str,
+        object: &Value,
+    ) -> Result<Response, AgentError> {
+        // Placeholder for potential shared request logic
+
+        let url = config.build_url(model, &auth);
+        debug!("Making request to Gemini API at URL: {}", url);
+        let mut request = client.post(url).json(&object);
+
+        // match on the auth type to set the appropriate headers
+        request = match auth {
+            GeminiAuth::ApiKey(api_key) => request.header("x-goog-api-key", api_key),
+            _ => request,
+        };
+
+        let response = request.send().await.map_err(AgentError::RequestError)?;
+        let status = response.status();
+        if !status.is_success() {
+            // print the response body for debugging
+            error!("Gemini API request failed with status: {}", status);
+
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "No response body".to_string());
+
+            return Err(AgentError::CompletionError(body, status));
+        }
+
+        Ok(response)
+    }
+}
 
 #[derive(Debug)]
 pub struct GeminiClient {
@@ -124,7 +217,7 @@ impl GeminiClient {
     /// * `Result<ChatResponse, AgentError>`: Returns a `ChatResponse` on success or an `AgentError` on failure.
     ///
     #[instrument(skip_all)]
-    pub async fn generate_content(
+    pub async fn async_generate_content(
         &self,
         prompt: &Prompt,
     ) -> Result<GenerateContentResponse, AgentError> {
@@ -202,7 +295,7 @@ impl GeminiClient {
     }
 
     #[instrument(skip_all)]
-    pub async fn create_embedding<T>(
+    pub async fn async_create_embedding<T>(
         &self,
         inputs: Vec<String>,
         config: &T,

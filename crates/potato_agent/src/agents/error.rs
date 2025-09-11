@@ -10,21 +10,6 @@ pub enum AgentError {
     #[error("Error: {0}")]
     Error(String),
 
-    #[error("Failed to create header value for the agent client")]
-    CreateHeaderValueError(#[from] reqwest::header::InvalidHeaderValue),
-
-    #[error("Failed to create header name for the agent client")]
-    CreateHeaderNameError(#[from] reqwest::header::InvalidHeaderName),
-
-    #[error("Failed to create agent client: {0}")]
-    CreateClientError(#[source] reqwest::Error),
-
-    #[error("Request failed: {0}")]
-    RequestError(#[from] reqwest::Error),
-
-    #[error("Failed to serialize chat request: {0}")]
-    SerializationError(#[from] serde_json::Error),
-
     #[error("Failed to get response: {0} with status code {1}")]
     CompletionError(String, StatusCode),
 
@@ -42,9 +27,6 @@ pub enum AgentError {
 
     #[error("Failed to extract client: {0}")]
     ClientExtractionError(String),
-
-    #[error("Client did not provide response")]
-    ClientNoResponseError,
 
     #[error("No ready tasks found but pending tasks remain. Possible circular dependency.")]
     NoTaskFoundError,
@@ -88,9 +70,6 @@ pub enum AgentError {
     #[error("Invalid response type")]
     InvalidResponseType(String),
 
-    #[error("Failed to extract embedding config. Check provider and config compatibility: {0}")]
-    EmbeddingConfigExtractionError(String),
-
     #[error("Provider not supported: {0}")]
     ProviderNotSupportedError(String),
 
@@ -98,7 +77,7 @@ pub enum AgentError {
     NoEmbeddingsFound,
 
     #[error(transparent)]
-    GoogleError(#[from] crate::agents::provider::gemini::error::GoogleError),
+    GoogleError(#[from] crate::agents::provider::google::error::GoogleError),
 
     #[error("No provider specified in GenAiClient")]
     NoProviderError,
