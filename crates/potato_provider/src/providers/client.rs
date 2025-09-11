@@ -76,7 +76,7 @@ impl GenAiClient {
                 Ok(ChatResponse::OpenAI(response))
             }
             GenAiClient::Gemini(client) => {
-                let response = client.async_generate_content(task).await.inspect_err(|e| {
+                let response = client.generate_content(task).await.inspect_err(|e| {
                     error!(error = %e, "Failed to generate content");
                 })?;
                 Ok(ChatResponse::Gemini(response))
@@ -103,7 +103,7 @@ impl GenAiClient {
             }
             GenAiClient::Gemini(client) => {
                 let response = client
-                    .async_create_embedding(inputs, config)
+                    .create_embedding(inputs, config)
                     .await
                     .inspect_err(|e| {
                         error!(error = %e, "Failed to create embedding");

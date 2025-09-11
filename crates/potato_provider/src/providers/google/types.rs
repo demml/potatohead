@@ -1,5 +1,6 @@
-use crate::agents::provider::traits::{LogProbExt, ResponseExt, TokenUsage};
-use crate::{AgentError, Usage};
+use crate::error::ProviderError;
+use crate::providers::openai::Usage;
+use crate::providers::traits::{LogProbExt, ResponseExt, TokenUsage};
 use base64::prelude::*;
 use potato_prompt::{prompt::types::PromptContent, Message};
 use potato_type::google::chat::{GeminiSettings, HarmBlockThreshold, HarmCategory, Modality};
@@ -137,7 +138,7 @@ pub struct Part {
 }
 
 impl Part {
-    pub fn from_message(message: &Message) -> Result<Self, AgentError> {
+    pub fn from_message(message: &Message) -> Result<Self, ProviderError> {
         let part = match &message.content {
             PromptContent::Str(text) => Part {
                 text: Some(text.clone()),
@@ -162,7 +163,7 @@ impl Part {
             // need to implement audio and file for chat
             _ => {
                 // Handle other content types as needed
-                return Err(AgentError::UnsupportedContentTypeError);
+                return Err(ProviderError::UnsupportedContentTypeError);
             }
         };
 
@@ -182,7 +183,7 @@ pub struct Content {
 }
 
 impl Content {
-    pub fn from_message(message: &Message) -> Result<Self, AgentError> {
+    pub fn from_message(message: &Message) -> Result<Self, ProviderError> {
         let content = match &message.content {
             PromptContent::Str(text) => vec![Part {
                 text: Some(text.clone()),
@@ -207,7 +208,7 @@ impl Content {
             // need to implement audio and file for chat
             _ => {
                 // Handle other content types as needed
-                return Err(AgentError::UnsupportedContentTypeError);
+                return Err(ProviderError::UnsupportedContentTypeError);
             }
         };
 

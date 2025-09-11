@@ -1,11 +1,11 @@
-use crate::agents::error::AgentError;
+use crate::error::ProviderError;
 
-use crate::agents::embed::EmbeddingResponse;
-use crate::agents::provider::openai::{
+use crate::providers::embed::EmbeddingResponse;
+use crate::providers::openai::{
     OpenAIChatMessage, OpenAIChatRequest, OpenAIChatResponse, OpenAIEmbeddingRequest,
 };
-use crate::agents::provider::types::add_extra_body_to_prompt;
-use crate::agents::provider::types::build_http_client;
+use crate::providers::types::add_extra_body_to_prompt;
+use crate::providers::types::build_http_client;
 use potato_prompt::Prompt;
 use potato_type::openai::embedding::OpenAIEmbeddingResponse;
 use potato_type::{Common, Provider};
@@ -57,12 +57,12 @@ impl OpenAIClient {
     /// * `headers`: Optional headers to include in the HTTP requests.
     ///
     /// # Returns:
-    /// * `Result<OpenAIClient, AgentError>`: Returns an `OpenAIClient` instance on success or an `AgentError` on failure.
+    /// * `Result<OpenAIClient, ProviderError>`: Returns an `OpenAIClient` instance on success or an `ProviderError` on failure.
     pub fn new(
         api_key: Option<String>,
         base_url: Option<String>,
         headers: Option<HashMap<String, String>>,
-    ) -> Result<Self, AgentError> {
+    ) -> Result<Self, ProviderError> {
         let client = build_http_client(headers)?;
 
         //  if optional api_key is None, check the environment variable `OPENAI_API_KEY`
@@ -97,7 +97,7 @@ impl OpenAIClient {
     }
 
     /// Generic helper for executing a request to reduce boilerplate
-    async fn make_request(&self, path: &str, object: &Value) -> Result<Response, AgentError> {
+    async fn make_request(&self, path: &str, object: &Value) -> Result<Response, ProviderError> {
         let response = self
             .client
             .post(format!("{}/{}", self.base_url, path))
@@ -105,7 +105,7 @@ impl OpenAIClient {
             .json(object)
             .send()
             .await
-            .map_err(AgentError::RequestError)?;
+            .map_err(ProviderError::RequestError)?;
 
         let status = response.status();
         if !status.is_success() {
@@ -115,7 +115,7 @@ impl OpenAIClient {
                 .text()
                 .await
                 .unwrap_or_else(|_| "No response body".to_string());
-            return Err(AgentError::CompletionError(body, status));
+            return Err(ProviderError::CompletionError(body, status));
         }
 
         Ok(response)
@@ -130,17 +130,17 @@ impl OpenAIClient {
     /// * `settings`: A reference to `ModelSettings` containing model configuration.
     ///
     /// # Returns:
-    /// * `Result<ChatResponse, AgentError>`: Returns a `ChatResponse` on success or an `AgentError` on failure.
+    /// * `Result<ChatResponse, ProviderError>`: Returns a `ChatResponse` on success or an `ProviderError` on failure.
     ///
     #[instrument(skip_all)]
     pub async fn async_chat_completion(
         &self,
         prompt: &Prompt,
-    ) -> Result<OpenAIChatResponse, AgentError> {
+    ) -> Result<OpenAIChatResponse, ProviderError> {
         // Cant make a request without an API key
 
         if !self.api_key_set {
-            return Err(AgentError::MissingOpenAIApiKeyError);
+            return Err(ProviderError::MissingOpenAIApiKeyError);
         }
 
         let settings = &prompt.model_settings;
@@ -177,7 +177,7 @@ impl OpenAIClient {
 
         // serialize the prompt to JSON
         let mut serialized_prompt =
-            serde_json::to_value(chat_request).map_err(AgentError::SerializationError)?;
+            serde_json::to_value(chat_request).map_err(ProviderError::SerializationError)?;
 
         // if settings.extra_body is provided, merge it with the prompt
         if let Some(extra_body) = settings.extra_body() {
@@ -221,16 +221,16 @@ impl OpenAIClient {
         &self,
         inputs: Vec<String>,
         config: &T,
-    ) -> Result<EmbeddingResponse, AgentError>
+    ) -> Result<EmbeddingResponse, ProviderError>
     where
         T: Serialize,
     {
         if !self.api_key_set {
-            return Err(AgentError::MissingOpenAIApiKeyError);
+            return Err(ProviderError::MissingOpenAIApiKeyError);
         }
 
         let request = serde_json::to_value(OpenAIEmbeddingRequest::new(inputs, config))
-            .map_err(AgentError::SerializationError)?;
+            .map_err(ProviderError::SerializationError)?;
 
         debug!("Sending embedding request to OpenAI API: {:?}", request);
 

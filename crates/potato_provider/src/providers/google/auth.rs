@@ -1,4 +1,4 @@
-use crate::agents::provider::google::error::GoogleError;
+use crate::error::ProviderError;
 use base64::prelude::*;
 use gcloud_auth::credentials::CredentialsFile;
 use gcloud_auth::{project::Config, token::DefaultTokenSourceProvider};
@@ -17,14 +17,14 @@ pub struct GoogleCredentials {
 impl GoogleCredentials {
     pub fn from_token_provider(
         token_provider: DefaultTokenSourceProvider,
-    ) -> Result<Self, GoogleError> {
+    ) -> Result<Self, ProviderError> {
         // attempt to retrieve project_id from token_provider, if None attempt to load from env var
         let project_id = match &token_provider.project_id {
             Some(id) => id.clone(),
             // attempt to load GOOGLE_CLOUD_PROJECT env var if project_id is None
             None => match env::var("GOOGLE_CLOUD_PROJECT") {
                 Ok(val) => val,
-                Err(_) => Err(GoogleError::NoProjectIdFound)?,
+                Err(_) => Err(ProviderError::NoProjectIdFound)?,
             },
         };
 
@@ -38,13 +38,13 @@ impl GoogleCredentials {
         })
     }
 
-    pub async fn get_access_token(&self) -> Result<String, GoogleError> {
+    pub async fn get_access_token(&self) -> Result<String, ProviderError> {
         let token = self
             .token_provider
             .token_source()
             .token()
             .await
-            .map_err(|e| GoogleError::TokenError(e.to_string()))?;
+            .map_err(|e| ProviderError::TokenError(e.to_string()))?;
 
         Ok(token)
     }
@@ -53,7 +53,7 @@ impl GoogleCredentials {
 #[allow(unused_imports)]
 use token_source::TokenSourceProvider;
 
-pub async fn create_token_provider() -> Result<GoogleCredentials, GoogleError> {
+pub async fn create_token_provider() -> Result<GoogleCredentials, ProviderError> {
     let creds = CredentialBuilder::new().await?.creds;
 
     let config = Config::default().with_scopes(&SCOPES);
@@ -69,7 +69,7 @@ pub struct CredentialBuilder {
 }
 
 impl CredentialBuilder {
-    pub async fn new() -> Result<Self, GoogleError> {
+    pub async fn new() -> Result<Self, ProviderError> {
         let creds = Self::build().await?;
         let creds = CredentialBuilder { creds };
 
@@ -77,7 +77,7 @@ impl CredentialBuilder {
     }
 
     #[instrument(skip_all)]
-    async fn build() -> Result<CredentialsFile, GoogleError> {
+    async fn build() -> Result<CredentialsFile, ProviderError> {
         if let Ok(base64_creds) = env::var("GOOGLE_ACCOUNT_JSON_BASE64") {
             debug!("Using GOOGLE_ACCOUNT_JSON_BASE64 for credentials");
             let decoded_creds = Self::decode_base64_str(&base64_creds)?;
@@ -88,10 +88,10 @@ impl CredentialBuilder {
         debug!("Using GOOGLE_APPLICATION_CREDENTIALS for credentials",);
         return CredentialsFile::new()
             .await
-            .map_err(GoogleError::GCloudAuthError);
+            .map_err(ProviderError::GCloudAuthError);
     }
 
-    fn decode_base64_str(service_base64_creds: &str) -> Result<String, GoogleError> {
+    fn decode_base64_str(service_base64_creds: &str) -> Result<String, ProviderError> {
         let decoded = BASE64_STANDARD.decode(service_base64_creds)?;
 
         Ok(String::from_utf8(decoded)?)
@@ -112,7 +112,7 @@ impl GoogleAuth {
     /// to create a token source for authentication.
     ///
     #[instrument(skip_all)]
-    pub async fn from_env() -> Result<Self, GoogleError> {
+    pub async fn from_env() -> Result<Self, ProviderError> {
         // First try API key
         if let Ok(api_key) = std::env::var("GEMINI_API_KEY") {
             if !api_key.is_empty() {

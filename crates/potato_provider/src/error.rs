@@ -1,10 +1,10 @@
+use gcloud_auth::error::Error as GCloudAuthError;
 use potato_prompt::PromptError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
 use reqwest::StatusCode;
 use thiserror::Error;
 use tracing::error;
-
 #[derive(Error, Debug)]
 pub enum ProviderError {
     #[error("Error: {0}")]
@@ -33,6 +33,60 @@ pub enum ProviderError {
 
     #[error("Failed to extract embedding config. Check provider and config compatibility: {0}")]
     EmbeddingConfigExtractionError(String),
+
+    #[error("Missing authentication information. Failed to find GEMINI_API_KEY or Google credentials in environment variables.")]
+    MissingAuthenticationError,
+
+    #[error("Unsupported content type")]
+    UnsupportedContentTypeError,
+
+    #[error("Failed to get response: {0} with status code {1}")]
+    CompletionError(String, StatusCode),
+
+    #[error("Provider not supported: {0}")]
+    ProviderNotSupportedError(String),
+
+    #[error("No provider specified in GenAiClient")]
+    NoProviderError,
+
+    #[error("Undefined error: {0}")]
+    UndefinedError(String),
+
+    #[error("Invalid response type")]
+    InvalidResponseType(String),
+
+    #[error("Failed to create tokio runtime: {0}")]
+    RuntimeError(String),
+
+    #[error("No embeddings found in the response")]
+    NoEmbeddingsFound,
+
+    #[error(transparent)]
+    TypeError(#[from] potato_type::error::TypeError),
+
+    #[error(transparent)]
+    PromptError(#[from] PromptError),
+
+    #[error(transparent)]
+    DecodeError(#[from] base64::DecodeError),
+
+    #[error(transparent)]
+    Utf8Error(#[from] std::string::FromUtf8Error),
+
+    #[error(transparent)]
+    GCloudAuthError(#[from] GCloudAuthError),
+
+    #[error("No Google credentials found in environment variables")]
+    NoCredentialsFound,
+
+    #[error("No project ID found in credentials or environment variables")]
+    NoProjectIdFound,
+
+    #[error("Failed to retrieve access token: {0}")]
+    TokenError(String),
+
+    #[error("Failed to retrieve OPENAI_API_KEY from the environment")]
+    MissingOpenAIApiKeyError,
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for ProviderError {

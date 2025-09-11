@@ -1,42 +1,26 @@
-use crate::agents::provider::google::auth::GoogleAuth;
-use crate::agents::provider::google::error::GoogleError;
-use crate::AgentError;
+use crate::error::ProviderError;
+use crate::providers::google::auth::GoogleAuth;
+use crate::providers::types::ServiceType;
 use reqwest::Response;
-use tracing::{debug, error, instrument};
-
-#[derive(Debug)]
-pub enum ServiceType {
-    Generate,
-    Embed,
-}
-
-impl ServiceType {
-    /// Get the service type string
-    pub fn gemini_endpoint(&self) -> &'static str {
-        match self {
-            Self::Generate => "generateContent",
-            Self::Embed => "embedContent",
-        }
-    }
-    pub fn vertex_endpoint(&self) -> &'static str {
-        match self {
-            Self::Generate => "generateContent",
-            Self::Embed => "predict",
-        }
-    }
-}
+use tracing::{debug, error};
 
 pub trait ApiConfigExt {
     /// Create a new API configuration based on auth and service type
-    fn new(auth: &GoogleAuth, service_type: ServiceType) -> Self;
+    fn new(auth: GoogleAuth, service_type: ServiceType) -> Self;
 
     /// Helper for constructing the full URL for a given model
     fn build_url(&self, model: &str) -> String;
 
-    fn set_auth_header(&self, req: &mut reqwest::RequestBuilder, auth: &GoogleAuth);
+    fn set_auth_header(
+        &self,
+        req: reqwest::RequestBuilder,
+        auth: &GoogleAuth,
+    ) -> Result<reqwest::RequestBuilder, ProviderError>;
 
     /// Get the appropriate endpoint based on service type
     fn get_endpoint(&self) -> &'static str;
+
+    fn auth(&self) -> &GoogleAuth;
 }
 
 /// Generic trait for making requests to an either Gemini or Vertex AI API
@@ -44,16 +28,15 @@ pub trait RequestClient {
     async fn make_request(
         client: &reqwest::Client,
         config: &impl ApiConfigExt,
-        auth: &GoogleAuth,
         model: &str,
         object: &serde_json::Value,
-    ) -> Result<Response, GoogleError> {
+    ) -> Result<Response, ProviderError> {
         let url = config.build_url(model);
         debug!("Making request to API at URL: {}", url);
-        let mut request = client.post(url).json(&object);
-        config.set_auth_header(&mut request, auth);
+        let request = client.post(url).json(&object);
+        let request = config.set_auth_header(request, config.auth())?;
 
-        let response = request.send().await.map_err(AgentError::RequestError)?;
+        let response = request.send().await.map_err(ProviderError::RequestError)?;
         let status = response.status();
         if !status.is_success() {
             error!("API request failed with status: {}", status);
@@ -63,7 +46,7 @@ pub trait RequestClient {
                 .await
                 .unwrap_or_else(|_| "No response body".to_string());
 
-            return Err(AgentError::CompletionError(body, status));
+            return Err(ProviderError::CompletionError(body, status));
         }
 
         Ok(response)

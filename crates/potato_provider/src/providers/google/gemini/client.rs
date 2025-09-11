@@ -1,24 +1,22 @@
-use crate::agents::embed::EmbeddingResponse;
-use crate::agents::error::AgentError;
-use crate::agents::provider::google::auth::{GeminiAuth, GoogleAuth, GoogleUrls};
-use crate::agents::provider::google::error::GoogleError;
-use crate::agents::provider::google::traits::{ApiConfigExt, RequestClient, ServiceType};
-use crate::agents::provider::google::GeminiEmbeddingRequest;
-use crate::agents::provider::google::{
+use crate::error::ProviderError;
+use crate::providers::embed::EmbeddingResponse;
+use crate::providers::google::auth::{GoogleAuth, GoogleUrl};
+use crate::providers::google::traits::{ApiConfigExt, RequestClient};
+use crate::providers::google::GeminiEmbeddingRequest;
+use crate::providers::google::{
     Content, GeminiGenerateContentRequest, GenerateContentResponse, Part,
 };
-use crate::agents::provider::types::add_extra_body_to_prompt;
-use crate::agents::provider::types::build_http_client;
+use crate::providers::types::build_http_client;
+use crate::providers::types::{add_extra_body_to_prompt, ServiceType};
+
 use potato_prompt::Prompt;
 use potato_type::google::EmbeddingConfigTrait;
 use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::Provider;
 use reqwest::Client;
-use reqwest::Response;
 use serde::Serialize;
-use serde_json::Value;
 use std::collections::HashMap;
-use tracing::{debug, error, instrument};
+use tracing::{debug, instrument};
 
 #[derive(Debug)]
 pub struct GeminiApiConfig {
@@ -29,7 +27,7 @@ pub struct GeminiApiConfig {
 
 impl ApiConfigExt for GeminiApiConfig {
     fn new(auth: GoogleAuth, service_type: ServiceType) -> Self {
-        let base_url = GoogleUrl::Gemini.root_url(auth);
+        let base_url = GoogleUrl::Gemini.root_url(&auth);
 
         Self {
             base_url,
@@ -40,24 +38,28 @@ impl ApiConfigExt for GeminiApiConfig {
 
     fn build_url(&self, model: &str) -> String {
         let endpoint = self.get_endpoint();
-        format!("{}/{}:{}", self.base_url, model, endpoint.path())
+        format!("{}/{}:{}", self.base_url, model, endpoint)
     }
 
-    fn set_auth_header(&self, req: &mut reqwest::RequestBuilder, auth: &GoogleAuth) {
+    fn set_auth_header(
+        &self,
+        req: reqwest::RequestBuilder,
+        auth: &GoogleAuth,
+    ) -> Result<reqwest::RequestBuilder, ProviderError> {
         match auth {
-            GoogleAuth::ApiKey(api_key) => {
-                req.header("x-goog-api-key", api_key);
-            }
-            GoogleAuth::GoogleCredentials(token) => {
-                req.bearer_auth(token);
-            }
-            GoogleAuth::NotSet => {}
-        };
+            GoogleAuth::ApiKey(api_key) => Ok(req.header("x-goog-api-key", api_key)),
+            GoogleAuth::GoogleCredentials(_) => Err(ProviderError::MissingAuthenticationError),
+            GoogleAuth::NotSet => Err(ProviderError::MissingAuthenticationError),
+        }
     }
 
     fn get_endpoint(&self) -> &'static str {
         // Need to return the gemini endpoint here
         &self.service_type.gemini_endpoint()
+    }
+
+    fn auth(&self) -> &GoogleAuth {
+        &self.auth
     }
 }
 
@@ -67,7 +69,6 @@ impl RequestClient for GeminiRequestClient {}
 #[derive(Debug)]
 pub struct GeminiClient {
     client: Client,
-    auth: GeminiAuth,
     config: GeminiApiConfig,
     pub provider: Provider,
 }
@@ -76,13 +77,13 @@ impl PartialEq for GeminiClient {
     fn eq(&self, other: &Self) -> bool {
         // Compare auth types without exposing internal details
         matches!(
-            (&self.auth, &other.auth),
-            (GeminiAuth::ApiKey(_), GeminiAuth::ApiKey(_))
+            (&self.config.auth, &other.config.auth),
+            (GoogleAuth::ApiKey(_), GoogleAuth::ApiKey(_))
                 | (
-                    GeminiAuth::GoogleCredentials(_),
-                    GeminiAuth::GoogleCredentials(_)
+                    GoogleAuth::GoogleCredentials(_),
+                    GoogleAuth::GoogleCredentials(_)
                 )
-                | (GeminiAuth::NotSet, GeminiAuth::NotSet)
+                | (GoogleAuth::NotSet, GoogleAuth::NotSet)
         ) && self.provider == other.provider
     }
 }
@@ -98,15 +99,14 @@ impl GeminiClient {
     /// * `Result<GeminiClient, AgentError>`: Returns a `GeminiClient` instance on success or an `AgentError` on failure.
     pub async fn new(
         headers: Option<HashMap<String, String>>,
-        service_type: GeminiServiceType,
-    ) -> Result<Self, AgentError> {
+        service_type: ServiceType,
+    ) -> Result<Self, ProviderError> {
         let client = build_http_client(headers)?;
-        let auth = GeminiAuth::from_env().await?;
-        let config = GeminiApiConfig::new(&auth, service_type);
+        let auth = GoogleAuth::from_env().await?;
+        let config = GeminiApiConfig::new(auth, service_type);
 
         Ok(Self {
             client,
-            auth,
             config,
             provider: Provider::Gemini,
         })
@@ -127,10 +127,10 @@ impl GeminiClient {
     pub async fn generate_content(
         &self,
         prompt: &Prompt,
-    ) -> Result<GenerateContentResponse, AgentError> {
+    ) -> Result<GenerateContentResponse, ProviderError> {
         // Cant make a request without an API key
-        if let GeminiAuth::NotSet = self.auth {
-            return Err(GoogleError::MissingAuthenticationError.into());
+        if let GoogleAuth::NotSet = self.config.auth {
+            return Err(ProviderError::MissingAuthenticationError.into());
         }
 
         let settings = &prompt.model_settings;
@@ -146,7 +146,7 @@ impl GeminiClient {
         let system_instruction: Option<Content> = if prompt.system_instruction.is_empty() {
             None
         } else {
-            let parts: Result<Vec<Part>, AgentError> = prompt
+            let parts: Result<Vec<Part>, ProviderError> = prompt
                 .system_instruction
                 .iter()
                 .map(Part::from_message)
@@ -174,7 +174,7 @@ impl GeminiClient {
 
         // serialize the prompt to JSON
         let mut serialized_prompt =
-            serde_json::to_value(chat_request).map_err(AgentError::SerializationError)?;
+            serde_json::to_value(chat_request).map_err(ProviderError::SerializationError)?;
 
         // if settings.extra_body is provided, merge it with the prompt
         if let Some(extra_body) = settings.extra_body() {
@@ -189,7 +189,6 @@ impl GeminiClient {
         let response = GeminiRequestClient::make_request(
             &self.client,
             &self.config,
-            &self.auth,
             &prompt.model,
             &serialized_prompt,
         )
@@ -206,26 +205,20 @@ impl GeminiClient {
         &self,
         inputs: Vec<String>,
         config: &T,
-    ) -> Result<EmbeddingResponse, AgentError>
+    ) -> Result<EmbeddingResponse, ProviderError>
     where
         T: Serialize + EmbeddingConfigTrait,
     {
-        if let GeminiAuth::NotSet = self.auth {
-            return Err(GoogleError::MissingAuthenticationError.into());
+        if let GoogleAuth::NotSet = self.config.auth {
+            return Err(ProviderError::MissingAuthenticationError.into());
         }
 
         let model = config.get_model();
         let request = serde_json::to_value(GeminiEmbeddingRequest::new(inputs, config))
-            .map_err(AgentError::SerializationError)?;
+            .map_err(ProviderError::SerializationError)?;
 
-        let response = GeminiRequestClient::make_request(
-            &self.client,
-            &self.config,
-            &self.auth,
-            &model,
-            &request,
-        )
-        .await?;
+        let response =
+            GeminiRequestClient::make_request(&self.client, &self.config, &model, &request).await?;
 
         let embedding_response: GeminiEmbeddingResponse = response.json().await?;
 
