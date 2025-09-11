@@ -1,5 +1,5 @@
-use crate::agents::provider::gemini::client::GeminiServiceType;
-use crate::agents::provider::gemini::GeminiClient;
+use crate::agents::provider::google::client::GeminiServiceType;
+use crate::agents::provider::google::GeminiClient;
 use crate::agents::provider::openai::OpenAIClient;
 use crate::{
     agents::client::GenAiClient,
@@ -11,6 +11,8 @@ use potato_prompt::prompt::settings::ModelSettings;
 use potato_prompt::{
     parse_response_to_json, prompt::parse_prompt, prompt::types::Message, Prompt, Role,
 };
+pub mod gemini;
+pub mod vertex;
 use potato_type::Provider;
 use potato_util::create_uuid7;
 use pyo3::{prelude::*, IntoPyObjectExt};

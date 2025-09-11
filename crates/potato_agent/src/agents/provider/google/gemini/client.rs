@@ -1,9 +1,9 @@
 use crate::agents::embed::EmbeddingResponse;
 use crate::agents::error::AgentError;
-use crate::agents::provider::gemini::auth::GeminiAuth;
-use crate::agents::provider::gemini::error::GoogleError;
-use crate::agents::provider::gemini::GeminiEmbeddingRequest;
-use crate::agents::provider::gemini::{
+use crate::agents::provider::google::auth::GeminiAuth;
+use crate::agents::provider::google::error::GoogleError;
+use crate::agents::provider::google::GeminiEmbeddingRequest;
+use crate::agents::provider::google::{
     Content, GeminiGenerateContentRequest, GenerateContentResponse, Part,
 };
 use crate::agents::provider::types::add_extra_body_to_prompt;
@@ -29,7 +29,6 @@ pub enum GeminiServiceType {
 pub enum GeminiEndpoint {
     GenerateContent,
     EmbedContent,
-    Predict,
 }
 
 impl GeminiEndpoint {
@@ -38,7 +37,6 @@ impl GeminiEndpoint {
         match self {
             Self::GenerateContent => "generateContent",
             Self::EmbedContent => "embedContent",
-            Self::Predict => "predict",
         }
     }
 }
@@ -57,16 +55,11 @@ impl GeminiApiConfig {
                 "https://generativelanguage.googleapis.com/v1beta/models".to_string()
             }
             GeminiAuth::GoogleCredentials(creds) => {
-                let base = format!(
-                    "https://{}-aiplatform.googleapis.com/v1/projects/{}/locations/{}",
+                // use the vertex AI endpoint format
+                format!(
+                    "https://{}-aiplatform.googleapis.com/v1beta1/projects/{}/locations/{}/publishers/google/models",
                     creds.location, creds.project_id, creds.location
-                );
-                match service_type {
-                    GeminiServiceType::Generate => {
-                        format!("{}/publishers/google/models", base)
-                    }
-                    GeminiServiceType::Embed => base,
-                }
+                )
             }
             GeminiAuth::NotSet => {
                 "https://generativelanguage.googleapis.com/v1beta/models".to_string()
@@ -111,6 +104,55 @@ impl GeminiApiConfig {
             (GeminiServiceType::Embed, GeminiAuth::GoogleCredentials(_)) => GeminiEndpoint::Predict,
             (GeminiServiceType::Embed, GeminiAuth::NotSet) => GeminiEndpoint::EmbedContent,
         }
+    }
+}
+
+struct GeminiRequestClient;
+
+impl GeminiRequestClient {
+    /// Generic method for making requests to the Gemini API
+    /// # Arguments
+    /// * `client`: The HTTP client to use for the request
+    /// * `config`: The Gemini API configuration
+    /// * `auth`: The authentication method to use
+    /// * `model`: The model to use for the request
+    /// * `object`: The JSON body of the request
+    /// # Returns
+    /// * `Result<Response, AgentError>`: The HTTP response or an error
+    async fn make_request(
+        client: &Client,
+        config: &GeminiApiConfig,
+        auth: &GeminiAuth,
+        model: &str,
+        object: &Value,
+    ) -> Result<Response, AgentError> {
+        // Placeholder for potential shared request logic
+
+        let url = config.build_url(model, &auth);
+        debug!("Making request to Gemini API at URL: {}", url);
+        let mut request = client.post(url).json(&object);
+
+        // match on the auth type to set the appropriate headers
+        request = match auth {
+            GeminiAuth::ApiKey(api_key) => request.header("x-goog-api-key", api_key),
+            _ => request,
+        };
+
+        let response = request.send().await.map_err(AgentError::RequestError)?;
+        let status = response.status();
+        if !status.is_success() {
+            // print the response body for debugging
+            error!("Gemini API request failed with status: {}", status);
+
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "No response body".to_string());
+
+            return Err(AgentError::CompletionError(body, status));
+        }
+
+        Ok(response)
     }
 }
 
@@ -160,38 +202,6 @@ impl GeminiClient {
             config,
             provider: Provider::Gemini,
         })
-    }
-
-    async fn make_request(&self, model: &str, object: &Value) -> Result<Response, AgentError> {
-        let url = self.config.build_url(model, &self.auth);
-        let mut request = self.client.post(url).json(&object);
-
-        // match on the auth type to set the appropriate headers
-        request = match &self.auth {
-            GeminiAuth::ApiKey(api_key) => request.header("x-goog-api-key", api_key),
-            GeminiAuth::GoogleCredentials(creds) => {
-                let token = creds.get_access_token().await?;
-                request.header("Authorization", format!("Bearer {}", token))
-            }
-            GeminiAuth::NotSet => request,
-        };
-
-        let response = request.send().await.map_err(AgentError::RequestError)?;
-
-        let status = response.status();
-        if !status.is_success() {
-            // print the response body for debugging
-            error!("Gemini API request failed with status: {}", status);
-
-            let body = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "No response body".to_string());
-
-            return Err(AgentError::CompletionError(body, status));
-        }
-
-        Ok(response)
     }
 
     /// Sends a chat completion request to the OpenAI API. This is a rust-only method
@@ -268,7 +278,15 @@ impl GeminiClient {
             serialized_prompt
         );
 
-        let response = self.make_request(&prompt.model, &serialized_prompt).await?;
+        let response = GeminiRequestClient::make_request(
+            &self.client,
+            &self.config,
+            &self.auth,
+            &prompt.model,
+            &serialized_prompt,
+        )
+        .await?;
+
         let chat_response: GenerateContentResponse = response.json().await?;
         debug!("Chat completion successful");
 
@@ -292,7 +310,15 @@ impl GeminiClient {
         let request = serde_json::to_value(GeminiEmbeddingRequest::new(inputs, config))
             .map_err(AgentError::SerializationError)?;
 
-        let response = self.make_request(&model, &request).await?;
+        let response = GeminiRequestClient::make_request(
+            &self.client,
+            &self.config,
+            &self.auth,
+            &model,
+            &request,
+        )
+        .await?;
+
         let embedding_response: GeminiEmbeddingResponse = response.json().await?;
 
         Ok(EmbeddingResponse::Gemini(embedding_response))
