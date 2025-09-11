@@ -99,13 +99,13 @@ impl CredentialBuilder {
 }
 
 #[derive(Debug)]
-pub enum GeminiAuth {
+pub enum GoogleAuth {
     ApiKey(String),
     GoogleCredentials(GoogleCredentials),
     NotSet,
 }
 
-impl GeminiAuth {
+impl GoogleAuth {
     /// Try to create authentication from environment variables
     /// This will first look for a `GEMINI_API_KEY`.
     /// If not found, it will attempt to use Google Application Credentials
@@ -133,88 +133,31 @@ impl GeminiAuth {
             }
         }
     }
+}
 
-    /// Get the appropriate base URL for this auth method
-    pub fn base_url(&self) -> String {
+pub enum GoogleUrl {
+    Gemini,
+    Vertex,
+}
+
+impl GoogleUrl {
+    /// Helper to get the root URL based on auth type
+    pub fn root_url(&self, auth: &GoogleAuth) -> String {
         match self {
-            Self::ApiKey(_) => {
+            GoogleUrl::Gemini => {
                 "https://generativelanguage.googleapis.com/v1beta/models".to_string()
             }
-            Self::GoogleCredentials(creds) => {
-                format!(
-                    "https://{}-aiplatform.googleapis.com/v1beta1/projects/{}/locations/{}/publishers/google/models",
-                    creds.location,
-                    creds.project_id,
-                    creds.location
-                )
-            }
-            Self::NotSet => "https://generativelanguage.googleapis.com/v1beta/models".to_string(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct GeminiApiConfig {
-    base_url: String,
-    service_type: GeminiServiceType,
-}
-
-impl GeminiApiConfig {
-    /// Create a new API configuration based on auth and service type
-    pub fn new(auth: &GeminiAuth, service_type: GeminiServiceType) -> Self {
-        let base_url = match auth {
-            GeminiAuth::ApiKey(_) => {
-                "https://generativelanguage.googleapis.com/v1beta/models".to_string()
-            }
-            GeminiAuth::GoogleCredentials(creds) => {
-                // use the vertex AI endpoint format
-                format!(
-                    "https://{}-aiplatform.googleapis.com/v1beta1/projects/{}/locations/{}/publishers/google/models",
-                    creds.location, creds.project_id, creds.location
-                )
-            }
-            GeminiAuth::NotSet => {
-                "https://generativelanguage.googleapis.com/v1beta/models".to_string()
-            }
-        };
-
-        Self {
-            base_url,
-            service_type,
-        }
-    }
-
-    /// Helper for constructing the full URL for a given model and auth method
-    pub fn build_url(&self, model: &str, auth: &GeminiAuth) -> String {
-        let endpoint = self.get_endpoint(auth);
-        match auth {
-            GeminiAuth::GoogleCredentials(_)
-                if matches!(self.service_type, GeminiServiceType::Embed) =>
-            {
-                // Vertex AI embedding uses models/{model}:predict
-                format!("{}/models/{}:{}", self.base_url, model, endpoint.path())
-            }
-            _ => {
-                // Standard format: {base_url}/{model}:{endpoint}
-                format!("{}/{}:{}", self.base_url, model, endpoint.path())
-            }
-        }
-    }
-
-    /// Get the appropriate endpoint based on service type and auth method
-    /// Currently generateContent is supported for both gemini and vertex AI
-    /// embedContent is supported for API key auth
-    /// predict is used for Vertex AI embeddings with Google credentials
-    /// # Arguments
-    /// * `auth`: The authentication method being used
-    /// # Returns
-    /// * `GeminiEndpoint`: The appropriate endpoint for the request
-    fn get_endpoint(&self, auth: &GeminiAuth) -> GeminiEndpoint {
-        match (&self.service_type, auth) {
-            (GeminiServiceType::Generate, _) => GeminiEndpoint::GenerateContent,
-            (GeminiServiceType::Embed, GeminiAuth::ApiKey(_)) => GeminiEndpoint::EmbedContent,
-            (GeminiServiceType::Embed, GeminiAuth::GoogleCredentials(_)) => GeminiEndpoint::Predict,
-            (GeminiServiceType::Embed, GeminiAuth::NotSet) => GeminiEndpoint::EmbedContent,
+            GoogleUrl::Vertex => match auth {
+                GoogleAuth::GoogleCredentials(creds) => {
+                    format!(
+                        "https://{}-aiplatform.googleapis.com/v1beta1/projects/{}/locations/{}/publishers/google/models",
+                        creds.location,
+                        creds.project_id,
+                        creds.location
+                    )
+                }
+                _ => "https://generativelanguage.googleapis.com/v1beta/models".to_string(),
+            },
         }
     }
 }

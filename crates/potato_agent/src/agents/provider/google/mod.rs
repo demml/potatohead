@@ -4,3 +4,4 @@ pub use types::*;
 pub mod auth;
 pub mod error;
 pub mod gemini;
+pub mod traits;

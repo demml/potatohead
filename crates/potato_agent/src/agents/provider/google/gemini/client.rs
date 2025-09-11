@@ -1,6 +1,6 @@
 use crate::agents::embed::EmbeddingResponse;
 use crate::agents::error::AgentError;
-use crate::agents::provider::google::auth::GeminiAuth;
+use crate::agents::provider::google::auth::{GeminiAuth, GoogleAuth, GoogleUrls};
 use crate::agents::provider::google::error::GoogleError;
 use crate::agents::provider::google::GeminiEmbeddingRequest;
 use crate::agents::provider::google::{
@@ -25,18 +25,12 @@ pub enum GeminiServiceType {
     Embed,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GeminiEndpoint {
-    GenerateContent,
-    EmbedContent,
-}
-
-impl GeminiEndpoint {
-    /// Get the endpoint path string
-    fn path(&self) -> &'static str {
+impl GeminiServiceType {
+    /// Get the service type string
+    fn endpoint(&self) -> &'static str {
         match self {
-            Self::GenerateContent => "generateContent",
-            Self::EmbedContent => "embedContent",
+            Self::Generate => "generateContent",
+            Self::Embed => "embedContent",
         }
     }
 }
@@ -49,22 +43,8 @@ pub struct GeminiApiConfig {
 
 impl GeminiApiConfig {
     /// Create a new API configuration based on auth and service type
-    pub fn new(auth: &GeminiAuth, service_type: GeminiServiceType) -> Self {
-        let base_url = match auth {
-            GeminiAuth::ApiKey(_) => {
-                "https://generativelanguage.googleapis.com/v1beta/models".to_string()
-            }
-            GeminiAuth::GoogleCredentials(creds) => {
-                // use the vertex AI endpoint format
-                format!(
-                    "https://{}-aiplatform.googleapis.com/v1beta1/projects/{}/locations/{}/publishers/google/models",
-                    creds.location, creds.project_id, creds.location
-                )
-            }
-            GeminiAuth::NotSet => {
-                "https://generativelanguage.googleapis.com/v1beta/models".to_string()
-            }
-        };
+    pub fn new(auth: &GoogleAuth, service_type: GeminiServiceType) -> Self {
+        let base_url = GoogleUrl::Gemini.root_url(auth);
 
         Self {
             base_url,
@@ -73,20 +53,13 @@ impl GeminiApiConfig {
     }
 
     /// Helper for constructing the full URL for a given model and auth method
-    pub fn build_url(&self, model: &str, auth: &GeminiAuth) -> String {
-        let endpoint = self.get_endpoint(auth);
-        match auth {
-            GeminiAuth::GoogleCredentials(_)
-                if matches!(self.service_type, GeminiServiceType::Embed) =>
-            {
-                // Vertex AI embedding uses models/{model}:predict
-                format!("{}/models/{}:{}", self.base_url, model, endpoint.path())
-            }
-            _ => {
-                // Standard format: {base_url}/{model}:{endpoint}
-                format!("{}/{}:{}", self.base_url, model, endpoint.path())
-            }
-        }
+    /// # Arguments
+    /// * `model`: The model to use for the request
+    /// # Returns
+    /// * `String`: The full URL for the request
+    pub fn build_url(&self, model: &str) -> String {
+        let endpoint = self.get_endpoint();
+        format!("{}/{}:{}", self.base_url, model, endpoint.path())
     }
 
     /// Get the appropriate endpoint based on service type and auth method
@@ -97,13 +70,8 @@ impl GeminiApiConfig {
     /// * `auth`: The authentication method being used
     /// # Returns
     /// * `GeminiEndpoint`: The appropriate endpoint for the request
-    fn get_endpoint(&self, auth: &GeminiAuth) -> GeminiEndpoint {
-        match (&self.service_type, auth) {
-            (GeminiServiceType::Generate, _) => GeminiEndpoint::GenerateContent,
-            (GeminiServiceType::Embed, GeminiAuth::ApiKey(_)) => GeminiEndpoint::EmbedContent,
-            (GeminiServiceType::Embed, GeminiAuth::GoogleCredentials(_)) => GeminiEndpoint::Predict,
-            (GeminiServiceType::Embed, GeminiAuth::NotSet) => GeminiEndpoint::EmbedContent,
-        }
+    fn get_endpoint(&self) -> &'static str {
+        &self.service_type.endpoint()
     }
 }
 
