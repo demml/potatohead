@@ -1,6 +1,6 @@
 use crate::error::MockError;
 use mockito;
-use potato_agent::agents::provider::{gemini::GenerateContentResponse, openai::OpenAIChatResponse};
+use potato_provider::{GenerateContentResponse, OpenAIChatResponse};
 use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::openai::embedding::OpenAIEmbeddingResponse;
 use pyo3::prelude::*;

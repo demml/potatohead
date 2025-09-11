@@ -1,3 +1,4 @@
+use potato_type::google::predict::PredictResponse;
 use potato_type::google::EmbeddingConfigTrait;
 use potato_type::Provider;
 
@@ -113,6 +114,7 @@ impl Embedder {
 pub enum EmbeddingResponse {
     OpenAI(OpenAIEmbeddingResponse),
     Gemini(GeminiEmbeddingResponse),
+    Vertex(PredictResponse), // Vertex uses the same response structure as Gemini
 }
 
 impl EmbeddingResponse {
@@ -130,6 +132,13 @@ impl EmbeddingResponse {
         }
     }
 
+    pub fn to_vertex_response(&self) -> Result<&PredictResponse, ProviderError> {
+        match self {
+            EmbeddingResponse::Vertex(response) => Ok(response),
+            _ => Err(ProviderError::InvalidResponseType("Vertex".to_string())),
+        }
+    }
+
     pub fn into_py_bound_any<'py>(
         &self,
         py: Python<'py>,
@@ -137,6 +146,7 @@ impl EmbeddingResponse {
         match self {
             EmbeddingResponse::OpenAI(response) => Ok(response.into_py_bound_any(py)?),
             EmbeddingResponse::Gemini(response) => Ok(response.into_py_bound_any(py)?),
+            EmbeddingResponse::Vertex(response) => Ok(response.into_py_bound_any(py)?),
         }
     }
 
@@ -151,6 +161,7 @@ impl EmbeddingResponse {
             }
 
             EmbeddingResponse::Gemini(response) => Ok(&response.embedding.values),
+            EmbeddingResponse::Vertex(response) => Ok(&response.predictions),
         }
     }
 }

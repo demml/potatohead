@@ -41,7 +41,7 @@ impl ApiConfigExt for GeminiApiConfig {
         format!("{}/{}:{}", self.base_url, model, endpoint)
     }
 
-    fn set_auth_header(
+    async fn set_auth_header(
         &self,
         req: reqwest::RequestBuilder,
         auth: &GoogleAuth,

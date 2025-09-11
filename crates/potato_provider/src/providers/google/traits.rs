@@ -11,7 +11,7 @@ pub trait ApiConfigExt {
     /// Helper for constructing the full URL for a given model
     fn build_url(&self, model: &str) -> String;
 
-    fn set_auth_header(
+    async fn set_auth_header(
         &self,
         req: reqwest::RequestBuilder,
         auth: &GoogleAuth,
@@ -34,7 +34,7 @@ pub trait RequestClient {
         let url = config.build_url(model);
         debug!("Making request to API at URL: {}", url);
         let request = client.post(url).json(&object);
-        let request = config.set_auth_header(request, config.auth())?;
+        let request = config.set_auth_header(request, config.auth()).await?;
 
         let response = request.send().await.map_err(ProviderError::RequestError)?;
         let status = response.status();

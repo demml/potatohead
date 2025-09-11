@@ -8,6 +8,7 @@ license = "MIT"
 [dependencies]
 potato-agent = { workspace = true }
 potato-prompt = { workspace = true }
+potato-provider = { workspace = true }
 potato-type = { workspace = true }
 potato-workflow = { workspace = true }
 potato-util = { workspace = true }

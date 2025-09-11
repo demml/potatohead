@@ -7,8 +7,8 @@ pub use providers::{
     embed::{Embedder, EmbeddingConfig, EmbeddingResponse},
     google::{auth::GoogleAuth, types::*, GeminiClient, GenerateContentResponse},
     openai::{
-        CompletionTokenDetails, OpenAIChatMessage, OpenAIChatResponse, PromptTokenDetails,
-        ToolCall, Usage,
+        client::OpenAIClient, CompletionTokenDetails, OpenAIChatMessage, OpenAIChatResponse,
+        PromptTokenDetails, ToolCall, Usage,
     },
     traits::{LogProbExt, ResponseExt, ResponseLogProbs},
     types::ChatResponse,

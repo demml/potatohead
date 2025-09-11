@@ -7,7 +7,6 @@ use crate::{
 pub use potato_agent::agents::{
     agent::{Agent, PyAgent},
     task::{PyTask, Task, TaskStatus},
-    types::ChatResponse,
 };
 use potato_agent::PyAgentResponse;
 use potato_prompt::parse_response_to_json;

@@ -1,8 +1,4 @@
-use crate::agents::provider::google::client::GeminiServiceType;
-use crate::agents::provider::google::GeminiClient;
-use crate::agents::provider::openai::OpenAIClient;
 use crate::{
-    agents::client::GenAiClient,
     agents::error::AgentError,
     agents::task::Task,
     agents::types::{AgentResponse, PyAgentResponse},
@@ -11,8 +7,11 @@ use potato_prompt::prompt::settings::ModelSettings;
 use potato_prompt::{
     parse_response_to_json, prompt::parse_prompt, prompt::types::Message, Prompt, Role,
 };
-pub mod gemini;
-pub mod vertex;
+
+use potato_provider::{GenAiClient, OpenAIClient};
+
+use potato_provider::providers::types::ServiceType;
+use potato_provider::GeminiClient;
 use potato_type::Provider;
 use potato_util::create_uuid7;
 use pyo3::{prelude::*, IntoPyObjectExt};
@@ -26,7 +25,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;
-use tracing::{debug, error, instrument, warn};
+use tracing::{debug, instrument, warn};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Agent {
@@ -44,12 +43,10 @@ impl Agent {
         let client = match self.provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
             Provider::Gemini => {
-                GenAiClient::Gemini(GeminiClient::new(None, GeminiServiceType::Generate).await?)
+                GenAiClient::Gemini(GeminiClient::new(None, ServiceType::Generate).await?)
             }
             _ => {
-                let msg = "No provider specified in ModelSettings";
-                error!("{}", msg);
-                return Err(AgentError::UndefinedError(msg.to_string()));
+                return Err(AgentError::MissingProviderError);
             } // Add other providers here as needed
         };
 
@@ -67,12 +64,10 @@ impl Agent {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
             Provider::Gemini => {
-                GenAiClient::Gemini(GeminiClient::new(None, GeminiServiceType::Generate).await?)
+                GenAiClient::Gemini(GeminiClient::new(None, ServiceType::Generate).await?)
             }
             _ => {
-                let msg = "No provider specified in ModelSettings";
-                error!("{}", msg);
-                return Err(AgentError::UndefinedError(msg.to_string()));
+                return Err(AgentError::MissingProviderError);
             } // Add other providers here as needed
         };
 
@@ -215,12 +210,10 @@ impl Agent {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
             Provider::Gemini => {
-                GenAiClient::Gemini(GeminiClient::new(None, GeminiServiceType::Generate).await?)
+                GenAiClient::Gemini(GeminiClient::new(None, ServiceType::Generate).await?)
             }
             Provider::Undefined => {
-                let msg = "No provider specified in ModelSettings";
-                error!("{}", msg);
-                return Err(AgentError::UndefinedError(msg.to_string()));
+                return Err(AgentError::MissingProviderError);
             }
         };
 
@@ -350,8 +343,7 @@ impl PyAgent {
             None
         };
 
-        let runtime =
-            tokio::runtime::Runtime::new().map_err(|e| AgentError::RuntimeError(e.to_string()))?;
+        let runtime = tokio::runtime::Runtime::new()?;
 
         let agent = runtime.block_on(async { Agent::new(provider, system_instruction).await })?;
 

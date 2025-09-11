@@ -3,9 +3,9 @@ use crate::workflow::error::WorkflowError;
 pub use potato_agent::agents::{
     agent::Agent,
     task::{PyTask, Task, TaskStatus},
-    types::ChatResponse,
 };
 use potato_agent::AgentResponse;
+use potato_provider::ChatResponse;
 use pyo3::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;

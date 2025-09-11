@@ -1,6 +1,5 @@
 use baked_potato::LLMTestServer;
-use potato_agent::agents::embed::EmbeddingConfig;
-use potato_agent::Embedder;
+use potato_provider::{Embedder, EmbeddingConfig};
 use potato_type::google::GeminiEmbeddingConfig;
 use potato_type::openai::embedding::OpenAIEmbeddingConfig;
 use potato_type::Provider;

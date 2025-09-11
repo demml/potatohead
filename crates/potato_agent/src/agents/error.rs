@@ -15,12 +15,6 @@ pub enum AgentError {
     #[error("Failed to get environment variable: {0}")]
     EnvVarError(#[from] std::env::VarError),
 
-    #[error("Failed to retrieve GEMINI_API_KEY from the environment")]
-    MissingGeminiApiKeyError,
-
-    #[error("Failed to retrieve OPENAI_API_KEY from the environment")]
-    MissingOpenAIApiKeyError,
-
     #[error("Failed to extract client: {0}")]
     ClientExtractionError(String),
 
@@ -29,6 +23,9 @@ pub enum AgentError {
 
     #[error("Failed to create runtime: {0}")]
     CreateRuntimeError(#[source] std::io::Error),
+
+    #[error(transparent)]
+    SerializationError(#[from] serde_json::Error),
 
     #[error(transparent)]
     PromptError(#[from] PromptError),
@@ -52,7 +49,16 @@ pub enum AgentError {
     ProviderMismatch(String, String),
 
     #[error(transparent)]
-    GoogleError(#[from] crate::agents::provider::google::error::GoogleError),
+    ProviderError(#[from] potato_provider::error::ProviderError),
+
+    #[error("No provider specified in Agent")]
+    MissingProviderError,
+
+    #[error(transparent)]
+    TypeError(#[from] potato_type::TypeError),
+
+    #[error(transparent)]
+    StdIoError(#[from] std::io::Error),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {

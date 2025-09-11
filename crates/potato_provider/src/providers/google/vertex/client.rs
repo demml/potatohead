@@ -1,24 +1,23 @@
-pub mod client;
-use crate::agents::embed::EmbeddingResponse;
-use crate::agents::error::AgentError;
-use crate::agents::provider::google::auth::GeminiAuth;
-use crate::agents::provider::google::error::GoogleError;
-use crate::agents::provider::google::GeminiEmbeddingRequest;
-use crate::agents::provider::google::{
+use crate::error::ProviderError;
+use crate::providers::embed::EmbeddingResponse;
+use crate::providers::google::auth::{GoogleAuth, GoogleUrl};
+use crate::providers::google::traits::{ApiConfigExt, RequestClient};
+use crate::providers::google::GeminiEmbeddingRequest;
+use crate::providers::google::{
     Content, GeminiGenerateContentRequest, GenerateContentResponse, Part,
 };
-use crate::agents::provider::types::add_extra_body_to_prompt;
-use crate::agents::provider::types::build_http_client;
+use crate::providers::types::build_http_client;
+use crate::providers::types::{add_extra_body_to_prompt, ServiceType};
+
+use gcloud_auth::token;
 use potato_prompt::Prompt;
 use potato_type::google::EmbeddingConfigTrait;
 use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::Provider;
 use reqwest::Client;
-use reqwest::Response;
 use serde::Serialize;
-use serde_json::Value;
 use std::collections::HashMap;
-use tracing::{debug, error, instrument};
+use tracing::{debug, instrument};
 
 #[derive(Debug)]
 pub struct VertexApiConfig {
@@ -43,14 +42,17 @@ impl ApiConfigExt for VertexApiConfig {
         format!("{}/{}:{}", self.base_url, model, endpoint)
     }
 
-    fn set_auth_header(
+    async fn set_auth_header(
         &self,
         req: reqwest::RequestBuilder,
         auth: &GoogleAuth,
     ) -> Result<reqwest::RequestBuilder, ProviderError> {
         match auth {
-            GoogleAuth::ApiKey(api_key) => Ok(req.header("x-goog-api-key", api_key)),
-            GoogleAuth::GoogleCredentials(_) => Err(ProviderError::MissingAuthenticationError),
+            GoogleAuth::ApiKey(_) => Err(ProviderError::MissingAuthenticationError),
+            GoogleAuth::GoogleCredentials(token) => {
+                let token = token.get_access_token().await?;
+                Ok(req.bearer_auth(token))
+            }
             GoogleAuth::NotSet => Err(ProviderError::MissingAuthenticationError),
         }
     }
@@ -59,102 +61,53 @@ impl ApiConfigExt for VertexApiConfig {
         // Need to return the vertex endpoint here
         &self.service_type.vertex_endpoint()
     }
-}
 
-struct GeminiRequestClient;
-
-impl GeminiRequestClient {
-    /// Generic method for making requests to the Gemini API
-    /// # Arguments
-    /// * `client`: The HTTP client to use for the request
-    /// * `config`: The Gemini API configuration
-    /// * `auth`: The authentication method to use
-    /// * `model`: The model to use for the request
-    /// * `object`: The JSON body of the request
-    /// # Returns
-    /// * `Result<Response, AgentError>`: The HTTP response or an error
-    async fn make_request(
-        client: &Client,
-        config: &GeminiApiConfig,
-        auth: &GeminiAuth,
-        model: &str,
-        object: &Value,
-    ) -> Result<Response, AgentError> {
-        // Placeholder for potential shared request logic
-
-        let url = config.build_url(model, &auth);
-        debug!("Making request to Gemini API at URL: {}", url);
-        let mut request = client.post(url).json(&object);
-
-        // match on the auth type to set the appropriate headers
-        request = match auth {
-            GeminiAuth::ApiKey(api_key) => request.header("x-goog-api-key", api_key),
-            _ => request,
-        };
-
-        let response = request.send().await.map_err(AgentError::RequestError)?;
-        let status = response.status();
-        if !status.is_success() {
-            // print the response body for debugging
-            error!("Gemini API request failed with status: {}", status);
-
-            let body = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "No response body".to_string());
-
-            return Err(AgentError::CompletionError(body, status));
-        }
-
-        Ok(response)
+    fn auth(&self) -> &GoogleAuth {
+        &self.auth
     }
 }
 
+struct VertexRequestClient;
+impl RequestClient for VertexRequestClient {}
+
 #[derive(Debug)]
-pub struct GeminiClient {
+pub struct VertexClient {
     client: Client,
-    auth: GeminiAuth,
-    config: GeminiApiConfig,
+    config: VertexApiConfig,
     pub provider: Provider,
 }
 
-impl PartialEq for GeminiClient {
+impl PartialEq for VertexClient {
     fn eq(&self, other: &Self) -> bool {
         // Compare auth types without exposing internal details
         matches!(
-            (&self.auth, &other.auth),
-            (GeminiAuth::ApiKey(_), GeminiAuth::ApiKey(_))
+            (&self.config.auth, &other.config.auth),
+            (GoogleAuth::ApiKey(_), GoogleAuth::ApiKey(_))
                 | (
-                    GeminiAuth::GoogleCredentials(_),
-                    GeminiAuth::GoogleCredentials(_)
+                    GoogleAuth::GoogleCredentials(_),
+                    GoogleAuth::GoogleCredentials(_)
                 )
-                | (GeminiAuth::NotSet, GeminiAuth::NotSet)
+                | (GoogleAuth::NotSet, GoogleAuth::NotSet)
         ) && self.provider == other.provider
     }
 }
-impl GeminiClient {
-    /// Creates a new GeminiClient embedding instance. This is a shared method that can be used in both Python and Rust.
+
+impl VertexClient {
+    /// Creates a new VertexClient embedding instance. This is a shared method that can be used in both Python and Rust.
     ///
     /// # Arguments:
-    /// * `api_key`: The API key for authenticating with the Gemini API.
-    /// * `base_url`: The base URL for the Gemini API (default is the Gemini API URL).
-    /// * `headers`: Optional headers to include in the HTTP requests.
-    ///
+    /// * `service_type`: The type of service to use (e.g., Chat, Embedding).
     /// # Returns:
-    /// * `Result<GeminiClient, AgentError>`: Returns a `GeminiClient` instance on success or an `AgentError` on failure.
-    pub async fn new(
-        headers: Option<HashMap<String, String>>,
-        service_type: GeminiServiceType,
-    ) -> Result<Self, AgentError> {
-        let client = build_http_client(headers)?;
-        let auth = GeminiAuth::from_env().await?;
-        let config = GeminiApiConfig::new(&auth, service_type);
+    /// * `Result<VertexClient, AgentError>`: Returns a `VertexClient` instance on success or an `AgentError` on failure.
+    pub async fn new(service_type: ServiceType) -> Result<Self, ProviderError> {
+        let client = build_http_client(None)?;
+        let auth = GoogleAuth::from_env().await?;
+        let config = VertexApiConfig::new(auth, service_type);
 
         Ok(Self {
             client,
-            auth,
             config,
-            provider: Provider::Gemini,
+            provider: Provider::Vertex,
         })
     }
 
@@ -170,12 +123,12 @@ impl GeminiClient {
     /// * `Result<ChatResponse, AgentError>`: Returns a `ChatResponse` on success or an `AgentError` on failure.
     ///
     #[instrument(skip_all)]
-    pub async fn async_generate_content(
+    pub async fn generate_content(
         &self,
         prompt: &Prompt,
     ) -> Result<GenerateContentResponse, AgentError> {
         // Cant make a request without an API key
-        if let GeminiAuth::NotSet = self.auth {
+        if let GoogleAuth::NotSet = self.auth {
             return Err(GoogleError::MissingAuthenticationError.into());
         }
 
@@ -248,32 +201,18 @@ impl GeminiClient {
     }
 
     #[instrument(skip_all)]
-    pub async fn async_create_embedding<T>(
-        &self,
-        inputs: Vec<String>,
-        config: &T,
-    ) -> Result<EmbeddingResponse, AgentError>
+    pub async fn create_embedding<T>(&self, inputs: Value) -> Result<EmbeddingResponse, AgentError>
     where
         T: Serialize + EmbeddingConfigTrait,
     {
-        if let GeminiAuth::NotSet = self.auth {
+        if let GoogleAuth::NotSet = self.auth {
             return Err(GoogleError::MissingAuthenticationError.into());
         }
 
-        let model = config.get_model();
-        let request = serde_json::to_value(GeminiEmbeddingRequest::new(inputs, config))
-            .map_err(AgentError::SerializationError)?;
+        let response =
+            VertexRequestClient::make_request(&self.client, &self.config, &model, &inputs).await?;
 
-        let response = GeminiRequestClient::make_request(
-            &self.client,
-            &self.config,
-            &self.auth,
-            &model,
-            &request,
-        )
-        .await?;
-
-        let embedding_response: GeminiEmbeddingResponse = response.json().await?;
+        let embedding_response: GoogleEmbeddingResponse = response.json().await?;
 
         Ok(EmbeddingResponse::Gemini(embedding_response))
     }
