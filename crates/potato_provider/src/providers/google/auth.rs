@@ -5,7 +5,10 @@ use gcloud_auth::{project::Config, token::DefaultTokenSourceProvider};
 use std::env;
 use tracing::{debug, instrument};
 
-const SCOPES: [&str; 1] = ["https://www.googleapis.com/auth/cloud-platform"];
+const SCOPES: [&str; 2] = [
+    "https://www.googleapis.com/auth/cloud-platform",
+    "https://www.googleapis.com/auth/generative-language",
+];
 
 #[derive(Debug)]
 pub struct GoogleCredentials {
@@ -137,21 +140,28 @@ impl GoogleAuth {
 
 enum GoogleApiVersion {
     V1Beta,
+    V1Beta1, // This is super annoying that google can't keep this consistent
     V1,
 }
 
 impl GoogleApiVersion {
-    fn from_env() -> Self {
+    fn from_env() -> Option<Self> {
         match std::env::var("GOOGLE_API_VERSION") {
-            Ok(ver) if ver.to_lowercase() == "v1" => GoogleApiVersion::V1,
-            _ => GoogleApiVersion::V1Beta,
+            Ok(ver) => match ver.to_lowercase().as_str() {
+                "v1beta" => Some(GoogleApiVersion::V1Beta),
+                "v1beta1" => Some(GoogleApiVersion::V1Beta1),
+                "v1" => Some(GoogleApiVersion::V1),
+                _ => None,
+            },
+            Err(_) => None,
         }
     }
 
     fn as_str(&self) -> &'static str {
         match self {
-            GoogleApiVersion::V1Beta => "v1beta1",
+            GoogleApiVersion::V1Beta => "v1beta",
             GoogleApiVersion::V1 => "v1",
+            GoogleApiVersion::V1Beta1 => "v1beta1",
         }
     }
 }
@@ -166,17 +176,19 @@ impl GoogleUrl {
     pub fn base_url(&self, auth: &GoogleAuth) -> String {
         match self {
             GoogleUrl::Gemini => {
+                let version = GoogleApiVersion::from_env().unwrap_or(GoogleApiVersion::V1Beta);
                 format!(
                     "https://generativelanguage.googleapis.com/{}/models",
-                    GoogleApiVersion::from_env().as_str()
+                    version.as_str()
                 )
             }
             GoogleUrl::Vertex => match auth {
                 GoogleAuth::GoogleCredentials(creds) => {
+                    let version = GoogleApiVersion::from_env().unwrap_or(GoogleApiVersion::V1Beta1);
                     format!(
                         "https://{}-aiplatform.googleapis.com/{}/projects/{}/locations/{}/publishers/google/models",
                         creds.location,
-                        GoogleApiVersion::from_env().as_str(),
+                        version.as_str(),
                         creds.project_id,
                         creds.location
                     )
