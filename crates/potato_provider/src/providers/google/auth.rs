@@ -113,7 +113,6 @@ impl GoogleAuth {
     /// This will first look for a `GEMINI_API_KEY`.
     /// If not found, it will attempt to use Google Application Credentials
     /// to create a token source for authentication.
-    ///
     #[instrument(skip_all)]
     pub async fn from_env() -> Self {
         // First try API key (GEMINI_API_KEY or GOOGLE_API_KEY)
