@@ -8,7 +8,7 @@ use potato_prompt::{
     parse_response_to_json, prompt::parse_prompt, prompt::types::Message, Prompt, Role,
 };
 
-use potato_provider::{GenAiClient, OpenAIClient};
+use potato_provider::{providers::google::VertexClient, GenAiClient, OpenAIClient};
 
 use potato_provider::providers::types::ServiceType;
 use potato_provider::GeminiClient;
@@ -41,9 +41,12 @@ impl Agent {
     #[instrument(skip_all)]
     pub async fn rebuild_client(&self) -> Result<Self, AgentError> {
         let client = match self.provider {
-            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
+            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(ServiceType::Generate)?),
             Provider::Gemini => {
-                GenAiClient::Gemini(GeminiClient::new(None, ServiceType::Generate).await?)
+                GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
+            }
+            Provider::Vertex => {
+                GenAiClient::Vertex(VertexClient::new(ServiceType::Generate).await?)
             }
             _ => {
                 return Err(AgentError::MissingProviderError);
