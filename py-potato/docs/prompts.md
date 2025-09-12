@@ -8,9 +8,9 @@ Prompts are standardized objects for interacting with language models in Potato 
 
 | Parameter           | Type                                                                                                   | Description                                                                                                                                                                                                                                  | Default      |
 |---------------------|--------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|
-| `message`           | `str` | `Sequence[str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl]` | `Message` | `List[Message]` | `List[Dict[str, Any]]` | The main prompt content. Can be a string, a sequence of strings or media URLs, a Message object, a list of Message objects, or a list of dictionaries representing messages.                           | **Required** |
-| `model`             | `Optional[str]`                                                                                        | The model to use for the prompt. Required if `model_settings` is not provided. Defaults to `"undefined"` if not specified.                                                                            | `None`       |
-| `provider`          | `Optional[str]`                                                                                        | The provider to use for the prompt. Required if `model_settings` is not provided. Defaults to `"undefined"` if not specified.                                                                         | `None`       |
+| `message` | `str`<br>`Sequence[str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl]`<br>`Message`<br>`List[Message]`<br>`List[Dict[str, Any]]` | The main prompt content. Can be a string, a sequence of strings or media URLs, a Message object, a list of Message objects, or a list of dictionaries representing messages. | **Required** |
+| `model`             | `str`                                                                                        | The model to use for the prompt |**Required** |
+| `provider`          | `str`                                                                                        | The provider to use for the prompt | **Required** |
 | `system_instruction`| `Optional[str | List[str]]`                                                                           | System-level instructions to include in the prompt. Can be a string or a list of strings.                                                                                                             | `None`       |
 | `model_settings`    | `Optional[ModelSettings]`                                                                              | Model settings for the prompt. If not provided, no additional model settings are used.                                                                         | `None`       |
 | `response_format`   | `Optional[Any]`                                                                                        | Specifies the response format for structured outputs. Supports Pydantic `BaseModel` classes and the PotatoHead `Score` class. The format will be parsed into a JSON schema for the LLM API.           | `None`       |
@@ -130,6 +130,14 @@ prompt = Prompt(
 ```
 
 ### Prompt with ModelSettings
+
+If you want to customize model settings like temperature, max tokens, or any provider-specific parameters, you can use the `ModelSettings` class, which accepts one of `OpenAIChatSettings` or `GeminiChatSettings`.
+These settings will be auto-injected into the request based up the provider specification when the prompt is executed.
+
+Settings:
+
+- OpenAIChatSettings: [Documentation](./docs/api/openai.md#potato_head.openai._openai.OpenAIChatSettings)
+- GeminiSettings: [Documentation](./docs/api/google.md#potato_head.google._google.GeminiChatSettings)
 
 ```python
 from potato_head import Prompt, ModelSettings

@@ -49,7 +49,7 @@ prompt = Prompt(
 
 1. What model to use. This can be any model supported by the provider.
 2. The potato provider to use. `Potato Head` currently supports the `OpenAI` spec and gemini spec, with more to come in the future
-3. The message to send to the model. Check out the [Prompt Guide](./docs/api/potato_head.md#potato_head._potato_head#Prompt) for more details on how to structure your prompts.
+3. The message to send to the model. Check out the [Prompt Guide](./docs/api/potato_head.md#potato_head._potato_head.Prompt.__init__) for more details on how to structure your prompts.
 
 ### How do we make the potato talk?
 
