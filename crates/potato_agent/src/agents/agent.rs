@@ -160,7 +160,7 @@ impl Agent {
         self.append_system_instructions(&mut prompt);
 
         // Use the client to execute the task
-        let chat_response = self.client.execute(&prompt).await?;
+        let chat_response = self.client.generate_content(&prompt).await?;
 
         Ok(AgentResponse::new(task.id.clone(), chat_response))
     }
@@ -173,7 +173,7 @@ impl Agent {
         self.append_system_instructions(&mut prompt);
 
         // Use the client to execute the task
-        let chat_response = self.client.execute(&prompt).await?;
+        let chat_response = self.client.generate_content(&prompt).await?;
 
         Ok(AgentResponse::new(chat_response.id(), chat_response))
     }
@@ -196,7 +196,7 @@ impl Agent {
         };
 
         // Now do the async work without holding the lock
-        let chat_response = self.client.execute(&prompt).await?;
+        let chat_response = self.client.generate_content(&prompt).await?;
 
         Ok(AgentResponse::new(task_id, chat_response))
     }

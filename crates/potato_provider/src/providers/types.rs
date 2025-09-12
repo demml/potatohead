@@ -7,20 +7,20 @@ use potato_prompt::{
     prompt::{PromptContent, Role},
     Message,
 };
+use potato_type::google::predict::PredictResponse;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use tracing::debug;
-use tracing::instrument;
-use tracing::warn;
-
 use reqwest::header::HeaderName;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
+use tracing::debug;
+use tracing::instrument;
+use tracing::warn;
 const TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug)]
@@ -50,6 +50,8 @@ impl ServiceType {
 pub enum ChatResponse {
     OpenAI(OpenAIChatResponse),
     Gemini(GenerateContentResponse),
+    VertexGenerate(GenerateContentResponse),
+    VertexPredict(PredictResponse),
 }
 
 #[pymethods]
@@ -59,12 +61,16 @@ impl ChatResponse {
         match self {
             ChatResponse::OpenAI(resp) => Ok(resp.clone().into_bound_py_any(py)?),
             ChatResponse::Gemini(resp) => Ok(resp.clone().into_bound_py_any(py)?),
+            ChatResponse::VertexGenerate(resp) => Ok(resp.clone().into_bound_py_any(py)?),
+            ChatResponse::VertexPredict(resp) => Ok(resp.clone().into_bound_py_any(py)?),
         }
     }
     pub fn __str__(&self) -> String {
         match self {
             ChatResponse::OpenAI(resp) => PyHelperFuncs::__str__(resp),
             ChatResponse::Gemini(resp) => PyHelperFuncs::__str__(resp),
+            ChatResponse::VertexGenerate(resp) => PyHelperFuncs::__str__(resp),
+            ChatResponse::VertexPredict(resp) => PyHelperFuncs::__str__(resp),
         }
     }
 }
@@ -74,6 +80,8 @@ impl ChatResponse {
         match self {
             ChatResponse::OpenAI(resp) => resp.choices.is_empty(),
             ChatResponse::Gemini(resp) => resp.candidates.is_empty(),
+            ChatResponse::VertexGenerate(resp) => resp.candidates.is_empty(),
+            _ => true,
         }
     }
 
@@ -108,6 +116,12 @@ impl ChatResponse {
 
                 Ok(vec![Message::from(PromptContent::Str(content), role)])
             }
+            _ => {
+                warn!("to_message not implemented for this provider");
+                Err(ProviderError::NotImplementedError(
+                    "to_message not implemented for this provider".to_string(),
+                ))
+            }
         }
     }
 
@@ -115,6 +129,10 @@ impl ChatResponse {
         match self {
             ChatResponse::OpenAI(resp) => Ok(resp.clone().into_bound_py_any(py)?),
             ChatResponse::Gemini(resp) => Ok(resp.clone().into_bound_py_any(py)?),
+            ChatResponse::VertexGenerate(resp) => Ok(resp.clone().into_bound_py_any(py)?),
+            _ => Err(ProviderError::NotImplementedError(
+                "to_python not implemented for this provider".to_string(),
+            )),
         }
     }
 
@@ -122,6 +140,10 @@ impl ChatResponse {
         match self {
             ChatResponse::OpenAI(resp) => resp.id.clone(),
             ChatResponse::Gemini(resp) => resp.response_id.clone().unwrap_or("".to_string()),
+            ChatResponse::VertexGenerate(resp) => {
+                resp.response_id.clone().unwrap_or("".to_string())
+            }
+            _ => "".to_string(),
         }
     }
 
@@ -136,6 +158,15 @@ impl ChatResponse {
                 .first()
                 .and_then(|c| c.content.parts.first())
                 .and_then(|part| part.text.as_ref().map(|s| s.to_string())),
+            ChatResponse::VertexGenerate(resp) => resp
+                .candidates
+                .first()
+                .and_then(|c| c.content.parts.first())
+                .and_then(|part| part.text.as_ref().map(|s| s.to_string())),
+            _ => {
+                warn!("content not implemented for this provider");
+                None
+            }
         }
     }
 
@@ -163,6 +194,28 @@ impl ChatResponse {
                 } else {
                     serde_json::to_value(&function_calls).ok()
                 }
+            }
+
+            ChatResponse::VertexGenerate(resp) => {
+                // Collect all function calls from all parts in the first candidate
+                let function_calls: Vec<&FunctionCall> = resp
+                    .candidates
+                    .first()?
+                    .content
+                    .parts
+                    .iter()
+                    .filter_map(|part| part.function_call.as_ref())
+                    .collect();
+
+                if function_calls.is_empty() {
+                    None
+                } else {
+                    serde_json::to_value(&function_calls).ok()
+                }
+            }
+            _ => {
+                warn!("tool_calls not implemented for this provider");
+                None
             }
         }
     }

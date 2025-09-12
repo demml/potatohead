@@ -87,6 +87,18 @@ pub enum ProviderError {
 
     #[error("Failed to retrieve OPENAI_API_KEY from the environment")]
     MissingOpenAIApiKeyError,
+
+    #[error("{0}")]
+    NotImplementedError(String),
+
+    #[error("Method does not support PredictRequest")]
+    DoesNotSupportPredictRequest,
+
+    #[error("Method does not support array inputs")]
+    DoesNotSupportArray,
+
+    #[error("{0}")]
+    InvalidInputType(String),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for ProviderError {

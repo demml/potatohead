@@ -1,9 +1,9 @@
 use crate::TypeError;
 use potato_util::{json_to_pyobject, pyobject_to_json};
 use pyo3::prelude::*;
+use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[pyclass]
 #[serde(rename_all = "camelCase", default)]
@@ -69,5 +69,33 @@ impl PredictResponse {
     pub fn metadata<'py>(&self, py: Python<'py>) -> Result<PyObject, TypeError> {
         let obj = json_to_pyobject(py, &self.metadata)?;
         Ok(obj)
+    }
+}
+
+impl PredictResponse {
+    pub fn into_py_bound_any<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        let bound = Py::new(py, self.clone())?;
+        Ok(bound.into_bound_py_any(py)?)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[pyclass]
+#[serde(rename_all = "camelCase", default)]
+pub struct Parameters {
+    inner: Value,
+}
+
+#[pymethods]
+impl Parameters {
+    #[getter]
+    pub fn inner<'py>(&self, py: Python<'py>) -> Result<PyObject, TypeError> {
+        let obj = json_to_pyobject(py, &self.inner)?;
+        Ok(obj)
+    }
+    #[new]
+    pub fn new(obj: Bound<'_, PyAny>) -> Self {
+        let inner = pyobject_to_json(&obj).unwrap_or(Value::Null);
+        Self { inner }
     }
 }

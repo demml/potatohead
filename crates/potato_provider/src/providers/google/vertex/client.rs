@@ -1,22 +1,18 @@
 use crate::error::ProviderError;
-use crate::providers::embed::EmbeddingResponse;
 use crate::providers::google::auth::{GoogleAuth, GoogleUrl};
 use crate::providers::google::traits::{ApiConfigExt, RequestClient};
-use crate::providers::google::GeminiEmbeddingRequest;
 use crate::providers::google::{
     Content, GeminiGenerateContentRequest, GenerateContentResponse, Part,
 };
 use crate::providers::types::build_http_client;
 use crate::providers::types::{add_extra_body_to_prompt, ServiceType};
 
-use gcloud_auth::token;
 use potato_prompt::Prompt;
+use potato_type::google::predict::{PredictRequest, PredictResponse};
 use potato_type::google::EmbeddingConfigTrait;
-use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::Provider;
 use reqwest::Client;
 use serde::Serialize;
-use std::collections::HashMap;
 use tracing::{debug, instrument};
 
 #[derive(Debug)]
@@ -126,10 +122,10 @@ impl VertexClient {
     pub async fn generate_content(
         &self,
         prompt: &Prompt,
-    ) -> Result<GenerateContentResponse, AgentError> {
+    ) -> Result<GenerateContentResponse, ProviderError> {
         // Cant make a request without an API key
-        if let GoogleAuth::NotSet = self.auth {
-            return Err(GoogleError::MissingAuthenticationError.into());
+        if let GoogleAuth::NotSet = self.config.auth {
+            return Err(ProviderError::MissingAuthenticationError);
         }
 
         let settings = &prompt.model_settings;
@@ -145,7 +141,7 @@ impl VertexClient {
         let system_instruction: Option<Content> = if prompt.system_instruction.is_empty() {
             None
         } else {
-            let parts: Result<Vec<Part>, AgentError> = prompt
+            let parts: Result<Vec<Part>, ProviderError> = prompt
                 .system_instruction
                 .iter()
                 .map(Part::from_message)
@@ -172,8 +168,7 @@ impl VertexClient {
         };
 
         // serialize the prompt to JSON
-        let mut serialized_prompt =
-            serde_json::to_value(chat_request).map_err(AgentError::SerializationError)?;
+        let mut serialized_prompt = serde_json::to_value(chat_request)?;
 
         // if settings.extra_body is provided, merge it with the prompt
         if let Some(extra_body) = settings.extra_body() {
@@ -185,10 +180,9 @@ impl VertexClient {
             serialized_prompt
         );
 
-        let response = GeminiRequestClient::make_request(
+        let response = VertexRequestClient::make_request(
             &self.client,
             &self.config,
-            &self.auth,
             &prompt.model,
             &serialized_prompt,
         )
@@ -201,19 +195,21 @@ impl VertexClient {
     }
 
     #[instrument(skip_all)]
-    pub async fn create_embedding<T>(&self, inputs: Value) -> Result<EmbeddingResponse, AgentError>
-    where
-        T: Serialize + EmbeddingConfigTrait,
-    {
-        if let GoogleAuth::NotSet = self.auth {
-            return Err(GoogleError::MissingAuthenticationError.into());
+    pub async fn predict(
+        &self,
+        inputs: PredictRequest,
+        model: &str,
+    ) -> Result<PredictResponse, ProviderError> {
+        if let GoogleAuth::NotSet = self.config.auth {
+            return Err(ProviderError::MissingAuthenticationError.into());
         }
 
+        let request = serde_json::to_value(inputs)?;
         let response =
-            VertexRequestClient::make_request(&self.client, &self.config, &model, &inputs).await?;
+            VertexRequestClient::make_request(&self.client, &self.config, &model, &request).await?;
 
-        let embedding_response: GoogleEmbeddingResponse = response.json().await?;
+        let predict_response: PredictResponse = response.json().await?;
 
-        Ok(EmbeddingResponse::Gemini(embedding_response))
+        Ok(predict_response)
     }
 }

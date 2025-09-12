@@ -81,6 +81,11 @@ impl ModelSettings {
                 ModelSettings::GoogleChat(_) => Ok(()),
                 _ => Err(PromptError::InvalidModelSettings),
             },
+            Provider::Vertex => match self {
+                ModelSettings::GoogleChat(_) => Ok(()),
+                _ => Err(PromptError::InvalidModelSettings),
+            },
+
             Provider::Undefined => match self {
                 ModelSettings::OpenAIChat(_) => Ok(()),
                 ModelSettings::GoogleChat(_) => Ok(()),

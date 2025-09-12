@@ -6,6 +6,7 @@ use crate::providers::openai::{
 };
 use crate::providers::types::add_extra_body_to_prompt;
 use crate::providers::types::build_http_client;
+use crate::providers::types::ServiceType;
 use potato_prompt::Prompt;
 use potato_type::openai::embedding::OpenAIEmbeddingResponse;
 use potato_type::{Common, Provider};
@@ -14,7 +15,6 @@ use reqwest::Client;
 use reqwest::Response;
 use serde::Serialize;
 use serde_json::Value;
-use std::collections::HashMap;
 use tracing::{debug, error, instrument};
 
 enum OpenAIPaths {
@@ -28,6 +28,10 @@ impl OpenAIPaths {
             OpenAIPaths::ChatCompletions => "chat/completions",
             OpenAIPaths::Embeddings => "embeddings",
         }
+    }
+
+    fn base_url() -> String {
+        "https://api.openai.com/v1".to_string()
     }
 }
 
@@ -58,12 +62,8 @@ impl OpenAIClient {
     ///
     /// # Returns:
     /// * `Result<OpenAIClient, ProviderError>`: Returns an `OpenAIClient` instance on success or an `ProviderError` on failure.
-    pub fn new(
-        api_key: Option<String>,
-        base_url: Option<String>,
-        headers: Option<HashMap<String, String>>,
-    ) -> Result<Self, ProviderError> {
-        let client = build_http_client(headers)?;
+    pub fn new(service_type: ServiceType) -> Result<Self, ProviderError> {
+        let client = build_http_client(None)?;
 
         //  if optional api_key is None, check the environment variable `OPENAI_API_KEY`
         let (api_key, api_key_set) = match api_key {
@@ -82,8 +82,8 @@ impl OpenAIClient {
 
         // if optional base_url is None, use the default OpenAI API URL
         let env_base_url = std::env::var("OPENAI_API_URL").ok();
-        let base_url = base_url
-            .unwrap_or_else(|| env_base_url.unwrap_or_else(|| Provider::OpenAI.url().to_string()));
+        let base_url =
+            base_url.unwrap_or_else(|| env_base_url.unwrap_or_else(|| OpenAIPaths::base_url()));
 
         debug!("Creating OpenAIClient with base URL with key: {}", base_url);
 

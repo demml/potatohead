@@ -5,14 +5,34 @@ use potato_type::Provider;
 use crate::error::ProviderError;
 use crate::providers::client::GenAiClient;
 use crate::providers::google::GeminiClient;
+use crate::providers::google::VertexClient;
 use crate::providers::openai::OpenAIClient;
 use crate::providers::types::ServiceType;
+use potato_type::google::predict::PredictRequest;
 use potato_type::google::GeminiEmbeddingConfig;
 use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::openai::embedding::{OpenAIEmbeddingConfig, OpenAIEmbeddingResponse};
 use pyo3::prelude::*;
 use serde::Serialize;
 use std::sync::Arc;
+/// Input types for embedding creation
+#[derive(Debug, Clone)]
+pub enum EmbeddingInput {
+    Texts(Vec<String>),
+    PredictRequest(PredictRequest),
+}
+
+impl From<Vec<String>> for EmbeddingInput {
+    fn from(texts: Vec<String>) -> Self {
+        EmbeddingInput::Texts(texts)
+    }
+}
+
+impl From<PredictRequest> for EmbeddingInput {
+    fn from(request: PredictRequest) -> Self {
+        EmbeddingInput::PredictRequest(request)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(untagged)]
@@ -82,6 +102,7 @@ use tracing::error;
 pub struct Embedder {
     client: GenAiClient,
     config: EmbeddingConfig,
+    provider: Provider,
 }
 
 impl Embedder {
@@ -95,6 +116,7 @@ impl Embedder {
             Provider::Gemini => {
                 GenAiClient::Gemini(GeminiClient::new(None, ServiceType::Embed).await?)
             }
+            Provider::Vertex => GenAiClient::Vertex(VertexClient::new(ServiceType::Embed).await?),
             _ => {
                 let msg = "No provider specified in ModelSettings";
                 error!("{}", msg);
@@ -102,10 +124,14 @@ impl Embedder {
             } // Add other providers here as needed
         };
 
-        Ok(Self { client, config })
+        Ok(Self {
+            client,
+            config,
+            provider,
+        })
     }
 
-    pub async fn embed(&self, inputs: Vec<String>) -> Result<EmbeddingResponse, ProviderError> {
+    pub async fn embed(&self, inputs: EmbeddingInput) -> Result<EmbeddingResponse, ProviderError> {
         // Implementation for creating an embedding
         self.client.create_embedding(inputs, &self.config).await
     }
@@ -161,7 +187,9 @@ impl EmbeddingResponse {
             }
 
             EmbeddingResponse::Gemini(response) => Ok(&response.embedding.values),
-            EmbeddingResponse::Vertex(response) => Ok(&response.predictions),
+            _ => Err(ProviderError::InvalidResponseType(
+                "values not available for this response type".to_string(),
+            )),
         }
     }
 }
@@ -203,12 +231,28 @@ impl PyEmbedder {
     pub fn embed<'py>(
         &self,
         py: Python<'py>,
-        input: String,
+        input: Bound<'py, PyAny>,
     ) -> Result<Bound<'py, PyAny>, ProviderError> {
         let embedder = self.embedder.clone();
+
+        let embedding_input = if input.is_instance_of::<pyo3::types::PyList>() {
+            let texts: Vec<String> = input.extract()?;
+            EmbeddingInput::Texts(texts)
+        } else if input.is_instance_of::<pyo3::types::PyString>() {
+            let request: String = input.extract()?;
+            EmbeddingInput::Texts(vec![request])
+        } else if input.is_instance_of::<PredictRequest>() {
+            let request: PredictRequest = input.extract()?;
+            EmbeddingInput::PredictRequest(request)
+        } else {
+            return Err(ProviderError::InvalidInputType(
+                "Input must be a string, list of strings, or PredictRequest dict".to_string(),
+            ));
+        };
+
         let embeddings = self
             .runtime
-            .block_on(async { embedder.embed(vec![input]).await })?;
+            .block_on(async { embedder.embed(embedding_input).await })?;
         embeddings.into_py_bound_any(py)
     }
 }
