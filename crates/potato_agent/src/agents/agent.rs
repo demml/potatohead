@@ -65,9 +65,12 @@ impl Agent {
         system_instruction: Option<Vec<Message>>,
     ) -> Result<Self, AgentError> {
         let client = match provider {
-            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
+            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(ServiceType::Generate)?),
             Provider::Gemini => {
-                GenAiClient::Gemini(GeminiClient::new(None, ServiceType::Generate).await?)
+                GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
+            }
+            Provider::Vertex => {
+                GenAiClient::Vertex(VertexClient::new(ServiceType::Generate).await?)
             }
             _ => {
                 return Err(AgentError::MissingProviderError);
@@ -211,9 +214,12 @@ impl Agent {
     pub async fn from_model_settings(model_settings: &ModelSettings) -> Result<Self, AgentError> {
         let provider = model_settings.provider();
         let client = match provider {
-            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
+            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(ServiceType::Generate)?),
             Provider::Gemini => {
-                GenAiClient::Gemini(GeminiClient::new(None, ServiceType::Generate).await?)
+                GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
+            }
+            Provider::Vertex => {
+                GenAiClient::Vertex(VertexClient::new(ServiceType::Generate).await?)
             }
             Provider::Undefined => {
                 return Err(AgentError::MissingProviderError);
