@@ -5,6 +5,8 @@ BASE_DIR = os.path.join(os.path.dirname(__file__), "../python/potato_head")
 FOLDERS = [
     "logging",
     "mock",
+    "google",
+    "openai",
 ]
 
 

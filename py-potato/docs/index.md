@@ -5,7 +5,15 @@
 </div>
 
 
-Potato Head is considered a core/utility crate to both [opsml](https://github.com/demml/opsml) and [scouter](https://github.com/demml/scouter), providing essential rust and python components for building agentic workflows. At the current moment, only crates are published, which are then used in both opsml and scouter to provide user-friendly interfaces. The documentation contained in this repository is meant to help you understand the core concepts of potatohead and how to use it within `Opsml` and `Scouter`. 
+Potato Head is considered a core/utility crate to both [opsml](https://github.com/demml/opsml) and [scouter](https://github.com/demml/scouter), providing essential rust and python components for building agentic workflows. At the current moment, only crates are published, which are then used in both opsml and scouter to provide user-friendly python interfaces. The documentation contained in this repository is meant to help you understand the core concepts of potatohead and how to use it within `Opsml` and `Scouter`. 
+
+## Why?
+
+While `Potato Head` provides functionality for the basics of interacting with LLMs (standard prompts, content generation, embeddings, Agents, simple Workflows), it is not meant to be a full fledged agent framework or drop-in replacement for more feature-rich libraries like `Pydantic AI` or `Google ADK`. Instead, `Potato Head` was originally built to enable developers to standardize some parts of their LLM workflows:
+
+- Standardized prompt structure
+- Standardized LLM workflows structure for LLM evaluations at scale
+- A pure Rust implementation for low-latency LLM calls and workflow execution without the need for a Python runtime
 
 
 ## Creating a Talking Potato
@@ -41,6 +49,7 @@ prompt = Prompt(
 
 1. What model to use. This can be any model supported by the provider.
 2. The potato provider to use. `Potato Head` currently supports the `OpenAI` spec and gemini spec, with more to come in the future
+3. The message to send to the model. Check out the [Prompt Guide](./docs/api/potato_head.md#potato_head._potato_head#Prompt) for more details on how to structure your prompts.
 
 ### How do we make the potato talk?
 
