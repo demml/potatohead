@@ -34,7 +34,7 @@ pub enum ProviderError {
     #[error("Failed to extract embedding config. Check provider and config compatibility: {0}")]
     EmbeddingConfigExtractionError(String),
 
-    #[error("Missing authentication information. Failed to find GEMINI_API_KEY or Google credentials in environment variables.")]
+    #[error("Missing authentication information. Failed to find API_KEY or credentials in environment variables.")]
     MissingAuthenticationError,
 
     #[error("Unsupported content type")]

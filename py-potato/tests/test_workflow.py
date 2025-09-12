@@ -22,6 +22,7 @@ from pydantic_ai.models.test import TestModel
 # Sets up logging for tests
 RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
 
+
 models.ALLOW_MODEL_REQUESTS = False
 os.environ["OPENAI_API_KEY"] = "mock_api_key"
 
@@ -135,7 +136,9 @@ def test_potato_head_workflow():
         open_agent1 = Agent(Provider.OpenAI)
         open_agent2 = Agent(Provider.OpenAI)
 
-        workflow = Workflow(name="test_workflow")  # expand named argument to allow agents and tasks
+        workflow = Workflow(
+            name="test_workflow"
+        )  # expand named argument to allow agents and tasks
         workflow.add_agent(open_agent1)  # allow adding list of agents
         workflow.add_agent(open_agent2)
         workflow.add_task(  # allow adding list of tasks
@@ -214,7 +217,9 @@ def test_potato_head_workflow_structured_output():
         open_agent1 = Agent(Provider.OpenAI)
         open_agent2 = Agent(Provider.OpenAI)
 
-        workflow = Workflow(name="test_workflow")  # expand named argument to allow agents and tasks
+        workflow = Workflow(
+            name="test_workflow"
+        )  # expand named argument to allow agents and tasks
         workflow.add_agent(open_agent1)  # allow adding list of agents
         workflow.add_agent(open_agent2)
         workflow.add_task(  # allow adding list of tasks
@@ -348,7 +353,9 @@ def test_workflow_param_binding():
         )
 
         agent = Agent(Provider.OpenAI)
-        workflow = Workflow(name="test_workflow")  # expand named argument to allow agents and tasks
+        workflow = Workflow(
+            name="test_workflow"
+        )  # expand named argument to allow agents and tasks
         workflow.add_agent(agent)
         workflow.add_task(
             Task(
@@ -416,7 +423,19 @@ def test_agent_env_var_failure():
     agent = Agent(Provider.OpenAI)
     with pytest.raises(
         RuntimeError,
-        match="Failed to retrieve OPENAI_API_KEY from the environment",
+        match="Missing authentication information. Failed to find API_KEY or credentials in environment variables",
     ):
         # This should raise an error because the API key is not set
         agent.execute_prompt(prompt=prompt, output_type=Score)
+
+
+def test_openai_sdk():
+    with LLMTestServer() as server:
+        client = OpenAI(base_url=server.url)
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+            ],
+        )
