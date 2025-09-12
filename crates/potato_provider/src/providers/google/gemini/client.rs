@@ -15,7 +15,6 @@ use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::Provider;
 use reqwest::Client;
 use serde::Serialize;
-use std::collections::HashMap;
 use tracing::{debug, instrument};
 
 #[derive(Debug)]
@@ -97,11 +96,8 @@ impl GeminiClient {
     ///
     /// # Returns:
     /// * `Result<GeminiClient, AgentError>`: Returns a `GeminiClient` instance on success or an `AgentError` on failure.
-    pub async fn new(
-        headers: Option<HashMap<String, String>>,
-        service_type: ServiceType,
-    ) -> Result<Self, ProviderError> {
-        let client = build_http_client(headers)?;
+    pub async fn new(service_type: ServiceType) -> Result<Self, ProviderError> {
+        let client = build_http_client(None)?;
         let auth = GoogleAuth::from_env().await?;
         let config = GeminiApiConfig::new(auth, service_type);
 

@@ -11,6 +11,7 @@ pub trait ApiConfigExt {
     /// Helper for constructing the full URL for a given model
     fn build_url(&self, model: &str) -> String;
 
+    #[allow(async_fn_in_trait)]
     async fn set_auth_header(
         &self,
         req: reqwest::RequestBuilder,
@@ -25,6 +26,7 @@ pub trait ApiConfigExt {
 
 /// Generic trait for making requests to an either Gemini or Vertex AI API
 pub trait RequestClient {
+    #[allow(async_fn_in_trait)]
     async fn make_request(
         client: &reqwest::Client,
         config: &impl ApiConfigExt,

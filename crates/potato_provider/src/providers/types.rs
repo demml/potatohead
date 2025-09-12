@@ -23,7 +23,7 @@ use tracing::instrument;
 use tracing::warn;
 const TIMEOUT_SECS: u64 = 30;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ServiceType {
     Generate,
     Embed,
@@ -41,6 +41,13 @@ impl ServiceType {
         match self {
             Self::Generate => "generateContent",
             Self::Embed => "predict",
+        }
+    }
+
+    pub fn openai_endpoint(&self) -> &'static str {
+        match self {
+            Self::Generate => "chat/completions",
+            Self::Embed => "embeddings",
         }
     }
 }

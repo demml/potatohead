@@ -56,7 +56,7 @@ impl GenAiClient {
     pub async fn generate_content(&self, task: &Prompt) -> Result<ChatResponse, ProviderError> {
         match self {
             GenAiClient::OpenAI(client) => {
-                let response = client.async_chat_completion(task).await.inspect_err(|e| {
+                let response = client.chat_completion(task).await.inspect_err(|e| {
                     error!(error = %e, "Failed to complete chat");
                 })?;
                 Ok(ChatResponse::OpenAI(response))
@@ -87,9 +87,7 @@ impl GenAiClient {
             // Create embedding using OpenAI client that expects an array of strings
             GenAiClient::OpenAI(client) => {
                 let response = match inputs {
-                    EmbeddingInput::Texts(texts) => {
-                        client.async_create_embedding(texts, config).await
-                    }
+                    EmbeddingInput::Texts(texts) => client.create_embedding(texts, config).await,
                     _ => Err(ProviderError::DoesNotSupportPredictRequest),
                 }
                 .inspect_err(|e| {
@@ -123,9 +121,6 @@ impl GenAiClient {
                 Ok(EmbeddingResponse::Vertex(response))
             }
             GenAiClient::Undefined => Err(ProviderError::NoProviderError),
-            _ => Err(ProviderError::NotImplementedError(
-                "create_embedding not implemented for this provider".to_string(),
-            )),
         }
     }
 

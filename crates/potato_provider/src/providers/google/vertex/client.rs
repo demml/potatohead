@@ -9,10 +9,8 @@ use crate::providers::types::{add_extra_body_to_prompt, ServiceType};
 
 use potato_prompt::Prompt;
 use potato_type::google::predict::{PredictRequest, PredictResponse};
-use potato_type::google::EmbeddingConfigTrait;
 use potato_type::Provider;
 use reqwest::Client;
-use serde::Serialize;
 use tracing::{debug, instrument};
 
 #[derive(Debug)]

@@ -112,10 +112,8 @@ impl Embedder {
     /// * `config`: The configuration for the embedding.
     pub async fn new(provider: Provider, config: EmbeddingConfig) -> Result<Self, ProviderError> {
         let client = match provider {
-            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
-            Provider::Gemini => {
-                GenAiClient::Gemini(GeminiClient::new(None, ServiceType::Embed).await?)
-            }
+            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(ServiceType::Embed)?),
+            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(ServiceType::Embed).await?),
             Provider::Vertex => GenAiClient::Vertex(VertexClient::new(ServiceType::Embed).await?),
             _ => {
                 let msg = "No provider specified in ModelSettings";
