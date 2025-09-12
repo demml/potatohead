@@ -12,7 +12,7 @@ pub use potato_util::{
 pub use potato_provider::{
     providers::embed::{EmbeddingInput, PyEmbedder},
     ChatResponse, CompletionTokenDetails, Embedder, EmbeddingConfig, EmbeddingResponse,
-    GenAiClient, PromptTokenDetails, Usage,
+    GenAiClient, GoogleAuth, OpenAIAuth, PromptTokenDetails, Usage,
 };
 
 pub use potato_workflow::*;
