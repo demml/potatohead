@@ -40,6 +40,8 @@ As per Google's best practices, both the Gemini and Vertex APIs can be used for 
 
 If using the `Vertex` provider, `Potato Head` will attempt to use Google application credentials by default. Please refer to the [Google Application Default Credentials documentation](https://cloud.google.com/vertex-ai/generative-ai/docs/start/gcp-auth) for more information on how to set this up.
 
+**NOTE**: Google application credentials should work for both the `Gemini` and `Vertex` providers.
+
 ## Additional Providers
 We are currently working on adding support for additional providers, as well as expanding the functionality of existing providers. For instance, in the future `Provider.OpenAI` may evolve into `Provider.OpenAIChat`, `Provider.OpenAIImage`, `Provider.OpenAIResponse`, etc. This will allow for more granular control over the type of response you want to receive from the provider.
 
