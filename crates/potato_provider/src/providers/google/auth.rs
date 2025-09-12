@@ -142,7 +142,7 @@ pub enum GoogleUrl {
 
 impl GoogleUrl {
     /// Helper to get the root URL based on auth type
-    pub fn root_url(&self, auth: &GoogleAuth) -> String {
+    pub fn base_url(&self, auth: &GoogleAuth) -> String {
         match self {
             GoogleUrl::Gemini => {
                 "https://generativelanguage.googleapis.com/v1beta/models".to_string()

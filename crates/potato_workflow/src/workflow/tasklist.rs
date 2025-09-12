@@ -5,7 +5,6 @@ pub use potato_agent::agents::{
     task::{PyTask, Task, TaskStatus},
 };
 use potato_agent::AgentResponse;
-use potato_provider::ChatResponse;
 use pyo3::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;

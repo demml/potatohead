@@ -1,4 +1,4 @@
-use ::potato_head::agents::embed::PyEmbedder;
+use ::potato_head::PyEmbedder;
 use ::potato_head::{
     prompt::settings::ModelSettings, AudioUrl, BinaryContent, ChatResponse, CompletionTokenDetails,
     DocumentUrl, EventDetails, ImageUrl, Message, Prompt, PromptTokenDetails, Provider, PyAgent,

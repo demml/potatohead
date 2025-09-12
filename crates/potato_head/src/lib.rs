@@ -9,6 +9,11 @@ pub use potato_util::{
     pyobject_to_json, version, PyHelperFuncs,
 };
 
+pub use potato_provider::{
+    providers::embed::PyEmbedder, ChatResponse, CompletionTokenDetails, Embedder, EmbeddingConfig,
+    EmbeddingResponse, GenAiClient, PromptTokenDetails, Usage,
+};
+
 pub use potato_workflow::*;
 
 #[cfg(feature = "mock")]

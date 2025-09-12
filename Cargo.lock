@@ -1191,6 +1191,7 @@ dependencies = [
  "baked-potato",
  "potato-agent",
  "potato-prompt",
+ "potato-provider",
  "potato-type",
  "potato-util",
  "potato-workflow",

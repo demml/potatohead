@@ -26,7 +26,8 @@ pub struct GeminiApiConfig {
 
 impl ApiConfigExt for GeminiApiConfig {
     fn new(auth: GoogleAuth, service_type: ServiceType) -> Self {
-        let base_url = GoogleUrl::Gemini.root_url(&auth);
+        let env_base_url = std::env::var("GEMINI_API_URL").ok();
+        let base_url = env_base_url.unwrap_or_else(|| GoogleUrl::Gemini.base_url(&auth));
 
         Self {
             base_url,

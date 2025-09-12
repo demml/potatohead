@@ -22,7 +22,8 @@ pub struct VertexApiConfig {
 
 impl ApiConfigExt for VertexApiConfig {
     fn new(auth: GoogleAuth, service_type: ServiceType) -> Self {
-        let base_url = GoogleUrl::Vertex.root_url(&auth);
+        let env_base_url = std::env::var("GEMINI_API_URL").ok();
+        let base_url = env_base_url.unwrap_or_else(|| GoogleUrl::Vertex.base_url(&auth));
 
         Self {
             base_url,

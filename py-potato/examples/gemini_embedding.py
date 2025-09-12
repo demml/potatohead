@@ -3,7 +3,11 @@ from potato_head import Embedder, Provider
 from potato_head.google import GeminiEmbeddingConfig
 import numpy as np
 from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
+from google import genai
+from google.genai.types import EmbedContentConfig
 
+client = genai.Client()
+response = client.models.embed_content(
 
 RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
 
