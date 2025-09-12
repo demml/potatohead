@@ -100,7 +100,7 @@ impl VertexClient {
     /// * `Result<VertexClient, AgentError>`: Returns a `VertexClient` instance on success or an `AgentError` on failure.
     pub async fn new(service_type: ServiceType) -> Result<Self, ProviderError> {
         let client = build_http_client(None)?;
-        let auth = GoogleAuth::from_env().await?;
+        let auth = GoogleAuth::from_env().await;
         let config = VertexApiConfig::new(auth, service_type);
 
         Ok(Self {

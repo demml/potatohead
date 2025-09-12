@@ -115,12 +115,12 @@ impl GoogleAuth {
     /// to create a token source for authentication.
     ///
     #[instrument(skip_all)]
-    pub async fn from_env() -> Result<Self, ProviderError> {
+    pub async fn from_env() -> Self {
         // First try API key (GEMINI_API_KEY or GOOGLE_API_KEY)
         if let Ok(api_key) = std::env::var("GEMINI_API_KEY").or(std::env::var("GOOGLE_API_KEY")) {
             if !api_key.is_empty() {
                 debug!("Using GEMINI_API_KEY for authentication");
-                return Ok(Self::ApiKey(api_key));
+                return Self::ApiKey(api_key);
             }
         }
 
@@ -128,11 +128,11 @@ impl GoogleAuth {
         match create_token_provider().await {
             Ok(credentials) => {
                 debug!("Using Google Application Credentials for authentication");
-                Ok(Self::GoogleCredentials(credentials))
+                Self::GoogleCredentials(credentials)
             }
             Err(e) => {
                 debug!("Failed to create Google token provider: {}", e);
-                Ok(Self::NotSet)
+                Self::NotSet
             }
         }
     }

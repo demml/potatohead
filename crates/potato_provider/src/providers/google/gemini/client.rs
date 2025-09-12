@@ -106,7 +106,7 @@ impl GeminiClient {
     /// * `Result<GeminiClient, AgentError>`: Returns a `GeminiClient` instance on success or an `AgentError` on failure.
     pub async fn new(service_type: ServiceType) -> Result<Self, ProviderError> {
         let client = build_http_client(None)?;
-        let auth = GoogleAuth::from_env().await?;
+        let auth = GoogleAuth::from_env().await;
         let config = GeminiApiConfig::new(auth, service_type);
 
         Ok(Self {
