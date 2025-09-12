@@ -192,7 +192,9 @@ class DocumentUrl:
         """The format of the document URL."""
 
 class Message:
-    def __init__(self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl) -> None:
+    def __init__(
+        self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl
+    ) -> None:
         """Create a Message object.
 
         Args:
@@ -468,6 +470,7 @@ class Prompt:
 class Provider:
     OpenAI: "Provider"
     Gemini: "Provider"
+    Vertex: "Provider"
 
 class TaskStatus:
     Pending: "TaskStatus"
@@ -787,7 +790,9 @@ class Workflow:
         """
 
     @staticmethod
-    def model_validate_json(json_string: str, output_types: Optional[Dict[str, Any]]) -> "Workflow":
+    def model_validate_json(
+        json_string: str, output_types: Optional[Dict[str, Any]]
+    ) -> "Workflow":
         """Load a workflow from a JSON string.
 
         Args:
