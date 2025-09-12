@@ -29,6 +29,9 @@ pub struct GeminiEmbeddingConfig {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task_type: Option<EmbeddingTaskType>,
+
+    #[serde(skip_serializing)]
+    pub is_configured: bool,
 }
 
 #[pymethods]
@@ -45,11 +48,32 @@ impl GeminiEmbeddingConfig {
                 "Either 'model' or 'task_type' must be provided.".to_string(),
             ));
         }
+
+        let is_configured = output_dimensionality.is_some() || task_type.is_some();
+
         Ok(Self {
             model,
             output_dimensionality,
             task_type,
+            is_configured,
         })
+    }
+}
+
+impl GeminiEmbeddingConfig {
+    pub fn get_parameters_for_predict(&self) -> serde_json::Value {
+        let mut params = serde_json::Map::new();
+        if let Some(dim) = self.output_dimensionality {
+            params.insert("outputDimensionality".to_string(), serde_json::json!(dim));
+        }
+        if let Some(task) = &self.task_type {
+            params.insert("task_type".to_string(), serde_json::json!(task));
+        }
+        if params.is_empty() {
+            serde_json::Value::Null
+        } else {
+            serde_json::Value::Object(params)
+        }
     }
 }
 

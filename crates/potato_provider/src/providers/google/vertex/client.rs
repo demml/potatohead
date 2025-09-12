@@ -6,10 +6,10 @@ use crate::providers::google::{
 };
 use crate::providers::types::build_http_client;
 use crate::providers::types::{add_extra_body_to_prompt, ServiceType};
-
 use potato_prompt::Prompt;
 use potato_type::google::predict::{PredictRequest, PredictResponse};
 use potato_type::Provider;
+use reqwest::header::{HeaderValue, AUTHORIZATION};
 use reqwest::Client;
 use tracing::{debug, instrument};
 
@@ -45,8 +45,12 @@ impl ApiConfigExt for VertexApiConfig {
         match auth {
             GoogleAuth::ApiKey(_) => Err(ProviderError::MissingAuthenticationError),
             GoogleAuth::GoogleCredentials(token) => {
+                // we uses req.header instead of req.bearer_auth because get_access_token
+                // already returns the token with the "Bearer " prefix
                 let token = token.get_access_token().await?;
-                Ok(req.bearer_auth(token))
+                let mut auth_value = HeaderValue::from_str(&token)?;
+                auth_value.set_sensitive(true);
+                Ok(req.header(AUTHORIZATION, auth_value))
             }
             GoogleAuth::NotSet => Err(ProviderError::MissingAuthenticationError),
         }
@@ -54,7 +58,7 @@ impl ApiConfigExt for VertexApiConfig {
 
     fn get_endpoint(&self) -> &'static str {
         // Need to return the vertex endpoint here
-        &self.service_type.vertex_endpoint()
+        self.service_type.vertex_endpoint()
     }
 
     fn auth(&self) -> &GoogleAuth {
@@ -200,12 +204,12 @@ impl VertexClient {
         model: &str,
     ) -> Result<PredictResponse, ProviderError> {
         if let GoogleAuth::NotSet = self.config.auth {
-            return Err(ProviderError::MissingAuthenticationError.into());
+            return Err(ProviderError::MissingAuthenticationError);
         }
 
         let request = serde_json::to_value(inputs)?;
         let response =
-            VertexRequestClient::make_request(&self.client, &self.config, &model, &request).await?;
+            VertexRequestClient::make_request(&self.client, &self.config, model, &request).await?;
 
         let predict_response: PredictResponse = response.json().await?;
 

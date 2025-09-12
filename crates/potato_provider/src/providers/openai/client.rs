@@ -60,7 +60,7 @@ pub struct OpenAIApiConfig {
 impl OpenAIApiConfig {
     fn new(service_type: ServiceType) -> Result<Self, ProviderError> {
         let env_base_url = std::env::var("OPENAI_API_URL").ok();
-        let base_url = env_base_url.unwrap_or_else(|| OpenAIPaths::base_url());
+        let base_url = env_base_url.unwrap_or_else(OpenAIPaths::base_url);
         let auth = OpenAIAuth::from_env()?;
 
         Ok(Self {
@@ -87,7 +87,7 @@ impl OpenAIApiConfig {
 
     fn get_endpoint(&self) -> &'static str {
         // Need to return the gemini endpoint here
-        &self.service_type.openai_endpoint()
+        self.service_type.openai_endpoint()
     }
 }
 

@@ -6,7 +6,7 @@ use potato_head::google_types::{
         ThinkingConfig, ToolConfig, VoiceConfig, VoiceConfigMode,
     },
     predict::{PredictRequest, PredictResponse},
-    GeminiEmbeddingConfig, GeminiEmbeddingResponse,
+    EmbeddingTaskType, GeminiEmbeddingConfig, GeminiEmbeddingResponse,
 };
 use pyo3::prelude::*;
 
@@ -35,5 +35,6 @@ pub fn google(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<GeminiEmbeddingResponse>()?;
     m.add_class::<PredictRequest>()?;
     m.add_class::<PredictResponse>()?;
+    m.add_class::<EmbeddingTaskType>()?;
     Ok(())
 }

@@ -55,7 +55,7 @@ impl ApiConfigExt for GeminiApiConfig {
 
     fn get_endpoint(&self) -> &'static str {
         // Need to return the gemini endpoint here
-        &self.service_type.gemini_endpoint()
+        self.service_type.gemini_endpoint()
     }
 
     fn auth(&self) -> &GoogleAuth {
@@ -127,7 +127,7 @@ impl GeminiClient {
     ) -> Result<GenerateContentResponse, ProviderError> {
         // Cant make a request without an API key
         if let GoogleAuth::NotSet = self.config.auth {
-            return Err(ProviderError::MissingAuthenticationError.into());
+            return Err(ProviderError::MissingAuthenticationError);
         }
 
         let settings = &prompt.model_settings;
@@ -207,7 +207,7 @@ impl GeminiClient {
         T: Serialize + EmbeddingConfigTrait,
     {
         if let GoogleAuth::NotSet = self.config.auth {
-            return Err(ProviderError::MissingAuthenticationError.into());
+            return Err(ProviderError::MissingAuthenticationError);
         }
 
         let model = config.get_model();
@@ -215,7 +215,7 @@ impl GeminiClient {
             .map_err(ProviderError::SerializationError)?;
 
         let response =
-            GeminiRequestClient::make_request(&self.client, &self.config, &model, &request).await?;
+            GeminiRequestClient::make_request(&self.client, &self.config, model, &request).await?;
 
         let embedding_response: GeminiEmbeddingResponse = response.json().await?;
 

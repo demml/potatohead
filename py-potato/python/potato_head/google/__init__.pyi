@@ -224,9 +224,7 @@ class FunctionCallingConfig:
     def mode(self) -> Optional[Mode]: ...
     @property
     def allowed_function_names(self) -> Optional[list[str]]: ...
-    def __init__(
-        self, mode: Optional[Mode], allowed_function_names: Optional[list[str]]
-    ) -> None: ...
+    def __init__(self, mode: Optional[Mode], allowed_function_names: Optional[list[str]]) -> None: ...
 
 class LatLng:
     @property
@@ -329,7 +327,7 @@ class GeminiEmbeddingConfig:
         self,
         model: Optional[str] = None,
         output_dimensionality: Optional[int] = None,
-        task_type: Optional[EmbeddingTaskType] = None,
+        task_type: Optional[EmbeddingTaskType | str] = None,
     ) -> None:
         """Configuration to pass to the Gemini Embedding API when creating a request
 
@@ -364,11 +362,10 @@ class PredictResponse:
     def model_version_id(self) -> str: ...
     @property
     def model_display_name(self) -> str: ...
+    def __str__(self): ...
 
 class PredictRequest:
-    def __init__(
-        self, instances: List[dict], parameters: Optional[dict] = None
-    ) -> None:
+    def __init__(self, instances: List[dict], parameters: Optional[dict] = None) -> None:
         """Request to pass to the Vertex Predict API when creating a request
 
         Args:
@@ -377,7 +374,9 @@ class PredictRequest:
             parameters (Optional[dict]):
                 Optional parameters for the request.
         """
+
     @property
     def instances(self) -> List[dict]: ...
     @property
     def parameters(self) -> dict: ...
+    def __str__(self): ...

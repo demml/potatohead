@@ -1,4 +1,5 @@
 use crate::error::ProviderError;
+use crate::providers::embed::modify_predict_request;
 use crate::providers::embed::EmbeddingConfig;
 use crate::providers::embed::EmbeddingInput;
 use crate::providers::embed::EmbeddingResponse;
@@ -111,7 +112,10 @@ impl GenAiClient {
             GenAiClient::Vertex(client) => {
                 let model = config.get_model();
                 let response = match inputs {
-                    EmbeddingInput::PredictRequest(request) => client.predict(request, model).await,
+                    EmbeddingInput::PredictRequest(request) => {
+                        let request = modify_predict_request(request, config);
+                        client.predict(request, model).await
+                    }
                     _ => Err(ProviderError::DoesNotSupportArray),
                 }
                 .inspect_err(|e| {

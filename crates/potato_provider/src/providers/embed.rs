@@ -1,6 +1,8 @@
 use potato_type::google::predict::PredictResponse;
 use potato_type::google::EmbeddingConfigTrait;
 use potato_type::Provider;
+use tracing::debug;
+use tracing::instrument;
 
 use crate::error::ProviderError;
 use crate::providers::client::GenAiClient;
@@ -34,6 +36,54 @@ impl From<PredictRequest> for EmbeddingInput {
     }
 }
 
+#[instrument(skip_all)]
+pub fn modify_predict_request(
+    mut request: PredictRequest,
+    config: &EmbeddingConfig,
+) -> PredictRequest {
+    match config {
+        EmbeddingConfig::OpenAI(_) => request, // OpenAI config does not apply to PredictRequest
+        EmbeddingConfig::Gemini(gemini_config) => {
+            // If configured, we need to modify the request
+            // If not configured, return early
+
+            if !gemini_config.is_configured {
+                return request;
+            }
+
+            // Handle parameters modification
+            let mut params = match &request.parameters {
+                serde_json::Value::Object(map) => map.clone(),
+                _ => serde_json::Map::new(),
+            };
+
+            // :predict endpoints expect dimensionality in parameters
+            if let Some(dim) = gemini_config.output_dimensionality {
+                params.insert(
+                    "outputDimensionality".to_string(),
+                    serde_json::Value::Number(serde_json::Number::from(dim)),
+                );
+            }
+
+            if let serde_json::Value::Array(ref mut instances) = request.instances {
+                for instance in instances.iter_mut() {
+                    if let Some(task_type) = &gemini_config.task_type {
+                        if let serde_json::Value::Object(ref mut map) = instance {
+                            map.entry("task_type".to_string())
+                                .or_insert_with(|| serde_json::json!(task_type));
+                        }
+                    }
+                }
+            }
+
+            request.parameters = serde_json::Value::Object(params);
+
+            debug!("Modified PredictRequest: {:?}", request);
+            request
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum EmbeddingConfig {
@@ -64,7 +114,7 @@ impl EmbeddingConfig {
 
                 Ok(EmbeddingConfig::OpenAI(config))
             }
-            Provider::Gemini => {
+            Provider::Gemini | Provider::Vertex => {
                 let config = if config.is_none() {
                     GeminiEmbeddingConfig::default()
                 } else {
@@ -83,6 +133,23 @@ impl EmbeddingConfig {
             }
             _ => Err(ProviderError::ProviderNotSupportedError(
                 provider.to_string(),
+            )),
+        }
+    }
+
+    pub fn is_configured(&self) -> bool {
+        match self {
+            // is configured only applies to Gemini and Vertex at the moment
+            EmbeddingConfig::OpenAI(_config) => true,
+            EmbeddingConfig::Gemini(config) => config.is_configured,
+        }
+    }
+
+    pub fn get_vertex_config(&self) -> Result<serde_json::Value, ProviderError> {
+        match self {
+            EmbeddingConfig::Gemini(config) => Ok(config.get_parameters_for_predict()),
+            _ => Err(ProviderError::InvalidConfigType(
+                "Only Gemini config can be converted to Vertex config".to_string(),
             )),
         }
     }
@@ -116,7 +183,7 @@ impl Embedder {
             Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(ServiceType::Embed).await?),
             Provider::Vertex => GenAiClient::Vertex(VertexClient::new(ServiceType::Embed).await?),
             _ => {
-                let msg = "No provider specified in ModelSettings";
+                let msg = "No provider specified";
                 error!("{}", msg);
                 return Err(ProviderError::UndefinedError(msg.to_string()));
             } // Add other providers here as needed

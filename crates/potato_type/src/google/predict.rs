@@ -1,9 +1,11 @@
 use crate::TypeError;
+use potato_util::PyHelperFuncs;
 use potato_util::{json_to_pyobject, pyobject_to_json};
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[pyclass]
 #[serde(rename_all = "camelCase", default)]
@@ -39,6 +41,10 @@ impl PredictRequest {
             parameters,
         }
     }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -69,6 +75,10 @@ impl PredictResponse {
     pub fn metadata<'py>(&self, py: Python<'py>) -> Result<PyObject, TypeError> {
         let obj = json_to_pyobject(py, &self.metadata)?;
         Ok(obj)
+    }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
     }
 }
 

@@ -99,6 +99,9 @@ pub enum ProviderError {
 
     #[error("{0}")]
     InvalidInputType(String),
+
+    #[error("{0}")]
+    InvalidConfigType(String),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for ProviderError {
