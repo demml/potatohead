@@ -21,10 +21,14 @@ pub struct AgentResponse {
 
 #[pymethods]
 impl AgentResponse {
-    pub fn token_usage(&self) -> Usage {
+    pub fn token_usage(&self) -> Result<Usage, AgentError> {
         match &self.response {
-            ChatResponse::OpenAI(resp) => resp.usage.clone(),
-            ChatResponse::Gemini(resp) => resp.get_token_usage(),
+            ChatResponse::OpenAI(resp) => Ok(resp.usage.clone()),
+            ChatResponse::Gemini(resp) => Ok(resp.get_token_usage()),
+            ChatResponse::VertexGenerate(resp) => Ok(resp.get_token_usage()),
+            _ => Err(AgentError::NotSupportedError(
+                "Token usage not supported for the vertex predict response type".to_string(),
+            )),
         }
     }
 
@@ -45,6 +49,11 @@ impl AgentResponse {
         match &self.response {
             ChatResponse::OpenAI(resp) => resp.get_content(),
             ChatResponse::Gemini(resp) => resp.get_content(),
+            ChatResponse::VertexGenerate(resp) => resp.get_content(),
+            _ => {
+                warn!("Content not available for this response type");
+                None
+            }
         }
     }
 
@@ -52,6 +61,11 @@ impl AgentResponse {
         match &self.response {
             ChatResponse::OpenAI(resp) => resp.get_log_probs(),
             ChatResponse::Gemini(resp) => resp.get_log_probs(),
+            ChatResponse::VertexGenerate(resp) => resp.get_log_probs(),
+            _ => {
+                warn!("Log probabilities not available for this response type");
+                vec![]
+            }
         }
     }
 }
@@ -76,7 +90,7 @@ impl PyAgentResponse {
     }
 
     #[getter]
-    pub fn token_usage(&self) -> Usage {
+    pub fn token_usage(&self) -> Result<Usage, AgentError> {
         self.response.token_usage()
     }
 

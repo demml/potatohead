@@ -59,6 +59,9 @@ pub enum AgentError {
 
     #[error(transparent)]
     StdIoError(#[from] std::io::Error),
+
+    #[error("Not supported: {0}")]
+    NotSupportedError(String),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {
