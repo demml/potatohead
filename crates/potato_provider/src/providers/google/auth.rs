@@ -135,6 +135,27 @@ impl GoogleAuth {
     }
 }
 
+enum VertexVersion {
+    V1Beta,
+    V1,
+}
+
+impl VertexVersion {
+    fn from_env() -> Self {
+        match std::env::var("VERTEX_API_VERSION") {
+            Ok(ver) if ver.to_lowercase() == "v1" => VertexVersion::V1,
+            _ => VertexVersion::V1Beta,
+        }
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            VertexVersion::V1Beta => "v1beta1",
+            VertexVersion::V1 => "v1",
+        }
+    }
+}
+
 pub enum GoogleUrl {
     Gemini,
     Vertex,
@@ -150,8 +171,9 @@ impl GoogleUrl {
             GoogleUrl::Vertex => match auth {
                 GoogleAuth::GoogleCredentials(creds) => {
                     format!(
-                        "https://{}-aiplatform.googleapis.com/v1beta1/projects/{}/locations/{}/publishers/google/models",
+                        "https://{}-aiplatform.googleapis.com/{}/projects/{}/locations/{}/publishers/google/models",
                         creds.location,
+                        VertexVersion::from_env().as_str(),
                         creds.project_id,
                         creds.location
                     )

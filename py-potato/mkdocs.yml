@@ -54,6 +54,7 @@ repo_url: https://github.com/demml/potatohead
 nav:
   - Overview: "index.md"
   - Prompts: "prompts.md"
+  - Embeddings: "embeddings.md"
   - Providers: "providers.md"
   - Workflows: "workflow.md"
   - API Documentation:
