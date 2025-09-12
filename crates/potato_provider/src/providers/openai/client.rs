@@ -29,17 +29,17 @@ impl OpenAIAuth {
     /// to create a token source for authentication.
     ///
     #[instrument(skip_all)]
-    pub fn from_env() -> Result<Self, ProviderError> {
+    pub fn from_env() -> Self {
         // First try API key
         let api_key =
             std::env::var("OPENAI_API_KEY").unwrap_or_else(|_| Common::Undefined.to_string());
 
         if api_key != Common::Undefined.to_string() {
             debug!("Using OpenAI API key from environment variable");
-            return Ok(Self::ApiKey(api_key));
+            return Self::ApiKey(api_key);
         }
 
-        Ok(Self::NotSet)
+        Self::NotSet
     }
 }
 
@@ -61,7 +61,7 @@ impl OpenAIApiConfig {
     fn new(service_type: ServiceType) -> Result<Self, ProviderError> {
         let env_base_url = std::env::var("OPENAI_API_URL").ok();
         let base_url = env_base_url.unwrap_or_else(OpenAIPaths::base_url);
-        let auth = OpenAIAuth::from_env()?;
+        let auth = OpenAIAuth::from_env();
 
         Ok(Self {
             base_url,
