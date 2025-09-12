@@ -8,11 +8,11 @@ use crate::providers::google::{
 };
 use crate::providers::types::build_http_client;
 use crate::providers::types::{add_extra_body_to_prompt, ServiceType};
-
 use potato_prompt::Prompt;
 use potato_type::google::EmbeddingConfigTrait;
 use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::Provider;
+use reqwest::header::{HeaderValue, AUTHORIZATION};
 use reqwest::Client;
 use serde::Serialize;
 use tracing::{debug, instrument};
@@ -48,7 +48,14 @@ impl ApiConfigExt for GeminiApiConfig {
     ) -> Result<reqwest::RequestBuilder, ProviderError> {
         match auth {
             GoogleAuth::ApiKey(api_key) => Ok(req.header("x-goog-api-key", api_key)),
-            GoogleAuth::GoogleCredentials(_) => Err(ProviderError::MissingAuthenticationError),
+            GoogleAuth::GoogleCredentials(token) => {
+                // we uses req.header instead of req.bearer_auth because get_access_token
+                // already returns the token with the "Bearer " prefix
+                let token = token.get_access_token().await?;
+                let mut auth_value = HeaderValue::from_str(&token)?;
+                auth_value.set_sensitive(true);
+                Ok(req.header(AUTHORIZATION, auth_value))
+            }
             GoogleAuth::NotSet => Err(ProviderError::MissingAuthenticationError),
         }
     }

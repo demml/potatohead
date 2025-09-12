@@ -205,7 +205,7 @@ impl Embedder {
 pub enum EmbeddingResponse {
     OpenAI(OpenAIEmbeddingResponse),
     Gemini(GeminiEmbeddingResponse),
-    Vertex(PredictResponse), // Vertex uses the same response structure as Gemini
+    Vertex(PredictResponse),
 }
 
 impl EmbeddingResponse {

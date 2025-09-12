@@ -113,8 +113,8 @@ impl GoogleAuth {
     ///
     #[instrument(skip_all)]
     pub async fn from_env() -> Result<Self, ProviderError> {
-        // First try API key
-        if let Ok(api_key) = std::env::var("GEMINI_API_KEY") {
+        // First try API key (GEMINI_API_KEY or GOOGLE_API_KEY)
+        if let Ok(api_key) = std::env::var("GEMINI_API_KEY").or(std::env::var("GOOGLE_API_KEY")) {
             if !api_key.is_empty() {
                 debug!("Using GEMINI_API_KEY for authentication");
                 return Ok(Self::ApiKey(api_key));
@@ -135,23 +135,23 @@ impl GoogleAuth {
     }
 }
 
-enum VertexVersion {
+enum GoogleApiVersion {
     V1Beta,
     V1,
 }
 
-impl VertexVersion {
+impl GoogleApiVersion {
     fn from_env() -> Self {
-        match std::env::var("VERTEX_API_VERSION") {
-            Ok(ver) if ver.to_lowercase() == "v1" => VertexVersion::V1,
-            _ => VertexVersion::V1Beta,
+        match std::env::var("GOOGLE_API_VERSION") {
+            Ok(ver) if ver.to_lowercase() == "v1" => GoogleApiVersion::V1,
+            _ => GoogleApiVersion::V1Beta,
         }
     }
 
     fn as_str(&self) -> &'static str {
         match self {
-            VertexVersion::V1Beta => "v1beta1",
-            VertexVersion::V1 => "v1",
+            GoogleApiVersion::V1Beta => "v1beta1",
+            GoogleApiVersion::V1 => "v1",
         }
     }
 }
@@ -166,14 +166,17 @@ impl GoogleUrl {
     pub fn base_url(&self, auth: &GoogleAuth) -> String {
         match self {
             GoogleUrl::Gemini => {
-                "https://generativelanguage.googleapis.com/v1beta/models".to_string()
+                format!(
+                    "https://generativelanguage.googleapis.com/{}/models",
+                    GoogleApiVersion::from_env().as_str()
+                )
             }
             GoogleUrl::Vertex => match auth {
                 GoogleAuth::GoogleCredentials(creds) => {
                     format!(
                         "https://{}-aiplatform.googleapis.com/{}/projects/{}/locations/{}/publishers/google/models",
                         creds.location,
-                        VertexVersion::from_env().as_str(),
+                        GoogleApiVersion::from_env().as_str(),
                         creds.project_id,
                         creds.location
                     )
