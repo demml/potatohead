@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, List, Optional
 
 class Modality:
     """Represents different modalities for content generation."""
@@ -224,7 +224,9 @@ class FunctionCallingConfig:
     def mode(self) -> Optional[Mode]: ...
     @property
     def allowed_function_names(self) -> Optional[list[str]]: ...
-    def __init__(self, mode: Optional[Mode], allowed_function_names: Optional[list[str]]) -> None: ...
+    def __init__(
+        self, mode: Optional[Mode], allowed_function_names: Optional[list[str]]
+    ) -> None: ...
 
 class LatLng:
     @property
@@ -348,3 +350,34 @@ class ContentEmbedding:
 class GeminiEmbeddingResponse:
     @property
     def embedding(self) -> ContentEmbedding: ...
+
+class PredictResponse:
+    @property
+    def predictions(self) -> List[dict]: ...
+    @property
+    def metadata(self) -> Any: ...
+    @property
+    def deployed_model_id(self) -> str: ...
+    @property
+    def model(self) -> str: ...
+    @property
+    def model_version_id(self) -> str: ...
+    @property
+    def model_display_name(self) -> str: ...
+
+class PredictRequest:
+    def __init__(
+        self, instances: List[dict], parameters: Optional[dict] = None
+    ) -> None:
+        """Request to pass to the Vertex Predict API when creating a request
+
+        Args:
+            instances (List[dict]):
+                A list of instances to be sent in the request.
+            parameters (Optional[dict]):
+                Optional parameters for the request.
+        """
+    @property
+    def instances(self) -> List[dict]: ...
+    @property
+    def parameters(self) -> dict: ...

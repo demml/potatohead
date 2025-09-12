@@ -427,15 +427,3 @@ def test_agent_env_var_failure():
     ):
         # This should raise an error because the API key is not set
         agent.execute_prompt(prompt=prompt, output_type=Score)
-
-
-def test_openai_sdk():
-    with LLMTestServer() as server:
-        client = OpenAI(base_url=server.url)
-
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-            ],
-        )

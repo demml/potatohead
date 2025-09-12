@@ -78,24 +78,3 @@ impl PredictResponse {
         Ok(bound.into_bound_py_any(py)?)
     }
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-#[pyclass]
-#[serde(rename_all = "camelCase", default)]
-pub struct Parameters {
-    inner: Value,
-}
-
-#[pymethods]
-impl Parameters {
-    #[getter]
-    pub fn inner<'py>(&self, py: Python<'py>) -> Result<PyObject, TypeError> {
-        let obj = json_to_pyobject(py, &self.inner)?;
-        Ok(obj)
-    }
-    #[new]
-    pub fn new(obj: Bound<'_, PyAny>) -> Self {
-        let inner = pyobject_to_json(&obj).unwrap_or(Value::Null);
-        Self { inner }
-    }
-}

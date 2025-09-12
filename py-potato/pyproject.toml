@@ -34,6 +34,12 @@ docs = [
     "mkdocstrings[python] >= 0.26.0, < 1.0.0",
 ]
 
+[tool.setuptools.package-data]
+"potato_head" = ["py.typed"]
+
+[tool.setuptools.packages.find]
+where = ["python/potato_head"]
+
 [tool.isort]
 profile = "black"
 

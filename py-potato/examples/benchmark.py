@@ -1,5 +1,5 @@
 from openai import OpenAI
-from potato_head.mock import LLMTestServer  # type: ignore
+from potato_head.mock import LLMTestServer
 from potato_head import Agent, Provider, Prompt
 import time
 import os
@@ -12,14 +12,15 @@ def benchmark_openai_sdk():
         client = OpenAI(base_url=server.url)
         calls = []
 
-        for _ in range(10000):
+        for _ in range(1000):
             start_time = time.time()
-            client.chat.completions.create(
+            response = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
                 ],
             )
+            response.choices[0].message.content
             end_time = time.time()
             calls.append(end_time - start_time)
 
@@ -30,7 +31,7 @@ def benchmark_openai_sdk():
 
 
 def benchmark_potatohead_sdk():
-    with LLMTestServer() as server:
+    with LLMTestServer():
         prompt = Prompt(
             model="gpt-4o",
             provider="openai",
@@ -41,9 +42,10 @@ def benchmark_potatohead_sdk():
 
         calls = []
 
-        for _ in range(10000):
+        for _ in range(1000):
             start_time = time.time()
-            agent.execute_prompt(prompt=prompt, model="gpt-4o")
+            response = agent.execute_prompt(prompt=prompt, model="gpt-4o")
+            response.result
             end_time = time.time()
             calls.append(end_time - start_time)
 
