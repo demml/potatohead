@@ -48,7 +48,7 @@ jobs:
         working-directory: ./py-potato
         run: make setup.project
 
-      - name: Test clients
+      - name: Test API Clients
         working-directory: ./py-potato
         run: |
           make test.integration.openai
@@ -56,3 +56,10 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Test Authenticated API Clients
+        working-directory: ./py-potato
+        run: |
+          make test.integration.vertex
+        env:
+          GOOGLE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_ACCOUNT_JSON_BASE64 }}

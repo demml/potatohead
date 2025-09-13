@@ -3,7 +3,6 @@ use crate::workflow::error::WorkflowError;
 pub use potato_agent::agents::{
     agent::Agent,
     task::{PyTask, Task, TaskStatus},
-    types::ChatResponse,
 };
 use potato_agent::AgentResponse;
 use pyo3::prelude::*;

@@ -1,5 +1,5 @@
 pub mod client;
 pub mod types;
 
-pub use client::GeminiClient;
+pub use client::{OpenAIAuth, OpenAIClient};
 pub use types::*;

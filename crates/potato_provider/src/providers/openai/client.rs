@@ -1,111 +1,130 @@
-use crate::agents::error::AgentError;
+use crate::error::ProviderError;
 
-use crate::agents::embed::EmbeddingResponse;
-use crate::agents::provider::openai::{
+use crate::providers::embed::EmbeddingResponse;
+use crate::providers::openai::{
     OpenAIChatMessage, OpenAIChatRequest, OpenAIChatResponse, OpenAIEmbeddingRequest,
 };
-use crate::agents::provider::types::add_extra_body_to_prompt;
-use crate::agents::provider::types::build_http_client;
+use crate::providers::types::add_extra_body_to_prompt;
+use crate::providers::types::build_http_client;
+use crate::providers::types::ServiceType;
 use potato_prompt::Prompt;
 use potato_type::openai::embedding::OpenAIEmbeddingResponse;
 use potato_type::{Common, Provider};
-use reqwest::header::AUTHORIZATION;
 use reqwest::Client;
 use reqwest::Response;
 use serde::Serialize;
 use serde_json::Value;
-use std::collections::HashMap;
 use tracing::{debug, error, instrument};
 
-enum OpenAIPaths {
-    ChatCompletions,
-    Embeddings,
+#[derive(Debug, PartialEq)]
+pub enum OpenAIAuth {
+    ApiKey(String),
+    NotSet,
 }
 
-impl OpenAIPaths {
-    fn path(&self) -> &str {
-        match self {
-            OpenAIPaths::ChatCompletions => "chat/completions",
-            OpenAIPaths::Embeddings => "embeddings",
+impl OpenAIAuth {
+    /// Try to create authentication from environment variables
+    /// This will first look for a `OPENAI_API_KEY`.
+    /// If not found, it will attempt to use Google Application Credentials
+    /// to create a token source for authentication.
+    ///
+    #[instrument(skip_all)]
+    pub fn from_env() -> Self {
+        // First try API key
+        let api_key =
+            std::env::var("OPENAI_API_KEY").unwrap_or_else(|_| Common::Undefined.to_string());
+
+        if api_key != Common::Undefined.to_string() {
+            debug!("Using OpenAI API key from environment variable");
+            return Self::ApiKey(api_key);
         }
+
+        Self::NotSet
     }
 }
 
-#[derive(Debug, Clone)]
+struct OpenAIPaths {}
+impl OpenAIPaths {
+    fn base_url() -> String {
+        "https://api.openai.com/v1".to_string()
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct OpenAIApiConfig {
+    base_url: String,
+    service_type: ServiceType,
+    auth: OpenAIAuth,
+}
+
+impl OpenAIApiConfig {
+    fn new(service_type: ServiceType) -> Result<Self, ProviderError> {
+        let env_base_url = std::env::var("OPENAI_API_URL").ok();
+        let base_url = env_base_url.unwrap_or_else(OpenAIPaths::base_url);
+        let auth = OpenAIAuth::from_env();
+
+        Ok(Self {
+            base_url,
+            service_type,
+            auth,
+        })
+    }
+
+    fn build_url(&self) -> String {
+        let endpoint = self.get_endpoint();
+        format!("{}/{}", self.base_url, endpoint)
+    }
+
+    async fn set_auth_header(
+        &self,
+        req: reqwest::RequestBuilder,
+    ) -> Result<reqwest::RequestBuilder, ProviderError> {
+        match &self.auth {
+            OpenAIAuth::ApiKey(api_key) => Ok(req.bearer_auth(api_key)),
+            OpenAIAuth::NotSet => Ok(req),
+        }
+    }
+
+    fn get_endpoint(&self) -> &'static str {
+        // Need to return the gemini endpoint here
+        self.service_type.openai_endpoint()
+    }
+}
+
+#[derive(Debug)]
 pub struct OpenAIClient {
     client: Client,
-    api_key: String,
-    base_url: String,
-    api_key_set: bool,
+    config: OpenAIApiConfig,
     pub provider: Provider,
 }
 
 impl PartialEq for OpenAIClient {
     fn eq(&self, other: &Self) -> bool {
-        self.api_key == other.api_key
-            && self.base_url == other.base_url
-            && self.provider == other.provider
+        self.config == other.config && self.provider == other.provider
     }
 }
 
 impl OpenAIClient {
     /// Creates a new OpenAIClient instance. This is a shared method that can be used in both Python and Rust.
-    ///
     /// # Arguments:
-    /// * `api_key`: The API key for authenticating with the OpenAI API.
-    /// * `base_url`: The base URL for the OpenAI API (default is the OpenAI API URL).
-    /// * `headers`: Optional headers to include in the HTTP requests.
-    ///
+    /// * `service_type`: The type of service to use (e.g., Chat, Embed).
     /// # Returns:
-    /// * `Result<OpenAIClient, AgentError>`: Returns an `OpenAIClient` instance on success or an `AgentError` on failure.
-    pub fn new(
-        api_key: Option<String>,
-        base_url: Option<String>,
-        headers: Option<HashMap<String, String>>,
-    ) -> Result<Self, AgentError> {
-        let client = build_http_client(headers)?;
-
-        //  if optional api_key is None, check the environment variable `OPENAI_API_KEY`
-        let (api_key, api_key_set) = match api_key {
-            // If api_key is provided, use it
-            Some(key) => (key, true),
-
-            // If api_key is None, check the environment variable
-            None => match std::env::var("OPENAI_API_KEY") {
-                // If the environment variable is set, use it
-                Ok(env_key) if !env_key.is_empty() => (env_key, true),
-
-                // If the environment variable is not set, use a placeholder and set api_key_set to false
-                _ => (Common::Undefined.to_string(), false),
-            },
-        };
-
-        // if optional base_url is None, use the default OpenAI API URL
-        let env_base_url = std::env::var("OPENAI_API_URL").ok();
-        let base_url = base_url
-            .unwrap_or_else(|| env_base_url.unwrap_or_else(|| Provider::OpenAI.url().to_string()));
-
-        debug!("Creating OpenAIClient with base URL with key: {}", base_url);
-
+    /// * `Result<OpenAIClient, ProviderError>`: Returns an `OpenAIClient` instance on success or an `ProviderError` on failure.
+    pub fn new(service_type: ServiceType) -> Result<Self, ProviderError> {
+        let client = build_http_client(None)?;
+        let config = OpenAIApiConfig::new(service_type)?;
         Ok(Self {
             client,
-            api_key,
-            base_url,
+            config,
             provider: Provider::OpenAI,
-            api_key_set,
         })
     }
 
     /// Generic helper for executing a request to reduce boilerplate
-    async fn make_request(&self, path: &str, object: &Value) -> Result<Response, AgentError> {
-        let response = self
-            .client
-            .post(format!("{}/{}", self.base_url, path))
-            .header(AUTHORIZATION, format!("Bearer {}", self.api_key))
-            .json(object)
-            .send()
-            .await
-            .map_err(AgentError::RequestError)?;
+    async fn make_request(&self, object: &Value) -> Result<Response, ProviderError> {
+        let request = self.client.post(self.config.build_url()).json(&object);
+        let request = self.config.set_auth_header(request).await?;
+        let response = request.send().await.map_err(ProviderError::RequestError)?;
 
         let status = response.status();
         if !status.is_success() {
@@ -115,7 +134,7 @@ impl OpenAIClient {
                 .text()
                 .await
                 .unwrap_or_else(|_| "No response body".to_string());
-            return Err(AgentError::CompletionError(body, status));
+            return Err(ProviderError::CompletionError(body, status));
         }
 
         Ok(response)
@@ -130,17 +149,17 @@ impl OpenAIClient {
     /// * `settings`: A reference to `ModelSettings` containing model configuration.
     ///
     /// # Returns:
-    /// * `Result<ChatResponse, AgentError>`: Returns a `ChatResponse` on success or an `AgentError` on failure.
+    /// * `Result<ChatResponse, ProviderError>`: Returns a `ChatResponse` on success or an `ProviderError` on failure.
     ///
     #[instrument(skip_all)]
-    pub async fn async_chat_completion(
+    pub async fn chat_completion(
         &self,
         prompt: &Prompt,
-    ) -> Result<OpenAIChatResponse, AgentError> {
+    ) -> Result<OpenAIChatResponse, ProviderError> {
         // Cant make a request without an API key
 
-        if !self.api_key_set {
-            return Err(AgentError::MissingOpenAIApiKeyError);
+        if let OpenAIAuth::NotSet = self.config.auth {
+            return Err(ProviderError::MissingAuthenticationError);
         }
 
         let settings = &prompt.model_settings;
@@ -177,7 +196,7 @@ impl OpenAIClient {
 
         // serialize the prompt to JSON
         let mut serialized_prompt =
-            serde_json::to_value(chat_request).map_err(AgentError::SerializationError)?;
+            serde_json::to_value(chat_request).map_err(ProviderError::SerializationError)?;
 
         // if settings.extra_body is provided, merge it with the prompt
         if let Some(extra_body) = settings.extra_body() {
@@ -189,9 +208,7 @@ impl OpenAIClient {
             serialized_prompt
         );
 
-        let response = self
-            .make_request(OpenAIPaths::ChatCompletions.path(), &serialized_prompt)
-            .await?;
+        let response = self.make_request(&serialized_prompt).await?;
 
         let chat_response: OpenAIChatResponse = response.json().await?;
         debug!("Chat completion successful");
@@ -217,26 +234,24 @@ impl OpenAIClient {
     }
 
     #[instrument(skip_all)]
-    pub async fn async_create_embedding<T>(
+    pub async fn create_embedding<T>(
         &self,
         inputs: Vec<String>,
         config: &T,
-    ) -> Result<EmbeddingResponse, AgentError>
+    ) -> Result<EmbeddingResponse, ProviderError>
     where
         T: Serialize,
     {
-        if !self.api_key_set {
-            return Err(AgentError::MissingOpenAIApiKeyError);
+        if let OpenAIAuth::NotSet = self.config.auth {
+            return Err(ProviderError::MissingAuthenticationError);
         }
 
         let request = serde_json::to_value(OpenAIEmbeddingRequest::new(inputs, config))
-            .map_err(AgentError::SerializationError)?;
+            .map_err(ProviderError::SerializationError)?;
 
         debug!("Sending embedding request to OpenAI API: {:?}", request);
 
-        let response = self
-            .make_request(OpenAIPaths::Embeddings.path(), &request)
-            .await?;
+        let response = self.make_request(&request).await?;
 
         let embedding_response: OpenAIEmbeddingResponse = response.json().await?;
 

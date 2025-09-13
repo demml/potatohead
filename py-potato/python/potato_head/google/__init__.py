@@ -22,6 +22,9 @@ Mode = google.Mode
 GeminiSettings = google.GeminiSettings
 GeminiEmbeddingConfig = google.GeminiEmbeddingConfig
 GeminiEmbeddingResponse = google.GeminiEmbeddingResponse
+PredictRequest = google.PredictRequest
+PredictResponse = google.PredictResponse
+EmbeddingTaskType = google.EmbeddingTaskType
 
 __all__ = [
     "Modality",
@@ -45,4 +48,7 @@ __all__ = [
     "SafetySetting",
     "GeminiEmbeddingConfig",
     "GeminiEmbeddingResponse",
+    "PredictRequest",
+    "PredictResponse",
+    "EmbeddingTaskType",
 ]

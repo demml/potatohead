@@ -1,6 +1,6 @@
 use crate::error::MockError;
 use mockito;
-use potato_agent::agents::provider::{gemini::GenerateContentResponse, openai::OpenAIChatResponse};
+use potato_provider::{GenerateContentResponse, OpenAIChatResponse};
 use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::openai::embedding::OpenAIEmbeddingResponse;
 use pyo3::prelude::*;
@@ -349,6 +349,9 @@ impl Default for LLMApiMock {
 #[allow(dead_code)]
 pub struct LLMTestServer {
     openai_server: Option<LLMApiMock>,
+
+    #[pyo3(get)]
+    pub url: Option<String>,
 }
 
 #[pymethods]
@@ -357,6 +360,7 @@ impl LLMTestServer {
     pub fn new() -> Self {
         LLMTestServer {
             openai_server: None,
+            url: None,
         }
     }
 
@@ -389,6 +393,7 @@ impl LLMTestServer {
                 "GEMINI_API_URL",
                 self.openai_server.as_ref().unwrap().url.clone(),
             );
+
             Ok(())
         }
     }
@@ -402,6 +407,8 @@ impl LLMTestServer {
 
         // set server env vars
         std::env::set_var("APP_ENV", "dev_server");
+
+        self.url = Some(self.openai_server.as_ref().unwrap().url.clone());
 
         Ok(())
     }

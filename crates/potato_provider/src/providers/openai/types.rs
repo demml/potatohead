@@ -1,5 +1,5 @@
-use crate::agents::error::AgentError;
-use crate::agents::provider::traits::{LogProbExt, ResponseExt, TokenUsage};
+use crate::error::ProviderError;
+use crate::providers::traits::{LogProbExt, ResponseExt, TokenUsage};
 use potato_prompt::{prompt::types::PromptContent, Message};
 use potato_type::openai::chat::OpenAIChatSettings;
 use potato_util::utils::ResponseLogProbs;
@@ -244,7 +244,7 @@ pub struct OpenAIChatMessage {
 
 impl OpenAIChatMessage {
     /// Convert the Prompt Message to an OpenAI multimodal chat message
-    pub fn from_message(message: &Message) -> Result<Self, AgentError> {
+    pub fn from_message(message: &Message) -> Result<Self, ProviderError> {
         let content = match &message.content {
             PromptContent::Str(text) => vec![OpenAIContentPart::Text { text: text.clone() }],
             PromptContent::Image(image) => vec![OpenAIContentPart::ImageUrl {
@@ -255,7 +255,7 @@ impl OpenAIChatMessage {
             // need to implement audio and file for chat
             _ => {
                 // Handle other content types as needed
-                return Err(AgentError::UnsupportedContentTypeError);
+                return Err(ProviderError::UnsupportedContentTypeError);
             }
         };
 

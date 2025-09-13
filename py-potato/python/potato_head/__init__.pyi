@@ -2,9 +2,15 @@
 
 import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Sequence
+from typing import Any, Dict, List, Literal, Optional, Sequence, TypeVar
 
-from .google import GeminiEmbeddingConfig, GeminiEmbeddingResponse, GeminiSettings
+from .google import (
+    GeminiEmbeddingConfig,
+    GeminiEmbeddingResponse,
+    GeminiSettings,
+    PredictRequest,
+    PredictResponse,
+)
 from .openai import OpenAIChatSettings, OpenAIEmbeddingConfig, OpenAIEmbeddingResponse
 
 class PromptTokenDetails:
@@ -306,7 +312,7 @@ class Prompt:
         model: str,
         provider: Provider | str,
         system_instruction: Optional[str | List[str]] = None,
-        model_settings: Optional[ModelSettings] = None,
+        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings] = None,
         response_format: Optional[Any] = None,
     ) -> None:
         """Prompt for interacting with an LLM API.
@@ -468,6 +474,7 @@ class Prompt:
 class Provider:
     OpenAI: "Provider"
     Gemini: "Provider"
+    Vertex: "Provider"
 
 class TaskStatus:
     Pending: "TaskStatus"
@@ -637,10 +644,12 @@ class Agent:
     def id(self) -> str:
         """The ID of the agent. This is a random uuid7 that is generated when the agent is created."""
 
+ConfigT = TypeVar("ConfigT", OpenAIEmbeddingConfig, GeminiEmbeddingConfig, None)
+
 class Embedder:
     """Class for creating embeddings."""
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         provider: Provider | str,
         config: Optional[OpenAIEmbeddingConfig | GeminiEmbeddingConfig] = None,
@@ -659,19 +668,36 @@ class Embedder:
 
     def embed(
         self,
-        input: str,
-    ) -> OpenAIEmbeddingResponse | GeminiEmbeddingResponse:
-        """Create embeddings for a single input.
+        input: str | List[str] | PredictRequest,
+    ) -> OpenAIEmbeddingResponse | GeminiEmbeddingResponse | PredictResponse:
+        """Create embeddings for input.
 
         Args:
-            input (str):
-                The input to create embeddings for.
+            input: The input to embed. Type depends on provider:
+                - OpenAI/Gemini: str | List[str]
+                - Vertex: PredictRequest
 
         Returns:
-            (OpenAIEmbeddingResponse | GeminiEmbeddingResponse):
-                The response from the embedder after creating the embeddings.
-                Returns OpenAIEmbeddingResponse if initialized with OpenAIEmbeddingConfig or no config.
-                Returns GeminiEmbeddingResponse if initialized with GeminiEmbeddingConfig.
+            Provider-specific response type.
+            OpenAIEmbeddingResponse for OpenAI,
+            GeminiEmbeddingResponse for Gemini,
+            PredictResponse for Vertex.
+
+        Examples:
+            ```python
+            ## OpenAI
+            embedder = Embedder(Provider.OpenAI)
+            response = embedder.embed(input="Test input")
+
+            ## Gemini
+            embedder = Embedder(Provider.Gemini, config=GeminiEmbeddingConfig(model="gemini-embedding-001"))
+            response = embedder.embed(input="Test input")
+
+            ## Vertex
+            from potato_head.google import PredictRequest
+            embedder = Embedder(Provider.Vertex)
+            response = embedder.embed(input=PredictRequest(text="Test input"))
+            ```
         """
 
 class Workflow:

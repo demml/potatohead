@@ -6,7 +6,7 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
-version = "0.6.0"
+version = "0.7.0"
 description = ""
 authors = [
     {name = "Thorrester", email = "<support@demmlai.com>"},
@@ -28,11 +28,19 @@ dev = [
     "pydantic-ai>=0.0.41",
     "httpx>=0.28.1",
     "numpy>=2.2.6",
+    "seaborn>=0.13.2",
+    "pandas>=2.3.2",
 ]
 docs = [
     "mkdocs-material >= 9.5.4, < 10.0.0",
     "mkdocstrings[python] >= 0.26.0, < 1.0.0",
 ]
+
+[tool.setuptools.package-data]
+"potato_head" = ["py.typed"]
+
+[tool.setuptools.packages.find]
+where = ["python/potato_head"]
 
 [tool.isort]
 profile = "black"

@@ -1,7 +1,6 @@
 use potato_prompt::PromptError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
-use reqwest::StatusCode;
 use thiserror::Error;
 use tracing::error;
 
@@ -10,50 +9,23 @@ pub enum AgentError {
     #[error("Error: {0}")]
     Error(String),
 
-    #[error("Failed to create header value for the agent client")]
-    CreateHeaderValueError(#[from] reqwest::header::InvalidHeaderValue),
-
-    #[error("Failed to create header name for the agent client")]
-    CreateHeaderNameError(#[from] reqwest::header::InvalidHeaderName),
-
-    #[error("Failed to create agent client: {0}")]
-    CreateClientError(#[source] reqwest::Error),
-
-    #[error("Request failed: {0}")]
-    RequestError(#[from] reqwest::Error),
-
-    #[error("Failed to serialize chat request: {0}")]
-    SerializationError(#[from] serde_json::Error),
-
-    #[error("Failed to get response: {0} with status code {1}")]
-    CompletionError(String, StatusCode),
-
     #[error("Failed to downcast Python object: {0}")]
     DowncastError(String),
 
     #[error("Failed to get environment variable: {0}")]
     EnvVarError(#[from] std::env::VarError),
 
-    #[error("Failed to retrieve GEMINI_API_KEY from the environment")]
-    MissingGeminiApiKeyError,
-
-    #[error("Failed to retrieve OPENAI_API_KEY from the environment")]
-    MissingOpenAIApiKeyError,
-
     #[error("Failed to extract client: {0}")]
     ClientExtractionError(String),
-
-    #[error("Client did not provide response")]
-    ClientNoResponseError,
 
     #[error("No ready tasks found but pending tasks remain. Possible circular dependency.")]
     NoTaskFoundError,
 
-    #[error("Unsupported content type")]
-    UnsupportedContentTypeError,
-
     #[error("Failed to create runtime: {0}")]
     CreateRuntimeError(#[source] std::io::Error),
+
+    #[error(transparent)]
+    SerializationError(#[from] serde_json::Error),
 
     #[error(transparent)]
     PromptError(#[from] PromptError),
@@ -61,17 +33,8 @@ pub enum AgentError {
     #[error(transparent)]
     UtilError(#[from] potato_util::UtilError),
 
-    #[error(transparent)]
-    TypeError(#[from] potato_type::error::TypeError),
-
     #[error("Invalid output type: {0}")]
     InvalidOutputType(String),
-
-    #[error("Failed to create tokio runtime: {0}")]
-    RuntimeError(String),
-
-    #[error("Undefined error: {0}")]
-    UndefinedError(String),
 
     #[error("Failed to create tool: {0}")]
     ToolCreationError(String),
@@ -85,17 +48,20 @@ pub enum AgentError {
     #[error("Provider mismatch: prompt provider {0}, agent provider {1}")]
     ProviderMismatch(String, String),
 
-    #[error("Invalid response type")]
-    InvalidResponseType(String),
+    #[error(transparent)]
+    ProviderError(#[from] potato_provider::error::ProviderError),
 
-    #[error("Failed to extract embedding config. Check provider and config compatibility: {0}")]
-    EmbeddingConfigExtractionError(String),
+    #[error("No provider specified in Agent")]
+    MissingProviderError,
 
-    #[error("Provider not supported: {0}")]
-    ProviderNotSupportedError(String),
+    #[error(transparent)]
+    TypeError(#[from] potato_type::TypeError),
 
-    #[error("No embeddings found in the response")]
-    NoEmbeddingsFound,
+    #[error(transparent)]
+    StdIoError(#[from] std::io::Error),
+
+    #[error("Not supported: {0}")]
+    NotSupportedError(String),
 }
 
 impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {

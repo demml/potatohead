@@ -176,6 +176,18 @@ pub fn json_to_pyobject(py: Python, value: &Value) -> Result<PyObject, UtilError
     })
 }
 
+pub fn vec_to_py_object<'py>(
+    py: Python<'py>,
+    vec: &Vec<Value>,
+) -> Result<Bound<'py, PyList>, UtilError> {
+    let py_list = PyList::empty(py);
+    for item in vec {
+        let py_item = json_to_pyobject(py, item)?;
+        py_list.append(py_item)?;
+    }
+    Ok(py_list)
+}
+
 pub fn pyobject_to_json(obj: &Bound<'_, PyAny>) -> Result<Value, UtilError> {
     if obj.is_instance_of::<PyDict>() {
         let dict = obj.downcast::<PyDict>()?;

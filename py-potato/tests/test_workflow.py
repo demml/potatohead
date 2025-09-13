@@ -22,6 +22,7 @@ from pydantic_ai.models.test import TestModel
 # Sets up logging for tests
 RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
 
+
 models.ALLOW_MODEL_REQUESTS = False
 os.environ["OPENAI_API_KEY"] = "mock_api_key"
 
@@ -416,7 +417,7 @@ def test_agent_env_var_failure():
     agent = Agent(Provider.OpenAI)
     with pytest.raises(
         RuntimeError,
-        match="Failed to retrieve OPENAI_API_KEY from the environment",
+        match="Missing authentication information. Failed to find API_KEY or credentials in environment variables",
     ):
         # This should raise an error because the API key is not set
         agent.execute_prompt(prompt=prompt, output_type=Score)

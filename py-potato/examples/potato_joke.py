@@ -1,6 +1,7 @@
 # type: ignore
 from potato_head import Agent, Prompt, Provider
 from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
+from potato_head.openai import OpenAIChatSettings
 
 RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
 
@@ -10,6 +11,10 @@ prompt = Prompt(
     provider="openai",
     message="Tell me a joke about potatoes.",
     system_instruction="You are a helpful assistant.",
+    model_settings=OpenAIChatSettings(
+        max_completion_tokens=50,
+        temperature=0.7,
+    ),
 )
 
 if __name__ == "__main__":

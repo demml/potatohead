@@ -45,7 +45,7 @@ def create_reformulation_evaluation_prompt():
             "${reformulated_query}\n\n"
             "Evaluation:"
         ),
-        model="gemini-2.5-flash-lite-preview-06-17",
+        model="gemini-2.5-flash",
         provider="gemini",
         model_settings=GeminiSettings(
             generation_config=GenerationConfig(
@@ -72,7 +72,7 @@ def create_query_reformulation_prompt():
             "${user_query}\n\n"
             "Reformulated Query:"
         ),
-        model="gemini-2.5-flash-lite",
+        model="gemini-2.5-flash",
         provider="gemini",
         model_settings=GeminiSettings(
             generation_config=GenerationConfig(

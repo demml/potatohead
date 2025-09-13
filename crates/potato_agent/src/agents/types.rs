@@ -1,156 +1,16 @@
 use crate::agents::error::AgentError;
-use crate::agents::provider::gemini::FunctionCall;
-use crate::agents::provider::gemini::GenerateContentResponse;
-use crate::agents::provider::openai::OpenAIChatResponse;
-use crate::agents::provider::openai::ToolCall;
-use crate::agents::provider::openai::Usage;
-use crate::agents::provider::traits::LogProbExt;
-use crate::agents::provider::traits::ResponseExt;
-use potato_prompt::{
-    prompt::{PromptContent, Role},
-    Message,
-};
+use potato_provider::ChatResponse;
+use potato_provider::LogProbExt;
+use potato_provider::ResponseExt;
+use potato_provider::Usage;
+use potato_util::json_to_pyobject;
 use potato_util::utils::{LogProbs, ResponseLogProbs};
-use potato_util::{json_to_pyobject, PyHelperFuncs};
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tracing::debug;
 use tracing::instrument;
 use tracing::warn;
-
-#[pyclass]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum ChatResponse {
-    OpenAI(OpenAIChatResponse),
-    Gemini(GenerateContentResponse),
-}
-
-#[pymethods]
-impl ChatResponse {
-    pub fn to_py<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
-        // try unwrapping the prompt, if it exists
-        match self {
-            ChatResponse::OpenAI(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::Gemini(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-        }
-    }
-    pub fn __str__(&self) -> String {
-        match self {
-            ChatResponse::OpenAI(resp) => PyHelperFuncs::__str__(resp),
-            ChatResponse::Gemini(resp) => PyHelperFuncs::__str__(resp),
-        }
-    }
-}
-
-impl ChatResponse {
-    pub fn is_empty(&self) -> bool {
-        match self {
-            ChatResponse::OpenAI(resp) => resp.choices.is_empty(),
-            ChatResponse::Gemini(resp) => resp.candidates.is_empty(),
-        }
-    }
-
-    #[instrument(skip_all)]
-    pub fn to_message(&self, role: Role) -> Result<Vec<Message>, AgentError> {
-        debug!("Converting chat response to message with role");
-        match self {
-            ChatResponse::OpenAI(resp) => {
-                let first_choice = resp
-                    .choices
-                    .first()
-                    .ok_or_else(|| AgentError::ClientNoResponseError)?;
-
-                let content =
-                    PromptContent::Str(first_choice.message.content.clone().unwrap_or_default());
-
-                Ok(vec![Message::from(content, role)])
-            }
-
-            ChatResponse::Gemini(resp) => {
-                let content = resp
-                    .candidates
-                    .first()
-                    .ok_or_else(|| AgentError::ClientNoResponseError)?
-                    .content
-                    .parts
-                    .first()
-                    .and_then(|part| part.text.as_ref())
-                    .map(|s| s.as_str())
-                    .unwrap_or("")
-                    .to_string();
-
-                Ok(vec![Message::from(PromptContent::Str(content), role)])
-            }
-        }
-    }
-
-    pub fn to_python<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
-        match self {
-            ChatResponse::OpenAI(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::Gemini(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-        }
-    }
-
-    pub fn id(&self) -> String {
-        match self {
-            ChatResponse::OpenAI(resp) => resp.id.clone(),
-            ChatResponse::Gemini(resp) => resp.response_id.clone().unwrap_or("".to_string()),
-        }
-    }
-
-    /// Get the content of the first choice in the chat response
-    pub fn content(&self) -> Option<String> {
-        match self {
-            ChatResponse::OpenAI(resp) => {
-                resp.choices.first().and_then(|c| c.message.content.clone())
-            }
-            ChatResponse::Gemini(resp) => resp
-                .candidates
-                .first()
-                .and_then(|c| c.content.parts.first())
-                .and_then(|part| part.text.as_ref().map(|s| s.to_string())),
-        }
-    }
-
-    /// Check for tool calls in the chat response
-    pub fn tool_calls(&self) -> Option<Value> {
-        match self {
-            ChatResponse::OpenAI(resp) => {
-                let tool_calls: Option<&Vec<ToolCall>> =
-                    resp.choices.first().map(|c| c.message.tool_calls.as_ref());
-                tool_calls.and_then(|tc| serde_json::to_value(tc).ok())
-            }
-            ChatResponse::Gemini(resp) => {
-                // Collect all function calls from all parts in the first candidate
-                let function_calls: Vec<&FunctionCall> = resp
-                    .candidates
-                    .first()?
-                    .content
-                    .parts
-                    .iter()
-                    .filter_map(|part| part.function_call.as_ref())
-                    .collect();
-
-                if function_calls.is_empty() {
-                    None
-                } else {
-                    serde_json::to_value(&function_calls).ok()
-                }
-            }
-        }
-    }
-
-    /// Extracts structured data from a chat response
-    pub fn extract_structured_data(&self) -> Option<Value> {
-        if let Some(content) = self.content() {
-            serde_json::from_str(&content).ok()
-        } else {
-            self.tool_calls()
-        }
-    }
-}
 
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -161,10 +21,14 @@ pub struct AgentResponse {
 
 #[pymethods]
 impl AgentResponse {
-    pub fn token_usage(&self) -> Usage {
+    pub fn token_usage(&self) -> Result<Usage, AgentError> {
         match &self.response {
-            ChatResponse::OpenAI(resp) => resp.usage.clone(),
-            ChatResponse::Gemini(resp) => resp.get_token_usage(),
+            ChatResponse::OpenAI(resp) => Ok(resp.usage.clone()),
+            ChatResponse::Gemini(resp) => Ok(resp.get_token_usage()),
+            ChatResponse::VertexGenerate(resp) => Ok(resp.get_token_usage()),
+            _ => Err(AgentError::NotSupportedError(
+                "Token usage not supported for the vertex predict response type".to_string(),
+            )),
         }
     }
 
@@ -185,6 +49,11 @@ impl AgentResponse {
         match &self.response {
             ChatResponse::OpenAI(resp) => resp.get_content(),
             ChatResponse::Gemini(resp) => resp.get_content(),
+            ChatResponse::VertexGenerate(resp) => resp.get_content(),
+            _ => {
+                warn!("Content not available for this response type");
+                None
+            }
         }
     }
 
@@ -192,6 +61,11 @@ impl AgentResponse {
         match &self.response {
             ChatResponse::OpenAI(resp) => resp.get_log_probs(),
             ChatResponse::Gemini(resp) => resp.get_log_probs(),
+            ChatResponse::VertexGenerate(resp) => resp.get_log_probs(),
+            _ => {
+                warn!("Log probabilities not available for this response type");
+                vec![]
+            }
         }
     }
 }
@@ -216,7 +90,7 @@ impl PyAgentResponse {
     }
 
     #[getter]
-    pub fn token_usage(&self) -> Usage {
+    pub fn token_usage(&self) -> Result<Usage, AgentError> {
         self.response.token_usage()
     }
 

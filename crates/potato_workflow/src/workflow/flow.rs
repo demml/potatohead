@@ -7,7 +7,6 @@ use crate::{
 pub use potato_agent::agents::{
     agent::{Agent, PyAgent},
     task::{PyTask, Task, TaskStatus},
-    types::ChatResponse,
 };
 use potato_agent::PyAgentResponse;
 use potato_prompt::parse_response_to_json;
@@ -112,6 +111,24 @@ impl PartialEq for Workflow {
 }
 
 impl Workflow {
+    /// Reload the agent clients by overwriting the existing clients
+    /// We are trying to solve the deserialization issue where GenAIClient requires
+    /// and async context to be created. During deserialization we don't have that context, so we default
+    /// to an Undefined client, but keep the other agent details. This means that if we try to run a workflow after deserialization
+    /// we will get an error when we try to execute a task with an Undefined client.
+    /// For this specific function, we can either make Arc<Agent> into RW compatible, or we can
+    /// rebuild the entire agents map with new Arcs. Given that the only mutation we need to do is to
+    /// rebuild the GenAIClient, we opt for the latter because we don't need to make everything else RW compatible.
+    /// This will incure a small startup cost, but it will be a one-time cost and 99% of the time unnoticed.
+    pub async fn reset_agents(&mut self) -> Result<(), WorkflowError> {
+        let mut agents_map = self.agents.clone();
+
+        for agent in self.agents.values_mut() {
+            agents_map.insert(agent.id.clone(), Arc::new(agent.rebuild_client().await?));
+        }
+        self.agents = agents_map;
+        Ok(())
+    }
     pub fn new(name: &str) -> Self {
         debug!("Creating new workflow: {}", name);
         let id = create_uuid7();
@@ -730,7 +747,7 @@ impl PyWorkflow {
     }
 
     #[getter]
-    pub fn __workflow__(&self) -> String {
+    pub fn __workflow__(&self) -> Result<String, WorkflowError> {
         self.model_dump_json()
     }
 
@@ -900,8 +917,8 @@ impl PyWorkflow {
         Ok(workflow_result)
     }
 
-    pub fn model_dump_json(&self) -> String {
-        serde_json::to_string(&self.workflow).unwrap()
+    pub fn model_dump_json(&self) -> Result<String, WorkflowError> {
+        Ok(self.workflow.serialize()?)
     }
 
     #[staticmethod]
@@ -910,23 +927,26 @@ impl PyWorkflow {
         json_string: String,
         output_types: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, WorkflowError> {
-        let workflow: Workflow = serde_json::from_str(&json_string)?;
         let runtime = Arc::new(
             tokio::runtime::Runtime::new()
                 .map_err(|e| WorkflowError::RuntimeError(e.to_string()))?,
         );
+        let mut workflow: Workflow = Workflow::from_json(&json_string)?;
 
-        let output_types = if let Some(output_types) = output_types {
-            output_types
+        // reload agents to ensure clients are rebuilt
+        // This is necessary because during deserialization the GenAIClient
+        runtime.block_on(async { workflow.reset_agents().await })?;
+
+        let output_types = match output_types {
+            Some(output_types) => output_types
                 .iter()
                 .map(|(k, v)| -> PyResult<(String, Arc<PyObject>)> {
                     let key = k.extract::<String>()?;
                     let value = v.clone().unbind();
                     Ok((key, Arc::new(value)))
                 })
-                .collect::<PyResult<HashMap<String, Arc<PyObject>>>>()?
-        } else {
-            HashMap::new()
+                .collect::<PyResult<HashMap<String, Arc<PyObject>>>>()?,
+            None => HashMap::new(),
         };
 
         let py_workflow = PyWorkflow {

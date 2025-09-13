@@ -58,28 +58,16 @@ impl Display for Common {
 pub enum Provider {
     OpenAI,
     Gemini,
+    Vertex,
     Undefined, // Added Undefined for better error handling
 }
 
 impl Provider {
-    pub fn url(&self) -> &str {
-        match self {
-            Provider::OpenAI => "https://api.openai.com/v1",
-
-            //https://cloud.google.com/vertex-ai/generative-ai/docs/migrate/migrate-google-ai
-            Provider::Gemini => "https://generativelanguage.googleapis.com/v1beta/models",
-
-            Provider::Undefined => {
-                error!("Undefined provider URL requested");
-                "https://undefined.provider.url"
-            }
-        }
-    }
-
     pub fn from_string(s: &str) -> Result<Self, TypeError> {
         match s.to_lowercase().as_str() {
             "openai" => Ok(Provider::OpenAI),
             "gemini" => Ok(Provider::Gemini),
+            "vertex" => Ok(Provider::Vertex),
             "undefined" => Ok(Provider::Undefined), // Handle undefined case
             _ => Err(TypeError::UnknownProviderError(s.to_string())),
         }
@@ -113,6 +101,7 @@ impl Provider {
         match self {
             Provider::OpenAI => "openai",
             Provider::Gemini => "gemini",
+            Provider::Vertex => "vertex",
             Provider::Undefined => "undefined", // Added Undefined case
         }
     }

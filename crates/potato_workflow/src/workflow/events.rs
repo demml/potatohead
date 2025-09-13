@@ -1,7 +1,8 @@
 use chrono::{DateTime, Duration, Utc};
-use potato_agent::agents::{task::TaskStatus, types::ChatResponse};
+use potato_agent::agents::task::TaskStatus;
 use potato_agent::AgentResponse;
 use potato_prompt::Prompt;
+use potato_provider::ChatResponse;
 use potato_util::create_uuid7;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;

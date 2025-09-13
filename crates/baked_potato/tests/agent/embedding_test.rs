@@ -1,6 +1,6 @@
 use baked_potato::LLMTestServer;
-use potato_agent::agents::embed::EmbeddingConfig;
-use potato_agent::Embedder;
+use potato_provider::providers::embed::EmbeddingInput;
+use potato_provider::{Embedder, EmbeddingConfig};
 use potato_type::google::GeminiEmbeddingConfig;
 use potato_type::openai::embedding::OpenAIEmbeddingConfig;
 use potato_type::Provider;
@@ -18,9 +18,12 @@ fn test_openai_embedding() {
         ..Default::default()
     });
 
-    let embedder = Embedder::new(Provider::OpenAI, config).unwrap();
+    let embedder = runtime
+        .block_on(async { Embedder::new(Provider::OpenAI, config).await })
+        .unwrap();
 
     let inputs = vec!["Test input 1".to_string(), "Test input 2".to_string()];
+    let inputs = EmbeddingInput::Texts(inputs);
 
     let embeddings = runtime.block_on(async { embedder.embed(inputs).await.unwrap() });
 
@@ -44,10 +47,11 @@ fn test_gemini_embedding() {
         model: Some("gemini-embedding-001".to_string()),
         ..Default::default()
     });
-    let embedder = Embedder::new(Provider::Gemini, config).unwrap();
+    let embedder = runtime
+        .block_on(async { Embedder::new(Provider::Gemini, config).await })
+        .unwrap();
 
-    let inputs = vec!["Test input 1".to_string()];
-
+    let inputs = EmbeddingInput::Texts(vec!["Test input 1".to_string()]);
     let _embeddings = runtime.block_on(async { embedder.embed(inputs).await.unwrap() });
 
     mock.stop_server().unwrap();

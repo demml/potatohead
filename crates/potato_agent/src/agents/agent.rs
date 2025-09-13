@@ -1,7 +1,4 @@
-use crate::agents::provider::gemini::GeminiClient;
-use crate::agents::provider::openai::OpenAIClient;
 use crate::{
-    agents::client::GenAiClient,
     agents::error::AgentError,
     agents::task::Task,
     agents::types::{AgentResponse, PyAgentResponse},
@@ -10,6 +7,11 @@ use potato_prompt::prompt::settings::ModelSettings;
 use potato_prompt::{
     parse_response_to_json, prompt::parse_prompt, prompt::types::Message, Prompt, Role,
 };
+
+use potato_provider::{providers::google::VertexClient, GenAiClient, OpenAIClient};
+
+use potato_provider::providers::types::ServiceType;
+use potato_provider::GeminiClient;
 use potato_type::Provider;
 use potato_util::create_uuid7;
 use pyo3::{prelude::*, IntoPyObjectExt};
@@ -23,39 +25,65 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;
-use tracing::{debug, error, instrument, warn};
+use tracing::{debug, instrument, warn};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Agent {
     pub id: String,
-
-    client: GenAiClient,
-
+    client: Arc<GenAiClient>,
+    pub provider: Provider,
     pub system_instruction: Vec<Message>,
 }
 
 /// Rust method implementation of the Agent
 impl Agent {
-    pub fn new(
+    /// Helper method to rebuild the client, useful for deserialization
+    #[instrument(skip_all)]
+    pub async fn rebuild_client(&self) -> Result<Self, AgentError> {
+        let client = match self.provider {
+            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(ServiceType::Generate)?),
+            Provider::Gemini => {
+                GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
+            }
+            Provider::Vertex => {
+                GenAiClient::Vertex(VertexClient::new(ServiceType::Generate).await?)
+            }
+            _ => {
+                return Err(AgentError::MissingProviderError);
+            } // Add other providers here as needed
+        };
+
+        Ok(Self {
+            id: self.id.clone(),
+            client: Arc::new(client),
+            system_instruction: self.system_instruction.clone(),
+            provider: self.provider.clone(),
+        })
+    }
+    pub async fn new(
         provider: Provider,
         system_instruction: Option<Vec<Message>>,
     ) -> Result<Self, AgentError> {
         let client = match provider {
-            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
-            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None, None, None)?),
+            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(ServiceType::Generate)?),
+            Provider::Gemini => {
+                GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
+            }
+            Provider::Vertex => {
+                GenAiClient::Vertex(VertexClient::new(ServiceType::Generate).await?)
+            }
             _ => {
-                let msg = "No provider specified in ModelSettings";
-                error!("{}", msg);
-                return Err(AgentError::UndefinedError(msg.to_string()));
+                return Err(AgentError::MissingProviderError);
             } // Add other providers here as needed
         };
 
         let system_instruction = system_instruction.unwrap_or_default();
 
         Ok(Self {
-            client,
+            client: Arc::new(client),
             id: create_uuid7(),
             system_instruction,
+            provider,
         })
     }
 
@@ -138,7 +166,7 @@ impl Agent {
         self.append_system_instructions(&mut prompt);
 
         // Use the client to execute the task
-        let chat_response = self.client.execute(&prompt).await?;
+        let chat_response = self.client.generate_content(&prompt).await?;
 
         Ok(AgentResponse::new(task.id.clone(), chat_response))
     }
@@ -151,7 +179,7 @@ impl Agent {
         self.append_system_instructions(&mut prompt);
 
         // Use the client to execute the task
-        let chat_response = self.client.execute(&prompt).await?;
+        let chat_response = self.client.generate_content(&prompt).await?;
 
         Ok(AgentResponse::new(chat_response.id(), chat_response))
     }
@@ -174,31 +202,35 @@ impl Agent {
         };
 
         // Now do the async work without holding the lock
-        let chat_response = self.client.execute(&prompt).await?;
+        let chat_response = self.client.generate_content(&prompt).await?;
 
         Ok(AgentResponse::new(task_id, chat_response))
     }
 
-    pub fn provider(&self) -> &Provider {
+    pub fn client_provider(&self) -> &Provider {
         self.client.provider()
     }
 
-    pub fn from_model_settings(model_settings: &ModelSettings) -> Result<Self, AgentError> {
+    pub async fn from_model_settings(model_settings: &ModelSettings) -> Result<Self, AgentError> {
         let provider = model_settings.provider();
         let client = match provider {
-            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(None, None, None)?),
-            Provider::Gemini => GenAiClient::Gemini(GeminiClient::new(None, None, None)?),
+            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(ServiceType::Generate)?),
+            Provider::Gemini => {
+                GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
+            }
+            Provider::Vertex => {
+                GenAiClient::Vertex(VertexClient::new(ServiceType::Generate).await?)
+            }
             Provider::Undefined => {
-                let msg = "No provider specified in ModelSettings";
-                error!("{}", msg);
-                return Err(AgentError::UndefinedError(msg.to_string()));
+                return Err(AgentError::MissingProviderError);
             }
         };
 
         Ok(Self {
-            client,
+            client: Arc::new(client),
             id: create_uuid7(),
             system_instruction: Vec::new(),
+            provider,
         })
     }
 }
@@ -210,7 +242,7 @@ impl Serialize for Agent {
     {
         let mut state = serializer.serialize_struct("Agent", 3)?;
         state.serialize_field("id", &self.id)?;
-        state.serialize_field("provider", &self.client.provider())?;
+        state.serialize_field("provider", &self.provider)?;
         state.serialize_field("system_instruction", &self.system_instruction)?;
         state.end()
     }
@@ -266,30 +298,14 @@ impl<'de> Deserialize<'de> for Agent {
                 let system_instruction = system_instruction
                     .ok_or_else(|| de::Error::missing_field("system_instruction"))?;
 
-                // Re-initialize the client based on the provider
-                let client = match provider {
-                    Provider::OpenAI => {
-                        GenAiClient::OpenAI(OpenAIClient::new(None, None, None).map_err(|e| {
-                            de::Error::custom(format!("Failed to initialize OpenAIClient: {e}"))
-                        })?)
-                    }
-                    Provider::Gemini => {
-                        GenAiClient::Gemini(GeminiClient::new(None, None, None).map_err(|e| {
-                            de::Error::custom(format!("Failed to initialize GeminiClient: {e}"))
-                        })?)
-                    }
-
-                    Provider::Undefined => {
-                        let msg = "No provider specified in ModelSettings";
-                        error!("{}", msg);
-                        return Err(de::Error::custom(msg));
-                    }
-                };
-
+                // Deserialize is a sync op, so we can't await here (gemini requires async to init)
+                // After deserialization, we re-initialize the client based on the provider
+                let client = GenAiClient::Undefined;
                 Ok(Agent {
                     id,
-                    client,
+                    client: Arc::new(client),
                     system_instruction,
+                    provider,
                 })
             }
         }
@@ -336,14 +352,13 @@ impl PyAgent {
             None
         };
 
-        let agent = Agent::new(provider, system_instruction)?;
+        let runtime = tokio::runtime::Runtime::new()?;
+
+        let agent = runtime.block_on(async { Agent::new(provider, system_instruction).await })?;
 
         Ok(Self {
             agent: Arc::new(agent),
-            runtime: Arc::new(
-                tokio::runtime::Runtime::new()
-                    .map_err(|e| AgentError::RuntimeError(e.to_string()))?,
-            ),
+            runtime: Arc::new(runtime),
         })
     }
 
@@ -377,10 +392,10 @@ impl PyAgent {
         }
 
         // agent provider and task.prompt provider must match
-        if task.prompt.provider != *self.agent.provider() {
+        if task.prompt.provider != *self.agent.client_provider() {
             return Err(AgentError::ProviderMismatch(
                 task.prompt.provider.to_string(),
-                self.agent.provider().as_str().to_string(),
+                self.agent.client_provider().as_str().to_string(),
             ));
         }
 
@@ -429,10 +444,10 @@ impl PyAgent {
         }
 
         // agent provider and task.prompt provider must match
-        if prompt.provider != *self.agent.provider() {
+        if prompt.provider != *self.agent.client_provider() {
             return Err(AgentError::ProviderMismatch(
                 prompt.provider.to_string(),
-                self.agent.provider().as_str().to_string(),
+                self.agent.client_provider().as_str().to_string(),
             ));
         }
 
