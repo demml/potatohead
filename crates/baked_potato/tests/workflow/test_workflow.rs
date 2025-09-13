@@ -77,6 +77,25 @@ fn test_workflow() {
         workflow.run(None).await.unwrap();
     });
 
+    // serialize the workflow
+    let serialized = workflow.serialize().unwrap();
+    let mut reloaded = Workflow::from_json(&serialized).unwrap();
+
+    // before running reset agents assert clients are undefined
+    for agent in reloaded.agents.values() {
+        assert!(agent.client_provider() == &Provider::Undefined);
+    }
+
+    runtime.block_on(async {
+        reloaded.reset_agents().await.unwrap();
+        reloaded.run(None).await.unwrap();
+    });
+
+    // assert workflow agent client are not undefined
+    for agent in reloaded.agents.values() {
+        assert!(agent.client_provider() == &Provider::OpenAI);
+    }
+
     mock.stop_server().unwrap();
 }
 

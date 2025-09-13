@@ -747,7 +747,7 @@ impl PyWorkflow {
     }
 
     #[getter]
-    pub fn __workflow__(&self) -> String {
+    pub fn __workflow__(&self) -> Result<String, WorkflowError> {
         self.model_dump_json()
     }
 
@@ -917,8 +917,8 @@ impl PyWorkflow {
         Ok(workflow_result)
     }
 
-    pub fn model_dump_json(&self) -> String {
-        serde_json::to_string(&self.workflow).unwrap()
+    pub fn model_dump_json(&self) -> Result<String, WorkflowError> {
+        Ok(self.workflow.serialize()?)
     }
 
     #[staticmethod]
@@ -931,7 +931,7 @@ impl PyWorkflow {
             tokio::runtime::Runtime::new()
                 .map_err(|e| WorkflowError::RuntimeError(e.to_string()))?,
         );
-        let mut workflow: Workflow = serde_json::from_str(&json_string)?;
+        let mut workflow: Workflow = Workflow::from_json(&json_string)?;
 
         // reload agents to ensure clients are rebuilt
         // This is necessary because during deserialization the GenAIClient

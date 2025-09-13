@@ -207,7 +207,7 @@ impl Agent {
         Ok(AgentResponse::new(task_id, chat_response))
     }
 
-    pub fn provider(&self) -> &Provider {
+    pub fn client_provider(&self) -> &Provider {
         self.client.provider()
     }
 
@@ -242,7 +242,7 @@ impl Serialize for Agent {
     {
         let mut state = serializer.serialize_struct("Agent", 3)?;
         state.serialize_field("id", &self.id)?;
-        state.serialize_field("provider", &self.client.provider())?;
+        state.serialize_field("provider", &self.provider)?;
         state.serialize_field("system_instruction", &self.system_instruction)?;
         state.end()
     }
@@ -392,10 +392,10 @@ impl PyAgent {
         }
 
         // agent provider and task.prompt provider must match
-        if task.prompt.provider != *self.agent.provider() {
+        if task.prompt.provider != *self.agent.client_provider() {
             return Err(AgentError::ProviderMismatch(
                 task.prompt.provider.to_string(),
-                self.agent.provider().as_str().to_string(),
+                self.agent.client_provider().as_str().to_string(),
             ));
         }
 
@@ -444,10 +444,10 @@ impl PyAgent {
         }
 
         // agent provider and task.prompt provider must match
-        if prompt.provider != *self.agent.provider() {
+        if prompt.provider != *self.agent.client_provider() {
             return Err(AgentError::ProviderMismatch(
                 prompt.provider.to_string(),
-                self.agent.provider().as_str().to_string(),
+                self.agent.client_provider().as_str().to_string(),
             ));
         }
 
