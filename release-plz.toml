@@ -34,5 +34,9 @@ name = "potato-workflow"
 publish = true
 
 [[package]]
+name = "potato-provider"
+publish = true
+
+[[package]]
 name = "baked-potato"
 publish = true
