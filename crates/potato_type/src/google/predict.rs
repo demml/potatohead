@@ -17,13 +17,13 @@ pub struct PredictRequest {
 #[pymethods]
 impl PredictRequest {
     #[getter]
-    pub fn instances<'py>(&self, py: Python<'py>) -> Result<PyObject, TypeError> {
+    pub fn instances<'py>(&self, py: Python<'py>) -> Result<Py<PyAny>, TypeError> {
         let obj = json_to_pyobject(py, &self.instances)?;
         Ok(obj)
     }
 
     #[getter]
-    pub fn parameters<'py>(&self, py: Python<'py>) -> Result<PyObject, TypeError> {
+    pub fn parameters<'py>(&self, py: Python<'py>) -> Result<Py<PyAny>, TypeError> {
         let obj = json_to_pyobject(py, &self.parameters)?;
         Ok(obj)
     }
@@ -66,13 +66,13 @@ pub struct PredictResponse {
 #[pymethods]
 impl PredictResponse {
     #[getter]
-    pub fn predictions<'py>(&self, py: Python<'py>) -> Result<PyObject, TypeError> {
+    pub fn predictions<'py>(&self, py: Python<'py>) -> Result<Py<PyAny>, TypeError> {
         let obj = json_to_pyobject(py, &self.predictions)?;
         Ok(obj)
     }
 
     #[getter]
-    pub fn metadata<'py>(&self, py: Python<'py>) -> Result<PyObject, TypeError> {
+    pub fn metadata<'py>(&self, py: Python<'py>) -> Result<Py<PyAny>, TypeError> {
         let obj = json_to_pyobject(py, &self.metadata)?;
         Ok(obj)
     }

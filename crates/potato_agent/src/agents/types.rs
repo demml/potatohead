@@ -76,7 +76,7 @@ pub struct PyAgentResponse {
     pub response: AgentResponse,
 
     #[serde(skip_serializing)]
-    pub output_type: Option<PyObject>,
+    pub output_type: Option<Py<PyAny>>,
 
     #[pyo3(get)]
     pub failed_conversion: bool,
@@ -156,7 +156,7 @@ impl PyAgentResponse {
 }
 
 impl PyAgentResponse {
-    pub fn new(response: AgentResponse, output_type: Option<PyObject>) -> Self {
+    pub fn new(response: AgentResponse, output_type: Option<Py<PyAny>>) -> Self {
         Self {
             response,
             output_type,

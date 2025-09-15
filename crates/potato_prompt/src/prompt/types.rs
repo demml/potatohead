@@ -708,7 +708,7 @@ impl Score {
     }
 
     #[staticmethod]
-    pub fn model_json_schema(py: Python<'_>) -> Result<PyObject, PromptError> {
+    pub fn model_json_schema(py: Python<'_>) -> Result<Py<PyAny>, PromptError> {
         let schema = Score::get_structured_output_schema();
         Ok(json_to_pyobject(py, &schema)?)
     }
