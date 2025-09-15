@@ -146,7 +146,7 @@ pub fn json_to_pydict<'py>(
 /// # Returns
 /// * `Ok(PyObject)` if the conversion was successful.
 /// * `Err(UtilError)` if the conversion failed.
-pub fn json_to_pyobject(py: Python, value: &Value) -> Result<PyObject, UtilError> {
+pub fn json_to_pyobject(py: Python, value: &Value) -> Result<Py<PyAny>, UtilError> {
     Ok(match value {
         Value::Null => py.None(),
         Value::Bool(b) => b.into_py_any(py)?,

@@ -46,7 +46,7 @@ impl WorkflowResult {
     pub fn new(
         py: Python,
         tasks: HashMap<String, Task>,
-        output_types: &HashMap<String, Arc<PyObject>>,
+        output_types: &HashMap<String, Arc<Py<PyAny>>>,
         events: Vec<TaskEvent>,
     ) -> Self {
         let py_tasks = tasks
@@ -709,7 +709,7 @@ pub struct PyWorkflow {
     // allow adding output types for python tasks (py only)
     // these are provided at runtime by the user and must match the response
     // format of the prompt the task is associated with
-    output_types: HashMap<String, Arc<PyObject>>,
+    output_types: HashMap<String, Arc<Py<PyAny>>>,
 
     // potatohead version holds a reference to the runtime
     runtime: Arc<tokio::runtime::Runtime>,
@@ -773,9 +773,9 @@ impl PyWorkflow {
         &mut self,
         task_output_types: Bound<'py, PyDict>,
     ) -> PyResult<()> {
-        let converted: HashMap<String, Arc<PyObject>> = task_output_types
+        let converted: HashMap<String, Arc<Py<PyAny>>> = task_output_types
             .iter()
-            .map(|(k, v)| -> PyResult<(String, Arc<PyObject>)> {
+            .map(|(k, v)| -> PyResult<(String, Arc<Py<PyAny>>)> {
                 // Explicitly return a Result from the closure
                 let key = k.extract::<String>()?;
                 let value = v.clone().unbind();
@@ -940,12 +940,12 @@ impl PyWorkflow {
         let output_types = match output_types {
             Some(output_types) => output_types
                 .iter()
-                .map(|(k, v)| -> PyResult<(String, Arc<PyObject>)> {
+                .map(|(k, v)| -> PyResult<(String, Arc<Py<PyAny>>)> {
                     let key = k.extract::<String>()?;
                     let value = v.clone().unbind();
                     Ok((key, Arc::new(value)))
                 })
-                .collect::<PyResult<HashMap<String, Arc<PyObject>>>>()?,
+                .collect::<PyResult<HashMap<String, Arc<Py<PyAny>>>>>()?,
             None => HashMap::new(),
         };
 

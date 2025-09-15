@@ -442,9 +442,9 @@ impl LLMTestServer {
 
     fn __exit__(
         &mut self,
-        _exc_type: PyObject,
-        _exc_value: PyObject,
-        _traceback: PyObject,
+        _exc_type: Py<PyAny>,
+        _exc_value: Py<PyAny>,
+        _traceback: Py<PyAny>,
     ) -> Result<(), MockError> {
         self.stop_server()
     }

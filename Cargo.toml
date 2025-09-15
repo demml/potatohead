@@ -9,21 +9,21 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.7.0"
+version = "0.8.0"
 authors = ["demml <support@demmlai.com>"]
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/demml/potatohead"
 
 [workspace.dependencies]
-baked-potato = { path = "crates/baked_potato", version = "0.7.0" }
-potato-agent = { path = "crates/potato_agent", version = "0.7.0" }
-potato-prompt = { path = "crates/potato_prompt", version = "0.7.0" }
-potato-provider = { path = "crates/potato_provider", version = "0.7.0" }
-potato-type = { path = "crates/potato_type", version = "0.7.0" }
-potato-workflow = { path = "crates/potato_workflow", version = "0.7.0" }
-potato-util = { path = "crates/potato_util", version = "0.7.0" }
-potato-head = { path = "crates/potato_head", version = "0.7.0" }
+baked-potato = { path = "crates/baked_potato", version = "0.8.0" }
+potato-agent = { path = "crates/potato_agent", version = "0.8.0" }
+potato-prompt = { path = "crates/potato_prompt", version = "0.8.0" }
+potato-provider = { path = "crates/potato_provider", version = "0.8.0" }
+potato-type = { path = "crates/potato_type", version = "0.8.0" }
+potato-workflow = { path = "crates/potato_workflow", version = "0.8.0" }
+potato-util = { path = "crates/potato_util", version = "0.8.0" }
+potato-head = { path = "crates/potato_head", version = "0.8.0" }
 
 anyhow = "1.0.93"
 base64 = "0.*"
@@ -33,7 +33,7 @@ http = "1.*"
 gcloud-auth = { version = "1.*" }
 mockito = "1.*"
 mime_guess = "2.*"
-pyo3 = { version = "0.25.*", features = ["extension-module", "anyhow", "serde", "chrono"] }
+pyo3 = { version = "0.*", features = ["abi3-py310", "extension-module", "anyhow", "serde", "chrono"] }
 rand = "0.9.*"
 regex = "1.*"
 reqwest = { version = "0.12.*", features = ["json", "stream", "multipart", "rustls-tls", "rustls-tls-native-roots", "blocking" ], default-features = false }
