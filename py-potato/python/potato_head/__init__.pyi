@@ -475,6 +475,7 @@ class Provider:
     OpenAI: "Provider"
     Gemini: "Provider"
     Vertex: "Provider"
+    Google: "Provider"
 
 class TaskStatus:
     Pending: "TaskStatus"
