@@ -58,6 +58,7 @@ impl Display for Common {
 pub enum Provider {
     OpenAI,
     Gemini,
+    Google,
     Vertex,
     Undefined, // Added Undefined for better error handling
 }
@@ -67,6 +68,7 @@ impl Provider {
         match s.to_lowercase().as_str() {
             "openai" => Ok(Provider::OpenAI),
             "gemini" => Ok(Provider::Gemini),
+            "google" => Ok(Provider::Google),
             "vertex" => Ok(Provider::Vertex),
             "undefined" => Ok(Provider::Undefined), // Handle undefined case
             _ => Err(TypeError::UnknownProviderError(s.to_string())),
@@ -102,6 +104,7 @@ impl Provider {
             Provider::OpenAI => "openai",
             Provider::Gemini => "gemini",
             Provider::Vertex => "vertex",
+            Provider::Google => "google",
             Provider::Undefined => "undefined", // Added Undefined case
         }
     }

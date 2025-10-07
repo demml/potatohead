@@ -221,6 +221,9 @@ impl Agent {
             Provider::Vertex => {
                 GenAiClient::Vertex(VertexClient::new(ServiceType::Generate).await?)
             }
+            Provider::Google => {
+                GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
+            }
             Provider::Undefined => {
                 return Err(AgentError::MissingProviderError);
             }
