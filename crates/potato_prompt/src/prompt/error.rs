@@ -1,7 +1,6 @@
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
 use thiserror::Error;
-use tracing::error;
 
 #[derive(Error, Debug)]
 pub enum PromptError {

@@ -3,17 +3,9 @@ from dataclasses import dataclass
 from typing import List
 
 import pytest
-from potato_head import (  # type: ignore
-    Agent,
-    Prompt,
-    Provider,
-    Score,
-    Task,
-    TaskStatus,
-    Workflow,
-)
-from potato_head.logging import LoggingConfig, LogLevel, RustyLogger  # type: ignore
-from potato_head.mock import LLMTestServer  # type: ignore
+from potato_head import Agent, Prompt, Provider, Score, Task, TaskStatus, Workflow
+from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
+from potato_head.mock import LLMTestServer
 from pydantic import BaseModel
 from pydantic_ai import Agent as PydanticAgent
 from pydantic_ai import RunContext, models

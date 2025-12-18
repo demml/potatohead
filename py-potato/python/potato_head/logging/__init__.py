@@ -1,15 +1,4 @@
-# type: ignore
+# mypy: disable-error-code="attr-defined"
+from .._potato_head import LoggingConfig, LogLevel, RustyLogger, WriteLevel
 
-from .. import logging
-
-LogLevel = logging.LogLevel
-RustyLogger = logging.RustyLogger
-LoggingConfig = logging.LoggingConfig
-WriteLevel = logging.WriteLevel
-
-__all__ = [
-    "LogLevel",
-    "RustyLogger",
-    "LoggingConfig",
-    "WriteLevel",
-]
+__all__ = ["LogLevel", "RustyLogger", "LoggingConfig", "WriteLevel"]

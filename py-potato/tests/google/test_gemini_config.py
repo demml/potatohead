@@ -1,8 +1,4 @@
-from potato_head.google import (  # type: ignore
-    GeminiSettings,
-    GenerationConfig,
-    ThinkingConfig,
-)
+from potato_head.google import GeminiSettings, GenerationConfig, ThinkingConfig
 
 
 def test_gemini_settings_init():

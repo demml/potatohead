@@ -98,35 +98,27 @@ impl EmbeddingConfig {
     ) -> Result<Self, ProviderError> {
         match provider {
             Provider::OpenAI => {
-                let config = if config.is_none() {
-                    OpenAIEmbeddingConfig::default()
-                } else {
-                    config
-                        .unwrap()
-                        .extract::<OpenAIEmbeddingConfig>()
-                        .map_err(|e| {
-                            ProviderError::EmbeddingConfigExtractionError(format!(
-                                "Failed to extract OpenAIEmbeddingConfig: {}",
-                                e
-                            ))
-                        })?
+                let config = match config {
+                    None => OpenAIEmbeddingConfig::default(),
+                    Some(cfg) => cfg.extract::<OpenAIEmbeddingConfig>().map_err(|e| {
+                        ProviderError::EmbeddingConfigExtractionError(format!(
+                            "Failed to extract OpenAIEmbeddingConfig: {}",
+                            e
+                        ))
+                    })?,
                 };
 
                 Ok(EmbeddingConfig::OpenAI(config))
             }
             Provider::Gemini | Provider::Vertex => {
-                let config = if config.is_none() {
-                    GeminiEmbeddingConfig::default()
-                } else {
-                    config
-                        .unwrap()
-                        .extract::<GeminiEmbeddingConfig>()
-                        .map_err(|e| {
-                            ProviderError::EmbeddingConfigExtractionError(format!(
-                                "Failed to extract GeminiEmbeddingConfig: {}",
-                                e
-                            ))
-                        })?
+                let config = match config {
+                    None => GeminiEmbeddingConfig::default(),
+                    Some(cfg) => cfg.extract::<GeminiEmbeddingConfig>().map_err(|e| {
+                        ProviderError::EmbeddingConfigExtractionError(format!(
+                            "Failed to extract GeminiEmbeddingConfig: {}",
+                            e
+                        ))
+                    })?,
                 };
 
                 Ok(EmbeddingConfig::Gemini(config))

@@ -4,7 +4,7 @@ version = { workspace = true }
 edition = "2021"
 
 [lib]
-name = "potato_head"
+name = "_potato_head"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
@@ -21,3 +21,4 @@ lto = "fat"
 codegen-units = 1
 strip = true
 opt-level = 3
+debug = false
