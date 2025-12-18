@@ -1,4 +1,5 @@
 use pyo3::exceptions::PyRuntimeError;
+use pyo3::pyclass::PyClassGuardError;
 use pyo3::PyErr;
 use thiserror::Error;
 
@@ -67,6 +68,12 @@ impl From<PromptError> for PyErr {
 
 impl From<PyErr> for PromptError {
     fn from(err: PyErr) -> Self {
+        PromptError::Error(err.to_string())
+    }
+}
+
+impl<'a, 'py> From<PyClassGuardError<'a, 'py>> for PromptError {
+    fn from(err: PyClassGuardError<'a, 'py>) -> Self {
         PromptError::Error(err.to_string())
     }
 }

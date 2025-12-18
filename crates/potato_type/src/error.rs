@@ -1,4 +1,5 @@
 use pyo3::exceptions::PyRuntimeError;
+use pyo3::pyclass::PyClassGuardError;
 use pyo3::PyErr;
 use thiserror::Error;
 use tracing::error;
@@ -37,6 +38,12 @@ impl From<TypeError> for PyErr {
 
 impl From<PyErr> for TypeError {
     fn from(err: PyErr) -> Self {
+        TypeError::Error(err.to_string())
+    }
+}
+
+impl<'a, 'py> From<PyClassGuardError<'a, 'py>> for TypeError {
+    fn from(err: PyClassGuardError<'a, 'py>) -> Self {
         TypeError::Error(err.to_string())
     }
 }

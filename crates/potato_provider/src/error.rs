@@ -1,10 +1,12 @@
 use gcloud_auth::error::Error as GCloudAuthError;
 use potato_prompt::PromptError;
 use pyo3::exceptions::PyRuntimeError;
+use pyo3::pyclass::PyClassGuardError;
 use pyo3::PyErr;
 use reqwest::StatusCode;
 use thiserror::Error;
 use tracing::error;
+
 #[derive(Error, Debug)]
 pub enum ProviderError {
     #[error("Error: {0}")]
@@ -104,8 +106,8 @@ pub enum ProviderError {
     InvalidConfigType(String),
 }
 
-impl<'a> From<pyo3::DowncastError<'a, 'a>> for ProviderError {
-    fn from(err: pyo3::DowncastError) -> Self {
+impl<'a, 'py> From<pyo3::CastError<'a, 'py>> for ProviderError {
+    fn from(err: pyo3::CastError<'a, 'py>) -> Self {
         ProviderError::DowncastError(err.to_string())
     }
 }
@@ -120,6 +122,12 @@ impl From<ProviderError> for PyErr {
 
 impl From<PyErr> for ProviderError {
     fn from(err: PyErr) -> Self {
+        ProviderError::Error(err.to_string())
+    }
+}
+
+impl<'a, 'py> From<PyClassGuardError<'a, 'py>> for ProviderError {
+    fn from(err: PyClassGuardError<'a, 'py>) -> Self {
         ProviderError::Error(err.to_string())
     }
 }
