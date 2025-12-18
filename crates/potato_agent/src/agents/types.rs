@@ -5,6 +5,7 @@ use potato_provider::ResponseExt;
 use potato_provider::Usage;
 use potato_util::json_to_pyobject;
 use potato_util::utils::{LogProbs, ResponseLogProbs};
+use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
@@ -152,6 +153,10 @@ impl PyAgentResponse {
                 Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
             }
         }
+    }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
     }
 }
 
