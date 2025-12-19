@@ -32,13 +32,6 @@ impl AgentResponse {
             )),
         }
     }
-
-    //pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
-    //    let pyobj = json_to_pyobject(py, &self.content())?;
-    //
-    //    // Convert plain string output to Python string
-    //    Ok(pyobj.into_bound_py_any(py)?)
-    //}
 }
 
 impl AgentResponse {
@@ -46,11 +39,13 @@ impl AgentResponse {
         Self { id, response }
     }
 
+    #[instrument(skip_all)]
     pub fn content(&self) -> Option<String> {
         match &self.response {
             ChatResponse::OpenAI(resp) => resp.get_content(),
             ChatResponse::Gemini(resp) => resp.get_content(),
             ChatResponse::VertexGenerate(resp) => resp.get_content(),
+            ChatResponse::Anthropic(resp) => resp.get_content(),
             _ => {
                 warn!("Content not available for this response type");
                 None

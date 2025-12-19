@@ -1,4 +1,5 @@
 use crate::ProviderError;
+use crate::ResponseExt;
 use potato_prompt::{Message, PromptContent};
 use potato_type::anthropic::v1::message::AnthropicSettings;
 use potato_type::anthropic::v1::message::ContentBlock;
@@ -75,6 +76,15 @@ pub struct AnthropicChatResponse {
     #[pyo3(get)]
     pub usage: Usage,
     pub content: Vec<ContentBlock>,
+}
+
+impl ResponseExt for AnthropicChatResponse {
+    fn get_content(&self) -> Option<String> {
+        self.content.first().and_then(|block| match block {
+            ContentBlock::Text { text, .. } => Some(text.clone()),
+            _ => None,
+        })
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]

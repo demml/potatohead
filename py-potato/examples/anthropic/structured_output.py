@@ -30,9 +30,6 @@ prompt = Prompt(
     response_format=StructuredTaskOutput,
 )
 
-print(Provider.__dict__)
-print(f"Anthropic: {Provider.OpenAI}")
-print(f"Anthropic: {Provider.Anthropic}")
 
 agent = Agent(Provider.Anthropic)
 

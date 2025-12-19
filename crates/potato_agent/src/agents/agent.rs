@@ -352,7 +352,14 @@ impl PyAgent {
                 parse_prompt(system_instruction)?
                     .into_iter()
                     .map(|mut msg| {
-                        msg.role = Role::Developer.to_string();
+                        msg.role = match provider {
+                            Provider::OpenAI
+                            | Provider::Gemini
+                            | Provider::Vertex
+                            | Provider::Google => Role::Developer.to_string(),
+                            Provider::Anthropic => Role::Assistant.to_string(),
+                            _ => msg.role,
+                        };
                         msg
                     })
                     .collect::<Vec<Message>>(),

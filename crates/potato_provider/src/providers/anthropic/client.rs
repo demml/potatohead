@@ -17,6 +17,8 @@ use tracing::{debug, error, instrument};
 
 const ANTHROPIC_BETA: &str = "anthropic-beta";
 const ANTHROPIC_STRUCTURED_OUTPUT: &str = "structured-outputs-2025-11-13";
+const ANTHROPIC_VERSION_KEY: &str = "anthropic-version";
+const ANTHROPIC_VERSION_VALUE: &str = "2023-06-01";
 
 #[derive(Debug, PartialEq)]
 pub enum AnthropicAuth {
@@ -113,7 +115,13 @@ impl AnthropicClient {
     /// # Returns:
     /// * `Result<AnthropicClient, ProviderError>`: Returns an `AnthropicClient` instance on success or an `ProviderError` on failure.
     pub fn new(service_type: ServiceType) -> Result<Self, ProviderError> {
-        let client = build_http_client(None)?;
+        let mut default_headers = HeaderMap::new();
+        default_headers.insert(
+            ANTHROPIC_VERSION_KEY,
+            header::HeaderValue::from_static(ANTHROPIC_VERSION_VALUE),
+        );
+
+        let client = build_http_client(Some(default_headers))?;
         let config = AnthropicApiConfig::new(service_type)?;
         Ok(Self {
             client,
@@ -158,7 +166,7 @@ impl AnthropicClient {
     /// # Returns:
     /// * `Result<ChatResponse, ProviderError>`: Returns a `ChatResponse` on success or an `ProviderError` on failure.
     ///
-    #[instrument(skip_all)]
+    #[instrument(name = "anthropic_chat_completion", skip_all)]
     pub async fn chat_completion(
         &self,
         prompt: &Prompt,
@@ -226,7 +234,7 @@ impl AnthropicClient {
         }
 
         debug!(
-            "Sending chat completion request to OpenAI API: {:?}",
+            "Sending chat completion request to Anthropic API: {:?}",
             serialized_prompt
         );
 
