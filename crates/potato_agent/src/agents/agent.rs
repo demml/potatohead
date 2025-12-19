@@ -7,7 +7,7 @@ use potato_prompt::prompt::settings::ModelSettings;
 use potato_prompt::{
     parse_response_to_json, prompt::parse_prompt, prompt::types::Message, Prompt, Role,
 };
-
+use potato_provider::providers::anthropic::client::AnthropicClient;
 use potato_provider::{providers::google::VertexClient, GenAiClient, OpenAIClient};
 
 use potato_provider::providers::types::ServiceType;
@@ -223,6 +223,9 @@ impl Agent {
             }
             Provider::Google => {
                 GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
+            }
+            Provider::Anthropic => {
+                GenAiClient::Anthropic(AnthropicClient::new(ServiceType::Generate)?)
             }
             Provider::Undefined => {
                 return Err(AgentError::MissingProviderError);

@@ -104,6 +104,9 @@ pub enum ProviderError {
 
     #[error("{0}")]
     InvalidConfigType(String),
+
+    #[error("Embedding not supported for this provider")]
+    EmbeddingNotSupported,
 }
 
 impl<'a, 'py> From<pyo3::CastError<'a, 'py>> for ProviderError {

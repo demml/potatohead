@@ -1,4 +1,5 @@
 use crate::error::ProviderError;
+use crate::providers::anthropic::types::AnthropicChatResponse;
 use crate::providers::google::FunctionCall;
 use crate::providers::google::GenerateContentResponse;
 use crate::providers::openai::OpenAIChatResponse;
@@ -50,6 +51,13 @@ impl ServiceType {
             Self::Embed => "embeddings",
         }
     }
+
+    pub fn anthropic_endpoint(&self) -> &'static str {
+        match self {
+            Self::Generate => "messages",
+            Self::Embed => "embeddings",
+        }
+    }
 }
 
 #[pyclass]
@@ -59,6 +67,7 @@ pub enum ChatResponse {
     Gemini(GenerateContentResponse),
     VertexGenerate(GenerateContentResponse),
     VertexPredict(PredictResponse),
+    Anthropic(AnthropicChatResponse),
 }
 
 #[pymethods]
@@ -70,6 +79,7 @@ impl ChatResponse {
             ChatResponse::Gemini(resp) => Ok(resp.clone().into_bound_py_any(py)?),
             ChatResponse::VertexGenerate(resp) => Ok(resp.clone().into_bound_py_any(py)?),
             ChatResponse::VertexPredict(resp) => Ok(resp.clone().into_bound_py_any(py)?),
+            ChatResponse::Anthropic(resp) => Ok(resp.clone().into_bound_py_any(py)?),
         }
     }
     pub fn __str__(&self) -> String {
@@ -78,6 +88,7 @@ impl ChatResponse {
             ChatResponse::Gemini(resp) => PyHelperFuncs::__str__(resp),
             ChatResponse::VertexGenerate(resp) => PyHelperFuncs::__str__(resp),
             ChatResponse::VertexPredict(resp) => PyHelperFuncs::__str__(resp),
+            ChatResponse::Anthropic(resp) => PyHelperFuncs::__str__(resp),
         }
     }
 }

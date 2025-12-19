@@ -1,3 +1,4 @@
+pub mod anthropic;
 pub mod client;
 pub mod embed;
 pub mod google;
