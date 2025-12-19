@@ -1,8 +1,8 @@
 pub use potato_agent::*;
 pub use potato_prompt::*;
 pub use potato_type::{
-    error::TypeError, google as google_types, openai as openai_types, Provider, SaveName,
-    StructuredOutput,
+    anthropic as anthropic_types, error::TypeError, google as google_types, openai as openai_types,
+    Provider, SaveName, StructuredOutput,
 };
 pub use potato_util::{
     calculate_weighted_score, create_uuid7, error::UtilError, json_to_pydict, json_to_pyobject,

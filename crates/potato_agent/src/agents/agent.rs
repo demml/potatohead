@@ -72,6 +72,9 @@ impl Agent {
             Provider::Vertex => {
                 GenAiClient::Vertex(VertexClient::new(ServiceType::Generate).await?)
             }
+            Provider::Anthropic => {
+                GenAiClient::Anthropic(AnthropicClient::new(ServiceType::Generate)?)
+            }
             _ => {
                 return Err(AgentError::MissingProviderError);
             } // Add other providers here as needed

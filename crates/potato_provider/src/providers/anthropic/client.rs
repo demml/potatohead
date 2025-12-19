@@ -175,7 +175,10 @@ impl AnthropicClient {
             .system_instruction
             .iter()
             .map(AnthropicMessage::from_message)
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Vec<_>, _>>()
+            .inspect_err(|_| {
+                error!("Failed to convert system instructions to Anthropic message")
+            })?;
 
         // Add user messages to the chat
         messages.extend(
@@ -183,7 +186,8 @@ impl AnthropicClient {
                 .message
                 .iter()
                 .map(AnthropicMessage::from_message)
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>, _>>()
+                .inspect_err(|_| error!("Failed to convert prompt message to Anthropic message"))?,
         );
 
         // if prompt has response_json_schema,

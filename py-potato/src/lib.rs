@@ -5,6 +5,7 @@ use ::potato_head::{
     PyAgentResponse, PyTask, PyWorkflow, Score, Task, TaskEvent, TaskList, TaskStatus, Usage,
     WorkflowResult,
 };
+pub mod anthropic;
 pub mod google;
 pub mod logging;
 pub mod mock;
@@ -41,5 +42,6 @@ pub fn _potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     logging::add_logging_module(m)?;
     google::add_google_module(m)?;
     openai::add_openai_module(m)?;
+    anthropic::add_anthropic_module(m)?;
     Ok(())
 }

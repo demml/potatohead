@@ -357,7 +357,7 @@ impl CacheControl {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(name = "AnthropicTool")]
 pub struct Tool {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -386,7 +386,7 @@ impl Tool {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(name = "AnthropicThinkingConfig")]
 pub struct ThinkingConfig {
     #[pyo3(get)]
     pub r#type: String,
@@ -408,7 +408,7 @@ impl ThinkingConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(name = "AnthropicToolChoice")]
 pub struct ToolChoice {
     #[pyo3(get)]
     pub r#type: String, // "auto", "any", "tool", "none"
@@ -545,6 +545,7 @@ impl AnthropicSettings {
         tool_choice=None,
         extra_body=None
     ))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         max_tokens: i32,
         metadata: Option<Metadata>,

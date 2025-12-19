@@ -320,7 +320,7 @@ impl AllowedTools {
 }
 
 /// Tool choice configuration - can be a mode string or specific tool object
-#[pyclass]
+#[pyclass(name = "OpenAIToolChoice")]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum ToolChoice {
@@ -575,7 +575,7 @@ impl CustomTool {
     }
 }
 
-#[pyclass]
+#[pyclass(name = "OpenAITool")]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum Tool {

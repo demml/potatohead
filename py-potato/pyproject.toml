@@ -95,8 +95,8 @@ omit = [
 # platform configuration
 python_version = "3.11"
 platform = "linux"
-mypy_path = "stubs"
 ignore_missing_imports = true
+files = ["python/potato_head", "tests", "examples"]
 
 [build-system]
 requires = ["maturin>=1.4,<2.0"]
