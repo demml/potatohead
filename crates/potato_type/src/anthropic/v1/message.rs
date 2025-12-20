@@ -4,15 +4,19 @@ use potato_util::json_to_pydict;
 use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// common content types used in Anthropic messages
 pub const BASE64_TYPE: &str = "base64";
+pub const URL_TYPE: &str = "url";
 pub const EPHEMERAL_TYPE: &str = "ephemeral";
 pub const IMAGE_TYPE: &str = "image";
 pub const TEXT_TYPE: &str = "text";
 pub const DOCUMENT_TYPE: &str = "document";
+pub const DOCUMENT_BASE64_PDF_TYPE: &str = "application/pdf";
+pub const DOCUMENT_PLAIN_TEXT_TYPE: &str = "text/plain";
 pub const SEARCH_TYPE: &str = "search_result";
 pub const THINKING_TYPE: &str = "thinking";
 pub const REDACTED_THINKING_TYPE: &str = "redacted_thinking";
@@ -24,11 +28,15 @@ pub const SERVER_TOOL_USE_TYPE: &str = "server_tool_use";
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
 pub struct TextContent {
+    #[pyo3(get, set)]
     pub text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get, set)]
     pub cache_control: Option<CacheControl>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub citations: Option<Value>,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
     pub r#type: String,
 }
 
@@ -56,8 +64,12 @@ impl TextContent {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
 pub struct Base64ImageSource {
+    #[pyo3(get, set)]
     pub media_type: String,
+    #[pyo3(get, set)]
     pub data: String,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
     pub r#type: String,
 }
 
@@ -78,23 +90,211 @@ impl Base64ImageSource {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct ImageContent {
-    pub source: ImageSource,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cache_control: Option<CacheControl>,
+#[pyclass]
+pub struct UrlImageSource {
+    #[pyo3(get, set)]
+    pub url: String,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
     pub r#type: String,
 }
 
+#[pymethods]
+impl UrlImageSource {
+    #[new]
+    pub fn new(url: String) -> Self {
+        Self {
+            url,
+            r#type: URL_TYPE.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(untagged)] // we need to strip serde type ref
+pub enum ImageSource {
+    Base64(Base64ImageSource),
+    Url(UrlImageSource),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct ImageContent {
+    pub source: ImageSource,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get, set)]
+    pub cache_control: Option<CacheControl>,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[pymethods]
+impl ImageContent {
+    #[new]
+    pub fn new(
+        source: &Bound<'_, PyAny>,
+        cache_control: Option<CacheControl>,
+    ) -> Result<Self, TypeError> {
+        let source: ImageSource = if source.is_instance_of::<Base64ImageSource>() {
+            ImageSource::Base64(source.extract::<Base64ImageSource>()?)
+        } else {
+            ImageSource::Url(source.extract::<UrlImageSource>()?)
+        };
+        Ok(Self {
+            source,
+            cache_control,
+            r#type: IMAGE_TYPE.to_string(),
+        })
+    }
+
+    #[getter]
+    pub fn source<'py>(&self, py: Python<'py>) -> Result<&Bound<'py, PyAny>, TypeError> {
+        match &self.source {
+            ImageSource::Base64(base64) => {
+                let py_obj = base64.clone().into_bound_py_any(py)?;
+                Ok(&py_obj)
+            }
+            ImageSource::Url(url) => {
+                let py_obj = url.clone().into_bound_py_any(py)?;
+                Ok(&py_obj)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct Base64PDFSource {
+    #[pyo3(get, set)]
+    pub media_type: String,
+    #[pyo3(get, set)]
+    pub data: String,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[pymethods]
+impl Base64PDFSource {
+    #[new]
+    pub fn new(data: String) -> Result<Self, TypeError> {
+        Ok(Self {
+            media_type: DOCUMENT_BASE64_PDF_TYPE.to_string(),
+            data,
+            r#type: BASE64_TYPE.to_string(),
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct UrlPDFSource {
+    #[pyo3(get, set)]
+    pub url: String,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[pymethods]
+impl UrlPDFSource {
+    #[new]
+    pub fn new(url: String) -> Self {
+        Self {
+            url,
+            r#type: URL_TYPE.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct PlainTextSource {
+    #[pyo3(get, set)]
+    pub media_type: String,
+    #[pyo3(get, set)]
+    pub data: String,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[pymethods]
+impl PlainTextSource {
+    #[new]
+    pub fn new(data: String) -> Self {
+        Self {
+            media_type: DOCUMENT_PLAIN_TEXT_TYPE.to_string(),
+            data,
+            r#type: TEXT_TYPE.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct CitationsConfigParams {
+    #[pyo3(get, set)]
+    pub enabled: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(untagged)]
+pub enum DocumentSource {
+    Base64(Base64PDFSource),
+    Url(UrlPDFSource),
+    Text(PlainTextSource),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
 pub struct DocumentContent {
     pub source: DocumentSource,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get, set)]
     pub cache_control: Option<CacheControl>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get, set)]
     pub title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get, set)]
     pub context: Option<String>,
+    #[serde(rename = "type")]
+    #[pyo3(get, set)]
     pub r#type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get, set)]
+    pub citations: Option<CitationsConfigParams>,
+}
+
+#[pymethods]
+impl DocumentContent {
+    #[new]
+    pub fn new(
+        source: &Bound<'_, PyAny>,
+        cache_control: Option<CacheControl>,
+        title: Option<String>,
+        context: Option<String>,
+        citations: Option<CitationsConfigParams>,
+    ) -> Result<Self, TypeError> {
+        let source: DocumentSource = if source.is_instance_of::<Base64PDFSource>() {
+            DocumentSource::Base64(source.extract::<Base64PDFSource>()?)
+        } else if source.is_instance_of::<UrlPDFSource>() {
+            DocumentSource::Url(source.extract::<UrlPDFSource>()?)
+        } else {
+            DocumentSource::Text(source.extract::<PlainTextSource>()?)
+        };
+
+        Ok(Self {
+            source,
+            cache_control,
+            title,
+            context,
+            r#type: DOCUMENT_TYPE.to_string(),
+            citations,
+        })
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
