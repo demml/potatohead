@@ -25,32 +25,268 @@ pub const TOOL_RESULT_TYPE: &str = "tool_result";
 pub const WEB_SEARCH_TOOL_RESULT_TYPE: &str = "web_search_tool_result";
 pub const SERVER_TOOL_USE_TYPE: &str = "server_tool_use";
 
+// Citation type constants
+pub const CHAR_LOCATION_TYPE: &str = "char_location";
+pub const PAGE_LOCATION_TYPE: &str = "page_location";
+pub const CONTENT_BLOCK_LOCATION_TYPE: &str = "content_block_location";
+pub const WEB_SEARCH_RESULT_LOCATION_TYPE: &str = "web_search_result_location";
+pub const SEARCH_RESULT_LOCATION_TYPE: &str = "search_result_location";
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
-pub struct TextContent {
+pub struct CitationCharLocationParam {
     #[pyo3(get, set)]
-    pub text: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cited_text: String,
     #[pyo3(get, set)]
-    pub cache_control: Option<CacheControl>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub citations: Option<Value>,
+    pub document_index: i32,
+    #[pyo3(get, set)]
+    pub document_title: String,
+    #[pyo3(get, set)]
+    pub end_char_index: i32,
+    #[pyo3(get, set)]
+    pub start_char_index: i32,
     #[pyo3(get)]
     #[serde(rename = "type")]
     pub r#type: String,
 }
 
 #[pymethods]
-impl TextContent {
+impl CitationCharLocationParam {
+    #[new]
+    pub fn new(
+        cited_text: String,
+        document_index: i32,
+        document_title: String,
+        end_char_index: i32,
+        start_char_index: i32,
+    ) -> Self {
+        Self {
+            cited_text,
+            document_index,
+            document_title,
+            end_char_index,
+            start_char_index,
+            r#type: CHAR_LOCATION_TYPE.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct CitationPageLocationParam {
+    #[pyo3(get, set)]
+    pub cited_text: String,
+    #[pyo3(get, set)]
+    pub document_index: i32,
+    #[pyo3(get, set)]
+    pub document_title: String,
+    #[pyo3(get, set)]
+    pub end_page_number: i32,
+    #[pyo3(get, set)]
+    pub start_page_number: i32,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[pymethods]
+impl CitationPageLocationParam {
+    #[new]
+    pub fn new(
+        cited_text: String,
+        document_index: i32,
+        document_title: String,
+        end_page_number: i32,
+        start_page_number: i32,
+    ) -> Self {
+        Self {
+            cited_text,
+            document_index,
+            document_title,
+            end_page_number,
+            start_page_number,
+            r#type: PAGE_LOCATION_TYPE.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct CitationContentBlockLocationParam {
+    #[pyo3(get, set)]
+    pub cited_text: String,
+    #[pyo3(get, set)]
+    pub document_index: i32,
+    #[pyo3(get, set)]
+    pub document_title: String,
+    #[pyo3(get, set)]
+    pub end_block_index: i32,
+    #[pyo3(get, set)]
+    pub start_block_index: i32,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[pymethods]
+impl CitationContentBlockLocationParam {
+    #[new]
+    pub fn new(
+        cited_text: String,
+        document_index: i32,
+        document_title: String,
+        end_block_index: i32,
+        start_block_index: i32,
+    ) -> Self {
+        Self {
+            cited_text,
+            document_index,
+            document_title,
+            end_block_index,
+            start_block_index,
+            r#type: CONTENT_BLOCK_LOCATION_TYPE.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct CitationWebSearchResultLocationParam {
+    #[pyo3(get, set)]
+    pub cited_text: String,
+    #[pyo3(get, set)]
+    pub encrypted_index: String,
+    #[pyo3(get, set)]
+    pub title: String,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+    #[pyo3(get, set)]
+    pub url: String,
+}
+
+#[pymethods]
+impl CitationWebSearchResultLocationParam {
+    #[new]
+    pub fn new(cited_text: String, encrypted_index: String, title: String, url: String) -> Self {
+        Self {
+            cited_text,
+            encrypted_index,
+            title,
+            r#type: WEB_SEARCH_RESULT_LOCATION_TYPE.to_string(),
+            url,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct CitationSearchResultLocationParam {
+    #[pyo3(get, set)]
+    pub cited_text: String,
+    #[pyo3(get, set)]
+    pub end_block_index: i32,
+    #[pyo3(get, set)]
+    pub search_result_index: i32,
+    #[pyo3(get, set)]
+    pub source: String,
+    #[pyo3(get, set)]
+    pub start_block_index: i32,
+    #[pyo3(get, set)]
+    pub title: String,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[pymethods]
+impl CitationSearchResultLocationParam {
+    #[new]
+    pub fn new(
+        cited_text: String,
+        end_block_index: i32,
+        search_result_index: i32,
+        source: String,
+        start_block_index: i32,
+        title: String,
+    ) -> Self {
+        Self {
+            cited_text,
+            end_block_index,
+            search_result_index,
+            source,
+            start_block_index,
+            title,
+            r#type: SEARCH_RESULT_LOCATION_TYPE.to_string(),
+        }
+    }
+}
+
+/// Untagged enum for internal Rust usage - serializes without wrapper
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(untagged)]
+pub enum TextCitationParam {
+    CharLocation(CitationCharLocationParam),
+    PageLocation(CitationPageLocationParam),
+    ContentBlockLocation(CitationContentBlockLocationParam),
+    WebSearchResultLocation(CitationWebSearchResultLocationParam),
+    SearchResultLocation(CitationSearchResultLocationParam),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct TextBlockParam {
+    #[pyo3(get, set)]
+    pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get, set)]
+    pub cache_control: Option<CacheControl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub citations: Option<TextCitationParam>,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+fn parse_text_citation(cit: &Bound<'_, PyAny>) -> Result<TextCitationParam, TypeError> {
+    if cit.is_instance_of::<CitationCharLocationParam>() {
+        Ok(TextCitationParam::CharLocation(
+            cit.extract::<CitationCharLocationParam>()?,
+        ))
+    } else if cit.is_instance_of::<CitationPageLocationParam>() {
+        Ok(TextCitationParam::PageLocation(
+            cit.extract::<CitationPageLocationParam>()?,
+        ))
+    } else if cit.is_instance_of::<CitationContentBlockLocationParam>() {
+        Ok(TextCitationParam::ContentBlockLocation(
+            cit.extract::<CitationContentBlockLocationParam>()?,
+        ))
+    } else if cit.is_instance_of::<CitationWebSearchResultLocationParam>() {
+        Ok(TextCitationParam::WebSearchResultLocation(
+            cit.extract::<CitationWebSearchResultLocationParam>()?,
+        ))
+    } else if cit.is_instance_of::<CitationSearchResultLocationParam>() {
+        Ok(TextCitationParam::SearchResultLocation(
+            cit.extract::<CitationSearchResultLocationParam>()?,
+        ))
+    } else {
+        Err(TypeError::InvalidInput(
+            "Invalid citation type provided".to_string(),
+        ))
+    }
+}
+#[pymethods]
+impl TextBlockParam {
     #[new]
     pub fn new(
         text: String,
         cache_control: Option<CacheControl>,
         citations: Option<&Bound<'_, PyAny>>,
     ) -> Result<Self, TypeError> {
-        let citations = match citations {
-            Some(cit) => Some(pyobject_to_json(cit)?),
-            None => None,
+        let citations = if let Some(cit) = citations {
+            Some(parse_text_citation(cit)?)
+        } else {
+            None
         };
         Ok(Self {
             text,
@@ -119,7 +355,7 @@ pub enum ImageSource {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
-pub struct ImageContent {
+pub struct ImageBlockParam {
     pub source: ImageSource,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get, set)]
@@ -130,7 +366,7 @@ pub struct ImageContent {
 }
 
 #[pymethods]
-impl ImageContent {
+impl ImageBlockParam {
     #[new]
     pub fn new(
         source: &Bound<'_, PyAny>,
@@ -249,7 +485,7 @@ pub enum DocumentSource {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
-pub struct DocumentContent {
+pub struct DocumentBlockParam {
     pub source: DocumentSource,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get, set)]
@@ -269,7 +505,7 @@ pub struct DocumentContent {
 }
 
 #[pymethods]
-impl DocumentContent {
+impl DocumentBlockParam {
     #[new]
     pub fn new(
         source: &Bound<'_, PyAny>,
@@ -333,6 +569,17 @@ impl SearchResultBlockParam {
             citations,
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct ThinkingBlockParam {
+    #[pyo3(get, set)]
+    pub thinking: String,
+    #[pyo3(get, set)]
+    pub signature: Option<String>,
+    #[pyo3(get, set)]
+    pub r#type: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
