@@ -67,6 +67,9 @@ pub enum ProviderError {
     TypeError(#[from] potato_type::error::TypeError),
 
     #[error(transparent)]
+    UtilError(#[from] potato_util::UtilError),
+
+    #[error(transparent)]
     PromptError(#[from] PromptError),
 
     #[error(transparent)]

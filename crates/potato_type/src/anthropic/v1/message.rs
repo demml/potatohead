@@ -1,3 +1,4 @@
+use crate::common::get_image_media_types;
 use crate::TypeError;
 use potato_util::json_to_pydict;
 use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
@@ -6,7 +7,163 @@ use pyo3::types::PyDict;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-// Keep the original enum for internal Rust usage (no pyclass)
+/// common content types used in Anthropic messages
+pub const BASE64_TYPE: &str = "base64";
+pub const EPHEMERAL_TYPE: &str = "ephemeral";
+pub const IMAGE_TYPE: &str = "image";
+pub const TEXT_TYPE: &str = "text";
+pub const DOCUMENT_TYPE: &str = "document";
+pub const SEARCH_TYPE: &str = "search_result";
+pub const THINKING_TYPE: &str = "thinking";
+pub const REDACTED_THINKING_TYPE: &str = "redacted_thinking";
+pub const TOOL_USE_TYPE: &str = "tool_use";
+pub const TOOL_RESULT_TYPE: &str = "tool_result";
+pub const WEB_SEARCH_TOOL_RESULT_TYPE: &str = "web_search_tool_result";
+pub const SERVER_TOOL_USE_TYPE: &str = "server_tool_use";
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct TextContent {
+    pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<CacheControl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub citations: Option<Value>,
+    pub r#type: String,
+}
+
+#[pymethods]
+impl TextContent {
+    #[new]
+    pub fn new(
+        text: String,
+        cache_control: Option<CacheControl>,
+        citations: Option<&Bound<'_, PyAny>>,
+    ) -> Result<Self, TypeError> {
+        let citations = match citations {
+            Some(cit) => Some(pyobject_to_json(cit)?),
+            None => None,
+        };
+        Ok(Self {
+            text,
+            cache_control,
+            citations,
+            r#type: TEXT_TYPE.to_string(),
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct Base64ImageSource {
+    pub media_type: String,
+    pub data: String,
+    pub r#type: String,
+}
+
+#[pymethods]
+impl Base64ImageSource {
+    #[new]
+    pub fn new(media_type: String, data: String) -> Result<Self, TypeError> {
+        // confirm media_type is an image type, otherwise raise error
+        if !get_image_media_types().contains(media_type.as_str()) {
+            return Err(TypeError::InvalidMediaType(media_type));
+        }
+        Ok(Self {
+            media_type,
+            data,
+            r#type: BASE64_TYPE.to_string(),
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct ImageContent {
+    pub source: ImageSource,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<CacheControl>,
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct DocumentContent {
+    pub source: DocumentSource,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<CacheControl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<String>,
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct ToolUseContent {
+    pub id: String,
+    pub name: String,
+    pub input: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<CacheControl>,
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct ToolResultContent {
+    pub tool_use_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<Vec<ContentBlock>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_error: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<CacheControl>,
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct ThinkingContent {
+    pub thinking: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct RedactedThinkingContent {
+    pub data: String,
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct SearchResultContent {
+    pub title: String,
+    pub content: Vec<ContentBlock>,
+    pub source: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<CacheControl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub citations: Option<Value>,
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct WebSearchToolResultContent {
+    pub tool_use_id: String,
+    pub content: Vec<ContentBlock>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<CacheControl>,
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct ServerToolUseContent {
+    pub id: String,
+    pub name: String,
+    pub input: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<CacheControl>,
+    pub r#type: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlock {

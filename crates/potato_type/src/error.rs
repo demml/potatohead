@@ -26,6 +26,9 @@ pub enum TypeError {
 
     #[error("Failed to create GeminiEmbeddingConfig: {0}")]
     GeminiEmbeddingConfigError(String),
+
+    #[error("Invalid media type: {0}")]
+    InvalidMediaType(String),
 }
 
 impl From<TypeError> for PyErr {

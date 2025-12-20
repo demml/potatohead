@@ -12,6 +12,7 @@ use std::fmt::Display;
 use std::path::{Path, PathBuf};
 use tracing::error;
 pub mod anthropic;
+pub mod common;
 pub mod google;
 pub mod openai;
 
