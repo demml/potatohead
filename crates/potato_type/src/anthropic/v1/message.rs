@@ -1,6 +1,6 @@
 use crate::common::get_image_media_types;
 use crate::TypeError;
-use potato_util::json_to_pydict;
+use potato_util::{json_to_pydict, json_to_pyobject};
 use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -537,7 +537,7 @@ impl DocumentBlockParam {
 #[pyclass]
 pub struct SearchResultBlockParam {
     #[pyo3(get, set)]
-    pub content: Vec<TextContent>,
+    pub content: Vec<TextBlockParam>,
     #[pyo3(get, set)]
     pub source: String,
     #[pyo3(get, set)]
@@ -554,7 +554,7 @@ pub struct SearchResultBlockParam {
 impl SearchResultBlockParam {
     #[new]
     pub fn new(
-        content: Vec<TextContent>,
+        content: Vec<TextBlockParam>,
         source: String,
         title: String,
         cache_control: Option<CacheControl>,
@@ -582,14 +582,77 @@ pub struct ThinkingBlockParam {
     pub r#type: String,
 }
 
+#[pymethods]
+impl ThinkingBlockParam {
+    #[new]
+    pub fn new(thinking: String, signature: Option<String>) -> Self {
+        Self {
+            thinking,
+            signature,
+            r#type: THINKING_TYPE.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct ToolUseContent {
+#[pyclass]
+pub struct RedactedThinkingBlockParam {
+    #[pyo3(get, set)]
+    pub data: String,
+    #[pyo3(get, set)]
+    pub r#type: String,
+}
+
+#[pymethods]
+impl RedactedThinkingBlockParam {
+    #[new]
+    pub fn new(data: String) -> Self {
+        Self {
+            data,
+            r#type: REDACTED_THINKING_TYPE.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct ToolUseBlockParam {
+    #[pyo3(get, set)]
     pub id: String,
+    #[pyo3(get, set)]
     pub name: String,
     pub input: Value,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get, set)]
     pub cache_control: Option<CacheControl>,
+    #[pyo3(get, set)]
     pub r#type: String,
+}
+
+#[pymethods]
+impl ToolUseBlockParam {
+    #[new]
+    pub fn new(
+        id: String,
+        name: String,
+        input: &Bound<'_, PyAny>,
+        cache_control: Option<CacheControl>,
+    ) -> Result<Self, TypeError> {
+        let input_value = pyobject_to_json(input)?;
+        Ok(Self {
+            id,
+            name,
+            input: input_value,
+            cache_control,
+            r#type: TOOL_USE_TYPE.to_string(),
+        })
+    }
+
+    #[getter]
+    pub fn input<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        let py_dict = json_to_pyobject(py, &self.input)?.bind(py).clone();
+        Ok(py_dict)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
