@@ -298,6 +298,44 @@ impl DocumentContent {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct SearchResultBlockParam {
+    #[pyo3(get, set)]
+    pub content: Vec<TextContent>,
+    #[pyo3(get, set)]
+    pub source: String,
+    #[pyo3(get, set)]
+    pub title: String,
+    #[pyo3(get, set)]
+    pub r#type: String,
+    #[pyo3(get, set)]
+    pub cache_control: Option<CacheControl>,
+    #[pyo3(get, set)]
+    pub citations: Option<CitationsConfigParams>,
+}
+
+#[pymethods]
+impl SearchResultBlockParam {
+    #[new]
+    pub fn new(
+        content: Vec<TextContent>,
+        source: String,
+        title: String,
+        cache_control: Option<CacheControl>,
+        citations: Option<CitationsConfigParams>,
+    ) -> Self {
+        Self {
+            content,
+            source,
+            title,
+            r#type: SEARCH_TYPE.to_string(),
+            cache_control,
+            citations,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct ToolUseContent {
     pub id: String,
     pub name: String,
