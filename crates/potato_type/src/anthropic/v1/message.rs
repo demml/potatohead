@@ -542,6 +542,7 @@ pub struct SearchResultBlockParam {
     pub source: String,
     #[pyo3(get, set)]
     pub title: String,
+    #[serde(rename = "type")]
     #[pyo3(get, set)]
     pub r#type: String,
     #[pyo3(get, set)]
@@ -579,6 +580,7 @@ pub struct ThinkingBlockParam {
     #[pyo3(get, set)]
     pub signature: Option<String>,
     #[pyo3(get, set)]
+    #[serde(rename = "type")]
     pub r#type: String,
 }
 
@@ -600,6 +602,7 @@ pub struct RedactedThinkingBlockParam {
     #[pyo3(get, set)]
     pub data: String,
     #[pyo3(get, set)]
+    #[serde(rename = "type")]
     pub r#type: String,
 }
 
@@ -626,6 +629,7 @@ pub struct ToolUseBlockParam {
     #[pyo3(get, set)]
     pub cache_control: Option<CacheControl>,
     #[pyo3(get, set)]
+    #[serde(rename = "type")]
     pub r#type: String,
 }
 
@@ -656,15 +660,123 @@ impl ToolUseBlockParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct ToolResultContent {
+#[serde(untagged)]
+pub enum ToolResultContentEnum {
+    Text(Vec<TextBlockParam>),
+    Image(Vec<ImageBlockParam>),
+    Document(Vec<DocumentBlockParam>),
+    SearchResult(Vec<SearchResultBlockParam>),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct ToolResultBlockParam {
+    #[pyo3(get, set)]
     pub tool_use_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub content: Option<Vec<ContentBlock>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_error: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get, set)]
     pub cache_control: Option<CacheControl>,
+    #[pyo3(get, set)]
+    #[serde(rename = "type")]
     pub r#type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<ToolResultContentEnum>,
+}
+
+/// Helper function to extract all blocks of a specific type
+fn extract_all_blocks<T>(blocks: Vec<Bound<'_, PyAny>>) -> Result<Vec<T>, TypeError>
+where
+    T: for<'a, 'py> FromPyObject<'a, 'py>,
+{
+    blocks
+        .into_iter()
+        .map(|block| {
+            block
+                .extract::<T>()
+                .map_err(|_| TypeError::Error("Failed to extract block".to_string()))
+        })
+        .collect()
+}
+
+#[pymethods]
+impl ToolResultBlockParam {
+    #[new]
+    pub fn new(
+        tool_use_id: String,
+        is_error: Option<bool>,
+        cache_control: Option<CacheControl>,
+        content: Option<Vec<Bound<'_, PyAny>>>,
+    ) -> Result<Self, TypeError> {
+        let content_enum = match content {
+            None => None,
+            Some(blocks) if blocks.is_empty() => None,
+
+            Some(blocks) => {
+                let first_block = &blocks[0];
+
+                if first_block.is_instance_of::<TextBlockParam>() {
+                    Some(ToolResultContentEnum::Text(extract_all_blocks(blocks)?))
+                } else if first_block.is_instance_of::<ImageBlockParam>() {
+                    Some(ToolResultContentEnum::Image(extract_all_blocks(blocks)?))
+                } else if first_block.is_instance_of::<DocumentBlockParam>() {
+                    Some(ToolResultContentEnum::Document(extract_all_blocks(blocks)?))
+                } else if first_block.is_instance_of::<SearchResultBlockParam>() {
+                    Some(ToolResultContentEnum::SearchResult(extract_all_blocks(
+                        blocks,
+                    )?))
+                } else {
+                    return Err(TypeError::InvalidInput(
+                        "Unsupported content block type".to_string(),
+                    ));
+                }
+            }
+        };
+
+        Ok(Self {
+            tool_use_id,
+            is_error,
+            cache_control,
+            r#type: TOOL_RESULT_TYPE.to_string(),
+            content: content_enum,
+        })
+    }
+
+    #[getter]
+    pub fn content<'py>(&self, py: Python<'py>) -> Result<Option<Bound<'py, PyAny>>, TypeError> {
+        match &self.content {
+            None => Ok(None),
+            Some(ToolResultContentEnum::Text(blocks)) => {
+                let py_list = blocks
+                    .iter()
+                    .map(|block| block.clone().into_bound_py_any(py))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(Some(py_list.into_bound_py_any(py)?))
+            }
+            Some(ToolResultContentEnum::Image(blocks)) => {
+                let py_list = blocks
+                    .iter()
+                    .map(|block| block.clone().into_bound_py_any(py))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(Some(py_list.into_bound_py_any(py)?))
+            }
+            Some(ToolResultContentEnum::Document(blocks)) => {
+                let py_list = blocks
+                    .iter()
+                    .map(|block| block.clone().into_bound_py_any(py))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(Some(py_list.into_bound_py_any(py)?))
+            }
+            Some(ToolResultContentEnum::SearchResult(blocks)) => {
+                let py_list = blocks
+                    .iter()
+                    .map(|block| block.clone().into_bound_py_any(py))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(Some(py_list.into_bound_py_any(py)?))
+            }
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
