@@ -177,31 +177,19 @@ impl AnthropicClient {
         let settings = &prompt.model_settings;
         let mut additional_headers = HeaderMap::new();
 
-        // get the system messages from the prompt first
-        let mut messages: Vec<MessageParam> = prompt
-            .system_instruction
-            .iter()
-            .map(MessageParam::from_message)
-            .collect::<Result<Vec<_>, _>>()
-            .inspect_err(|_| {
-                error!("Failed to convert system instructions to Anthropic message")
-            })?;
+        // Build messages without intermediate Vec allocations
+        let message_count = prompt.system_instruction.len() + prompt.message.len();
+        let mut messages = Vec::with_capacity(message_count);
 
-        // Add user messages to the chat
-        messages.extend(
-            prompt
-                .message
-                .iter()
-                .map(AnthropicMessage::from_message)
-                .collect::<Result<Vec<_>, _>>()
-                .inspect_err(|_| error!("Failed to convert prompt message to Anthropic message"))?,
-        );
+        // Convert system instructions
+        for msg in &prompt.system_instruction {
+            messages.push(MessageParam::from_message(msg)?);
+        }
 
-        // if prompt has response_json_schema,
-        let schema = prompt
-            .response_json_schema
-            .as_ref()
-            .map(|schema| self.create_structured_output_schema(schema));
+        // Convert user messages
+        for msg in &prompt.message {
+            messages.push(MessageParam::from_message(msg)?);
+        }
 
         // Create the Anthropic chat request
         let chat_request = AnthropicMessageRequest {
@@ -214,7 +202,11 @@ impl AnthropicClient {
         let mut serialized_prompt =
             serde_json::to_value(chat_request).map_err(ProviderError::SerializationError)?;
 
-        // if schema is provided, add the headers for structured output
+        // if prompt has response_json_schema,
+        let schema = prompt
+            .response_json_schema
+            .as_ref()
+            .map(|schema| self.create_structured_output_schema(schema));
 
         if let Some(schema) = schema {
             // add output_format to the prompt

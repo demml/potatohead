@@ -15,6 +15,7 @@ pub mod anthropic;
 pub mod common;
 pub mod google;
 pub mod openai;
+pub mod prompt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[pyclass]

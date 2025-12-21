@@ -4,11 +4,11 @@ use crate::{
     agents::types::{AgentResponse, PyAgentResponse},
 };
 use potato_prompt::prompt::settings::ModelSettings;
-use potato_prompt::{
-    parse_response_to_json, prompt::parse_prompt, prompt::types::Message, Prompt, Role,
-};
+use potato_prompt::{prompt::parse_prompt, Prompt};
+
 use potato_provider::providers::anthropic::client::AnthropicClient;
 use potato_provider::{providers::google::VertexClient, GenAiClient, OpenAIClient};
+use potato_type::prompt::{parse_response_to_json, Message, Role};
 
 use potato_provider::providers::types::ServiceType;
 use potato_provider::GeminiClient;

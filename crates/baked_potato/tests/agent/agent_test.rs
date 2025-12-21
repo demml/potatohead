@@ -1,9 +1,7 @@
 use baked_potato::LLMTestServer;
 use potato_agent::{Agent, Task};
-use potato_prompt::{
-    prompt::{Message, Prompt, PromptContent, ResponseType},
-    Score,
-};
+use potato_prompt::prompt::Prompt;
+use potato_type::prompt::{Message, PromptContent, ResponseType, Score};
 use potato_type::Provider;
 use potato_type::StructuredOutput;
 

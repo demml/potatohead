@@ -1,8 +1,8 @@
 use crate::agents::error::AgentError;
 use potato_provider::ChatResponse;
-use potato_provider::LogProbExt;
-use potato_provider::ResponseExt;
+
 use potato_provider::Usage;
+use potato_type::common::{LogProbExt, ResponseExt};
 use potato_util::json_to_pyobject;
 use potato_util::utils::{LogProbs, ResponseLogProbs};
 use potato_util::PyHelperFuncs;
@@ -45,7 +45,7 @@ impl AgentResponse {
             ChatResponse::OpenAI(resp) => resp.get_content(),
             ChatResponse::Gemini(resp) => resp.get_content(),
             ChatResponse::VertexGenerate(resp) => resp.get_content(),
-            ChatResponse::Anthropic(resp) => resp.get_content(),
+            ChatResponse::AnthropicMessageV1(resp) => resp.get_content(),
             _ => {
                 warn!("Content not available for this response type");
                 None

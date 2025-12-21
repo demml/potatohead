@@ -1,5 +1,7 @@
 use crate::common::get_image_media_types;
 use crate::common::ResponseExt;
+use crate::prompt::Message;
+use crate::prompt::PromptContent;
 use crate::TypeError;
 use potato_util::{json_to_pydict, json_to_pyobject};
 use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
@@ -1012,6 +1014,69 @@ impl MessageParam {
             .iter()
             .map(|block| block.to_pyobject(py))
             .collect()
+    }
+}
+
+impl MessageParam {
+    /// Convert a Prompt Message to an Anthropic MessageParam
+    ///
+    /// This efficiently handles the case where the content is already a MessageParam
+    /// by cloning it directly and using the parent Message's role.
+    pub fn from_message(message: &Message) -> Result<Self, TypeError> {
+        // Fast path: if content is already a MessageParam, clone and use parent's role
+        if let PromptContent::AnthropicMessageContentV1(msg_param) = &message.content {
+            return Ok(Self {
+                content: msg_param.content.clone(),
+                role: message.role.clone(),
+            });
+        }
+
+        // Standard conversion path for other content types
+        let content = match &message.content {
+            PromptContent::Str(text) => vec![ContentBlockParam {
+                inner: ContentBlock::Text(TextBlockParam {
+                    text: text.clone(),
+                    cache_control: None,
+                    citations: None,
+                    r#type: TEXT_TYPE.to_string(),
+                }),
+            }],
+
+            PromptContent::Image(image) => vec![ContentBlockParam {
+                inner: ContentBlock::Image(ImageBlockParam {
+                    source: ImageSource::Url(UrlImageSource {
+                        url: image.url.clone(),
+                        r#type: URL_TYPE.to_string(),
+                    }),
+                    cache_control: None,
+                    r#type: IMAGE_TYPE.to_string(),
+                }),
+            }],
+
+            PromptContent::Document(doc) => vec![ContentBlockParam {
+                inner: ContentBlock::Document(DocumentBlockParam {
+                    source: DocumentSource::Url(UrlPDFSource {
+                        url: doc.url.clone(),
+                        r#type: URL_TYPE.to_string(),
+                    }),
+                    cache_control: None,
+                    title: None,
+                    context: None,
+                    r#type: DOCUMENT_TYPE.to_string(),
+                    citations: None,
+                }),
+            }],
+
+            // Already handled in fast path above
+            PromptContent::AnthropicMessageContentV1(_) => unreachable!(),
+
+            _ => return Err(TypeError::UnsupportedContentType),
+        };
+
+        Ok(Self {
+            content,
+            role: message.role.clone(),
+        })
     }
 }
 

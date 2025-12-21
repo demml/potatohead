@@ -1,7 +1,12 @@
 pub use potato_agent::*;
 pub use potato_prompt::*;
 pub use potato_type::{
-    anthropic as anthropic_types, error::TypeError, google as google_types, openai as openai_types,
+    anthropic as anthropic_types,
+    error::TypeError,
+    google as google_types, openai as openai_types,
+    prompt::{
+        AudioUrl, BinaryContent, DocumentUrl, ImageUrl, Message, PromptContent, ResponseType, Score,
+    },
     Provider, SaveName, StructuredOutput,
 };
 pub use potato_util::{

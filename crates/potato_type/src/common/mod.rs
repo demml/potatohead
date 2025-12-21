@@ -1,3 +1,4 @@
+use crate::TypeError;
 use potato_util::utils::ResponseLogProbs;
 use std::collections::HashSet;
 use std::sync::OnceLock;
@@ -38,6 +39,41 @@ pub(crate) fn get_image_media_types() -> &'static HashSet<&'static str> {
         set.insert("image/webp");
         set
     })
+}
+
+pub(crate) fn image_format(media_type: &str) -> Result<String, TypeError> {
+    let format = match media_type {
+        "image/jpeg" => "jpeg",
+        "image/png" => "png",
+        "image/gif" => "gif",
+        "image/webp" => "webp",
+        _ => {
+            return Err(TypeError::Error(format!(
+                "Unknown image media type: {media_type}"
+            )))
+        }
+    };
+
+    Ok(format.to_string())
+}
+
+pub(crate) fn document_format(media_type: &str) -> Result<String, TypeError> {
+    let format = match media_type {
+        "application/pdf" => "pdf",
+        "text/plain" => "txt",
+        "text/csv" => "csv",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "docx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "xlsx",
+        "text/html" => "html",
+        "text/markdown" => "md",
+        "application/vnd.ms-excel" => "xls",
+        _ => {
+            return Err(TypeError::Error(format!(
+                "Unknown document media type: {media_type}",
+            )))
+        }
+    };
+    Ok(format.to_string())
 }
 
 pub trait ResponseExt {
