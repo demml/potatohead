@@ -1,4 +1,5 @@
 use crate::common::get_image_media_types;
+use crate::common::ResponseExt;
 use crate::TypeError;
 use potato_util::{json_to_pydict, json_to_pyobject};
 use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
@@ -32,6 +33,7 @@ pub const PAGE_LOCATION_TYPE: &str = "page_location";
 pub const CONTENT_BLOCK_LOCATION_TYPE: &str = "content_block_location";
 pub const WEB_SEARCH_RESULT_LOCATION_TYPE: &str = "web_search_result_location";
 pub const SEARCH_RESULT_LOCATION_TYPE: &str = "search_result_location";
+pub const WEB_SEARCH_TOOL_RESULT_ERROR_TYPE: &str = "web_search_tool_result_error";
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
@@ -1003,6 +1005,14 @@ impl MessageParam {
 
         Ok(Self { content, role })
     }
+
+    #[getter]
+    fn content<'py>(&self, py: Python<'py>) -> Result<Vec<Bound<'py, PyAny>>, TypeError> {
+        self.content
+            .iter()
+            .map(|block| block.to_pyobject(py))
+            .collect()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -1275,4 +1285,378 @@ impl AnthropicSettings {
         json_to_pydict(py, &json, &pydict)?;
         Ok(pydict)
     }
+}
+
+// Return types
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct CitationCharLocation {
+    #[pyo3(get, set)]
+    pub cited_text: String,
+    #[pyo3(get, set)]
+    pub document_index: i32,
+    #[pyo3(get, set)]
+    pub document_title: String,
+    #[pyo3(get, set)]
+    pub end_char_index: i32,
+    #[pyo3(get, set)]
+    pub file_id: String,
+    #[pyo3(get, set)]
+    pub start_char_index: i32,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct CitationPageLocation {
+    #[pyo3(get, set)]
+    pub cited_text: String,
+    #[pyo3(get, set)]
+    pub document_index: i32,
+    #[pyo3(get, set)]
+    pub document_title: String,
+    #[pyo3(get, set)]
+    pub end_page_number: i32,
+    #[pyo3(get, set)]
+    pub file_id: String,
+    #[pyo3(get, set)]
+    pub start_page_number: i32,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct CitationContentBlockLocation {
+    #[pyo3(get, set)]
+    pub cited_text: String,
+    #[pyo3(get, set)]
+    pub document_index: i32,
+    #[pyo3(get, set)]
+    pub document_title: String,
+    #[pyo3(get, set)]
+    pub end_block_index: i32,
+    #[pyo3(get, set)]
+    pub file_id: String,
+    #[pyo3(get, set)]
+    pub start_block_index: i32,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct CitationsWebSearchResultLocation {
+    #[pyo3(get, set)]
+    pub cited_text: String,
+    #[pyo3(get, set)]
+    pub encrypted_index: String,
+    #[pyo3(get, set)]
+    pub title: String,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+    #[pyo3(get, set)]
+    pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct CitationsSearchResultLocation {
+    #[pyo3(get, set)]
+    pub cited_text: String,
+    #[pyo3(get, set)]
+    pub end_block_index: i32,
+    #[pyo3(get, set)]
+    pub search_result_index: i32,
+    #[pyo3(get, set)]
+    pub source: String,
+    #[pyo3(get, set)]
+    pub start_block_index: i32,
+    #[pyo3(get, set)]
+    pub title: String,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+/// Untagged enum for citation types in response content
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(untagged)]
+pub enum TextCitation {
+    CharLocation(CitationCharLocation),
+    PageLocation(CitationPageLocation),
+    ContentBlockLocation(CitationContentBlockLocation),
+    WebSearchResultLocation(CitationsWebSearchResultLocation),
+    SearchResultLocation(CitationsSearchResultLocation),
+}
+
+/// Text block in response content with citations
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct TextBlock {
+    #[pyo3(get, set)]
+    pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub citations: Option<Vec<TextCitation>>,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[pymethods]
+impl TextBlock {
+    #[getter]
+    pub fn citations<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Option<Vec<Bound<'py, PyAny>>>, TypeError> {
+        match &self.citations {
+            None => Ok(None),
+            Some(cits) => {
+                let py_citations: Result<Vec<_>, _> = cits
+                    .iter()
+                    .map(|cit| match cit {
+                        TextCitation::CharLocation(c) => c.clone().into_bound_py_any(py),
+                        TextCitation::PageLocation(c) => c.clone().into_bound_py_any(py),
+                        TextCitation::ContentBlockLocation(c) => c.clone().into_bound_py_any(py),
+                        TextCitation::WebSearchResultLocation(c) => c.clone().into_bound_py_any(py),
+                        TextCitation::SearchResultLocation(c) => c.clone().into_bound_py_any(py),
+                    })
+                    .collect();
+                Ok(Some(py_citations?))
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct ThinkingBlock {
+    #[pyo3(get, set)]
+    pub thinking: String,
+    #[pyo3(get, set)]
+    pub signature: Option<String>,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct RedactedThinkingBlock {
+    #[pyo3(get, set)]
+    pub data: String,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct ToolUseBlock {
+    #[pyo3(get, set)]
+    pub id: String,
+    #[pyo3(get, set)]
+    pub name: String,
+    pub input: Value,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct ServerToolUseBlock {
+    #[pyo3(get, set)]
+    pub id: String,
+    #[pyo3(get, set)]
+    pub name: String,
+    pub input: Value,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct WebSearchResultBlock {
+    #[pyo3(get, set)]
+    pub encrypted_content: String,
+    #[pyo3(get, set)]
+    pub page_age: Option<String>,
+    #[pyo3(get, set)]
+    pub title: String,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+    #[pyo3(get, set)]
+    pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct WebSearchToolResultError {
+    #[pyo3(get, set)]
+    pub error_code: String,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(untagged)]
+pub enum WebSearchToolResultBlockContent {
+    Error(WebSearchToolResultError),
+    Results(Vec<WebSearchResultBlock>),
+}
+
+/// Web search tool result block
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct WebSearchToolResultBlock {
+    pub content: WebSearchToolResultBlockContent,
+    #[pyo3(get, set)]
+    pub tool_use_id: String,
+    #[pyo3(get)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[pymethods]
+impl WebSearchToolResultBlock {
+    #[getter]
+    pub fn content<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        match &self.content {
+            WebSearchToolResultBlockContent::Error(err) => Ok(err.clone().into_bound_py_any(py)?),
+            WebSearchToolResultBlockContent::Results(results) => {
+                let py_list: Result<Vec<_>, _> = results
+                    .iter()
+                    .map(|r| r.clone().into_bound_py_any(py))
+                    .collect();
+                Ok(py_list?.into_bound_py_any(py)?)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(untagged)]
+pub(crate) enum ResponseContentBlockInner {
+    Text(TextBlock),
+    Thinking(ThinkingBlock),
+    RedactedThinking(RedactedThinkingBlock),
+    ToolUse(ToolUseBlock),
+    ServerToolUse(ServerToolUseBlock),
+    WebSearchToolResult(WebSearchToolResultBlock),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct ResponseContentBlock {
+    #[serde(flatten)]
+    inner: ResponseContentBlockInner,
+}
+
+impl ResponseContentBlock {
+    /// Convert back to Python object
+    pub fn to_pyobject<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        match &self.inner {
+            ResponseContentBlockInner::Text(block) => Ok(block.clone().into_bound_py_any(py)?),
+            ResponseContentBlockInner::Thinking(block) => {
+                Ok(block.clone().into_bound_py_any(py)?)
+            }
+            ResponseContentBlockInner::RedactedThinking(block) => {
+                Ok(block.clone().into_bound_py_any(py)?)
+            }
+            ResponseContentBlockInner::ToolUse(block) => Ok(block.clone().into_bound_py_any(py)?),
+            ResponseContentBlockInner::ServerToolUse(block) => {
+                Ok(block.clone().into_bound_py_any(py)?)
+            }
+            ResponseContentBlockInner::WebSearchToolResult(block) => {
+                Ok(block.clone().into_bound_py_any(py)?)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+#[pyclass]
+pub enum StopReason {
+    EndTurn,
+    MaxTokens,
+    StopSequence,
+    ToolUse,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct Usage {
+    #[pyo3(get)]
+    pub input_tokens: i32,
+    #[pyo3(get)]
+    pub output_tokens: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
+    pub cache_creation_input_tokens: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
+    pub cache_read_input_tokens: Option<i32>,
+    #[pyo3(get)]
+    pub service_tier: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct AnthropicChatResponse {
+    #[pyo3(get)]
+    pub id: String,
+    #[pyo3(get)]
+    pub model: String,
+    #[pyo3(get)]
+    pub role: String,
+    #[pyo3(get)]
+    pub stop_reason: Option<StopReason>,
+    #[pyo3(get)]
+    pub stop_sequence: Option<String>,
+    #[pyo3(get)]
+    pub r#type: String,
+    #[pyo3(get)]
+    pub usage: Usage,
+    pub content: Vec<ResponseContentBlock>,
+}
+
+#[pymethods]
+impl AnthropicChatResponse {
+    #[getter]
+    pub fn content<'py>(&self, py: Python<'py>) -> Result<Vec<Bound<'py, PyAny>>, TypeError> {
+        self.content
+            .iter()
+            .map(|block| block.to_pyobject(py))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| TypeError::Error(e.to_string()))
+    }
+}
+
+impl ResponseExt for AnthropicChatResponse {
+    fn get_content(&self) -> Option<String> {
+        self.content.first().and_then(|block| match block.inner {
+            ResponseContentBlockInner::Text(ref text_block) => Some(text_block.text.clone()),
+            _ => None,
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct AnthropicMessageRequest {
+    pub model: String,
+    pub messages: Vec<MessageParam>,
+    #[serde(flatten)]
+    pub settings: AnthropicSettings,
 }

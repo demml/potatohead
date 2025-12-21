@@ -1,5 +1,4 @@
 use crate::error::ProviderError;
-use crate::providers::anthropic::types::AnthropicChatResponse;
 use crate::providers::google::FunctionCall;
 use crate::providers::google::GenerateContentResponse;
 use crate::providers::openai::OpenAIChatResponse;
@@ -8,6 +7,7 @@ use potato_prompt::{
     prompt::{PromptContent, Role},
     Message,
 };
+use potato_type::anthropic::v1::message::AnthropicChatResponse;
 use potato_type::google::predict::PredictResponse;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
@@ -63,7 +63,7 @@ pub enum ChatResponse {
     Gemini(GenerateContentResponse),
     VertexGenerate(GenerateContentResponse),
     VertexPredict(PredictResponse),
-    Anthropic(AnthropicChatResponse),
+    AnthropicChat(AnthropicChatResponse),
 }
 
 #[pymethods]
@@ -75,7 +75,7 @@ impl ChatResponse {
             ChatResponse::Gemini(resp) => Ok(resp.clone().into_bound_py_any(py)?),
             ChatResponse::VertexGenerate(resp) => Ok(resp.clone().into_bound_py_any(py)?),
             ChatResponse::VertexPredict(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::Anthropic(resp) => Ok(resp.clone().into_bound_py_any(py)?),
+            ChatResponse::AnthropicChat(resp) => Ok(resp.clone().into_bound_py_any(py)?),
         }
     }
     pub fn __str__(&self) -> String {
@@ -84,7 +84,7 @@ impl ChatResponse {
             ChatResponse::Gemini(resp) => PyHelperFuncs::__str__(resp),
             ChatResponse::VertexGenerate(resp) => PyHelperFuncs::__str__(resp),
             ChatResponse::VertexPredict(resp) => PyHelperFuncs::__str__(resp),
-            ChatResponse::Anthropic(resp) => PyHelperFuncs::__str__(resp),
+            ChatResponse::AnthropicChat(resp) => PyHelperFuncs::__str__(resp),
         }
     }
 }

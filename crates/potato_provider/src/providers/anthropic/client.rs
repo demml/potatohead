@@ -1,8 +1,7 @@
 use crate::error::ProviderError;
 
-use crate::providers::anthropic::types::{
-    AnthropicChatResponse, AnthropicMessage, AnthropicMessageRequest,
-};
+use potato_type::anthropic::v1::message::AnthropicMessageRequest;
+use potato_type::anthropic::v1::message::{AnthropicChatResponse, MessageParam};
 
 use crate::providers::types::add_extra_body_to_prompt;
 use crate::providers::types::build_http_client;
@@ -179,10 +178,10 @@ impl AnthropicClient {
         let mut additional_headers = HeaderMap::new();
 
         // get the system messages from the prompt first
-        let mut messages: Vec<AnthropicMessage> = prompt
+        let mut messages: Vec<MessageParam> = prompt
             .system_instruction
             .iter()
-            .map(AnthropicMessage::from_message)
+            .map(MessageParam::from_message)
             .collect::<Result<Vec<_>, _>>()
             .inspect_err(|_| {
                 error!("Failed to convert system instructions to Anthropic message")

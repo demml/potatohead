@@ -80,7 +80,7 @@ impl GenAiClient {
                 let response = client.chat_completion(task).await.inspect_err(|e| {
                     error!(error = %e, "Failed to complete chat");
                 })?;
-                Ok(ChatResponse::Anthropic(response))
+                Ok(ChatResponse::AnthropicChat(response))
             }
             GenAiClient::Undefined => Err(ProviderError::NoProviderError),
         }
