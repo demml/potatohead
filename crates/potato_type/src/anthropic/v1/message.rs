@@ -17,6 +17,7 @@ pub const TEXT_TYPE: &str = "text";
 pub const DOCUMENT_TYPE: &str = "document";
 pub const DOCUMENT_BASE64_PDF_TYPE: &str = "application/pdf";
 pub const DOCUMENT_PLAIN_TEXT_TYPE: &str = "text/plain";
+pub const WEB_SEARCH_RESULT_TYPE: &str = "web_search_result";
 pub const SEARCH_TYPE: &str = "search_result";
 pub const THINKING_TYPE: &str = "thinking";
 pub const REDACTED_THINKING_TYPE: &str = "redacted_thinking";
@@ -385,15 +386,15 @@ impl ImageBlockParam {
     }
 
     #[getter]
-    pub fn source<'py>(&self, py: Python<'py>) -> Result<&Bound<'py, PyAny>, TypeError> {
+    pub fn source<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         match &self.source {
             ImageSource::Base64(base64) => {
                 let py_obj = base64.clone().into_bound_py_any(py)?;
-                Ok(&py_obj)
+                Ok(py_obj.clone())
             }
             ImageSource::Url(url) => {
                 let py_obj = url.clone().into_bound_py_any(py)?;
-                Ok(&py_obj)
+                Ok(py_obj.clone())
             }
         }
     }
@@ -780,365 +781,228 @@ impl ToolResultBlockParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct ThinkingContent {
-    pub thinking: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub signature: Option<String>,
-    pub r#type: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct RedactedThinkingContent {
-    pub data: String,
-    pub r#type: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct SearchResultContent {
-    pub title: String,
-    pub content: Vec<ContentBlock>,
-    pub source: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cache_control: Option<CacheControl>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub citations: Option<Value>,
-    pub r#type: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct WebSearchToolResultContent {
-    pub tool_use_id: String,
-    pub content: Vec<ContentBlock>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cache_control: Option<CacheControl>,
-    pub r#type: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct ServerToolUseContent {
+#[pyclass]
+pub struct ServerToolUseBlockParam {
+    #[pyo3(get, set)]
     pub id: String,
+    #[pyo3(get, set)]
     pub name: String,
     pub input: Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
+    #[pyo3(get, set)]
+    #[serde(rename = "type")]
     pub r#type: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ContentBlock {
-    Text {
-        text: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        cache_control: Option<CacheControl>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        citations: Option<Value>,
-    },
-    Image {
-        source: ImageSource,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        cache_control: Option<CacheControl>,
-    },
-    Document {
-        source: DocumentSource,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        cache_control: Option<CacheControl>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        title: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        context: Option<String>,
-    },
-    ToolUse {
-        id: String,
-        name: String,
-        input: Value,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        cache_control: Option<CacheControl>,
-    },
-    ToolResult {
-        tool_use_id: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        content: Option<Vec<ContentBlock>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        is_error: Option<bool>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        cache_control: Option<CacheControl>,
-    },
-    Thinking {
-        thinking: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        signature: Option<String>,
-    },
-    RedactedThinking {
-        data: String,
-    },
-    SearchResult {
-        title: String,
-        content: Vec<ContentBlock>,
-        source: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        cache_control: Option<CacheControl>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        citations: Option<Value>,
-    },
-    WebSearchToolResult {
-        tool_use_id: String,
-        content: Vec<ContentBlock>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        cache_control: Option<CacheControl>,
-    },
-    ServerToolUse {
-        id: String,
-        name: String,
-        input: Value,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        cache_control: Option<CacheControl>,
-    },
-}
-
-// Python wrapper struct that holds the enum
-#[pyclass(name = "ContentBlock")]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PyContentBlock {
-    #[serde(flatten)]
-    pub inner: ContentBlock,
-}
-
 #[pymethods]
-impl PyContentBlock {
-    #[staticmethod]
-    #[pyo3(signature = (text, cache_control=None, citations=None))]
-    pub fn text(
-        text: String,
-        cache_control: Option<CacheControl>,
-        citations: Option<&Bound<'_, PyAny>>,
-    ) -> Result<Self, UtilError> {
-        let citations_value = match citations {
-            Some(cit) => Some(pyobject_to_json(cit)?),
-            None => None,
-        };
-
-        Ok(Self {
-            inner: ContentBlock::Text {
-                text,
-                cache_control,
-                citations: citations_value,
-            },
-        })
-    }
-
-    #[staticmethod]
-    #[pyo3(signature = (media_type, data, cache_control=None))]
-    pub fn image_base64(
-        media_type: String,
-        data: String,
-        cache_control: Option<CacheControl>,
-    ) -> Self {
-        Self {
-            inner: ContentBlock::Image {
-                source: ImageSource::Base64 { media_type, data },
-                cache_control,
-            },
-        }
-    }
-
-    #[staticmethod]
-    #[pyo3(signature = (url, cache_control=None))]
-    pub fn image_url(url: String, cache_control: Option<CacheControl>) -> Self {
-        Self {
-            inner: ContentBlock::Image {
-                source: ImageSource::Url { url },
-                cache_control,
-            },
-        }
-    }
-
-    #[staticmethod]
-    #[pyo3(signature = (media_type, data, cache_control=None, title=None, context=None))]
-    pub fn document_base64(
-        media_type: String,
-        data: String,
-        cache_control: Option<CacheControl>,
-        title: Option<String>,
-        context: Option<String>,
-    ) -> Self {
-        Self {
-            inner: ContentBlock::Document {
-                source: DocumentSource::Base64 { media_type, data },
-                cache_control,
-                title,
-                context,
-            },
-        }
-    }
-
-    #[staticmethod]
-    #[pyo3(signature = (url, cache_control=None, title=None, context=None))]
-    pub fn document_url(
-        url: String,
-        cache_control: Option<CacheControl>,
-        title: Option<String>,
-        context: Option<String>,
-    ) -> Self {
-        Self {
-            inner: ContentBlock::Document {
-                source: DocumentSource::Url { url },
-                cache_control,
-                title,
-                context,
-            },
-        }
-    }
-
-    #[staticmethod]
-    #[pyo3(signature = (id, name, input, cache_control=None))]
-    pub fn tool_use(
+impl ServerToolUseBlockParam {
+    #[new]
+    pub fn new(
         id: String,
         name: String,
         input: &Bound<'_, PyAny>,
         cache_control: Option<CacheControl>,
-    ) -> Result<Self, UtilError> {
+    ) -> Result<Self, TypeError> {
         let input_value = pyobject_to_json(input)?;
-
         Ok(Self {
-            inner: ContentBlock::ToolUse {
-                id,
-                name,
-                input: input_value,
-                cache_control,
-            },
+            id,
+            name,
+            input: input_value,
+            cache_control,
+            r#type: SERVER_TOOL_USE_TYPE.to_string(),
         })
     }
+    #[getter]
+    pub fn input<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        let py_dict = json_to_pyobject(py, &self.input)?.bind(py).clone();
+        Ok(py_dict)
+    }
+}
 
-    #[staticmethod]
-    #[pyo3(signature = (tool_use_id, content=None, is_error=None, cache_control=None))]
-    pub fn tool_result(
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct WebSearchResultBlockParam {
+    #[pyo3(get, set)]
+    pub encrypted_content: String,
+    #[pyo3(get, set)]
+    pub title: String,
+    #[pyo3(get, set)]
+    pub url: String,
+    #[pyo3(get, set)]
+    pub page_agent: Option<String>,
+    #[pyo3(get, set)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[pymethods]
+impl WebSearchResultBlockParam {
+    #[new]
+    pub fn new(
+        encrypted_content: String,
+        title: String,
+        url: String,
+        page_agent: Option<String>,
+    ) -> Self {
+        Self {
+            encrypted_content,
+            title,
+            url,
+            page_agent,
+            r#type: WEB_SEARCH_RESULT_TYPE.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct WebSearchToolResultBlockParam {
+    #[pyo3(get, set)]
+    pub tool_use_id: String,
+    #[pyo3(get, set)]
+    pub content: Vec<WebSearchResultBlockParam>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get, set)]
+    pub cache_control: Option<CacheControl>,
+    #[pyo3(get, set)]
+    #[serde(rename = "type")]
+    pub r#type: String,
+}
+
+#[pymethods]
+impl WebSearchToolResultBlockParam {
+    #[new]
+    pub fn new(
         tool_use_id: String,
-        content: Option<Vec<PyContentBlock>>,
-        is_error: Option<bool>,
+        content: Vec<WebSearchResultBlockParam>,
         cache_control: Option<CacheControl>,
     ) -> Self {
         Self {
-            inner: ContentBlock::ToolResult {
-                tool_use_id,
-                content: content.map(|blocks| blocks.into_iter().map(|b| b.inner).collect()),
-                is_error,
-                cache_control,
-            },
+            tool_use_id,
+            content,
+            cache_control,
+            r#type: WEB_SEARCH_TOOL_RESULT_TYPE.to_string(),
         }
     }
+}
 
-    #[staticmethod]
-    #[pyo3(signature = (thinking, signature=None))]
-    pub fn thinking(thinking: String, signature: Option<String>) -> Self {
-        Self {
-            inner: ContentBlock::Thinking {
-                thinking,
-                signature,
-            },
-        }
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub(crate) enum ContentBlock {
+    Text(TextBlockParam),
+    Image(ImageBlockParam),
+    Document(DocumentBlockParam),
+    SearchResult(SearchResultBlockParam),
+    Thinking(ThinkingBlockParam),
+    RedactedThinking(RedactedThinkingBlockParam),
+    ToolUse(ToolUseBlockParam),
+    ToolResult(ToolResultBlockParam),
+    ServerToolUse(ServerToolUseBlockParam),
+    WebSearchResult(WebSearchResultBlockParam),
+}
+
+macro_rules! try_extract_content_block {
+    ($block:expr, $($variant:ident => $type:ty),+ $(,)?) => {{
+        $(
+            if $block.is_instance_of::<$type>() {
+                return Ok(Self {
+                    inner: ContentBlock::$variant($block.extract::<$type>()?),
+                });
+            }
+        )+
+        return Err(TypeError::InvalidInput(
+            "Unsupported content block type".to_string(),
+        ));
+    }};
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct ContentBlockParam {
+    #[serde(flatten)]
+    inner: ContentBlock,
+}
+
+impl ContentBlockParam {
+    pub fn new(block: &Bound<'_, PyAny>) -> Result<Self, TypeError> {
+        try_extract_content_block!(
+            block,
+            Text => TextBlockParam,
+            Image => ImageBlockParam,
+            Document => DocumentBlockParam,
+            SearchResult => SearchResultBlockParam,
+            Thinking => ThinkingBlockParam,
+            RedactedThinking => RedactedThinkingBlockParam,
+            ToolUse => ToolUseBlockParam,
+            ToolResult => ToolResultBlockParam,
+            ServerToolUse => ServerToolUseBlockParam,
+            WebSearchResult => WebSearchResultBlockParam,
+        )
     }
 
-    #[staticmethod]
-    pub fn redacted_thinking(data: String) -> Self {
-        Self {
-            inner: ContentBlock::RedactedThinking { data },
+    /// Convert the ContentBlockParam back to a PyObject
+    /// This is an acceptable clone, as this will really only be used in development/testing scenarios
+    pub fn to_pyobject<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        match &self.inner {
+            ContentBlock::Text(block) => Ok(block.clone().into_bound_py_any(py)?.clone()),
+            ContentBlock::Image(block) => Ok(block.clone().into_bound_py_any(py)?.clone()),
+            ContentBlock::Document(block) => Ok(block.clone().into_bound_py_any(py)?.clone()),
+            ContentBlock::SearchResult(block) => Ok(block.clone().into_bound_py_any(py)?.clone()),
+            ContentBlock::Thinking(block) => Ok(block.clone().into_bound_py_any(py)?.clone()),
+            ContentBlock::RedactedThinking(block) => {
+                Ok(block.clone().into_bound_py_any(py)?.clone())
+            }
+            ContentBlock::ToolUse(block) => Ok(block.clone().into_bound_py_any(py)?.clone()),
+            ContentBlock::ToolResult(block) => Ok(block.clone().into_bound_py_any(py)?.clone()),
+            ContentBlock::ServerToolUse(block) => Ok(block.clone().into_bound_py_any(py)?.clone()),
+            ContentBlock::WebSearchResult(block) => {
+                Ok(block.clone().into_bound_py_any(py)?.clone())
+            }
         }
     }
+}
 
-    #[staticmethod]
-    #[pyo3(signature = (title, content, source, cache_control=None, citations=None))]
-    pub fn search_result(
-        title: String,
-        content: Vec<PyContentBlock>,
-        source: String,
-        cache_control: Option<CacheControl>,
-        citations: Option<&Bound<'_, PyAny>>,
-    ) -> Result<Self, UtilError> {
-        let citations_value = match citations {
-            Some(cit) => Some(pyobject_to_json(cit)?),
-            None => None,
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct MessageParam {
+    #[pyo3(get)]
+    pub content: Vec<ContentBlockParam>,
+    #[pyo3(get)]
+    pub role: String,
+}
+
+#[pymethods]
+impl MessageParam {
+    /// Create a new MessageParam
+    /// Will accept either a string, Single type of ContentBlockParam, or a list of varying ContentBlockParams
+    /// Initial logic determines initial type and processes accordingly
+    /// If string, wraps in TextBlockParam --> ContentBlockParam
+    /// If single param, pass to ContentBlockParam directly
+    /// If list, process each item in list to ContentBlockParam
+    #[new]
+    pub fn new(content: &Bound<'_, PyAny>, role: String) -> Result<Self, TypeError> {
+        let content: Vec<ContentBlockParam> = if content.is_instance_of::<pyo3::types::PyString>() {
+            let text = content.extract::<String>()?;
+            let text_block = TextBlockParam::new(text, None, None)?;
+            let content_block =
+                ContentBlockParam::new(&text_block.into_bound_py_any(content.py())?)?;
+            vec![content_block]
+        } else if content.is_instance_of::<pyo3::types::PyList>() {
+            let content_list = content.extract::<Vec<Bound<'_, PyAny>>>()?;
+            let mut blocks = Vec::new();
+            for item in content_list {
+                let content_block = ContentBlockParam::new(&item)?;
+                blocks.push(content_block);
+            }
+            blocks
+        } else {
+            // pass single ContentBlockParam
+            let content_block = ContentBlockParam::new(content)?;
+            vec![content_block]
         };
 
-        Ok(Self {
-            inner: ContentBlock::SearchResult {
-                title,
-                content: content.into_iter().map(|b| b.inner).collect(),
-                source,
-                cache_control,
-                citations: citations_value,
-            },
-        })
+        Ok(Self { content, role })
     }
-
-    #[getter]
-    pub fn block_type(&self) -> &str {
-        match &self.inner {
-            ContentBlock::Text { .. } => "text",
-            ContentBlock::Image { .. } => "image",
-            ContentBlock::Document { .. } => "document",
-            ContentBlock::ToolUse { .. } => "tool_use",
-            ContentBlock::ToolResult { .. } => "tool_result",
-            ContentBlock::Thinking { .. } => "thinking",
-            ContentBlock::RedactedThinking { .. } => "redacted_thinking",
-            ContentBlock::SearchResult { .. } => "search_result",
-            ContentBlock::WebSearchToolResult { .. } => "web_search_tool_result",
-            ContentBlock::ServerToolUse { .. } => "server_tool_use",
-        }
-    }
-
-    /// Check if this is a text block
-    pub fn is_text(&self) -> bool {
-        matches!(&self.inner, ContentBlock::Text { .. })
-    }
-
-    /// Check if this is an image block
-    pub fn is_image(&self) -> bool {
-        matches!(&self.inner, ContentBlock::Image { .. })
-    }
-
-    /// Check if this is a tool use block
-    pub fn is_tool_use(&self) -> bool {
-        matches!(&self.inner, ContentBlock::ToolUse { .. })
-    }
-
-    pub fn model_dump_json(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
-
-    pub fn __str__(&self) -> String {
-        PyHelperFuncs::__str__(self)
-    }
-}
-
-// Conversion traits for seamless Rust usage
-impl From<ContentBlock> for PyContentBlock {
-    fn from(inner: ContentBlock) -> Self {
-        Self { inner }
-    }
-}
-
-impl From<PyContentBlock> for ContentBlock {
-    fn from(py_block: PyContentBlock) -> Self {
-        py_block.inner
-    }
-}
-
-// Keep existing types unchanged
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ImageSource {
-    Base64 { media_type: String, data: String },
-    Url { url: String },
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum DocumentSource {
-    Base64 { media_type: String, data: String },
-    Url { url: String },
-    Text { media_type: String, data: String },
-    Content { content: Vec<ContentBlock> },
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
