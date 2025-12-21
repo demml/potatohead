@@ -73,8 +73,3 @@ test_scripts/
 crates/potato_head/src/potato_head/openai/response/openai.yaml
 
 py-potato/dev
-py-potato/python/potato_head/_potato_head.pyi
-py-potato/python/potato_head/logging/_logging.pyi
-py-potato/python/potato_head/mock/_mock.pyi
-py-potato/python/potato_head/openai/_openai.pyi
-py-potato/python/potato_head/google/_google.pyi

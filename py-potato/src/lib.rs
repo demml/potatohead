@@ -10,10 +10,9 @@ pub mod logging;
 pub mod mock;
 pub mod openai;
 use pyo3::prelude::*;
-use pyo3::wrap_pymodule;
 
 #[pymodule]
-pub fn potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
+pub fn _potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Provider>()?;
     m.add_class::<PyAgent>()?;
     m.add_class::<PyWorkflow>()?;
@@ -38,9 +37,9 @@ pub fn potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TaskStatus>()?;
     m.add_class::<PyAgentResponse>()?;
     m.add_class::<PyEmbedder>()?;
-    m.add_wrapped(wrap_pymodule!(mock::mock))?;
-    m.add_wrapped(wrap_pymodule!(logging::logging))?;
-    m.add_wrapped(wrap_pymodule!(google::google))?;
-    m.add_wrapped(wrap_pymodule!(openai::openai))?;
+    mock::add_mock_module(m)?;
+    logging::add_logging_module(m)?;
+    google::add_google_module(m)?;
+    openai::add_openai_module(m)?;
     Ok(())
 }

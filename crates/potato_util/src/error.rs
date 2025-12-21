@@ -33,8 +33,8 @@ pub enum UtilError {
     SerdeJsonError(#[from] serde_json::Error),
 }
 
-impl<'a> From<pyo3::DowncastError<'a, 'a>> for UtilError {
-    fn from(err: pyo3::DowncastError) -> Self {
+impl<'a, 'py> From<pyo3::CastError<'a, 'py>> for UtilError {
+    fn from(err: pyo3::CastError) -> Self {
         UtilError::DowncastError(err.to_string())
     }
 }

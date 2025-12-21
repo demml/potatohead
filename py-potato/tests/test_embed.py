@@ -1,7 +1,7 @@
 import numpy as np
-from potato_head import Embedder, Provider  # type: ignore
-from potato_head.google import GeminiEmbeddingConfig  # type: ignore
-from potato_head.mock import LLMTestServer  # type: ignore
+from potato_head import Embedder, Provider
+from potato_head.google import GeminiEmbeddingConfig
+from potato_head.mock import LLMTestServer
 
 
 def test_openai_embedding():

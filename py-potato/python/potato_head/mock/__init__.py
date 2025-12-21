@@ -1,9 +1,4 @@
-# type: ignore
-from .. import mock
+# mypy: disable-error-code="attr-defined"
+from .._potato_head import LLMTestServer
 
-LLMTestServer = mock.LLMTestServer
-
-
-__all__ = [
-    "LLMTestServer",
-]
+__all__ = ["LLMTestServer"]

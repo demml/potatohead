@@ -1,4 +1,4 @@
-from potato_head.openai import OpenAIChatSettings  # type: ignore
+from potato_head.openai import OpenAIChatSettings
 
 
 def test_openai_settings_init():

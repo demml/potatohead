@@ -64,8 +64,8 @@ pub enum AgentError {
     NotSupportedError(String),
 }
 
-impl<'a> From<pyo3::DowncastError<'a, 'a>> for AgentError {
-    fn from(err: pyo3::DowncastError) -> Self {
+impl<'a, 'py> From<pyo3::CastError<'a, 'py>> for AgentError {
+    fn from(err: pyo3::CastError<'a, 'py>) -> Self {
         AgentError::DowncastError(err.to_string())
     }
 }

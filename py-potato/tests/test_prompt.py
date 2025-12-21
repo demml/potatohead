@@ -1,7 +1,7 @@
 from typing import List
 
 import httpx
-from potato_head import (  # type: ignore
+from potato_head import (
     BinaryContent,
     DocumentUrl,
     ImageUrl,
@@ -10,8 +10,8 @@ from potato_head import (  # type: ignore
     Prompt,
     Provider,
 )
-from potato_head.google import GeminiSettings, GenerationConfig  # type: ignore
-from potato_head.openai import OpenAIChatSettings  # type: ignore
+from potato_head.google import GeminiSettings, GenerationConfig
+from potato_head.openai import OpenAIChatSettings
 from pydantic import BaseModel
 from pydantic_ai import BinaryContent as PydanticBinaryContent
 from pydantic_ai import DocumentUrl as PydanticDocumentUrl

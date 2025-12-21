@@ -190,7 +190,7 @@ pub fn vec_to_py_object<'py>(
 
 pub fn pyobject_to_json(obj: &Bound<'_, PyAny>) -> Result<Value, UtilError> {
     if obj.is_instance_of::<PyDict>() {
-        let dict = obj.downcast::<PyDict>()?;
+        let dict = obj.cast::<PyDict>()?;
         let mut map = serde_json::Map::new();
         for (key, value) in dict.iter() {
             let key_str = key.extract::<String>()?;
@@ -199,14 +199,14 @@ pub fn pyobject_to_json(obj: &Bound<'_, PyAny>) -> Result<Value, UtilError> {
         }
         Ok(Value::Object(map))
     } else if obj.is_instance_of::<PyList>() {
-        let list = obj.downcast::<PyList>()?;
+        let list = obj.cast::<PyList>()?;
         let mut vec = Vec::new();
         for item in list.iter() {
             vec.push(pyobject_to_json(&item)?);
         }
         Ok(Value::Array(vec))
     } else if obj.is_instance_of::<PyTuple>() {
-        let tuple = obj.downcast::<PyTuple>()?;
+        let tuple = obj.cast::<PyTuple>()?;
         let mut vec = Vec::new();
         for item in tuple.iter() {
             vec.push(pyobject_to_json(&item)?);
