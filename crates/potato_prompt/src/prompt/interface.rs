@@ -1,9 +1,9 @@
 use crate::prompt::error::PromptError;
-use crate::prompt::types::parse_response_to_json;
-use crate::prompt::types::{Message, Role};
-use crate::prompt::ResponseType;
 use potato_type::google::chat::GeminiSettings;
 use potato_type::openai::chat::OpenAIChatSettings;
+use potato_type::prompt::parse_response_to_json;
+use potato_type::prompt::ResponseType;
+use potato_type::prompt::{Message, Role};
 use potato_type::SettingsType;
 use potato_type::{Provider, SaveName};
 
@@ -120,7 +120,14 @@ impl Prompt {
             parse_prompt(system_instruction)?
                 .into_iter()
                 .map(|mut msg| {
-                    msg.role = Role::Developer.to_string();
+                    msg.role = match provider {
+                        Provider::OpenAI
+                        | Provider::Gemini
+                        | Provider::Vertex
+                        | Provider::Google => Role::Developer.to_string(),
+                        Provider::Anthropic => Role::Assistant.to_string(),
+                        _ => msg.role,
+                    };
                     msg
                 })
                 .collect::<Vec<Message>>()
@@ -360,10 +367,7 @@ impl Prompt {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::prompt::{
-        types::{BinaryContent, DocumentUrl, ImageUrl, PromptContent},
-        Score,
-    };
+    use potato_type::prompt::{BinaryContent, DocumentUrl, ImageUrl, PromptContent, Score};
     use potato_type::StructuredOutput;
 
     #[test]

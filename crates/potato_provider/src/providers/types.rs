@@ -3,25 +3,20 @@ use crate::providers::google::FunctionCall;
 use crate::providers::google::GenerateContentResponse;
 use crate::providers::openai::OpenAIChatResponse;
 use crate::providers::openai::ToolCall;
-use potato_prompt::{
-    prompt::{PromptContent, Role},
-    Message,
-};
+
+use potato_type::anthropic::v1::message::AnthropicChatResponse;
 use potato_type::google::predict::PredictResponse;
+use potato_type::prompt::{Message, PromptContent, Role};
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
-use reqwest::header::HeaderName;
-use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::header::HeaderMap;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
-use std::str::FromStr;
 use tracing::debug;
 use tracing::instrument;
 use tracing::warn;
-const TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug, PartialEq)]
 pub enum ServiceType {
@@ -50,6 +45,13 @@ impl ServiceType {
             Self::Embed => "embeddings",
         }
     }
+
+    pub fn anthropic_endpoint(&self) -> &'static str {
+        match self {
+            Self::Generate => "messages",
+            Self::Embed => "embeddings",
+        }
+    }
 }
 
 #[pyclass]
@@ -59,6 +61,7 @@ pub enum ChatResponse {
     Gemini(GenerateContentResponse),
     VertexGenerate(GenerateContentResponse),
     VertexPredict(PredictResponse),
+    AnthropicMessageV1(AnthropicChatResponse),
 }
 
 #[pymethods]
@@ -70,6 +73,7 @@ impl ChatResponse {
             ChatResponse::Gemini(resp) => Ok(resp.clone().into_bound_py_any(py)?),
             ChatResponse::VertexGenerate(resp) => Ok(resp.clone().into_bound_py_any(py)?),
             ChatResponse::VertexPredict(resp) => Ok(resp.clone().into_bound_py_any(py)?),
+            ChatResponse::AnthropicMessageV1(resp) => Ok(resp.clone().into_bound_py_any(py)?),
         }
     }
     pub fn __str__(&self) -> String {
@@ -78,6 +82,7 @@ impl ChatResponse {
             ChatResponse::Gemini(resp) => PyHelperFuncs::__str__(resp),
             ChatResponse::VertexGenerate(resp) => PyHelperFuncs::__str__(resp),
             ChatResponse::VertexPredict(resp) => PyHelperFuncs::__str__(resp),
+            ChatResponse::AnthropicMessageV1(resp) => PyHelperFuncs::__str__(resp),
         }
     }
 }
@@ -260,26 +265,12 @@ pub fn add_extra_body_to_prompt(serialized_prompt: &mut Value, extra_body: &Valu
     }
 }
 
-pub fn build_http_client(
-    client_headers: Option<HashMap<String, String>>,
-) -> Result<Client, ProviderError> {
-    let mut headers = HeaderMap::new();
+pub fn build_http_client(default_headers: Option<HeaderMap>) -> Result<Client, ProviderError> {
+    let headers = default_headers.unwrap_or_default();
 
-    if let Some(headers_map) = client_headers {
-        for (key, value) in headers_map {
-            headers.insert(
-                HeaderName::from_str(&key).map_err(ProviderError::CreateHeaderNameError)?,
-                HeaderValue::from_str(&value).map_err(ProviderError::CreateHeaderValueError)?,
-            );
-        }
-    }
-
-    let client_builder = Client::builder().timeout(std::time::Duration::from_secs(TIMEOUT_SECS));
-
-    let client = client_builder
+    Client::builder()
         .default_headers(headers)
+        .timeout(std::time::Duration::from_secs(30))
         .build()
-        .map_err(ProviderError::CreateClientError)?;
-
-    Ok(client)
+        .map_err(ProviderError::from)
 }

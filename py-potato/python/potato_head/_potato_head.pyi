@@ -4,6 +4,340 @@ import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Sequence, TypeVar
 
+###### __potatohead__.anthropic module ######
+class Metadata:
+    """Metadata for Anthropic API requests.
+
+    This class provides metadata configuration for Anthropic chat completions,
+    including user identification for tracking and analytics.
+
+    Examples:
+        >>> metadata = Metadata(user_id="user_123")
+        >>> metadata.user_id
+        'user_123'
+    """
+
+    def __init__(
+        self,
+        user_id: Optional[str] = None,
+    ) -> None:
+        """Initialize Anthropic metadata.
+
+        Args:
+            user_id (Optional[str]):
+                User identifier for request tracking and analytics
+        """
+
+    @property
+    def user_id(self) -> Optional[str]:
+        """The user identifier for the request."""
+
+class CacheControl:
+    """Cache control configuration for Anthropic prompt caching.
+
+    This class provides configuration for controlling prompt caching behavior,
+    including cache type and time-to-live (TTL) settings.
+
+    Examples:
+        >>> cache = CacheControl(cache_type="ephemeral", ttl="5m")
+        >>> cache.cache_type
+        'ephemeral'
+    """
+
+    def __init__(
+        self,
+        cache_type: str,
+        ttl: Optional[str] = None,
+    ) -> None:
+        """Initialize cache control configuration.
+
+        Args:
+            cache_type (str):
+                The type of cache to use (e.g., "ephemeral")
+            ttl (Optional[str]):
+                Time-to-live for cached content (e.g., "5m", "1h")
+        """
+
+    @property
+    def cache_type(self) -> str:
+        """The cache type."""
+
+    @property
+    def ttl(self) -> Optional[str]:
+        """The time-to-live for cached content."""
+
+class AnthropicTool:
+    """Tool definition for Anthropic function calling.
+
+    This class defines a tool that can be called by the model during generation,
+    including its schema and optional cache control settings.
+
+    Examples:
+        >>> tool = Tool(
+        ...     name="get_weather",
+        ...     description="Get current weather",
+        ...     input_schema={"type": "object", "properties": {"location": {"type": "string"}}}
+        ... )
+    """
+
+    def __init__(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        input_schema: Any = None,
+        cache_control: Optional[CacheControl] = None,
+    ) -> None:
+        """Initialize a tool definition.
+
+        Args:
+            name (str):
+                The name of the tool
+            description (Optional[str]):
+                Human-readable description of what the tool does
+            input_schema (Any):
+                JSON schema defining the tool's input parameters
+            cache_control (Optional[CacheControl]):
+                Cache control configuration for the tool definition
+        """
+
+    @property
+    def name(self) -> str:
+        """The name of the tool."""
+
+    @property
+    def description(self) -> Optional[str]:
+        """The description of the tool."""
+
+    @property
+    def input_schema(self) -> Any:
+        """The JSON schema for the tool's input."""
+
+    @property
+    def cache_control(self) -> Optional[CacheControl]:
+        """The cache control configuration."""
+
+class AnthropicThinkingConfig:
+    """Configuration for Anthropic's extended thinking mode.
+
+    This class provides configuration for enabling and controlling the model's
+    reasoning capabilities, including budget allocation for thinking tokens.
+
+    Examples:
+        >>> config = ThinkingConfig(type="enabled", budget_tokens=1000)
+        >>> config.budget_tokens
+        1000
+    """
+
+    def __init__(
+        self,
+        type: str,
+        budget_tokens: Optional[int] = None,
+    ) -> None:
+        """Initialize thinking configuration.
+
+        Args:
+            type (str):
+                The type of thinking mode (e.g., "enabled", "disabled")
+            budget_tokens (Optional[int]):
+                Maximum number of tokens to allocate for thinking/reasoning
+        """
+
+    @property
+    def type(self) -> str:
+        """The thinking mode type."""
+
+    @property
+    def budget_tokens(self) -> Optional[int]:
+        """The token budget for thinking."""
+
+class AnthropicToolChoice:
+    """Tool choice configuration for Anthropic function calling.
+
+    This class controls how the model selects and uses tools during generation,
+    including automatic selection, forced usage, or specific tool targeting.
+
+    Examples:
+        >>> # Auto tool selection
+        >>> choice = ToolChoice(type="auto")
+        >>>
+        >>> # Force specific tool
+        >>> choice = ToolChoice(type="tool", name="get_weather")
+        >>>
+        >>> # Disable parallel tool calls
+        >>> choice = ToolChoice(type="any", disable_parallel_tool_use=True)
+    """
+
+    def __init__(
+        self,
+        type: str,
+        disable_parallel_tool_use: Optional[bool] = None,
+        name: Optional[str] = None,
+    ) -> None:
+        """Initialize tool choice configuration.
+
+        Args:
+            type (str):
+                The tool choice mode: "auto", "any", "tool", or "none"
+            disable_parallel_tool_use (Optional[bool]):
+                Whether to disable parallel tool execution
+            name (Optional[str]):
+                Specific tool name to use (required when type is "tool")
+
+        Raises:
+            ValueError: If name is provided when type is not "tool"
+            ValueError: If type is "tool" but name is not provided
+        """
+
+    @property
+    def type(self) -> str:
+        """The tool choice mode."""
+
+    @property
+    def disable_parallel_tool_use(self) -> Optional[bool]:
+        """Whether parallel tool use is disabled."""
+
+    @property
+    def name(self) -> Optional[str]:
+        """The specific tool name to use."""
+
+class AnthropicSettings:
+    """Anthropic chat completion settings configuration.
+
+    This class provides comprehensive configuration options for Anthropic chat completions,
+    including model parameters, tool usage, thinking modes, and request options.
+
+    Examples:
+        >>> settings = AnthropicSettings(
+        ...     max_tokens=2048,
+        ...     temperature=0.7,
+        ...     top_p=0.9
+        ... )
+        >>>
+        >>> # With tools
+        >>> settings = AnthropicSettings(
+        ...     max_tokens=4096,
+        ...     tools=[tool1, tool2],
+        ...     tool_choice=ToolChoice(type="auto")
+        ... )
+        >>>
+        >>> # With thinking mode
+        >>> settings = AnthropicSettings(
+        ...     max_tokens=4096,
+        ...     thinking=ThinkingConfig(type="enabled", budget_tokens=1000)
+        ... )
+    """
+
+    def __init__(
+        self,
+        *,
+        max_tokens: int = 4096,
+        metadata: Optional[Metadata] = None,
+        service_tier: Optional[str] = None,
+        stop_sequences: Optional[List[str]] = None,
+        stream: Optional[bool] = None,
+        system: Optional[str] = None,
+        temperature: Optional[float] = None,
+        thinking: Optional[AnthropicThinkingConfig] = None,
+        top_k: Optional[int] = None,
+        top_p: Optional[float] = None,
+        tools: Optional[List[AnthropicTool]] = None,
+        tool_choice: Optional[AnthropicToolChoice] = None,
+        extra_body: Optional[Any] = None,
+    ) -> None:
+        """Initialize Anthropic chat settings.
+
+        Args:
+            max_tokens (int):
+                Maximum number of tokens to generate (default: 4096)
+            metadata (Optional[Metadata]):
+                Request metadata for tracking and analytics
+            service_tier (Optional[str]):
+                Service tier to use for the request
+            stop_sequences (Optional[List[str]]):
+                Sequences where generation should stop
+            stream (Optional[bool]):
+                Whether to stream the response
+            system (Optional[str]):
+                System prompt to guide model behavior
+            temperature (Optional[float]):
+                Sampling temperature (0.0 to 1.0)
+            thinking (Optional[ThinkingConfig]):
+                Configuration for extended thinking mode
+            top_k (Optional[int]):
+                Top-k sampling parameter
+            top_p (Optional[float]):
+                Nucleus sampling parameter (0.0 to 1.0)
+            tools (Optional[List[Tool]]):
+                Available tools for the model to use
+            tool_choice (Optional[ToolChoice]):
+                Tool selection configuration
+            extra_body (Optional[Any]):
+                Additional request body parameters
+        """
+
+    @property
+    def max_tokens(self) -> int:
+        """Maximum number of tokens to generate."""
+
+    @property
+    def metadata(self) -> Optional[Metadata]:
+        """Request metadata."""
+
+    @property
+    def service_tier(self) -> Optional[str]:
+        """Service tier."""
+
+    @property
+    def stop_sequences(self) -> Optional[List[str]]:
+        """Stop sequences."""
+
+    @property
+    def stream(self) -> Optional[bool]:
+        """Whether to stream the response."""
+
+    @property
+    def system(self) -> Optional[str]:
+        """System prompt."""
+
+    @property
+    def temperature(self) -> Optional[float]:
+        """Sampling temperature."""
+
+    @property
+    def thinking(self) -> Optional[AnthropicThinkingConfig]:
+        """Thinking mode configuration."""
+
+    @property
+    def top_k(self) -> Optional[int]:
+        """Top-k sampling parameter."""
+
+    @property
+    def top_p(self) -> Optional[float]:
+        """Nucleus sampling parameter."""
+
+    @property
+    def tools(self) -> Optional[List[AnthropicTool]]:
+        """Available tools."""
+
+    @property
+    def tool_choice(self) -> Optional[AnthropicToolChoice]:
+        """Tool choice configuration."""
+
+    @property
+    def extra_body(self) -> Optional[Any]:
+        """Additional request parameters."""
+
+    def __str__(self) -> str:
+        """Return string representation of the settings."""
+
+    def model_dump(self) -> Dict[str, Any]:
+        """Serialize the settings to a dictionary.
+
+        Returns:
+            Dict[str, Any]:
+                Dictionary representation of the settings
+        """
+
 ###### __potatohead__.openai module ######
 class AudioParam:
     def __init__(self, format: str, voice: str) -> None: ...
@@ -97,20 +431,19 @@ class AllowedTools:
     @property
     def allowed_tools(self) -> InnerAllowedTools: ...
 
-class ToolChoice:
-    Mode: "ToolChoice"
-    Function: "ToolChoice"
-    Custom: "ToolChoice"
-    Allowed: "ToolChoice"
-
+class OpenAIToolChoice:
+    Mode: "OpenAIToolChoice"
+    Function: "OpenAIToolChoice"
+    Custom: "OpenAIToolChoice"
+    Allowed: "OpenAIToolChoice"
     @staticmethod
-    def from_mode(mode: AllowedToolsMode) -> "ToolChoice": ...
+    def from_mode(mode: AllowedToolsMode) -> "OpenAIToolChoice": ...
     @staticmethod
-    def from_function(function_name: str) -> "ToolChoice": ...
+    def from_function(function_name: str) -> "OpenAIToolChoice": ...
     @staticmethod
-    def from_custom(custom_name: str) -> "ToolChoice": ...
+    def from_custom(custom_name: str) -> "OpenAIToolChoice": ...
     @staticmethod
-    def from_allowed_tools(allowed_tools: AllowedTools) -> "ToolChoice": ...
+    def from_allowed_tools(allowed_tools: AllowedTools) -> "OpenAIToolChoice": ...
 
 class FunctionDefinition:
     def __init__(
@@ -179,7 +512,7 @@ class CustomDefinition:
 class CustomTool:
     def __init__(self, custom: CustomDefinition, type: str) -> None: ...
 
-class Tool:
+class OpenAITool:
     def __init__(
         self,
         function: Optional[FunctionTool] = None,
@@ -228,8 +561,8 @@ class OpenAIChatSettings:
         store: Optional[bool] = None,
         stream: Optional[bool] = None,
         stream_options: Optional[StreamOptions] = None,
-        tool_choice: Optional[ToolChoice] = None,
-        tools: Optional[List[Tool]] = None,
+        tool_choice: Optional[OpenAIToolChoice] = None,
+        tools: Optional[List[OpenAITool]] = None,
         top_logprobs: Optional[int] = None,
         verbosity: Optional[str] = None,
         extra_body: Optional[Any] = None,
@@ -365,7 +698,7 @@ class Modality:
     Image: "Modality"
     Audio: "Modality"
 
-class ThinkingConfig:
+class GeminiThinkingConfig:
     """Configuration for thinking/reasoning capabilities."""
 
     def __init__(
@@ -445,7 +778,7 @@ class GenerationConfig:
         stop_sequences: Optional[List[str]] = None,
         response_mime_type: Optional[str] = None,
         response_modalities: Optional[List[Modality]] = None,
-        thinking_config: Optional[ThinkingConfig] = None,
+        thinking_config: Optional[GeminiThinkingConfig] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
         top_k: Optional[int] = None,
@@ -1201,6 +1534,7 @@ class Provider:
     Gemini: "Provider"
     Vertex: "Provider"
     Google: "Provider"
+    Anthropic: "Provider"
 
 class TaskStatus:
     Pending: "TaskStatus"
@@ -1871,9 +2205,6 @@ class RustyLogger:
         """
 
 __all__ = [
-    "PromptTokenDetails",
-    "CompletionTokenDetails",
-    "Usage",
     "ImageUrl",
     "AudioUrl",
     "BinaryContent",
@@ -1898,7 +2229,7 @@ __all__ = [
     "LLMTestServer",
     ### google
     "Modality",
-    "ThinkingConfig",
+    "GeminiThinkingConfig",
     "MediaResolution",
     "SpeechConfig",
     "PrebuiltVoiceConfig",
@@ -1922,6 +2253,9 @@ __all__ = [
     "PredictResponse",
     "EmbeddingTaskType",
     ### openai
+    "PromptTokenDetails",
+    "CompletionTokenDetails",
+    "Usage",
     "AudioParam",
     "ContentPart",
     "Content",
@@ -1935,7 +2269,7 @@ __all__ = [
     "ToolDefinition",
     "AllowedToolsMode",
     "AllowedTools",
-    "ToolChoice",
+    "OpenAIToolChoice",
     "FunctionDefinition",
     "FunctionTool",
     "TextFormat",
@@ -1944,10 +2278,17 @@ __all__ = [
     "CustomToolFormat",
     "CustomDefinition",
     "CustomTool",
-    "Tool",
+    "OpenAITool",
     "OpenAIChatSettings",
     "OpenAIEmbeddingConfig",
     "OpenAIEmbeddingResponse",
+    ### Anthropic
+    "AnthropicSettings",
+    "Metadata",
+    "CacheControl",
+    "AnthropicTool",
+    "AnthropicThinkingConfig",
+    "AnthropicToolChoice",
     ### logging
     "LogLevel",
     "RustyLogger",

@@ -4,11 +4,11 @@ use crate::{
     agents::types::{AgentResponse, PyAgentResponse},
 };
 use potato_prompt::prompt::settings::ModelSettings;
-use potato_prompt::{
-    parse_response_to_json, prompt::parse_prompt, prompt::types::Message, Prompt, Role,
-};
+use potato_prompt::{prompt::parse_prompt, Prompt};
 
+use potato_provider::providers::anthropic::client::AnthropicClient;
 use potato_provider::{providers::google::VertexClient, GenAiClient, OpenAIClient};
+use potato_type::prompt::{parse_response_to_json, Message, Role};
 
 use potato_provider::providers::types::ServiceType;
 use potato_provider::GeminiClient;
@@ -71,6 +71,9 @@ impl Agent {
             }
             Provider::Vertex => {
                 GenAiClient::Vertex(VertexClient::new(ServiceType::Generate).await?)
+            }
+            Provider::Anthropic => {
+                GenAiClient::Anthropic(AnthropicClient::new(ServiceType::Generate)?)
             }
             _ => {
                 return Err(AgentError::MissingProviderError);
@@ -224,6 +227,9 @@ impl Agent {
             Provider::Google => {
                 GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
             }
+            Provider::Anthropic => {
+                GenAiClient::Anthropic(AnthropicClient::new(ServiceType::Generate)?)
+            }
             Provider::Undefined => {
                 return Err(AgentError::MissingProviderError);
             }
@@ -346,7 +352,14 @@ impl PyAgent {
                 parse_prompt(system_instruction)?
                     .into_iter()
                     .map(|mut msg| {
-                        msg.role = Role::Developer.to_string();
+                        msg.role = match provider {
+                            Provider::OpenAI
+                            | Provider::Gemini
+                            | Provider::Vertex
+                            | Provider::Google => Role::Developer.to_string(),
+                            Provider::Anthropic => Role::Assistant.to_string(),
+                            _ => msg.role,
+                        };
                         msg
                     })
                     .collect::<Vec<Message>>(),

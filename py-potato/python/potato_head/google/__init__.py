@@ -5,6 +5,9 @@ from .._potato_head import (
     GeminiEmbeddingConfig,
     GeminiEmbeddingResponse,
     GeminiSettings,
+)
+from .._potato_head import GeminiThinkingConfig as ThinkingConfig
+from .._potato_head import (
     GenerationConfig,
     HarmBlockMethod,
     HarmBlockThreshold,
@@ -20,7 +23,6 @@ from .._potato_head import (
     RetrievalConfig,
     SafetySetting,
     SpeechConfig,
-    ThinkingConfig,
     ToolConfig,
     VoiceConfig,
     VoiceConfigMode,

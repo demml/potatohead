@@ -1,4 +1,5 @@
 use crate::error::ProviderError;
+use crate::providers::anthropic::client::AnthropicClient;
 use crate::providers::embed::modify_predict_request;
 use crate::providers::embed::EmbeddingConfig;
 use crate::providers::embed::EmbeddingInput;
@@ -49,6 +50,7 @@ pub enum GenAiClient {
     OpenAI(OpenAIClient),
     Gemini(GeminiClient),
     Vertex(VertexClient),
+    Anthropic(AnthropicClient),
     Undefined,
 }
 
@@ -73,6 +75,12 @@ impl GenAiClient {
                     error!(error = %e, "Failed to generate content");
                 })?;
                 Ok(ChatResponse::VertexGenerate(response))
+            }
+            GenAiClient::Anthropic(client) => {
+                let response = client.chat_completion(task).await.inspect_err(|e| {
+                    error!(error = %e, "Failed to complete chat");
+                })?;
+                Ok(ChatResponse::AnthropicMessageV1(response))
             }
             GenAiClient::Undefined => Err(ProviderError::NoProviderError),
         }
@@ -125,6 +133,7 @@ impl GenAiClient {
                 Ok(EmbeddingResponse::Vertex(response))
             }
             GenAiClient::Undefined => Err(ProviderError::NoProviderError),
+            GenAiClient::Anthropic(_) => Err(ProviderError::EmbeddingNotSupported),
         }
     }
 
@@ -146,6 +155,7 @@ impl GenAiClient {
             GenAiClient::OpenAI(client) => &client.provider,
             GenAiClient::Gemini(client) => &client.provider,
             GenAiClient::Vertex(client) => &client.provider,
+            GenAiClient::Anthropic(client) => &client.provider,
             GenAiClient::Undefined => &Provider::Undefined,
         }
     }

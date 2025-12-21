@@ -179,7 +179,7 @@ pub enum ModelRoutingPreference {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(name = "GeminiThinkingConfig")]
 pub struct ThinkingConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub include_thoughts: Option<bool>,

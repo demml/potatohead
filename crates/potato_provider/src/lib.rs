@@ -11,6 +11,5 @@ pub use providers::{
         CompletionTokenDetails, OpenAIChatMessage, OpenAIChatResponse, PromptTokenDetails,
         ToolCall, Usage,
     },
-    traits::{LogProbExt, ResponseExt, ResponseLogProbs},
     types::ChatResponse,
 };

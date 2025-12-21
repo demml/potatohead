@@ -9,9 +9,7 @@ pub use potato_agent::agents::{
     task::{PyTask, Task, TaskStatus},
 };
 use potato_agent::PyAgentResponse;
-use potato_prompt::parse_response_to_json;
-use potato_prompt::prompt::types::Role;
-use potato_prompt::Message;
+use potato_type::prompt::{parse_response_to_json, Message, Role};
 use potato_util::{create_uuid7, utils::update_serde_map_with, PyHelperFuncs};
 use potato_util::{json_to_pydict, pyobject_to_json};
 use pyo3::prelude::*;
@@ -962,8 +960,8 @@ impl PyWorkflow {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use potato_prompt::prompt::ResponseType;
-    use potato_prompt::{prompt::types::PromptContent, Message, Prompt};
+    use potato_prompt::Prompt;
+    use potato_type::prompt::{Message, PromptContent, ResponseType};
 
     #[test]
     fn test_workflow_creation() {

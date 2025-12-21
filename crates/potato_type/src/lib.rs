@@ -11,8 +11,11 @@ use std::fmt;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
 use tracing::error;
+pub mod anthropic;
+pub mod common;
 pub mod google;
 pub mod openai;
+pub mod prompt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[pyclass]
@@ -60,6 +63,7 @@ pub enum Provider {
     Gemini,
     Google,
     Vertex,
+    Anthropic,
     Undefined, // Added Undefined for better error handling
 }
 
@@ -70,6 +74,7 @@ impl Provider {
             "gemini" => Ok(Provider::Gemini),
             "google" => Ok(Provider::Google),
             "vertex" => Ok(Provider::Vertex),
+            "anthropic" => Ok(Provider::Anthropic),
             "undefined" => Ok(Provider::Undefined), // Handle undefined case
             _ => Err(TypeError::UnknownProviderError(s.to_string())),
         }
@@ -105,6 +110,7 @@ impl Provider {
             Provider::Gemini => "gemini",
             Provider::Vertex => "vertex",
             Provider::Google => "google",
+            Provider::Anthropic => "anthropic",
             Provider::Undefined => "undefined", // Added Undefined case
         }
     }

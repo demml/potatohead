@@ -1,6 +1,11 @@
-use crate::prompt::error::PromptError;
+use crate::anthropic::v1::message::MessageParam;
+use crate::common::document_format;
+use crate::common::get_audio_media_types;
+use crate::common::get_document_media_types;
+use crate::common::get_image_media_types;
+use crate::common::image_format;
+use crate::{StructuredOutput, TypeError};
 use mime_guess;
-use potato_type::StructuredOutput;
 use potato_util::PyHelperFuncs;
 use potato_util::{json_to_pyobject, pyobject_to_json};
 use pyo3::types::PyAnyMethods;
@@ -16,7 +21,6 @@ use std::fmt::Display;
 use std::sync::OnceLock;
 use tracing::instrument;
 use tracing::{debug, error};
-static DOCUMENT_MEDIA_TYPES: OnceLock<HashSet<&'static str>> = OnceLock::new();
 
 pub enum Role {
     User,
@@ -38,83 +42,11 @@ impl Display for Role {
     }
 }
 
-fn get_document_media_types() -> &'static HashSet<&'static str> {
-    DOCUMENT_MEDIA_TYPES.get_or_init(|| {
-        let mut set = HashSet::new();
-        set.insert("application/pdf");
-        set.insert("text/plain");
-        set.insert("text/csv");
-        set.insert("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-        set.insert("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        set.insert("text/html");
-        set.insert("text/markdown");
-        set.insert("application/vnd.ms-excel");
-        set
-    })
-}
-
-fn get_audio_media_types() -> &'static HashSet<&'static str> {
-    static AUDIO_MEDIA_TYPES: OnceLock<HashSet<&'static str>> = OnceLock::new();
-    AUDIO_MEDIA_TYPES.get_or_init(|| {
-        let mut set = HashSet::new();
-        set.insert("audio/mpeg");
-        set.insert("audio/wav");
-        set
-    })
-}
-
-fn get_image_media_types() -> &'static HashSet<&'static str> {
-    static IMAGE_MEDIA_TYPES: OnceLock<HashSet<&'static str>> = OnceLock::new();
-    IMAGE_MEDIA_TYPES.get_or_init(|| {
-        let mut set = HashSet::new();
-        set.insert("image/jpeg");
-        set.insert("image/png");
-        set.insert("image/gif");
-        set.insert("image/webp");
-        set
-    })
-}
-
-fn image_format(media_type: &str) -> Result<String, PromptError> {
-    let format = match media_type {
-        "image/jpeg" => "jpeg",
-        "image/png" => "png",
-        "image/gif" => "gif",
-        "image/webp" => "webp",
-        _ => {
-            return Err(PromptError::Error(format!(
-                "Unknown image media type: {media_type}"
-            )))
-        }
-    };
-
-    Ok(format.to_string())
-}
-
-fn document_format(media_type: &str) -> Result<String, PromptError> {
-    let format = match media_type {
-        "application/pdf" => "pdf",
-        "text/plain" => "txt",
-        "text/csv" => "csv",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "docx",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "xlsx",
-        "text/html" => "html",
-        "text/markdown" => "md",
-        "application/vnd.ms-excel" => "xls",
-        _ => {
-            return Err(PromptError::Error(format!(
-                "Unknown document media type: {media_type}",
-            )))
-        }
-    };
-    Ok(format.to_string())
-}
-
-fn guess_type(url: &str) -> Result<String, PromptError> {
+fn guess_type(url: &str) -> Result<String, TypeError> {
     // fail if mime type is not found
     let mime_type = mime_guess::from_path(url)
         .first()
-        .ok_or_else(|| PromptError::Error(format!("Failed to guess mime type for {url}")))?;
+        .ok_or_else(|| TypeError::Error(format!("Failed to guess mime type for {url}")))?;
 
     Ok(mime_type.to_string())
 }
@@ -197,7 +129,7 @@ impl ImageUrl {
     }
 
     #[getter]
-    fn media_type(&self) -> Result<String, PromptError> {
+    fn media_type(&self) -> Result<String, TypeError> {
         if self.url.ends_with(".jpg") || self.url.ends_with(".jpeg") {
             Ok("image/jpeg".to_string())
         } else if self.url.ends_with(".png") {
@@ -207,7 +139,7 @@ impl ImageUrl {
         } else if self.url.ends_with(".webp") {
             Ok("image/webp".to_string())
         } else {
-            Err(PromptError::Error(format!(
+            Err(TypeError::Error(format!(
                 "Unknown image file extension: {}",
                 self.url
             )))
@@ -215,7 +147,7 @@ impl ImageUrl {
     }
 
     #[getter]
-    fn format(&self) -> Result<String, PromptError> {
+    fn format(&self) -> Result<String, TypeError> {
         let media_type = self.media_type()?;
         image_format(&media_type)
     }
@@ -234,7 +166,7 @@ pub struct DocumentUrl {
 impl DocumentUrl {
     #[new]
     #[pyo3(signature = (url, kind="document-url"))]
-    fn new(url: &str, kind: &str) -> Result<Self, PromptError> {
+    fn new(url: &str, kind: &str) -> Result<Self, TypeError> {
         Ok(Self {
             url: url.to_string(),
             kind: kind.to_string(),
@@ -242,12 +174,12 @@ impl DocumentUrl {
     }
 
     #[getter]
-    pub fn media_type(&self) -> Result<String, PromptError> {
+    pub fn media_type(&self) -> Result<String, TypeError> {
         guess_type(&self.url)
     }
 
     #[getter]
-    fn format(&self) -> Result<String, PromptError> {
+    fn format(&self) -> Result<String, TypeError> {
         let media_type = self.media_type()?;
         document_format(&media_type)
     }
@@ -268,7 +200,7 @@ pub struct BinaryContent {
 impl BinaryContent {
     #[new]
     #[pyo3(signature = (data, media_type, kind="binary"))]
-    fn new(data: Vec<u8>, media_type: &str, kind: &str) -> Result<Self, PromptError> {
+    fn new(data: Vec<u8>, media_type: &str, kind: &str) -> Result<Self, TypeError> {
         // assert that media type is valid, must be audio, image, or document
         let is_audio = get_audio_media_types().contains(media_type);
         let is_image = get_image_media_types().contains(media_type);
@@ -277,7 +209,7 @@ impl BinaryContent {
         debug!("Creating BinaryContent with media_type: {media_type}, is_audio: {is_audio}, is_image: {is_image}, is_document: {is_document}");
 
         if !is_audio && !is_image && !is_document {
-            return Err(PromptError::Error(format!(
+            return Err(TypeError::Error(format!(
                 "Unknown media type: {media_type}",
             )));
         }
@@ -305,14 +237,14 @@ impl BinaryContent {
     }
 
     #[getter]
-    fn format(&self) -> Result<String, PromptError> {
+    fn format(&self) -> Result<String, TypeError> {
         if self.is_audio() {
             if self.media_type == "audio/mpeg" {
                 Ok("mp3".to_string())
             } else if self.media_type == "audio/wav" {
                 Ok("wav".to_string())
             } else {
-                Err(PromptError::Error(format!(
+                Err(TypeError::Error(format!(
                     "Unknown media type: {}",
                     self.media_type
                 )))
@@ -322,7 +254,7 @@ impl BinaryContent {
         } else if self.is_document() {
             document_format(&self.media_type)
         } else {
-            Err(PromptError::Error(format!(
+            Err(TypeError::Error(format!(
                 "Unknown media type: {}",
                 self.media_type
             )))
@@ -342,10 +274,11 @@ pub enum PromptContent {
     Image(ImageUrl),
     Document(DocumentUrl),
     Binary(BinaryContent),
+    AnthropicMessageContentV1(MessageParam),
 }
 
 impl PromptContent {
-    pub fn new(prompt: &Bound<'_, PyAny>) -> Result<Self, PromptError> {
+    pub fn new(prompt: &Bound<'_, PyAny>) -> Result<Self, TypeError> {
         if prompt.is_instance_of::<AudioUrl>() {
             let audio_url = prompt.extract::<AudioUrl>()?;
             Ok(PromptContent::Audio(audio_url))
@@ -361,8 +294,11 @@ impl PromptContent {
         } else if prompt.is_instance_of::<PyString>() {
             let user_content = prompt.extract::<String>()?;
             Ok(PromptContent::Str(user_content))
+        } else if prompt.is_instance_of::<MessageParam>() {
+            let message_content = prompt.extract::<MessageParam>()?;
+            Ok(PromptContent::AnthropicMessageContentV1(message_content))
         } else {
-            Err(PromptError::Error("Unsupported prompt content type".into()))
+            Err(TypeError::UnsupportedTypeError)
         }
     }
 
@@ -407,34 +343,10 @@ impl PromptContent {
                     Err(_) => binary_content.clone().into_bound_py_any(py),
                 }
             }
-        }
-    }
 
-    pub fn from_json_value(value: &Value) -> Result<Self, PromptError> {
-        match value {
-            Value::String(s) => Ok(PromptContent::Str(s.clone())),
-            Value::Object(obj) => {
-                if obj.contains_key("audio_url") {
-                    AudioUrl::model_validate_json(value)
-                        .map(PromptContent::Audio)
-                        .map_err(|e| PromptError::Error(format!("Invalid audio_url: {e}")))
-                } else if obj.contains_key("image_url") {
-                    ImageUrl::model_validate_json(value)
-                        .map(PromptContent::Image)
-                        .map_err(|e| PromptError::Error(format!("Invalid image_url: {e}")))
-                } else if obj.contains_key("document_url") {
-                    DocumentUrl::model_validate_json(value)
-                        .map(PromptContent::Document)
-                        .map_err(|e| PromptError::Error(format!("Invalid document_url: {e}")))
-                } else {
-                    Err(PromptError::Error(
-                        "Unsupported JSON object for PromptContent".into(),
-                    ))
-                }
+            PromptContent::AnthropicMessageContentV1(message_content) => {
+                message_content.clone().into_bound_py_any(py)
             }
-            _ => Err(PromptError::Error(
-                "Unsupported JSON value for PromptContent".into(),
-            )),
         }
     }
 }
@@ -465,7 +377,7 @@ impl Message {
         })
     }
 
-    pub fn bind(&self, name: &str, value: &str) -> Result<Message, PromptError> {
+    pub fn bind(&self, name: &str, value: &str) -> Result<Message, TypeError> {
         let placeholder = format!("${{{name}}}");
 
         let content = match &self.content {
@@ -484,7 +396,7 @@ impl Message {
     }
 
     #[instrument(skip_all)]
-    pub fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), PromptError> {
+    pub fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
         debug!("Binding variable: {name} with value: {value}");
         let placeholder = format!("${{{name}}}");
 
@@ -492,7 +404,7 @@ impl Message {
             PromptContent::Str(content) => {
                 *content = content.replace(&placeholder, value);
             }
-            _ => return Err(PromptError::Error("Cannot bind non-string content".into())),
+            _ => return Err(TypeError::CannotBindNonStringContent),
         }
 
         Ok(())
@@ -574,7 +486,7 @@ impl Message {
 pub fn check_pydantic_model<'py>(
     py: Python<'py>,
     object: &Bound<'_, PyAny>,
-) -> Result<bool, PromptError> {
+) -> Result<bool, TypeError> {
     // check pydantic import. Return false if it fails
     let pydantic = match py.import("pydantic").map_err(|e| {
         error!("Failed to import pydantic: {}", e);
@@ -599,13 +511,13 @@ pub fn check_pydantic_model<'py>(
 /// * `object` - The pydantic BaseModel object to generate the schema from.
 /// # Returns
 /// A JSON schema as a serde_json::Value.
-fn get_json_schema_from_basemodel(object: &Bound<'_, PyAny>) -> Result<Value, PromptError> {
+fn get_json_schema_from_basemodel(object: &Bound<'_, PyAny>) -> Result<Value, TypeError> {
     // call staticmethod .model_json_schema()
     let schema = object.getattr("model_json_schema")?.call1(())?;
 
     let mut schema = pyobject_to_json(&schema).map_err(|e| {
         error!("Failed to convert schema to JSON: {}", e);
-        PromptError::PySerializationError(e.to_string())
+        TypeError::PySerializationError(e.to_string())
     })?;
 
     // ensure schema as additionalProperties set to false
@@ -624,7 +536,7 @@ fn get_json_schema_from_basemodel(object: &Bound<'_, PyAny>) -> Result<Value, Pr
 fn parse_pydantic_model<'py>(
     py: Python<'py>,
     object: &Bound<'_, PyAny>,
-) -> Result<Option<Value>, PromptError> {
+) -> Result<Option<Value>, TypeError> {
     let is_subclass = check_pydantic_model(py, object)?;
     if is_subclass {
         Ok(Some(get_json_schema_from_basemodel(object)?))
@@ -633,7 +545,7 @@ fn parse_pydantic_model<'py>(
     }
 }
 
-pub fn check_response_type(object: &Bound<'_, PyAny>) -> Result<Option<ResponseType>, PromptError> {
+pub fn check_response_type(object: &Bound<'_, PyAny>) -> Result<Option<ResponseType>, TypeError> {
     // try calling staticmethod response_type()
     let response_type = match object.getattr("response_type") {
         Ok(method) => {
@@ -650,12 +562,12 @@ pub fn check_response_type(object: &Bound<'_, PyAny>) -> Result<Option<ResponseT
     Ok(response_type)
 }
 
-fn get_json_schema_from_response_type(response_type: &ResponseType) -> Result<Value, PromptError> {
+fn get_json_schema_from_response_type(response_type: &ResponseType) -> Result<Value, TypeError> {
     match response_type {
         ResponseType::Score => Ok(Score::get_structured_output_schema()),
         _ => {
             // If the response type is not recognized, return None
-            Err(PromptError::Error(format!(
+            Err(TypeError::Error(format!(
                 "Unsupported response type: {response_type}"
             )))
         }
@@ -665,7 +577,7 @@ fn get_json_schema_from_response_type(response_type: &ResponseType) -> Result<Va
 pub fn parse_response_to_json<'py>(
     py: Python<'py>,
     object: &Bound<'_, PyAny>,
-) -> Result<(ResponseType, Option<Value>), PromptError> {
+) -> Result<(ResponseType, Option<Value>), TypeError> {
     // check if object is a pydantic model
     let is_pydantic_model = check_pydantic_model(py, object)?;
     if is_pydantic_model {
@@ -703,12 +615,12 @@ impl Score {
     }
 
     #[staticmethod]
-    pub fn model_validate_json(json_string: String) -> Result<Score, PromptError> {
+    pub fn model_validate_json(json_string: String) -> Result<Score, TypeError> {
         Ok(serde_json::from_str(&json_string)?)
     }
 
     #[staticmethod]
-    pub fn model_json_schema(py: Python<'_>) -> Result<Py<PyAny>, PromptError> {
+    pub fn model_json_schema(py: Python<'_>) -> Result<Py<PyAny>, TypeError> {
         let schema = Score::get_structured_output_schema();
         Ok(json_to_pyobject(py, &schema)?)
     }

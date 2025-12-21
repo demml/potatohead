@@ -1,8 +1,8 @@
 use crate::agents::error::AgentError;
 use potato_provider::ChatResponse;
-use potato_provider::LogProbExt;
-use potato_provider::ResponseExt;
+
 use potato_provider::Usage;
+use potato_type::common::{LogProbExt, ResponseExt};
 use potato_util::json_to_pyobject;
 use potato_util::utils::{LogProbs, ResponseLogProbs};
 use potato_util::PyHelperFuncs;
@@ -32,13 +32,6 @@ impl AgentResponse {
             )),
         }
     }
-
-    //pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
-    //    let pyobj = json_to_pyobject(py, &self.content())?;
-    //
-    //    // Convert plain string output to Python string
-    //    Ok(pyobj.into_bound_py_any(py)?)
-    //}
 }
 
 impl AgentResponse {
@@ -46,11 +39,13 @@ impl AgentResponse {
         Self { id, response }
     }
 
+    #[instrument(skip_all)]
     pub fn content(&self) -> Option<String> {
         match &self.response {
             ChatResponse::OpenAI(resp) => resp.get_content(),
             ChatResponse::Gemini(resp) => resp.get_content(),
             ChatResponse::VertexGenerate(resp) => resp.get_content(),
+            ChatResponse::AnthropicMessageV1(resp) => resp.get_content(),
             _ => {
                 warn!("Content not available for this response type");
                 None

@@ -1,7 +1,7 @@
 use crate::error::ProviderError;
-use crate::providers::traits::{LogProbExt, ResponseExt, TokenUsage};
-use potato_prompt::{prompt::types::PromptContent, Message};
+use potato_type::common::{LogProbExt, ResponseExt, TokenUsage};
 use potato_type::openai::chat::OpenAIChatSettings;
+use potato_type::prompt::{Message, PromptContent};
 use potato_util::utils::ResponseLogProbs;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;

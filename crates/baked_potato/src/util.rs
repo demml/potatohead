@@ -1,4 +1,5 @@
-use potato_prompt::prompt::{Message, Prompt, PromptContent, Score};
+use potato_prompt::prompt::Prompt;
+use potato_type::prompt::{Message, PromptContent, Score};
 use potato_type::StructuredOutput;
 use serde_json::Value;
 
@@ -12,7 +13,7 @@ pub fn create_prompt(response_format: Option<Value>) -> Prompt {
         vec![Message::new_rs(system_content)],
         None,
         response_format,
-        potato_prompt::prompt::ResponseType::Null,
+        potato_type::prompt::ResponseType::Null,
     )
     .unwrap()
 }
@@ -27,7 +28,7 @@ pub fn create_parameterized_prompt() -> Prompt {
         vec![Message::new_rs(system_content)],
         None,
         None,
-        potato_prompt::prompt::ResponseType::Null,
+        potato_type::prompt::ResponseType::Null,
     )
     .unwrap()
 }
@@ -52,7 +53,7 @@ pub fn create_score_prompt(params: Option<Vec<String>>) -> Prompt {
         vec![Message::new_rs(system_content)],
         None,
         Some(Score::get_structured_output_schema()),
-        potato_prompt::prompt::ResponseType::Score,
+        potato_type::prompt::ResponseType::Score,
     )
     .unwrap()
 }

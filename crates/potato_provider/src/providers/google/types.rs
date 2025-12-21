@@ -1,9 +1,9 @@
 use crate::error::ProviderError;
 use crate::providers::openai::Usage;
-use crate::providers::traits::{LogProbExt, ResponseExt, TokenUsage};
 use base64::prelude::*;
-use potato_prompt::{prompt::types::PromptContent, Message};
+use potato_type::common::{LogProbExt, ResponseExt, TokenUsage};
 use potato_type::google::chat::{GeminiSettings, HarmBlockThreshold, HarmCategory, Modality};
+use potato_type::prompt::{Message, PromptContent};
 use potato_util::utils::ResponseLogProbs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};

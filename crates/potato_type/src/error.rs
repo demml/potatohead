@@ -26,6 +26,21 @@ pub enum TypeError {
 
     #[error("Failed to create GeminiEmbeddingConfig: {0}")]
     GeminiEmbeddingConfigError(String),
+
+    #[error("Invalid media type: {0}")]
+    InvalidMediaType(String),
+
+    #[error("Unsupported prompt content type")]
+    UnsupportedTypeError,
+
+    #[error("Cannot bind non-string content")]
+    CannotBindNonStringContent,
+
+    #[error("Failed to serialize Python object: {0}")]
+    PySerializationError(String),
+
+    #[error("Content type is not supported")]
+    UnsupportedContentType,
 }
 
 impl From<TypeError> for PyErr {
