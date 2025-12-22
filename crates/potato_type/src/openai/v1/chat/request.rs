@@ -1,7 +1,10 @@
+use crate::openai::v1::chat::settings::OpenAIChatSettings;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyList, PyString};
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::borrow::Cow;
 pub const OPENAI_CONTENT_PART_TEXT: &str = "text";
 pub const OPENAI_CONTENT_PART_IMAGE_URL: &str = "image_url";
 pub const OPENAI_CONTENT_PART_INPUT_AUDIO: &str = "input_audio";
@@ -265,4 +268,17 @@ impl ChatMessage {
             })
             .collect()
     }
+}
+
+#[derive(Debug, Serialize)]
+pub struct OpenAIChatRequest<'a> {
+    pub model: Cow<'a, str>,
+    pub messages: &'a [ChatMessage],
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_format: Option<&'a Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(flatten)]
+    pub settings: Option<&'a OpenAIChatSettings>,
 }
