@@ -1,16 +1,20 @@
 use crate::openai::v1::chat::settings::OpenAIChatSettings;
+use crate::traits::{get_var_regex, PromptMessageExt};
+use crate::TypeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyList, PyString};
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::borrow::Cow;
+use std::collections::HashSet;
+
 pub const OPENAI_CONTENT_PART_TEXT: &str = "text";
 pub const OPENAI_CONTENT_PART_IMAGE_URL: &str = "image_url";
 pub const OPENAI_CONTENT_PART_INPUT_AUDIO: &str = "input_audio";
 pub const OPENAI_CONTENT_PART_FILE: &str = "file";
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
 pub struct File {
     #[pyo3(get, set)]
@@ -41,7 +45,7 @@ impl File {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
 pub struct FileContentPart {
     #[pyo3(get, set)]
@@ -54,15 +58,23 @@ pub struct FileContentPart {
 #[pymethods]
 impl FileContentPart {
     #[new]
-    pub fn new(file: File) -> Self {
+    pub fn new(
+        file_data: Option<String>,
+        file_id: Option<String>,
+        filename: Option<String>,
+    ) -> Self {
         Self {
-            file,
+            file: File {
+                file_data,
+                file_id,
+                filename,
+            },
             r#type: OPENAI_CONTENT_PART_FILE.to_string(),
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
 pub struct InputAudioData {
     #[pyo3(get, set)]
@@ -79,7 +91,7 @@ impl InputAudioData {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
 pub struct InputAudioContentPart {
     #[pyo3(get, set)]
@@ -92,19 +104,37 @@ pub struct InputAudioContentPart {
 #[pymethods]
 impl InputAudioContentPart {
     #[new]
-    pub fn new(input_audio: InputAudioData) -> Self {
+    pub fn new(data: String, format: String) -> Self {
         Self {
-            input_audio,
+            input_audio: InputAudioData::new(data, format),
             r#type: OPENAI_CONTENT_PART_INPUT_AUDIO.to_string(),
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct ImageUrl {
+    #[pyo3(get, set)]
+    pub url: String,
+    #[pyo3(get)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
+#[pymethods]
+impl ImageUrl {
+    #[new]
+    pub fn new(url: String, detail: Option<String>) -> Self {
+        Self { url, detail }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
 pub struct ImageContentPart {
     #[pyo3(get, set)]
-    pub url: String,
+    pub image_url: ImageUrl,
     #[pyo3(get)]
     #[serde(rename = "type")]
     pub r#type: String,
@@ -113,15 +143,15 @@ pub struct ImageContentPart {
 #[pymethods]
 impl ImageContentPart {
     #[new]
-    pub fn new(url: String) -> Self {
+    pub fn new(url: String, detail: Option<String>) -> Self {
         Self {
-            url,
+            image_url: ImageUrl::new(url, detail),
             r#type: OPENAI_CONTENT_PART_IMAGE_URL.to_string(),
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
 pub struct TextContentPart {
     #[pyo3(get, set)]
@@ -142,19 +172,19 @@ impl TextContentPart {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
-pub enum OpenAIContentPart {
+pub enum ContentPart {
     Text(TextContentPart),
     ImageUrl(ImageContentPart),
     InputAudio(InputAudioContentPart),
     FileContent(FileContentPart),
 }
 
-fn extract_content_from_py_object(content: &Bound<'_, PyAny>) -> PyResult<Vec<OpenAIContentPart>> {
+fn extract_content_from_py_object(content: &Bound<'_, PyAny>) -> PyResult<Vec<ContentPart>> {
     if content.is_instance_of::<PyString>() {
         let text = content.extract::<String>()?;
-        return Ok(vec![OpenAIContentPart::Text(TextContentPart::new(text))]);
+        return Ok(vec![ContentPart::Text(TextContentPart::new(text))]);
     }
 
     if content.is_instance_of::<PyList>() {
@@ -164,21 +194,17 @@ fn extract_content_from_py_object(content: &Bound<'_, PyAny>) -> PyResult<Vec<Op
         for item in list.iter() {
             // Check native types first (faster)
             if item.is_instance_of::<PyString>() {
-                parts.push(OpenAIContentPart::Text(TextContentPart::new(
+                parts.push(ContentPart::Text(TextContentPart::new(
                     item.extract::<String>()?,
                 )));
             } else if item.is_instance_of::<ImageContentPart>() {
-                parts.push(OpenAIContentPart::ImageUrl(
-                    item.extract::<ImageContentPart>()?,
-                ));
+                parts.push(ContentPart::ImageUrl(item.extract::<ImageContentPart>()?));
             } else if item.is_instance_of::<InputAudioContentPart>() {
-                parts.push(OpenAIContentPart::InputAudio(
+                parts.push(ContentPart::InputAudio(
                     item.extract::<InputAudioContentPart>()?,
                 ));
             } else if item.is_instance_of::<FileContentPart>() {
-                parts.push(OpenAIContentPart::FileContent(
-                    item.extract::<FileContentPart>()?,
-                ));
+                parts.push(ContentPart::FileContent(item.extract::<FileContentPart>()?));
             } else {
                 return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
                     "Invalid content part type: {}",
@@ -194,13 +220,13 @@ fn extract_content_from_py_object(content: &Bound<'_, PyAny>) -> PyResult<Vec<Op
     ))
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
 pub struct ChatMessage {
     #[pyo3(get, set)]
     pub role: String,
 
-    pub content: Vec<OpenAIContentPart>,
+    pub content: Vec<ContentPart>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -220,24 +246,22 @@ impl ChatMessage {
 
         let content_parts = if content.is_instance_of::<PyString>() {
             let text = content.extract::<String>()?;
-            vec![OpenAIContentPart::Text(TextContentPart::new(text))]
+            vec![ContentPart::Text(TextContentPart::new(text))]
         } else if content.is_instance_of::<PyList>() {
             extract_content_from_py_object(content)?
         } else {
             if content.is_instance_of::<TextContentPart>() {
-                vec![OpenAIContentPart::Text(
-                    content.extract::<TextContentPart>()?,
-                )]
+                vec![ContentPart::Text(content.extract::<TextContentPart>()?)]
             } else if content.is_instance_of::<ImageContentPart>() {
-                vec![OpenAIContentPart::ImageUrl(
+                vec![ContentPart::ImageUrl(
                     content.extract::<ImageContentPart>()?,
                 )]
             } else if content.is_instance_of::<InputAudioContentPart>() {
-                vec![OpenAIContentPart::InputAudio(
+                vec![ContentPart::InputAudio(
                     content.extract::<InputAudioContentPart>()?,
                 )]
             } else if content.is_instance_of::<FileContentPart>() {
-                vec![OpenAIContentPart::FileContent(
+                vec![ContentPart::FileContent(
                     content.extract::<FileContentPart>()?,
                 )]
             } else {
@@ -261,12 +285,58 @@ impl ChatMessage {
         self.content
             .iter()
             .map(|part| match part {
-                OpenAIContentPart::Text(text) => text.clone().into_bound_py_any(py),
-                OpenAIContentPart::ImageUrl(image) => image.clone().into_bound_py_any(py),
-                OpenAIContentPart::InputAudio(audio) => audio.clone().into_bound_py_any(py),
-                OpenAIContentPart::FileContent(file) => file.clone().into_bound_py_any(py),
+                ContentPart::Text(text) => text.clone().into_bound_py_any(py),
+                ContentPart::ImageUrl(image) => image.clone().into_bound_py_any(py),
+                ContentPart::InputAudio(audio) => audio.clone().into_bound_py_any(py),
+                ContentPart::FileContent(file) => file.clone().into_bound_py_any(py),
             })
             .collect()
+    }
+}
+
+impl PromptMessageExt for ChatMessage {
+    fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
+        let placeholder = format!("${{{name}}}");
+
+        for part in &mut self.content {
+            match part {
+                ContentPart::Text(text_part) => {
+                    text_part.text = text_part.text.replace(&placeholder, value);
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    fn bind(&self, name: &str, value: &str) -> Result<Self, TypeError>
+    where
+        Self: Sized,
+    {
+        let mut new_message = self.clone();
+        new_message.bind_mut(name, value)?;
+        Ok(new_message)
+    }
+
+    fn extract_variables(&self) -> Vec<String> {
+        let mut variables = HashSet::new();
+
+        // Lazily initialize regex to avoid recompilation
+        let regex = get_var_regex();
+        // Extract variables from all text content parts
+        for part in &self.content {
+            if let ContentPart::Text(text_part) = part {
+                for captures in regex.captures_iter(&text_part.text) {
+                    if let Some(name) = captures.get(1) {
+                        variables.insert(name.as_str().to_string());
+                    }
+                }
+            }
+        }
+
+        // Convert HashSet to Vec for return
+        variables.into_iter().collect()
     }
 }
 

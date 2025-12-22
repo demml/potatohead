@@ -16,6 +16,7 @@ pub mod common;
 pub mod google;
 pub mod openai;
 pub mod prompt;
+pub mod traits;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[pyclass]
@@ -236,4 +237,5 @@ pub enum SettingsType {
     GoogleChat,
     OpenAIChat,
     ModelSettings,
+    Anthropic,
 }

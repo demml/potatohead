@@ -1,7 +1,8 @@
 use crate::common::get_image_media_types;
 use crate::common::ResponseExt;
-use crate::prompt::Message;
-use crate::prompt::PromptContent;
+
+use crate::traits::get_var_regex;
+use crate::traits::PromptMessageExt;
 use crate::TypeError;
 use potato_util::{json_to_pydict, json_to_pyobject};
 use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
@@ -10,6 +11,7 @@ use pyo3::types::PyDict;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashSet;
 
 /// common content types used in Anthropic messages
 pub const BASE64_TYPE: &str = "base64";
@@ -924,7 +926,7 @@ macro_rules! try_extract_content_block {
 #[pyclass]
 pub struct ContentBlockParam {
     #[serde(flatten)]
-    inner: ContentBlock,
+    pub(crate) inner: ContentBlock,
 }
 
 impl ContentBlockParam {
@@ -1017,66 +1019,47 @@ impl MessageParam {
     }
 }
 
-impl MessageParam {
-    /// Convert a Prompt Message to an Anthropic MessageParam
-    ///
-    /// This efficiently handles the case where the content is already a MessageParam
-    /// by cloning it directly and using the parent Message's role.
-    pub fn from_message(message: &Message) -> Result<Self, TypeError> {
-        // Fast path: if content is already a MessageParam, clone and use parent's role
-        if let PromptContent::AnthropicMessageContentV1(msg_param) = &message.content {
-            return Ok(Self {
-                content: msg_param.content.clone(),
-                role: message.role.clone(),
-            });
+impl PromptMessageExt for MessageParam {
+    fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
+        let placeholder = format!("${{{}}}", name);
+
+        for part in &mut self.content {
+            if let ContentBlock::Text(text_part) = &mut part.inner {
+                text_part.text = text_part.text.replace(&placeholder, value);
+            }
         }
 
-        // Standard conversion path for other content types
-        let content = match &message.content {
-            PromptContent::Str(text) => vec![ContentBlockParam {
-                inner: ContentBlock::Text(TextBlockParam {
-                    text: text.clone(),
-                    cache_control: None,
-                    citations: None,
-                    r#type: TEXT_TYPE.to_string(),
-                }),
-            }],
+        Ok(())
+    }
 
-            PromptContent::Image(image) => vec![ContentBlockParam {
-                inner: ContentBlock::Image(ImageBlockParam {
-                    source: ImageSource::Url(UrlImageSource {
-                        url: image.url.clone(),
-                        r#type: URL_TYPE.to_string(),
-                    }),
-                    cache_control: None,
-                    r#type: IMAGE_TYPE.to_string(),
-                }),
-            }],
+    fn bind(&self, name: &str, value: &str) -> Result<Self, TypeError>
+    where
+        Self: Sized,
+    {
+        let mut new_message = self.clone();
+        new_message.bind_mut(name, value)?;
+        Ok(new_message)
+    }
 
-            PromptContent::Document(doc) => vec![ContentBlockParam {
-                inner: ContentBlock::Document(DocumentBlockParam {
-                    source: DocumentSource::Url(UrlPDFSource {
-                        url: doc.url.clone(),
-                        r#type: URL_TYPE.to_string(),
-                    }),
-                    cache_control: None,
-                    title: None,
-                    context: None,
-                    r#type: DOCUMENT_TYPE.to_string(),
-                    citations: None,
-                }),
-            }],
+    fn extract_variables(&self) -> Vec<String> {
+        let mut variables = HashSet::new();
 
-            // Already handled in fast path above
-            PromptContent::AnthropicMessageContentV1(_) => unreachable!(),
+        // Lazily initialize regex to avoid recompilation
+        let regex = get_var_regex();
 
-            _ => return Err(TypeError::UnsupportedContentType),
-        };
+        // Extract variables from all text content parts
+        for part in &self.content {
+            if let ContentBlock::Text(text_part) = &part.inner {
+                for captures in regex.captures_iter(&text_part.text) {
+                    if let Some(name) = captures.get(1) {
+                        variables.insert(name.as_str().to_string());
+                    }
+                }
+            }
+        }
 
-        Ok(Self {
-            content,
-            role: message.role.clone(),
-        })
+        // Convert HashSet to Vec for return
+        variables.into_iter().collect()
     }
 }
 

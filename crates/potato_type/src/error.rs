@@ -24,6 +24,9 @@ pub enum TypeError {
     #[error(transparent)]
     SerdeError(#[from] serde_json::Error),
 
+    #[error(transparent)]
+    StdError(#[from] std::io::Error),
+
     #[error("Failed to create GeminiEmbeddingConfig: {0}")]
     GeminiEmbeddingConfigError(String),
 
@@ -41,6 +44,15 @@ pub enum TypeError {
 
     #[error("Content type is not supported")]
     UnsupportedContentType,
+
+    #[error("Invalid model settings provided. ModelSettings expects either OpenAIChatSettings, GeminiSettings, or AnthropicSettings.")]
+    InvalidModelSettings,
+
+    #[error("Expected string, Message, or list of messages")]
+    MessageParseError,
+
+    #[error("Invalid message type in list. Received: {0}")]
+    InvalidMessageTypeInList(String),
 }
 
 impl From<TypeError> for PyErr {

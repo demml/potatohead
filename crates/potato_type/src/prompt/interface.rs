@@ -1,0 +1,720 @@
+use crate::anthropic::v1::message::{AnthropicSettings, MessageParam as AnthropicMessage};
+use crate::anthropic::v1::message::{ContentBlockParam, TextBlockParam};
+use crate::error::TypeError;
+use crate::google::chat::GeminiSettings;
+use crate::openai::v1::chat::request::ChatMessage as OpenAIChatMessage;
+use crate::openai::v1::chat::request::ContentPart;
+use crate::openai::v1::chat::request::TextContentPart;
+use crate::openai::v1::chat::settings::OpenAIChatSettings;
+use crate::prompt::settings::ModelSettings;
+use crate::prompt::types::parse_response_to_json;
+use crate::prompt::types::ResponseType;
+use crate::prompt::types::Role;
+use crate::traits::PromptMessageExt;
+use crate::SettingsType;
+use crate::{Provider, SaveName};
+use potato_util::utils::extract_string_value;
+use potato_util::PyHelperFuncs;
+use pyo3::types::{PyDict, PyList, PyString, PyTuple};
+use pyo3::{prelude::*, IntoPyObjectExt};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashSet;
+use std::path::PathBuf;
+
+fn create_message_for_provider(
+    content: String,
+    provider: &Provider,
+    role: &str,
+) -> Result<MessageNum, TypeError> {
+    match provider {
+        Provider::OpenAI => {
+            let msg = OpenAIChatMessage {
+                role: role.to_string(),
+                content: vec![ContentPart::Text(TextContentPart::new(content))],
+                name: None,
+            };
+            Ok(MessageNum::OpenAIMessageV1(msg))
+        }
+        Provider::Anthropic => {
+            // Create text block
+            let text_block = TextBlockParam::new(content, None, None)?;
+            let content_block = ContentBlockParam {
+                inner: crate::anthropic::v1::message::ContentBlock::Text(text_block),
+            };
+
+            let msg = AnthropicMessage {
+                role: role.to_string(),
+                content: vec![content_block],
+            };
+            Ok(MessageNum::AnthropicMessageV1(msg))
+        }
+        Provider::Gemini | Provider::Google | Provider::Vertex => {
+            // Default to OpenAI format for now - add GeminiMessage when available
+            let msg = OpenAIChatMessage {
+                role: role.to_string(),
+                content: vec![ContentPart::Text(TextContentPart::new(content))],
+                name: None,
+            };
+            Ok(MessageNum::OpenAIMessageV1(msg))
+        }
+        _ => Err(TypeError::Error(format!(
+            "Unsupported provider for message creation: {:?}",
+            provider
+        ))),
+    }
+}
+
+fn parse_messages(
+    messages: &Bound<'_, PyAny>,
+    provider: &Provider,
+    default_role: &str,
+) -> Result<Vec<MessageNum>, TypeError> {
+    // Single string - create appropriate message type
+    if messages.is_instance_of::<PyString>() {
+        let text = messages.extract::<String>()?;
+        return Ok(vec![create_message_for_provider(
+            text,
+            provider,
+            default_role,
+        )?]);
+    }
+
+    // Check for specific message types
+    if messages.is_instance_of::<OpenAIChatMessage>() {
+        let msg = messages.extract::<OpenAIChatMessage>()?;
+        return Ok(vec![MessageNum::OpenAIMessageV1(msg)]);
+    }
+
+    if messages.is_instance_of::<AnthropicMessage>() {
+        let msg = messages.extract::<AnthropicMessage>()?;
+        return Ok(vec![MessageNum::AnthropicMessageV1(msg)]);
+    }
+
+    // List or tuple of messages
+    if messages.is_instance_of::<PyList>() || messages.is_instance_of::<PyTuple>() {
+        let mut result = Vec::with_capacity(messages.len().unwrap_or(1));
+
+        for item in messages.try_iter()? {
+            let item = item?;
+
+            // Check string first (most common)
+            if item.is_instance_of::<PyString>() {
+                let text = item.extract::<String>()?;
+                result.push(create_message_for_provider(text, provider, default_role)?);
+            }
+            // Check for specific message types
+            else if item.is_instance_of::<OpenAIChatMessage>() {
+                result.push(MessageNum::OpenAIMessageV1(
+                    item.extract::<OpenAIChatMessage>()?,
+                ));
+            } else if item.is_instance_of::<AnthropicMessage>() {
+                result.push(MessageNum::AnthropicMessageV1(
+                    item.extract::<AnthropicMessage>()?,
+                ));
+            } else {
+                return Err(TypeError::InvalidMessageTypeInList(
+                    item.get_type().name()?.to_string(),
+                ));
+            }
+        }
+
+        Ok(result)
+    } else {
+        Err(TypeError::MessageParseError)
+    }
+}
+
+fn get_system_role(provider: &Provider) -> &'static str {
+    match provider {
+        Provider::OpenAI | Provider::Gemini | Provider::Vertex | Provider::Google => {
+            Role::Developer.into()
+        }
+        Provider::Anthropic => Role::Assistant.into(),
+        _ => "system",
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum MessageNum {
+    OpenAIMessageV1(OpenAIChatMessage),
+    AnthropicMessageV1(AnthropicMessage),
+}
+
+impl MessageNum {
+    pub fn bind(&self, name: &str, value: &str) -> Result<Self, TypeError> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => {
+                let bound_msg = msg.bind(name, value)?;
+                Ok(MessageNum::OpenAIMessageV1(bound_msg))
+            }
+            MessageNum::AnthropicMessageV1(msg) => {
+                let bound_msg = msg.bind(name, value)?;
+                Ok(MessageNum::AnthropicMessageV1(bound_msg))
+            }
+        }
+    }
+    fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => msg.bind_mut(name, value),
+            MessageNum::AnthropicMessageV1(msg) => msg.bind_mut(name, value),
+        }
+    }
+
+    fn extract_variables(&self) -> Vec<String> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => msg.extract_variables(),
+            MessageNum::AnthropicMessageV1(msg) => msg.extract_variables(),
+        }
+    }
+
+    fn to_bound_py_object<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => {
+                let bound_msg = msg.clone().into_bound_py_any(py)?;
+                Ok(bound_msg)
+            }
+            MessageNum::AnthropicMessageV1(msg) => {
+                let bound_msg = msg.clone().into_bound_py_any(py)?;
+                Ok(bound_msg)
+            }
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct Prompt {
+    pub messages: Vec<MessageNum>,
+
+    pub system_instructions: Vec<MessageNum>,
+
+    pub model_settings: ModelSettings,
+
+    #[pyo3(get)]
+    pub model: String,
+
+    #[pyo3(get)]
+    pub provider: Provider,
+
+    pub version: String,
+
+    pub response_json_schema: Option<Value>,
+
+    #[pyo3(get)]
+    pub parameters: Vec<String>,
+
+    pub response_type: ResponseType,
+}
+
+/// ModelSettings variant based on the type of settings provided.
+fn extract_model_settings(model_settings: &Bound<'_, PyAny>) -> Result<ModelSettings, TypeError> {
+    let settings_type = model_settings.call_method0("settings_type")?;
+    match settings_type.extract::<SettingsType>()? {
+        SettingsType::OpenAIChat => {
+            let openai_settings = model_settings.extract::<OpenAIChatSettings>()?;
+            Ok(ModelSettings::OpenAIChat(openai_settings))
+        }
+        SettingsType::GoogleChat => {
+            let gemini_settings = model_settings.extract::<GeminiSettings>()?;
+            Ok(ModelSettings::GoogleChat(gemini_settings))
+        }
+        SettingsType::Anthropic => {
+            let anthropic_settings = model_settings.extract::<AnthropicSettings>()?;
+            Ok(ModelSettings::AnthropicChat(anthropic_settings))
+        }
+        SettingsType::ModelSettings => {
+            let model_settings = model_settings.extract::<ModelSettings>()?;
+            Ok(model_settings)
+        }
+    }
+}
+
+#[pymethods]
+impl Prompt {
+    /// Creates a new Prompt object.
+    /// Main parsing logic is as follows:
+    /// 1. Extract model settings if provided, otherwise use provider default settings.
+    /// 2. Message and system instructions are expected to be a variant of MessageNum (OpenAIChatMessage or AnthropicMessage).
+    /// On instantiation, message will be check if is_instance_of pystring. If pystring, provider ill be used to map to appropriate message Text type
+    /// If message is a pylist, each item will be checked for is_instance_of pystring or MessageNum variant and converted accordingly.
+    /// If message is a single MessageNum variant, it will be extracted and wrapped in a vec.
+    #[new]
+    #[pyo3(signature = (message, model, provider, system_instruction=None, model_settings=None, response_format=None))]
+    pub fn new(
+        py: Python<'_>,
+        message: &Bound<'_, PyAny>,
+        model: &str,
+        provider: &Bound<'_, PyAny>,
+        system_instruction: Option<&Bound<'_, PyAny>>,
+        model_settings: Option<&Bound<'_, PyAny>>,
+        response_format: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
+    ) -> Result<Self, TypeError> {
+        let model_settings = model_settings
+            .as_ref()
+            .map(|s| extract_model_settings(s))
+            .transpose()?;
+        let provider = Provider::extract_provider(provider)?;
+
+        // Parse user messages with "user" role
+        let messages = parse_messages(message, &provider, Role::User.into())?;
+        let system_instructions = if let Some(sys_inst) = system_instruction {
+            parse_messages(sys_inst, &provider, get_system_role(&provider))?
+        } else {
+            vec![]
+        };
+
+        // validate response_json_schema
+        let (response_type, response_json_schema) = match response_format {
+            Some(response_format) => {
+                // check if response_format is a pydantic model and extract the model json schema
+                parse_response_to_json(py, response_format)?
+            }
+            None => (ResponseType::Null, None),
+        };
+
+        Self::new_rs(
+            messages,
+            model,
+            provider,
+            system_instructions,
+            model_settings,
+            response_json_schema,
+            response_type,
+        )
+    }
+
+    #[getter]
+    pub fn model_settings<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        self.model_settings.settings(py)
+    }
+
+    #[getter]
+    pub fn model_identifier(&self) -> String {
+        format!("{}:{}", self.provider.as_str(), self.model)
+    }
+
+    #[pyo3(signature = (path = None))]
+    pub fn save_prompt(&self, path: Option<PathBuf>) -> PyResult<PathBuf> {
+        let save_path = path.unwrap_or_else(|| PathBuf::from(SaveName::Prompt));
+        PyHelperFuncs::save_to_json(self, &save_path)?;
+        Ok(save_path)
+    }
+
+    #[staticmethod]
+    pub fn from_path(path: PathBuf) -> Result<Self, TypeError> {
+        // Load the JSON file from the path
+        let file = std::fs::read_to_string(&path)?;
+
+        // Parse the JSON file into a Prompt
+        Ok(serde_json::from_str(&file)?)
+    }
+
+    #[staticmethod]
+    pub fn model_validate_json(json_string: String) -> Result<Self, TypeError> {
+        let json_value: Value = serde_json::from_str(&json_string)?;
+        let model: Self = serde_json::from_value(json_value)?;
+
+        Ok(model)
+    }
+
+    pub fn model_dump_json(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
+
+    #[getter]
+    pub fn messages<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        let py_messages = PyList::empty(py);
+        for msg in &self.messages {
+            py_messages.append(msg.to_bound_py_object(py)?)?;
+        }
+        Ok(py_messages.into_bound_py_any(py)?)
+    }
+
+    #[getter]
+    pub fn system_instructions<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyAny>, TypeError> {
+        let py_messages = PyList::empty(py);
+        for msg in &self.system_instructions {
+            py_messages.append(msg.to_bound_py_object(py)?)?;
+        }
+        Ok(py_messages.into_bound_py_any(py)?)
+    }
+
+    /// Binds a variable in the prompt to a value. This will return a new Prompt with the variable bound to the value.
+    /// This will iterate over all user messages and bind the variable in each message.
+    /// # Arguments:
+    /// * `name`: The name of the variable to bind.
+    /// * `value`: The value to bind the variable to.
+    /// # Returns:
+    /// * `Result<Self, PromptError>`: Returns a new Prompt with the variable bound to the value.
+    #[pyo3(signature = (name=None, value=None, **kwargs))]
+    pub fn bind(
+        &self,
+        name: Option<&str>,
+        value: Option<&Bound<'_, PyAny>>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> Result<Self, TypeError> {
+        let mut new_prompt = self.clone();
+        // Create a new Prompt with the bound value
+        if let (Some(name), Some(value)) = (name, value) {
+            // Bind in both user and system messages
+            for message in &mut new_prompt.messages {
+                let var_value = extract_string_value(value)?;
+                message.bind_mut(name, &var_value)?;
+            }
+        }
+
+        if let Some(kwargs) = kwargs {
+            for (key, val) in kwargs.iter() {
+                let var_name = key.extract::<String>()?;
+                let var_value = extract_string_value(&val)?;
+
+                // Bind in both user and system messages
+                for message in &mut new_prompt.messages {
+                    message.bind_mut(&var_name, &var_value)?;
+                }
+            }
+        }
+
+        // Validate that at least one binding method was used
+        if name.is_none() && kwargs.is_none_or(|k| k.is_empty()) {
+            return Err(TypeError::Error(
+                "Must provide either (name, value) or keyword arguments for binding".to_string(),
+            ));
+        }
+        Ok(new_prompt)
+    }
+
+    /// Binds a variable in the prompt to a value. This will mutate the current Prompt and bind the variable in each user message.
+    /// # Arguments:
+    /// * `name`: The name of the variable to bind.
+    /// * `value`: The value to bind the variable to.
+    /// # Returns:
+    /// * `Result<(), PromptError>`: Returns Ok(()) on success or an error if the binding fails.
+    #[pyo3(signature = (name=None, value=None, **kwargs))]
+    pub fn bind_mut(
+        &mut self,
+        name: Option<&str>,
+        value: Option<&Bound<'_, PyAny>>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> Result<(), TypeError> {
+        // Create a new Prompt with the bound value
+        if let (Some(name), Some(value)) = (name, value) {
+            // Bind in both user and system messages
+            for message in &mut self.messages {
+                let var_value = extract_string_value(value)?;
+                message.bind_mut(name, &var_value)?;
+            }
+        }
+
+        if let Some(kwargs) = kwargs {
+            for (key, val) in kwargs.iter() {
+                let var_name = key.extract::<String>()?;
+                let var_value = extract_string_value(&val)?;
+
+                // Bind in both user and system messages
+                for message in &mut self.messages {
+                    message.bind_mut(&var_name, &var_value)?;
+                }
+            }
+        }
+
+        // Validate that at least one binding method was used
+        if name.is_none() && kwargs.is_none_or(|k| k.is_empty()) {
+            return Err(TypeError::Error(
+                "Must provide either (name, value) or keyword arguments for binding".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    #[getter]
+    pub fn response_json_schema(&self) -> Option<String> {
+        Some(PyHelperFuncs::__str__(self.response_json_schema.as_ref()))
+    }
+}
+
+impl Prompt {
+    pub fn new_rs(
+        messages: Vec<MessageNum>,
+        model: &str,
+        provider: Provider,
+        system_instructions: Vec<MessageNum>,
+        model_settings: Option<ModelSettings>,
+        response_json_schema: Option<Value>,
+        response_type: ResponseType,
+    ) -> Result<Self, TypeError> {
+        // get version from crate
+        let version = potato_util::version();
+        // If model_settings is not provided, set model and provider to undefined if missing
+        let model_settings = match model_settings {
+            Some(settings) => {
+                // validates if provider and settings are compatible
+                settings.validate_provider(&provider)?;
+                settings
+            }
+            None => ModelSettings::provider_default_settings(&provider),
+        };
+
+        // extract named parameters in prompt
+        let parameters = Self::extract_variables(&messages, &system_instructions);
+
+        Ok(Self {
+            messages,
+            version,
+            system_instructions,
+            model_settings,
+            response_json_schema,
+            parameters,
+            response_type,
+            model: model.to_string(),
+            provider,
+        })
+    }
+
+    pub fn extract_variables(
+        messages: &[MessageNum],
+        system_instructions: &[MessageNum],
+    ) -> Vec<String> {
+        let mut variables = HashSet::new();
+
+        // Extract from system instructions
+        for msg in system_instructions {
+            variables.extend(msg.extract_variables());
+        }
+
+        // Extract from user messages
+        for msg in messages {
+            variables.extend(msg.extract_variables());
+        }
+
+        variables.into_iter().collect()
+    }
+
+    pub fn model_dump_value(&self) -> Value {
+        // Convert the Prompt to a JSON Value
+        serde_json::to_value(self).unwrap_or(Value::Null)
+    }
+}
+
+// tests
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::anthropic::v1::message::{ContentBlockParam, MessageParam, TextBlockParam};
+    use crate::openai::v1::chat::request::{
+        ChatMessage as OpenAIChatMessage, ContentPart, FileContentPart, ImageContentPart,
+        TextContentPart,
+    };
+    use crate::prompt::types::Score;
+    use crate::StructuredOutput;
+
+    fn create_openai_chat_message() -> OpenAIChatMessage {
+        let text_part = TextContentPart::new("What company is this logo from?".to_string());
+        let text_content_part = ContentPart::Text(text_part);
+        let text_message = OpenAIChatMessage {
+            role: "user".to_string(),
+            content: vec![text_content_part],
+            name: None,
+        };
+        text_message
+    }
+
+    fn create_system_openai_chat_message() -> OpenAIChatMessage {
+        let text_part = TextContentPart::new("system_prompt".to_string());
+        let text_content_part = ContentPart::Text(text_part);
+        let text_message = OpenAIChatMessage {
+            role: "developer".to_string(),
+            content: vec![text_content_part],
+            name: None,
+        };
+        text_message
+    }
+
+    fn create_openai_image_message() -> OpenAIChatMessage {
+        let image_part = ImageContentPart::new("https://iili.io/3Hs4FMg.png".to_string(), None);
+        let image_content_part = ContentPart::ImageUrl(image_part);
+        let image_message = OpenAIChatMessage {
+            role: "user".to_string(),
+            content: vec![image_content_part],
+            name: None,
+        };
+        image_message
+    }
+
+    fn create_openai_file_message() -> OpenAIChatMessage {
+        let file_part = FileContentPart::new(
+            Some("filedata".to_string()),
+            Some("fileid".to_string()),
+            Some("filename".to_string()),
+        );
+        let file_content_part = ContentPart::FileContent(file_part);
+        let file_message = OpenAIChatMessage {
+            role: "user".to_string(),
+            content: vec![file_content_part],
+            name: None,
+        };
+        file_message
+    }
+
+    #[test]
+    fn test_task_list_add_and_get() {
+        let text_part = TextContentPart::new("Test prompt. ${param1} ${param2}".to_string());
+        let content_part = ContentPart::Text(text_part);
+        let message = OpenAIChatMessage {
+            role: "user".to_string(),
+            content: vec![content_part],
+            name: None,
+        };
+
+        let prompt = Prompt::new_rs(
+            vec![MessageNum::OpenAIMessageV1(message)],
+            "gpt-4o",
+            Provider::OpenAI,
+            vec![],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap();
+
+        // Check if the prompt was created successfully
+        assert_eq!(prompt.messages.len(), 1);
+
+        // check prompt parameters
+        assert!(prompt.parameters.len() == 2);
+
+        // sort parameters to ensure order does not affect the test
+        let mut parameters = prompt.parameters.clone();
+        parameters.sort();
+
+        assert_eq!(parameters[0], "param1");
+        assert_eq!(parameters[1], "param2");
+
+        // bind parameter
+        let bound_msg = prompt.messages[0].bind("param1", "Value1").unwrap();
+        let bound_msg = bound_msg.bind("param2", "Value2").unwrap();
+
+        // Check if the bound message contains the correct values
+        match bound_msg.clone() {
+            MessageNum::OpenAIMessageV1(msg) => {
+                if let ContentPart::Text(text_part) = &msg.content[0] {
+                    assert_eq!(text_part.text, "Test prompt. Value1 Value2");
+                } else {
+                    panic!("Expected TextContentPart");
+                }
+            }
+            _ => panic!("Expected OpenAIMessageV1"),
+        }
+    }
+
+    #[test]
+    fn test_image_prompt() {
+        let text_message = create_openai_chat_message();
+        let image_message = create_openai_image_message();
+
+        let system_text_part = TextContentPart::new("system_prompt".to_string());
+        let system_text_content_part = ContentPart::Text(system_text_part);
+
+        let system_text_message = OpenAIChatMessage {
+            role: "assistant".to_string(),
+            content: vec![system_text_content_part],
+            name: None,
+        };
+
+        let prompt = Prompt::new_rs(
+            vec![
+                MessageNum::OpenAIMessageV1(text_message),
+                MessageNum::OpenAIMessageV1(image_message),
+            ],
+            "gpt-4o",
+            Provider::OpenAI,
+            vec![MessageNum::OpenAIMessageV1(system_text_message)],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap();
+
+        // Check the first user message
+        if let MessageNum::OpenAIMessageV1(msg) = &prompt.messages[0] {
+            if let ContentPart::Text(text_part) = &msg.content[0] {
+                assert_eq!(text_part.text, "What company is this logo from?");
+            } else {
+                panic!("Expected TextContentPart for the first user message");
+            }
+        } else {
+            panic!("Expected OpenAIMessageV1 for the first user message");
+        }
+
+        // Check the second user message (ImageUrl)
+        if let MessageNum::OpenAIMessageV1(msg) = &prompt.messages[1] {
+            if let ContentPart::ImageUrl(image_url) = &msg.content[0] {
+                assert_eq!(image_url.image_url.url, "https://iili.io/3Hs4FMg.png");
+                assert_eq!(image_url.r#type, "image_url");
+            } else {
+                panic!("Expected ContentPart::Image for the second user message");
+            }
+        } else {
+            panic!("Expected OpenAIMessageV1 for the second user message");
+        }
+    }
+
+    #[test]
+    fn test_document_prompt() {
+        let text_message = create_openai_chat_message();
+        let file_message = create_openai_file_message();
+        let system_message = create_system_openai_chat_message();
+
+        let prompt = Prompt::new_rs(
+            vec![
+                MessageNum::OpenAIMessageV1(text_message),
+                MessageNum::OpenAIMessageV1(file_message),
+            ],
+            "gpt-4o",
+            Provider::OpenAI,
+            vec![MessageNum::OpenAIMessageV1(system_message)],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap();
+
+        // Check the 2nd user message (file)
+        if let MessageNum::OpenAIMessageV1(msg) = &prompt.messages[1] {
+            if let ContentPart::FileContent(file_content) = &msg.content[0] {
+                assert_eq!(file_content.file.file_id.as_ref().unwrap(), "fileid");
+                assert_eq!(file_content.file.filename.as_ref().unwrap(), "filename");
+            } else {
+                panic!("Expected ContentPart::FileContent for the second user message");
+            }
+        } else {
+            panic!("Expected OpenAIMessageV1 for the first user message");
+        }
+    }
+
+    #[test]
+    fn test_response_format_score() {
+        let text_message = create_openai_chat_message();
+        let prompt = Prompt::new_rs(
+            vec![MessageNum::OpenAIMessageV1(text_message)],
+            "gpt-4o",
+            Provider::OpenAI,
+            vec![],
+            None,
+            Some(Score::get_structured_output_schema()),
+            ResponseType::Null,
+        )
+        .unwrap();
+
+        // Check if the response json schema is set correctly
+        assert!(prompt.response_json_schema.is_some());
+    }
+}
