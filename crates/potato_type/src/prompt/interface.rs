@@ -508,7 +508,10 @@ impl Prompt {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::anthropic::v1::message::{ContentBlockParam, MessageParam, TextBlockParam};
+    use crate::anthropic::v1::message::{
+        Base64ImageSource, Base64PDFSource, ContentBlockParam, DocumentBlockParam, ImageBlockParam,
+        MessageParam, PlainTextSource, TextBlockParam, UrlImageSource, UrlPDFSource,
+    };
     use crate::openai::v1::chat::request::{
         ChatMessage as OpenAIChatMessage, ContentPart, FileContentPart, ImageContentPart,
         TextContentPart,
@@ -562,6 +565,112 @@ mod tests {
             name: None,
         };
         file_message
+    }
+
+    fn create_anthropic_text_message() -> MessageParam {
+        let text_block =
+            TextBlockParam::new_rs("What company is this logo from?".to_string(), None, None);
+        MessageParam {
+            role: "user".to_string(),
+            content: vec![ContentBlockParam {
+                inner: crate::anthropic::v1::message::ContentBlock::Text(text_block),
+            }],
+        }
+    }
+
+    fn create_anthropic_system_message() -> MessageParam {
+        let text_block = TextBlockParam::new_rs("system_prompt".to_string(), None, None);
+        MessageParam {
+            role: "assistant".to_string(),
+            content: vec![ContentBlockParam {
+                inner: crate::anthropic::v1::message::ContentBlock::Text(text_block),
+            }],
+        }
+    }
+
+    fn create_anthropic_base64_image_message() -> MessageParam {
+        let image_source =
+            Base64ImageSource::new("image/png".to_string(), "base64data".to_string()).unwrap();
+        let image_block = ImageBlockParam {
+            source: crate::anthropic::v1::message::ImageSource::Base64(image_source),
+            cache_control: None,
+            r#type: "image".to_string(),
+        };
+        MessageParam {
+            role: "user".to_string(),
+            content: vec![ContentBlockParam {
+                inner: crate::anthropic::v1::message::ContentBlock::Image(image_block),
+            }],
+        }
+    }
+
+    fn create_anthropic_url_image_message() -> MessageParam {
+        let image_source = UrlImageSource::new("https://iili.io/3Hs4FMg.png".to_string());
+        let image_block = ImageBlockParam {
+            source: crate::anthropic::v1::message::ImageSource::Url(image_source),
+            cache_control: None,
+            r#type: "image".to_string(),
+        };
+        MessageParam {
+            role: "user".to_string(),
+            content: vec![ContentBlockParam {
+                inner: crate::anthropic::v1::message::ContentBlock::Image(image_block),
+            }],
+        }
+    }
+
+    fn create_anthropic_base64_pdf_message() -> MessageParam {
+        let pdf_source = Base64PDFSource::new("base64pdfdata".to_string()).unwrap();
+        let document_block = DocumentBlockParam {
+            source: crate::anthropic::v1::message::DocumentSource::Base64(pdf_source),
+            cache_control: None,
+            title: Some("test_document.pdf".to_string()),
+            context: None,
+            r#type: "document".to_string(),
+            citations: None,
+        };
+        MessageParam {
+            role: "user".to_string(),
+            content: vec![ContentBlockParam {
+                inner: crate::anthropic::v1::message::ContentBlock::Document(document_block),
+            }],
+        }
+    }
+
+    fn create_anthropic_url_pdf_message() -> MessageParam {
+        let pdf_source = UrlPDFSource::new("https://example.com/document.pdf".to_string());
+        let document_block = DocumentBlockParam {
+            source: crate::anthropic::v1::message::DocumentSource::Url(pdf_source),
+            cache_control: None,
+            title: Some("test_document.pdf".to_string()),
+            context: None,
+            r#type: "document".to_string(),
+            citations: None,
+        };
+        MessageParam {
+            role: "user".to_string(),
+            content: vec![ContentBlockParam {
+                inner: crate::anthropic::v1::message::ContentBlock::Document(document_block),
+            }],
+        }
+    }
+
+    fn create_anthropic_plain_text_document_message() -> MessageParam {
+        let text_source = PlainTextSource::new("Plain text document content".to_string());
+        let document_block = DocumentBlockParam {
+            source: crate::anthropic::v1::message::DocumentSource::Text(text_source),
+            cache_control: None,
+            title: Some("text_document.txt".to_string()),
+            context: Some("Context for the document".to_string()),
+            r#type: "document".to_string(),
+            citations: None,
+        };
+        MessageParam {
+            role: "user".to_string(),
+            content: vec![ContentBlockParam {
+                inner: crate::anthropic::v1::message::ContentBlock::Document(document_block),
+            }],
+        }
     }
 
     #[test]
@@ -716,5 +825,305 @@ mod tests {
 
         // Check if the response json schema is set correctly
         assert!(prompt.response_json_schema.is_some());
+    }
+
+    #[test]
+    fn test_anthropic_text_message_binding() {
+        let text_block =
+            TextBlockParam::new_rs("Test prompt. ${param1} ${param2}".to_string(), None, None);
+        let message = MessageParam {
+            role: "user".to_string(),
+            content: vec![ContentBlockParam {
+                inner: crate::anthropic::v1::message::ContentBlock::Text(text_block),
+            }],
+        };
+
+        let prompt = Prompt::new_rs(
+            vec![MessageNum::AnthropicMessageV1(message)],
+            "claude-3-5-sonnet-20241022",
+            Provider::Anthropic,
+            vec![],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap();
+
+        assert_eq!(prompt.messages.len(), 1);
+        assert_eq!(prompt.parameters.len(), 2);
+
+        let mut parameters = prompt.parameters.clone();
+        parameters.sort();
+        assert_eq!(parameters[0], "param1");
+        assert_eq!(parameters[1], "param2");
+
+        // Test parameter binding
+        let bound_msg = prompt.messages[0].bind("param1", "Value1").unwrap();
+        let bound_msg = bound_msg.bind("param2", "Value2").unwrap();
+
+        match bound_msg {
+            MessageNum::AnthropicMessageV1(msg) => {
+                if let crate::anthropic::v1::message::ContentBlock::Text(text_block) =
+                    &msg.content[0].inner
+                {
+                    assert_eq!(text_block.text, "Test prompt. Value1 Value2");
+                } else {
+                    panic!("Expected TextBlockParam");
+                }
+            }
+            _ => panic!("Expected AnthropicMessageV1"),
+        }
+    }
+
+    #[test]
+    fn test_anthropic_url_image_prompt() {
+        let text_message = create_anthropic_text_message();
+        let image_message = create_anthropic_url_image_message();
+        let system_message = create_anthropic_system_message();
+
+        let prompt = Prompt::new_rs(
+            vec![
+                MessageNum::AnthropicMessageV1(text_message),
+                MessageNum::AnthropicMessageV1(image_message),
+            ],
+            "claude-3-5-sonnet-20241022",
+            Provider::Anthropic,
+            vec![MessageNum::AnthropicMessageV1(system_message)],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap();
+
+        // Check first message (text)
+        if let MessageNum::AnthropicMessageV1(msg) = &prompt.messages[0] {
+            if let crate::anthropic::v1::message::ContentBlock::Text(text_block) =
+                &msg.content[0].inner
+            {
+                assert_eq!(text_block.text, "What company is this logo from?");
+            } else {
+                panic!("Expected TextBlock for first message");
+            }
+        } else {
+            panic!("Expected AnthropicMessageV1");
+        }
+
+        // Check second message (image URL)
+        if let MessageNum::AnthropicMessageV1(msg) = &prompt.messages[1] {
+            if let crate::anthropic::v1::message::ContentBlock::Image(image_block) =
+                &msg.content[0].inner
+            {
+                match &image_block.source {
+                    crate::anthropic::v1::message::ImageSource::Url(url_source) => {
+                        assert_eq!(url_source.url, "https://iili.io/3Hs4FMg.png");
+                        assert_eq!(url_source.r#type, "url");
+                    }
+                    _ => panic!("Expected URL image source"),
+                }
+                assert_eq!(image_block.r#type, "image");
+            } else {
+                panic!("Expected ImageBlock for second message");
+            }
+        } else {
+            panic!("Expected AnthropicMessageV1");
+        }
+    }
+
+    #[test]
+    fn test_anthropic_base64_image_prompt() {
+        let text_message = create_anthropic_text_message();
+        let image_message = create_anthropic_base64_image_message();
+
+        let prompt = Prompt::new_rs(
+            vec![
+                MessageNum::AnthropicMessageV1(text_message),
+                MessageNum::AnthropicMessageV1(image_message),
+            ],
+            "claude-3-5-sonnet-20241022",
+            Provider::Anthropic,
+            vec![],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap();
+
+        // Check second message (base64 image)
+        if let MessageNum::AnthropicMessageV1(msg) = &prompt.messages[1] {
+            if let crate::anthropic::v1::message::ContentBlock::Image(image_block) =
+                &msg.content[0].inner
+            {
+                match &image_block.source {
+                    crate::anthropic::v1::message::ImageSource::Base64(base64_source) => {
+                        assert_eq!(base64_source.media_type, "image/png");
+                        assert_eq!(base64_source.data, "base64data");
+                        assert_eq!(base64_source.r#type, "base64");
+                    }
+                    _ => panic!("Expected Base64 image source"),
+                }
+            } else {
+                panic!("Expected ImageBlock");
+            }
+        } else {
+            panic!("Expected AnthropicMessageV1");
+        }
+    }
+
+    // Test: Anthropic PDF document (base64)
+    #[test]
+    fn test_anthropic_base64_pdf_document_prompt() {
+        let text_message = create_anthropic_text_message();
+        let pdf_message = create_anthropic_base64_pdf_message();
+        let system_message = create_anthropic_system_message();
+
+        let prompt = Prompt::new_rs(
+            vec![
+                MessageNum::AnthropicMessageV1(text_message),
+                MessageNum::AnthropicMessageV1(pdf_message),
+            ],
+            "claude-3-5-sonnet-20241022",
+            Provider::Anthropic,
+            vec![MessageNum::AnthropicMessageV1(system_message)],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap();
+
+        // Check second message (PDF document)
+        if let MessageNum::AnthropicMessageV1(msg) = &prompt.messages[1] {
+            if let crate::anthropic::v1::message::ContentBlock::Document(document_block) =
+                &msg.content[0].inner
+            {
+                match &document_block.source {
+                    crate::anthropic::v1::message::DocumentSource::Base64(pdf_source) => {
+                        assert_eq!(pdf_source.media_type, "application/pdf");
+                        assert_eq!(pdf_source.data, "base64pdfdata");
+                        assert_eq!(pdf_source.r#type, "base64");
+                    }
+                    _ => panic!("Expected Base64 PDF source"),
+                }
+                assert_eq!(document_block.r#type, "document");
+                assert_eq!(document_block.title.as_ref().unwrap(), "test_document.pdf");
+            } else {
+                panic!("Expected DocumentBlock");
+            }
+        } else {
+            panic!("Expected AnthropicMessageV1");
+        }
+    }
+
+    // Test: Anthropic URL PDF document
+    #[test]
+    fn test_anthropic_url_pdf_document_prompt() {
+        let text_message = create_anthropic_text_message();
+        let pdf_message = create_anthropic_url_pdf_message();
+
+        let prompt = Prompt::new_rs(
+            vec![
+                MessageNum::AnthropicMessageV1(text_message),
+                MessageNum::AnthropicMessageV1(pdf_message),
+            ],
+            "claude-3-5-sonnet-20241022",
+            Provider::Anthropic,
+            vec![],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap();
+
+        // Check second message (URL PDF)
+        if let MessageNum::AnthropicMessageV1(msg) = &prompt.messages[1] {
+            if let crate::anthropic::v1::message::ContentBlock::Document(document_block) =
+                &msg.content[0].inner
+            {
+                match &document_block.source {
+                    crate::anthropic::v1::message::DocumentSource::Url(url_source) => {
+                        assert_eq!(url_source.url, "https://example.com/document.pdf");
+                        assert_eq!(url_source.r#type, "url");
+                    }
+                    _ => panic!("Expected URL PDF source"),
+                }
+            } else {
+                panic!("Expected DocumentBlock");
+            }
+        } else {
+            panic!("Expected AnthropicMessageV1");
+        }
+    }
+
+    // Test: Anthropic plain text document
+    #[test]
+    fn test_anthropic_plain_text_document_prompt() {
+        let text_message = create_anthropic_text_message();
+        let text_doc_message = create_anthropic_plain_text_document_message();
+
+        let prompt = Prompt::new_rs(
+            vec![
+                MessageNum::AnthropicMessageV1(text_message),
+                MessageNum::AnthropicMessageV1(text_doc_message),
+            ],
+            "claude-3-5-sonnet-20241022",
+            Provider::Anthropic,
+            vec![],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap();
+
+        // Check second message (plain text document)
+        if let MessageNum::AnthropicMessageV1(msg) = &prompt.messages[1] {
+            if let crate::anthropic::v1::message::ContentBlock::Document(document_block) =
+                &msg.content[0].inner
+            {
+                match &document_block.source {
+                    crate::anthropic::v1::message::DocumentSource::Text(text_source) => {
+                        assert_eq!(text_source.media_type, "text/plain");
+                        assert_eq!(text_source.data, "Plain text document content");
+                        assert_eq!(text_source.r#type, "text");
+                    }
+                    _ => panic!("Expected Text document source"),
+                }
+                assert_eq!(
+                    document_block.context.as_ref().unwrap(),
+                    "Context for the document"
+                );
+            } else {
+                panic!("Expected DocumentBlock");
+            }
+        } else {
+            panic!("Expected AnthropicMessageV1");
+        }
+    }
+
+    // Test: Mixed Anthropic content (text + multiple documents)
+    #[test]
+    fn test_anthropic_mixed_content_prompt() {
+        let text_message = create_anthropic_text_message();
+        let pdf_message = create_anthropic_base64_pdf_message();
+        let text_doc_message = create_anthropic_plain_text_document_message();
+        let system_message = create_anthropic_system_message();
+
+        let prompt = Prompt::new_rs(
+            vec![
+                MessageNum::AnthropicMessageV1(text_message),
+                MessageNum::AnthropicMessageV1(pdf_message),
+                MessageNum::AnthropicMessageV1(text_doc_message),
+            ],
+            "claude-3-5-sonnet-20241022",
+            Provider::Anthropic,
+            vec![MessageNum::AnthropicMessageV1(system_message)],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap();
+
+        assert_eq!(prompt.messages.len(), 3);
+        assert_eq!(prompt.system_instructions.len(), 1);
+        assert_eq!(prompt.provider, Provider::Anthropic);
+        assert_eq!(prompt.model, "claude-3-5-sonnet-20241022");
     }
 }

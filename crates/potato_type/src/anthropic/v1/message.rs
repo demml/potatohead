@@ -304,6 +304,21 @@ impl TextBlockParam {
     }
 }
 
+impl TextBlockParam {
+    pub fn new_rs(
+        text: String,
+        cache_control: Option<CacheControl>,
+        citations: Option<TextCitationParam>,
+    ) -> Self {
+        Self {
+            text,
+            cache_control,
+            citations,
+            r#type: TEXT_TYPE.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
 pub struct Base64ImageSource {
