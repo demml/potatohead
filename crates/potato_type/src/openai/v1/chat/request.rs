@@ -193,7 +193,7 @@ fn extract_content_from_py_object(content: &Bound<'_, PyAny>) -> PyResult<Vec<Op
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[pyclass]
-pub struct OpenAIChatMessage {
+pub struct ChatMessage {
     #[pyo3(get, set)]
     pub role: String,
 
@@ -204,7 +204,7 @@ pub struct OpenAIChatMessage {
 }
 
 #[pymethods]
-impl OpenAIChatMessage {
+impl ChatMessage {
     /// Creates an OpenAI message.
     ///
     /// Accepts three input formats:
