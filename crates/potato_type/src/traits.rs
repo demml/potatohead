@@ -23,3 +23,7 @@ pub trait PromptMessageExt:
     /// Extract variables from the message content
     fn extract_variables(&self) -> Vec<String>;
 }
+
+pub trait MessageFactory: Sized {
+    fn from_text(content: String, role: &str) -> Result<Self, TypeError>;
+}

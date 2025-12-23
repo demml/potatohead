@@ -1,10 +1,9 @@
 use crate::traits::get_var_regex;
-use crate::traits::PromptMessageExt;
+use crate::traits::{MessageFactory, PromptMessageExt};
 use crate::{SettingsType, TypeError};
 use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pyo3::types::PyString;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use serde_json::Value;
@@ -1117,40 +1116,23 @@ pub enum DataNum {
 
 // helper for extracting data from PyAny to DataNum
 fn extract_data_from_py_object(data: &Bound<'_, PyAny>) -> Result<DataNum, TypeError> {
-    if data.is_instance_of::<PyString>() {
-        return Ok(DataNum::Text(data.extract::<String>()?));
+    // special handling for string
+    if data.is_instance_of::<pyo3::types::PyString>() {
+        let text = data.extract::<String>()?;
+        return Ok(DataNum::Text(text));
     }
+    // Use macro for all type extractions
+    potato_macro::try_extract_to_enum!(
+        data,
+        Blob => |b| DataNum::InlineData(b),
+        FileData => |f| DataNum::FileData(f),
+        FunctionCall => |fc| DataNum::FunctionCall(fc),
+        FunctionResponse => |fr| DataNum::FunctionResponse(fr),
+        ExecutableCode => |ec| DataNum::ExecutableCode(ec),
+        CodeExecutionResult => |cer| DataNum::CodeExecutionResult(cer),
+    );
 
-    // Check for native Rust types wrapped in PyO3
-    if data.is_instance_of::<Blob>() {
-        return Ok(DataNum::InlineData(data.extract::<Blob>()?));
-    }
-
-    if data.is_instance_of::<FileData>() {
-        return Ok(DataNum::FileData(data.extract::<FileData>()?));
-    }
-
-    if data.is_instance_of::<FunctionCall>() {
-        return Ok(DataNum::FunctionCall(data.extract::<FunctionCall>()?));
-    }
-
-    if data.is_instance_of::<FunctionResponse>() {
-        return Ok(DataNum::FunctionResponse(
-            data.extract::<FunctionResponse>()?,
-        ));
-    }
-
-    if data.is_instance_of::<ExecutableCode>() {
-        return Ok(DataNum::ExecutableCode(data.extract::<ExecutableCode>()?));
-    }
-
-    if data.is_instance_of::<CodeExecutionResult>() {
-        return Ok(DataNum::CodeExecutionResult(
-            data.extract::<CodeExecutionResult>()?,
-        ));
-    }
-
-    // If none of the above, return an error
+    // If none matched, return an error
     Err(TypeError::InvalidDataType(
         data.get_type().name()?.to_string(),
     ))
@@ -1206,6 +1188,19 @@ impl Part {
     }
 }
 
+impl Default for Part {
+    fn default() -> Self {
+        Part {
+            thought: None,
+            thought_signature: None,
+            part_metadata: None,
+            media_resolution: None,
+            data: DataNum::Text(String::new()),
+            video_metadata: None,
+        }
+    }
+}
+
 #[pyclass]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -1221,72 +1216,52 @@ pub struct GeminiContent {
 fn extract_parts_from_py_object(parts: &Bound<'_, PyAny>) -> Result<Vec<Part>, TypeError> {
     use pyo3::types::{PyList, PyString};
 
-    // Check for String first - most common case, convert to text Part
+    // Helper to create a default Part with given DataNum
+    let create_part = |data: DataNum| Part {
+        data,
+        thought: None,
+        thought_signature: None,
+        part_metadata: None,
+        media_resolution: None,
+        video_metadata: None,
+    };
+
     if parts.is_instance_of::<PyString>() {
         let text = parts.extract::<String>()?;
-        return Ok(vec![Part {
-            data: DataNum::Text(text),
-            thought: None,
-            thought_signature: None,
-            part_metadata: None,
-            media_resolution: None,
-            video_metadata: None,
-        }]);
+        return Ok(vec![create_part(DataNum::Text(text))]);
     }
 
-    // Check for single Part instance
     if parts.is_instance_of::<Part>() {
         return Ok(vec![parts.extract::<Part>()?]);
     }
 
-    // Check for DataNum variants and wrap in Part
     if let Ok(data_num) = extract_data_from_py_object(parts) {
-        return Ok(vec![Part {
-            data: data_num,
-            thought: None,
-            thought_signature: None,
-            part_metadata: None,
-            media_resolution: None,
-            video_metadata: None,
-        }]);
+        return Ok(vec![create_part(data_num)]);
     }
 
-    // Check for PyList - can contain Parts, DataNum variants, or strings
     if parts.is_instance_of::<PyList>() {
         let list = parts.cast::<PyList>()?;
         let mut part_vec = Vec::with_capacity(list.len());
 
         for item in list.iter() {
-            // Try to extract as Part first
             if item.is_instance_of::<Part>() {
                 part_vec.push(item.extract::<Part>()?);
+                continue;
             }
-            // Try to extract as String
-            else if item.is_instance_of::<PyString>() {
+
+            if item.is_instance_of::<PyString>() {
                 let text = item.extract::<String>()?;
-                part_vec.push(Part {
-                    data: DataNum::Text(text),
-                    thought: None,
-                    thought_signature: None,
-                    part_metadata: None,
-                    media_resolution: None,
-                    video_metadata: None,
-                });
+                part_vec.push(create_part(DataNum::Text(text)));
+                continue;
             }
-            // Try to extract as DataNum variant
-            else if let Ok(data_num) = extract_data_from_py_object(&item) {
-                part_vec.push(Part {
-                    data: data_num,
-                    thought: None,
-                    thought_signature: None,
-                    part_metadata: None,
-                    media_resolution: None,
-                    video_metadata: None,
-                });
-            } else {
-                return Err(TypeError::InvalidListType(
-                    item.get_type().name()?.to_string(),
-                ));
+
+            match extract_data_from_py_object(&item) {
+                Ok(data_num) => part_vec.push(create_part(data_num)),
+                Err(_) => {
+                    return Err(TypeError::InvalidListType(
+                        item.get_type().name()?.to_string(),
+                    ))
+                }
             }
         }
         return Ok(part_vec);
@@ -1377,6 +1352,18 @@ impl PromptMessageExt for GeminiContent {
 
         // Convert HashSet to Vec for return
         variables.into_iter().collect()
+    }
+}
+
+impl MessageFactory for GeminiContent {
+    fn from_text(content: String, role: &str) -> Result<Self, TypeError> {
+        Ok(Self {
+            role: Some(role.to_string()),
+            parts: vec![Part {
+                data: DataNum::Text(content),
+                ..Default::default()
+            }],
+        })
     }
 }
 

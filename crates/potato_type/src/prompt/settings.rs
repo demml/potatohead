@@ -31,18 +31,15 @@ impl Default for ModelSettings {
 impl ModelSettings {
     #[new]
     pub fn new(settings: &Bound<'_, PyAny>) -> Result<Self, TypeError> {
-        if settings.is_instance_of::<OpenAIChatSettings>() {
-            let settings: OpenAIChatSettings = settings.extract()?;
-            Ok(ModelSettings::OpenAIChat(settings))
-        } else if settings.is_instance_of::<GeminiSettings>() {
-            let settings: GeminiSettings = settings.extract()?;
-            Ok(ModelSettings::GoogleChat(settings))
-        } else if settings.is_instance_of::<AnthropicSettings>() {
-            let settings: AnthropicSettings = settings.extract()?;
-            Ok(ModelSettings::AnthropicChat(settings))
-        } else {
-            Err(TypeError::InvalidModelSettings)
-        }
+        potato_macro::try_extract_py_object!(
+            settings,
+            OpenAIChatSettings => ModelSettings::OpenAIChat,
+            GeminiSettings => ModelSettings::GoogleChat,
+            AnthropicSettings => ModelSettings::AnthropicChat,
+        );
+
+        // If none matched, return error
+        Err(TypeError::InvalidModelSettings)
     }
 
     #[getter]

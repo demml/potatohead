@@ -12,6 +12,7 @@ doctest = false
 [dependencies]
 pyo3 = { workspace = true }
 mime_guess = { workspace = true }
+potato-macro = { workspace = true }
 potato-util = { workspace = true }
 regex = { workspace = true }
 schemars = { workspace = true }

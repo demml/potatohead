@@ -2,7 +2,7 @@ use crate::common::get_image_media_types;
 use crate::common::ResponseExt;
 
 use crate::traits::get_var_regex;
-use crate::traits::PromptMessageExt;
+use crate::traits::{MessageFactory, PromptMessageExt};
 use crate::TypeError;
 use potato_util::{json_to_pydict, json_to_pyobject};
 use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
@@ -1075,6 +1075,20 @@ impl PromptMessageExt for MessageParam {
 
         // Convert HashSet to Vec for return
         variables.into_iter().collect()
+    }
+}
+
+impl MessageFactory for MessageParam {
+    fn from_text(content: String, role: &str) -> Result<Self, TypeError> {
+        let text_block = TextBlockParam::new(content, None, None)?;
+        let content_block = ContentBlockParam {
+            inner: ContentBlock::Text(text_block),
+        };
+
+        Ok(Self {
+            role: role.to_string(),
+            content: vec![content_block],
+        })
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::openai::v1::chat::settings::OpenAIChatSettings;
-use crate::traits::{get_var_regex, PromptMessageExt};
+use crate::traits::{get_var_regex, MessageFactory, PromptMessageExt};
 use crate::TypeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyList, PyString};
@@ -189,28 +189,31 @@ fn extract_content_from_py_object(content: &Bound<'_, PyAny>) -> PyResult<Vec<Co
 
     if content.is_instance_of::<PyList>() {
         let list = content.cast::<PyList>()?;
-        let mut parts = Vec::with_capacity(list.len()); // Pre-allocate
+        let mut parts = Vec::with_capacity(list.len());
 
         for item in list.iter() {
-            // Check native types first (faster)
+            // Handle string first (needs custom transformation)
             if item.is_instance_of::<PyString>() {
                 parts.push(ContentPart::Text(TextContentPart::new(
                     item.extract::<String>()?,
                 )));
-            } else if item.is_instance_of::<ImageContentPart>() {
-                parts.push(ContentPart::ImageUrl(item.extract::<ImageContentPart>()?));
-            } else if item.is_instance_of::<InputAudioContentPart>() {
-                parts.push(ContentPart::InputAudio(
-                    item.extract::<InputAudioContentPart>()?,
-                ));
-            } else if item.is_instance_of::<FileContentPart>() {
-                parts.push(ContentPart::FileContent(item.extract::<FileContentPart>()?));
-            } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                    "Invalid content part type: {}",
-                    item.get_type().name()?
-                )));
+                continue;
             }
+
+            if potato_macro::extract_and_push!(
+                item => parts,
+                ImageContentPart => |i| ContentPart::ImageUrl(i),
+                InputAudioContentPart => |a| ContentPart::InputAudio(a),
+                FileContentPart => |f| ContentPart::FileContent(f),
+            ) {
+                continue;
+            }
+
+            // If we get here, no type matched
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                "Invalid content part type: {}",
+                item.get_type().name()?
+            )));
         }
         return Ok(parts);
     }
@@ -242,34 +245,29 @@ impl ChatMessage {
     /// 3. Single ContentPart: Wrapped in a vector
     #[new]
     pub fn new(role: String, content: &Bound<'_, PyAny>, name: Option<String>) -> PyResult<Self> {
-        use pyo3::types::{PyList, PyString};
-
         let content_parts = if content.is_instance_of::<PyString>() {
             let text = content.extract::<String>()?;
             vec![ContentPart::Text(TextContentPart::new(text))]
         } else if content.is_instance_of::<PyList>() {
             extract_content_from_py_object(content)?
         } else {
-            if content.is_instance_of::<TextContentPart>() {
-                vec![ContentPart::Text(content.extract::<TextContentPart>()?)]
-            } else if content.is_instance_of::<ImageContentPart>() {
-                vec![ContentPart::ImageUrl(
-                    content.extract::<ImageContentPart>()?,
-                )]
-            } else if content.is_instance_of::<InputAudioContentPart>() {
-                vec![ContentPart::InputAudio(
-                    content.extract::<InputAudioContentPart>()?,
-                )]
-            } else if content.is_instance_of::<FileContentPart>() {
-                vec![ContentPart::FileContent(
-                    content.extract::<FileContentPart>()?,
-                )]
-            } else {
+            let mut result = Vec::with_capacity(1);
+
+            if !potato_macro::extract_and_push!(
+                content => result,
+                TextContentPart => |t| ContentPart::Text(t),
+                ImageContentPart => |i| ContentPart::ImageUrl(i),
+                InputAudioContentPart => |a| ContentPart::InputAudio(a),
+                FileContentPart => |f| ContentPart::FileContent(f),
+            ) {
+                // Macro returned false - no match found
                 return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
                     "Content must be a string, list, or ContentPart type. Got: {}",
                     content.get_type().name()?
                 )));
             }
+
+            result
         };
 
         Ok(Self {
@@ -337,6 +335,16 @@ impl PromptMessageExt for ChatMessage {
 
         // Convert HashSet to Vec for return
         variables.into_iter().collect()
+    }
+}
+
+impl MessageFactory for ChatMessage {
+    fn from_text(content: String, role: &str) -> Result<Self, TypeError> {
+        Ok(Self {
+            role: role.to_string(),
+            content: vec![ContentPart::Text(TextContentPart::new(content))],
+            name: None,
+        })
     }
 }
 

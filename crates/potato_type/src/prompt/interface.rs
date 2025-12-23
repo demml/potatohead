@@ -1,18 +1,16 @@
 use crate::anthropic::v1::message::{AnthropicSettings, MessageParam as AnthropicMessage};
-use crate::anthropic::v1::message::{ContentBlockParam, TextBlockParam};
 use crate::error::TypeError;
 use crate::google::v1::generate::request::{GeminiContent, GeminiSettings};
 use crate::openai::v1::chat::request::ChatMessage as OpenAIChatMessage;
-use crate::openai::v1::chat::request::ContentPart;
-use crate::openai::v1::chat::request::TextContentPart;
 use crate::openai::v1::chat::settings::OpenAIChatSettings;
 use crate::prompt::settings::ModelSettings;
 use crate::prompt::types::parse_response_to_json;
 use crate::prompt::types::ResponseType;
 use crate::prompt::types::Role;
-use crate::traits::PromptMessageExt;
+use crate::traits::{MessageFactory, PromptMessageExt};
 use crate::SettingsType;
 use crate::{Provider, SaveName};
+use potato_macro::try_extract_message;
 use potato_util::utils::extract_string_value;
 use potato_util::PyHelperFuncs;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
@@ -29,34 +27,13 @@ fn create_message_for_provider(
 ) -> Result<MessageNum, TypeError> {
     match provider {
         Provider::OpenAI => {
-            let msg = OpenAIChatMessage {
-                role: role.to_string(),
-                content: vec![ContentPart::Text(TextContentPart::new(content))],
-                name: None,
-            };
-            Ok(MessageNum::OpenAIMessageV1(msg))
+            OpenAIChatMessage::from_text(content, role).map(MessageNum::OpenAIMessageV1)
         }
         Provider::Anthropic => {
-            // Create text block
-            let text_block = TextBlockParam::new(content, None, None)?;
-            let content_block = ContentBlockParam {
-                inner: crate::anthropic::v1::message::ContentBlock::Text(text_block),
-            };
-
-            let msg = AnthropicMessage {
-                role: role.to_string(),
-                content: vec![content_block],
-            };
-            Ok(MessageNum::AnthropicMessageV1(msg))
+            AnthropicMessage::from_text(content, role).map(MessageNum::AnthropicMessageV1)
         }
         Provider::Gemini | Provider::Google | Provider::Vertex => {
-            // Default to OpenAI format for now - add GeminiMessage when available
-            let msg = OpenAIChatMessage {
-                role: role.to_string(),
-                content: vec![ContentPart::Text(TextContentPart::new(content))],
-                name: None,
-            };
-            Ok(MessageNum::OpenAIMessageV1(msg))
+            GeminiContent::from_text(content, role).map(MessageNum::GeminiContentV1)
         }
         _ => Err(TypeError::Error(format!(
             "Unsupported provider for message creation: {:?}",
@@ -65,64 +42,52 @@ fn create_message_for_provider(
     }
 }
 
+fn parse_single_message(
+    message: &Bound<'_, PyAny>,
+    provider: &Provider,
+    default_role: &str,
+) -> Result<MessageNum, TypeError> {
+    // String conversion (most common case)
+    if message.is_instance_of::<PyString>() {
+        let text = message.extract::<String>()?;
+        return create_message_for_provider(text, provider, default_role);
+    }
+
+    // Try each message type using macro
+    try_extract_message!(
+        message,
+        OpenAIChatMessage => MessageNum::OpenAIMessageV1,
+        AnthropicMessage => MessageNum::AnthropicMessageV1,
+        GeminiContent => MessageNum::GeminiContentV1,
+    );
+
+    Err(TypeError::InvalidMessageTypeInList(
+        message.get_type().name()?.to_string(),
+    ))
+}
+
 fn parse_messages(
     messages: &Bound<'_, PyAny>,
     provider: &Provider,
     default_role: &str,
 ) -> Result<Vec<MessageNum>, TypeError> {
-    // Single string - create appropriate message type
-    if messages.is_instance_of::<PyString>() {
-        let text = messages.extract::<String>()?;
-        return Ok(vec![create_message_for_provider(
-            text,
+    // Single message
+    if !messages.is_instance_of::<PyList>() && !messages.is_instance_of::<PyTuple>() {
+        return Ok(vec![parse_single_message(
+            messages,
             provider,
             default_role,
         )?]);
     }
 
-    // Check for specific message types
-    if messages.is_instance_of::<OpenAIChatMessage>() {
-        let msg = messages.extract::<OpenAIChatMessage>()?;
-        return Ok(vec![MessageNum::OpenAIMessageV1(msg)]);
-    }
-
-    if messages.is_instance_of::<AnthropicMessage>() {
-        let msg = messages.extract::<AnthropicMessage>()?;
-        return Ok(vec![MessageNum::AnthropicMessageV1(msg)]);
-    }
-
-    // List or tuple of messages
-    if messages.is_instance_of::<PyList>() || messages.is_instance_of::<PyTuple>() {
-        let mut result = Vec::with_capacity(messages.len().unwrap_or(1));
-
-        for item in messages.try_iter()? {
+    // List/tuple of messages
+    messages
+        .try_iter()?
+        .map(|item| {
             let item = item?;
-
-            // Check string first (most common)
-            if item.is_instance_of::<PyString>() {
-                let text = item.extract::<String>()?;
-                result.push(create_message_for_provider(text, provider, default_role)?);
-            }
-            // Check for specific message types
-            else if item.is_instance_of::<OpenAIChatMessage>() {
-                result.push(MessageNum::OpenAIMessageV1(
-                    item.extract::<OpenAIChatMessage>()?,
-                ));
-            } else if item.is_instance_of::<AnthropicMessage>() {
-                result.push(MessageNum::AnthropicMessageV1(
-                    item.extract::<AnthropicMessage>()?,
-                ));
-            } else {
-                return Err(TypeError::InvalidMessageTypeInList(
-                    item.get_type().name()?.to_string(),
-                ));
-            }
-        }
-
-        Ok(result)
-    } else {
-        Err(TypeError::MessageParseError)
-    }
+            parse_single_message(&item, provider, default_role)
+        })
+        .collect()
 }
 
 fn get_system_role(provider: &Provider) -> &'static str {
@@ -220,25 +185,23 @@ pub struct Prompt {
 
 /// ModelSettings variant based on the type of settings provided.
 fn extract_model_settings(model_settings: &Bound<'_, PyAny>) -> Result<ModelSettings, TypeError> {
-    let settings_type = model_settings.call_method0("settings_type")?;
-    match settings_type.extract::<SettingsType>()? {
-        SettingsType::OpenAIChat => {
-            let openai_settings = model_settings.extract::<OpenAIChatSettings>()?;
-            Ok(ModelSettings::OpenAIChat(openai_settings))
-        }
-        SettingsType::GoogleChat => {
-            let gemini_settings = model_settings.extract::<GeminiSettings>()?;
-            Ok(ModelSettings::GoogleChat(gemini_settings))
-        }
-        SettingsType::Anthropic => {
-            let anthropic_settings = model_settings.extract::<AnthropicSettings>()?;
-            Ok(ModelSettings::AnthropicChat(anthropic_settings))
-        }
-        SettingsType::ModelSettings => {
-            let model_settings = model_settings.extract::<ModelSettings>()?;
-            Ok(model_settings)
-        }
+    let settings_type = model_settings
+        .call_method0("settings_type")?
+        .extract::<SettingsType>()?;
+
+    match settings_type {
+        SettingsType::OpenAIChat => model_settings
+            .extract::<OpenAIChatSettings>()
+            .map(ModelSettings::OpenAIChat),
+        SettingsType::GoogleChat => model_settings
+            .extract::<GeminiSettings>()
+            .map(ModelSettings::GoogleChat),
+        SettingsType::Anthropic => model_settings
+            .extract::<AnthropicSettings>()
+            .map(ModelSettings::AnthropicChat),
+        SettingsType::ModelSettings => model_settings.extract::<ModelSettings>(),
     }
+    .map_err(Into::into)
 }
 
 #[pymethods]

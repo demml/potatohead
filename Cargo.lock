@@ -1181,6 +1181,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "potato-macro"
+version = "0.10.0"
+
+[[package]]
 name = "potato-prompt"
 version = "0.10.0"
 dependencies = [
@@ -1221,6 +1225,7 @@ name = "potato-type"
 version = "0.10.0"
 dependencies = [
  "mime_guess",
+ "potato-macro",
  "potato-util",
  "pyo3",
  "regex",
