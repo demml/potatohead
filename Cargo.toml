@@ -18,7 +18,6 @@ repository = "https://github.com/demml/potatohead"
 [workspace.dependencies]
 baked-potato = { path = "crates/baked_potato", version = "0.10.0" }
 potato-agent = { path = "crates/potato_agent", version = "0.10.0" }
-potato-prompt = { path = "crates/potato_prompt", version = "0.10.0" }
 potato-provider = { path = "crates/potato_provider", version = "0.10.0" }
 potato-macro = { path = "crates/potato_macro", version = "0.10.0" }
 potato-type = { path = "crates/potato_type", version = "0.10.0" }

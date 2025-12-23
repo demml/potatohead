@@ -88,7 +88,6 @@ version = "0.10.0"
 dependencies = [
  "mockito",
  "potato-agent",
- "potato-prompt",
  "potato-provider",
  "potato-type",
  "potato-util",
@@ -1153,7 +1152,6 @@ dependencies = [
  "base64",
  "gcloud-auth",
  "http",
- "potato-prompt",
  "potato-provider",
  "potato-type",
  "potato-util",
@@ -1173,7 +1171,6 @@ version = "0.10.0"
 dependencies = [
  "baked-potato",
  "potato-agent",
- "potato-prompt",
  "potato-provider",
  "potato-type",
  "potato-util",
@@ -1185,29 +1182,12 @@ name = "potato-macro"
 version = "0.10.0"
 
 [[package]]
-name = "potato-prompt"
-version = "0.10.0"
-dependencies = [
- "mime_guess",
- "potato-type",
- "potato-util",
- "pyo3",
- "regex",
- "schemars",
- "serde",
- "serde_json",
- "thiserror 2.0.17",
- "tracing",
-]
-
-[[package]]
 name = "potato-provider"
 version = "0.10.0"
 dependencies = [
  "base64",
  "gcloud-auth",
  "http",
- "potato-prompt",
  "potato-type",
  "potato-util",
  "pyo3",
@@ -1256,7 +1236,6 @@ version = "0.10.0"
 dependencies = [
  "chrono",
  "potato-agent",
- "potato-prompt",
  "potato-provider",
  "potato-type",
  "potato-util",
