@@ -1845,7 +1845,7 @@ pub struct Tool {
 #[derive(Debug, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase", default)]
 #[pyclass]
-pub struct GeminiGenerateContentRequest {
+pub struct GeminiGenerateContentRequestV1 {
     pub contents: Vec<Content>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
