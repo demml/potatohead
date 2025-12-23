@@ -1,6 +1,8 @@
 use crate::anthropic::v1::message::AnthropicSettings;
 use crate::error::TypeError;
-use crate::{google::chat::GeminiSettings, openai::v1::chat::settings::OpenAIChatSettings};
+use crate::{
+    google::v1::generate::request::GeminiSettings, openai::v1::chat::settings::OpenAIChatSettings,
+};
 use crate::{Provider, SettingsType};
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;

@@ -1,6 +1,6 @@
 use crate::common::TokenUsage;
 use crate::google::v1::generate::request::Modality;
-use crate::google::v1::generate::request::{Content, HarmBlockThreshold, HarmCategory};
+use crate::google::v1::generate::request::{GeminiContent, HarmBlockThreshold, HarmCategory};
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -456,7 +456,7 @@ pub struct CitationMetadata {
 #[serde(rename_all = "camelCase")]
 pub struct Candidate {
     pub index: i32,
-    pub content: Content,
+    pub content: GeminiContent,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avg_logprobs: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]

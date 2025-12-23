@@ -1,7 +1,7 @@
 use crate::anthropic::v1::message::{AnthropicSettings, MessageParam as AnthropicMessage};
 use crate::anthropic::v1::message::{ContentBlockParam, TextBlockParam};
 use crate::error::TypeError;
-use crate::google::chat::GeminiSettings;
+use crate::google::v1::generate::request::{GeminiContent, GeminiSettings};
 use crate::openai::v1::chat::request::ChatMessage as OpenAIChatMessage;
 use crate::openai::v1::chat::request::ContentPart;
 use crate::openai::v1::chat::request::TextContentPart;
@@ -139,6 +139,7 @@ fn get_system_role(provider: &Provider) -> &'static str {
 pub enum MessageNum {
     OpenAIMessageV1(OpenAIChatMessage),
     AnthropicMessageV1(AnthropicMessage),
+    GeminiContentV1(GeminiContent),
 }
 
 impl MessageNum {
@@ -152,12 +153,17 @@ impl MessageNum {
                 let bound_msg = msg.bind(name, value)?;
                 Ok(MessageNum::AnthropicMessageV1(bound_msg))
             }
+            MessageNum::GeminiContentV1(msg) => {
+                let bound_msg = msg.bind(name, value)?;
+                Ok(MessageNum::GeminiContentV1(bound_msg))
+            }
         }
     }
     fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
         match self {
             MessageNum::OpenAIMessageV1(msg) => msg.bind_mut(name, value),
             MessageNum::AnthropicMessageV1(msg) => msg.bind_mut(name, value),
+            MessageNum::GeminiContentV1(msg) => msg.bind_mut(name, value),
         }
     }
 
@@ -165,6 +171,7 @@ impl MessageNum {
         match self {
             MessageNum::OpenAIMessageV1(msg) => msg.extract_variables(),
             MessageNum::AnthropicMessageV1(msg) => msg.extract_variables(),
+            MessageNum::GeminiContentV1(msg) => msg.extract_variables(),
         }
     }
 
@@ -175,6 +182,10 @@ impl MessageNum {
                 Ok(bound_msg)
             }
             MessageNum::AnthropicMessageV1(msg) => {
+                let bound_msg = msg.clone().into_bound_py_any(py)?;
+                Ok(bound_msg)
+            }
+            MessageNum::GeminiContentV1(msg) => {
                 let bound_msg = msg.clone().into_bound_py_any(py)?;
                 Ok(bound_msg)
             }

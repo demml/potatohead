@@ -65,6 +65,21 @@ pub enum TypeError {
 
     #[error("Parts must be a string, Part, DataNum variant, or a list of these types")]
     InvalidPartType,
+
+    #[error("Invalid ranking config provided.")]
+    InvalidRankingConfig,
+
+    #[error("Invalid retrieval source provided.")]
+    InvalidRetrievalSource,
+
+    #[error("Invalid authentication configuration provided.")]
+    InvalidAuthConfig,
+
+    #[error("Invalid OAuth configuration provided.")]
+    InvalidOauthConfig,
+
+    #[error("Invalid OIDC configuration provided.")]
+    InvalidOidcConfig,
 }
 
 impl From<TypeError> for PyErr {

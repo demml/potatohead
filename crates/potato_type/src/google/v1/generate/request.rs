@@ -1,3 +1,5 @@
+use crate::traits::get_var_regex;
+use crate::traits::PromptMessageExt;
 use crate::{SettingsType, TypeError};
 use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
@@ -7,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 // API Reference:
 // Note - This is an attempt at combining both the Gemini and Vertex API specs as they are largely the same
@@ -807,12 +810,16 @@ pub struct GeminiSettings {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cached_content: Option<String>,
+
+    #[pyo3(get)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<Tool>>,
 }
 
 #[pymethods]
 impl GeminiSettings {
     #[new]
-    #[pyo3(signature = (labels=None, tool_config=None, generation_config=None, safety_settings=None, model_armor_config=None, extra_body=None, cached_content=None))]
+    #[pyo3(signature = (labels=None, tool_config=None, generation_config=None, safety_settings=None, model_armor_config=None, extra_body=None, cached_content=None, tools=None))]
     pub fn new(
         labels: Option<HashMap<String, String>>,
         tool_config: Option<ToolConfig>,
@@ -821,6 +828,7 @@ impl GeminiSettings {
         model_armor_config: Option<ModelArmorConfig>,
         extra_body: Option<&Bound<'_, PyAny>>,
         cached_content: Option<String>,
+        tools: Option<Vec<Tool>>,
     ) -> Result<Self, UtilError> {
         let extra = match extra_body {
             Some(obj) => Some(pyobject_to_json(obj)?),
@@ -835,6 +843,7 @@ impl GeminiSettings {
             model_armor_config,
             extra_body: extra,
             cached_content,
+            tools,
         })
     }
 
@@ -1200,7 +1209,7 @@ impl Part {
 #[pyclass]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct Content {
+pub struct GeminiContent {
     /// Optional. The producer of the content. Must be either 'user' or 'model'.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub role: Option<String>,
@@ -1287,7 +1296,7 @@ fn extract_parts_from_py_object(parts: &Bound<'_, PyAny>) -> Result<Vec<Part>, T
 }
 
 #[pymethods]
-impl Content {
+impl GeminiContent {
     /// Create a new Content instance.
     ///
     /// # Arguments
@@ -1317,10 +1326,57 @@ impl Content {
     #[pyo3(signature = (parts, role=None))]
     pub fn new(parts: &Bound<'_, PyAny>, role: Option<String>) -> PyResult<Self> {
         let parts_vec = extract_parts_from_py_object(parts)?;
-        Ok(Content {
+        Ok(GeminiContent {
             role,
             parts: parts_vec,
         })
+    }
+}
+
+impl PromptMessageExt for GeminiContent {
+    fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
+        let placeholder = format!("${{{name}}}");
+
+        for part in &mut self.parts {
+            match &mut part.data {
+                DataNum::Text(text) => {
+                    *text = text.replace(&placeholder, value);
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    fn bind(&self, name: &str, value: &str) -> Result<Self, TypeError>
+    where
+        Self: Sized,
+    {
+        let mut new_message = self.clone();
+        new_message.bind_mut(name, value)?;
+        Ok(new_message)
+    }
+
+    fn extract_variables(&self) -> Vec<String> {
+        let mut variables = HashSet::new();
+
+        // Lazily initialize regex to avoid recompilation
+        let regex = get_var_regex();
+
+        // Extract variables from all text content parts
+        for part in &self.parts {
+            if let DataNum::Text(text) = &part.data {
+                for cap in regex.captures_iter(text) {
+                    if let Some(var_name) = cap.get(1) {
+                        variables.insert(var_name.as_str().to_string());
+                    }
+                }
+            }
+        }
+
+        // Convert HashSet to Vec for return
+        variables.into_iter().collect()
     }
 }
 
@@ -1354,14 +1410,24 @@ pub struct FunctionDeclaration {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct DataStoreSpec {
     pub data_store: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<String>,
 }
 
+#[pymethods]
+impl DataStoreSpec {
+    #[new]
+    pub fn new(data_store: String, filter: Option<String>) -> Self {
+        DataStoreSpec { data_store, filter }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct VertexAISearch {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub datastore: Option<String>,
@@ -1375,8 +1441,31 @@ pub struct VertexAISearch {
     pub data_store_specs: Option<Vec<DataStoreSpec>>,
 }
 
+#[pymethods]
+impl VertexAISearch {
+    #[new]
+    #[pyo3(signature = (datastore=None, engine=None, max_results=None,
+        filter=None, data_store_specs=None))]
+    pub fn new(
+        datastore: Option<String>,
+        engine: Option<String>,
+        max_results: Option<i32>,
+        filter: Option<String>,
+        data_store_specs: Option<Vec<DataStoreSpec>>,
+    ) -> Self {
+        VertexAISearch {
+            datastore,
+            engine,
+            max_results,
+            filter,
+            data_store_specs,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct VertexRagStore {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rag_resources: Option<Vec<RagResource>>,
@@ -1390,6 +1479,7 @@ pub struct VertexRagStore {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct RagResource {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rag_corpus: Option<String>,
@@ -1397,8 +1487,21 @@ pub struct RagResource {
     pub rag_file_ids: Option<Vec<String>>,
 }
 
+#[pymethods]
+impl RagResource {
+    #[new]
+    #[pyo3(signature = (rag_corpus=None, rag_file_ids=None))]
+    pub fn new(rag_corpus: Option<String>, rag_file_ids: Option<Vec<String>>) -> Self {
+        RagResource {
+            rag_corpus,
+            rag_file_ids,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct RagRetrievalConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_k: Option<i32>,
@@ -1408,8 +1511,22 @@ pub struct RagRetrievalConfig {
     pub ranking: Option<Ranking>,
 }
 
+#[pymethods]
+impl RagRetrievalConfig {
+    #[new]
+    #[pyo3(signature = (top_k=None, filter=None, ranking=None))]
+    pub fn new(top_k: Option<i32>, filter: Option<Filter>, ranking: Option<Ranking>) -> Self {
+        RagRetrievalConfig {
+            top_k,
+            filter,
+            ranking,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct Filter {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata_filter: Option<String>,
@@ -1419,22 +1536,60 @@ pub struct Filter {
     pub vector_similarity_threshold: Option<f64>,
 }
 
+#[pymethods]
+impl Filter {
+    #[new]
+    #[pyo3(signature = (metadata_filter=None, vector_distance_threshold=None, vector_similarity_threshold=None))]
+    pub fn new(
+        metadata_filter: Option<String>,
+        vector_distance_threshold: Option<f64>,
+        vector_similarity_threshold: Option<f64>,
+    ) -> Self {
+        Filter {
+            metadata_filter,
+            vector_distance_threshold,
+            vector_similarity_threshold,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct RankService {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_name: Option<String>,
 }
 
+#[pymethods]
+impl RankService {
+    #[new]
+    #[pyo3(signature = (model_name=None))]
+    pub fn new(model_name: Option<String>) -> Self {
+        RankService { model_name }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct LlmRanker {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_name: Option<String>,
 }
 
+#[pymethods]
+impl LlmRanker {
+    #[new]
+    #[pyo3(signature = (model_name=None))]
+    pub fn new(model_name: Option<String>) -> Self {
+        LlmRanker { model_name }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
+#[pyclass]
 pub enum RankingConfig {
     RankService(RankService),
     LlmRanker(LlmRanker),
@@ -1442,13 +1597,35 @@ pub enum RankingConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct Ranking {
     #[serde(flatten)]
     pub ranking_config: RankingConfig,
 }
 
+#[pymethods]
+impl Ranking {
+    #[new]
+    #[pyo3(signature = (rank_service=None, llm_ranker=None))]
+    pub fn new(
+        rank_service: Option<RankService>,
+        llm_ranker: Option<LlmRanker>,
+    ) -> Result<Self, TypeError> {
+        match (rank_service, llm_ranker) {
+            (Some(rs), None) => Ok(Ranking {
+                ranking_config: RankingConfig::RankService(rs),
+            }),
+            (None, Some(lr)) => Ok(Ranking {
+                ranking_config: RankingConfig::LlmRanker(lr),
+            }),
+            _ => Err(TypeError::InvalidRankingConfig),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[pyclass]
 pub enum ApiSpecType {
     ApiSpecUnspecified,
     SimpleSearch,
@@ -1456,15 +1633,38 @@ pub enum ApiSpecType {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
 pub struct SimpleSearchParams {}
+
+#[pymethods]
+impl SimpleSearchParams {
+    #[new]
+    pub fn new() -> Self {
+        SimpleSearchParams {}
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct ElasticSearchParams {
     pub index: String,
     pub search_template: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub num_hits: Option<i32>,
+}
+
+#[pymethods]
+impl ElasticSearchParams {
+    #[new]
+    #[pyo3(signature = (index, search_template, num_hits=None))]
+    pub fn new(index: String, search_template: String, num_hits: Option<i32>) -> Self {
+        ElasticSearchParams {
+            index,
+            search_template,
+            num_hits,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -1477,6 +1677,7 @@ pub enum ExternalApiParams {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[pyclass]
 pub enum AuthType {
     AuthTypeUnspecified,
     NoAuth,
@@ -1489,6 +1690,7 @@ pub enum AuthType {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[pyclass]
 pub enum HttpElementLocation {
     HttpInUnspecified,
     HttpInQuery,
@@ -1500,6 +1702,7 @@ pub enum HttpElementLocation {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct ApiKeyConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -1511,32 +1714,104 @@ pub struct ApiKeyConfig {
     pub http_element_location: Option<HttpElementLocation>,
 }
 
+#[pymethods]
+impl ApiKeyConfig {
+    #[new]
+    #[pyo3(signature = (name=None, api_key_secret=None, api_key_string
+=None, http_element_location=None))]
+    pub fn new(
+        name: Option<String>,
+        api_key_secret: Option<String>,
+        api_key_string: Option<String>,
+        http_element_location: Option<HttpElementLocation>,
+    ) -> Self {
+        ApiKeyConfig {
+            name,
+            api_key_secret,
+            api_key_string,
+            http_element_location,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct HttpBasicAuthConfig {
     pub credential_secret: String,
 }
 
+#[pymethods]
+impl HttpBasicAuthConfig {
+    #[new]
+    pub fn new(credential_secret: String) -> Self {
+        HttpBasicAuthConfig { credential_secret }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct GoogleServiceAccountConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub service_account: Option<String>,
 }
 
+#[pymethods]
+impl GoogleServiceAccountConfig {
+    #[new]
+    #[pyo3(signature = (service_account=None))]
+    pub fn new(service_account: Option<String>) -> Self {
+        GoogleServiceAccountConfig { service_account }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
+#[pyclass]
 pub enum OauthConfigValue {
     AccessToken(String),
     ServiceAccount(String),
 }
 
+#[pymethods]
+impl OauthConfigValue {
+    #[new]
+    #[pyo3(signature = (access_token=None, service_account=None))]
+    pub fn new(
+        access_token: Option<String>,
+        service_account: Option<String>,
+    ) -> Result<Self, TypeError> {
+        match (access_token, service_account) {
+            (Some(token), None) => Ok(OauthConfigValue::AccessToken(token)),
+            (None, Some(sa)) => Ok(OauthConfigValue::ServiceAccount(sa)),
+            _ => Err(TypeError::InvalidOauthConfig),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct OauthConfig {
     #[serde(flatten)]
     pub oauth_config: OauthConfigValue,
+}
+
+#[pymethods]
+impl OauthConfig {
+    #[new]
+    #[pyo3(signature = (access_token=None, service_account=None))]
+    pub fn new(
+        access_token: Option<String>,
+        service_account: Option<String>,
+    ) -> Result<Self, TypeError> {
+        let oauth_value = OauthConfigValue::new(access_token, service_account)?;
+        Ok(OauthConfig {
+            oauth_config: oauth_value,
+        })
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -1549,14 +1824,36 @@ pub enum OidcConfigValue {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct OidcConfig {
     #[serde(flatten)]
     pub oidc_config: OidcConfigValue,
 }
 
+#[pymethods]
+impl OidcConfig {
+    #[new]
+    #[pyo3(signature = (id_token=None, service_account=None))]
+    pub fn new(
+        id_token: Option<String>,
+        service_account: Option<String>,
+    ) -> Result<Self, TypeError> {
+        match (id_token, service_account) {
+            (Some(token), None) => Ok(OidcConfig {
+                oidc_config: OidcConfigValue::IdToken(token),
+            }),
+            (None, Some(sa)) => Ok(OidcConfig {
+                oidc_config: OidcConfigValue::ServiceAccount(sa),
+            }),
+            _ => Err(TypeError::InvalidOidcConfig),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
+#[pyclass]
 pub enum AuthConfigValue {
     ApiKeyConfig(ApiKeyConfig),
     HttpBasicAuthConfig(HttpBasicAuthConfig),
@@ -1565,8 +1862,57 @@ pub enum AuthConfigValue {
     OidcConfig(OidcConfig),
 }
 
+#[pymethods]
+impl AuthConfigValue {
+    #[new]
+    #[pyo3(signature = (api_key_config=None, http_basic_auth_config=None,
+        google_service_account_config=None, oauth_config=None, oidc_config=None))]
+    pub fn new(
+        api_key_config: Option<ApiKeyConfig>,
+        http_basic_auth_config: Option<HttpBasicAuthConfig>,
+        google_service_account_config: Option<GoogleServiceAccountConfig>,
+        oauth_config: Option<OauthConfig>,
+        oidc_config: Option<OidcConfig>,
+    ) -> Result<Self, TypeError> {
+        let mut count = 0;
+        if api_key_config.is_some() {
+            count += 1;
+        }
+        if http_basic_auth_config.is_some() {
+            count += 1;
+        }
+        if google_service_account_config.is_some() {
+            count += 1;
+        }
+        if oauth_config.is_some() {
+            count += 1;
+        }
+        if oidc_config.is_some() {
+            count += 1;
+        }
+        if count != 1 {
+            return Err(TypeError::InvalidAuthConfig);
+        }
+
+        if let Some(config) = api_key_config {
+            Ok(AuthConfigValue::ApiKeyConfig(config))
+        } else if let Some(config) = http_basic_auth_config {
+            Ok(AuthConfigValue::HttpBasicAuthConfig(config))
+        } else if let Some(config) = google_service_account_config {
+            Ok(AuthConfigValue::GoogleServiceAccountConfig(config))
+        } else if let Some(config) = oauth_config {
+            Ok(AuthConfigValue::OauthConfig(config))
+        } else if let Some(config) = oidc_config {
+            Ok(AuthConfigValue::OidcConfig(config))
+        } else {
+            Err(TypeError::InvalidAuthConfig)
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct AuthConfig {
     pub auth_type: AuthType,
     #[serde(flatten)]
@@ -1575,6 +1921,7 @@ pub struct AuthConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct ExternalApi {
     pub api_spec: ApiSpecType,
     pub endpoint: String,
@@ -1584,22 +1931,78 @@ pub struct ExternalApi {
     pub params: Option<ExternalApiParams>,
 }
 
+#[pymethods]
+impl ExternalApi {
+    #[new]
+    #[pyo3(signature = (api_spec, endpoint, auth_config=None, simple_search_params=None, elastic_search_params=None))]
+    pub fn new(
+        api_spec: ApiSpecType,
+        endpoint: String,
+        auth_config: Option<AuthConfig>,
+        simple_search_params: Option<SimpleSearchParams>,
+        elastic_search_params: Option<ElasticSearchParams>,
+    ) -> Self {
+        ExternalApi {
+            api_spec,
+            endpoint,
+            auth_config,
+            params: match (simple_search_params, elastic_search_params) {
+                (Some(simple), None) => Some(ExternalApiParams::SimpleSearchParams(simple)),
+                (None, Some(elastic)) => Some(ExternalApiParams::ElasticSearchParams(elastic)),
+                _ => None,
+            },
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
+#[pyclass]
 pub enum RetrievalSource {
     VertexAiSearch(VertexAISearch),
     VertexRagStore(VertexRagStore),
     ExternalApi(ExternalApi),
 }
 
+#[pymethods]
+impl RetrievalSource {
+    #[new]
+    #[pyo3(signature = (vertex_ai_search=None, vertex_rag_store=None, external_api=None))]
+    pub fn new(
+        vertex_ai_search: Option<VertexAISearch>,
+        vertex_rag_store: Option<VertexRagStore>,
+        external_api: Option<ExternalApi>,
+    ) -> Result<Self, TypeError> {
+        match (vertex_ai_search, vertex_rag_store, external_api) {
+            (Some(va), None, None) => Ok(RetrievalSource::VertexAiSearch(va)),
+            (None, Some(vr), None) => Ok(RetrievalSource::VertexRagStore(vr)),
+            (None, None, Some(ea)) => Ok(RetrievalSource::ExternalApi(ea)),
+            _ => Err(TypeError::InvalidRetrievalSource),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct Retrieval {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub disable_attribution: Option<bool>,
     #[serde(flatten)]
     pub source: RetrievalSource,
+}
+
+#[pymethods]
+impl Retrieval {
+    #[new]
+    #[pyo3(signature = (source, disable_attribution=None))]
+    pub fn new(source: RetrievalSource, disable_attribution: Option<bool>) -> Self {
+        Retrieval {
+            disable_attribution,
+            source,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -1749,6 +2152,7 @@ impl GoogleSearchNum {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[pyclass]
 pub enum DynamicRetrievalMode {
     ModeUnspecified,
     ModeDynamic,
@@ -1756,6 +2160,7 @@ pub enum DynamicRetrievalMode {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct DynamicRetrievalConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<DynamicRetrievalMode>,
@@ -1763,17 +2168,51 @@ pub struct DynamicRetrievalConfig {
     pub dynamic_threshold: Option<f64>,
 }
 
+#[pymethods]
+impl DynamicRetrievalConfig {
+    #[new]
+    #[pyo3(signature = (mode=None, dynamic_threshold=None))]
+    pub fn new(mode: Option<DynamicRetrievalMode>, dynamic_threshold: Option<f64>) -> Self {
+        DynamicRetrievalConfig {
+            mode,
+            dynamic_threshold,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct GoogleSearchRetrieval {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dynamic_retrieval_config: Option<DynamicRetrievalConfig>,
 }
 
+#[pymethods]
+impl GoogleSearchRetrieval {
+    #[new]
+    #[pyo3(signature = (dynamic_retrieval_config=None))]
+    pub fn new(dynamic_retrieval_config: Option<DynamicRetrievalConfig>) -> Self {
+        GoogleSearchRetrieval {
+            dynamic_retrieval_config,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct GoogleMaps {
     pub enable_widget: bool,
+}
+
+#[pymethods]
+impl GoogleMaps {
+    #[new]
+    #[pyo3(signature = (enable_widget=false))]
+    pub fn new(enable_widget: bool) -> Self {
+        GoogleMaps { enable_widget }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -1781,8 +2220,17 @@ pub struct GoogleMaps {
 #[pyclass]
 pub struct CodeExecution {}
 
+#[pymethods]
+impl CodeExecution {
+    #[new]
+    pub fn new() -> Self {
+        CodeExecution {}
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[pyclass]
 pub enum ComputerUseEnvironment {
     EnvironmentUnspecified,
     EnvironmentBrowser,
@@ -1790,20 +2238,59 @@ pub enum ComputerUseEnvironment {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct ComputerUse {
     pub environment: ComputerUseEnvironment,
     pub excluded_predefined_functions: Vec<String>,
 }
 
+#[pymethods]
+impl ComputerUse {
+    #[new]
+    #[pyo3(signature = (environment, excluded_predefined_functions))]
+    pub fn new(
+        environment: ComputerUseEnvironment,
+        excluded_predefined_functions: Vec<String>,
+    ) -> Self {
+        ComputerUse {
+            environment,
+            excluded_predefined_functions,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
 pub struct UrlContext {}
+
+#[pymethods]
+impl UrlContext {
+    #[new]
+    pub fn new() -> Self {
+        UrlContext {}
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct FileSearch {
     pub file_search_store_names: Vec<String>,
     pub metadata_filter: String,
     pub top_k: i32,
+}
+
+#[pymethods]
+impl FileSearch {
+    #[new]
+    #[pyo3(signature = (file_search_store_names, metadata_filter, top_k))]
+    pub fn new(file_search_store_names: Vec<String>, metadata_filter: String, top_k: i32) -> Self {
+        FileSearch {
+            file_search_store_names,
+            metadata_filter,
+            top_k,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
@@ -1844,16 +2331,46 @@ pub struct Tool {
     pub file_search: Option<FileSearch>,
 }
 
+#[pymethods]
+impl Tool {
+    #[new]
+    #[pyo3(signature = (function_declarations=None, retrieval=None, google_search_retrieval=None, code_execution=None, google_search=None, google_maps=None, enterprise_web_search=None, parallel_ai_search=None, computer_use=None, url_context=None, file_search=None))]
+    pub fn new(
+        function_declarations: Option<Vec<FunctionDeclaration>>,
+        retrieval: Option<Retrieval>,
+        google_search_retrieval: Option<GoogleSearchRetrieval>,
+        code_execution: Option<CodeExecution>,
+        google_search: Option<GoogleSearchNum>,
+        google_maps: Option<GoogleMaps>,
+        enterprise_web_search: Option<EnterpriseWebSearch>,
+        parallel_ai_search: Option<ParallelAiSearch>,
+        computer_use: Option<ComputerUse>,
+        url_context: Option<UrlContext>,
+        file_search: Option<FileSearch>,
+    ) -> Self {
+        Tool {
+            function_declarations,
+            retrieval,
+            google_search_retrieval,
+            code_execution,
+            google_search,
+            google_maps,
+            enterprise_web_search,
+            parallel_ai_search,
+            computer_use,
+            url_context,
+            file_search,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct GeminiGenerateContentRequestV1 {
-    pub contents: Vec<Content>,
+    pub contents: Vec<GeminiContent>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub system_instruction: Option<Content>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<Vec<Tool>>,
+    pub system_instruction: Option<GeminiContent>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(flatten)]
