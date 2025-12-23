@@ -2,6 +2,7 @@ use crate::{SettingsType, TypeError};
 use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pyo3::types::PyString;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use serde_json::Value;
@@ -265,6 +266,7 @@ pub enum MediaResolution {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[pyclass]
 pub enum ModelRoutingPreference {
     Unknown,
     PrioritizeQuality,
@@ -332,30 +334,77 @@ impl ImageConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct AutoRoutingMode {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_routing_preference: Option<ModelRoutingPreference>,
 }
 
+#[pymethods]
+impl AutoRoutingMode {
+    #[new]
+    #[pyo3(signature = (model_routing_preference=None))]
+    pub fn new(model_routing_preference: Option<ModelRoutingPreference>) -> Self {
+        AutoRoutingMode {
+            model_routing_preference,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct ManualRoutingMode {
     pub model_name: String,
+}
+
+#[pymethods]
+impl ManualRoutingMode {
+    #[new]
+    pub fn new(model_name: String) -> Self {
+        ManualRoutingMode { model_name }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
+#[pyclass]
 pub enum RoutingConfigMode {
     AutoMode(AutoRoutingMode),
     ManualMode(ManualRoutingMode),
 }
 
+#[pymethods]
+impl RoutingConfigMode {
+    #[new]
+    #[pyo3(signature = (auto_mode=None, manual_mode=None))]
+    pub fn new(
+        auto_mode: Option<AutoRoutingMode>,
+        manual_mode: Option<ManualRoutingMode>,
+    ) -> Result<Self, TypeError> {
+        match (auto_mode, manual_mode) {
+            (Some(auto), None) => Ok(RoutingConfigMode::AutoMode(auto)),
+            (None, Some(manual)) => Ok(RoutingConfigMode::ManualMode(manual)),
+            _ => Err(TypeError::MissingRoutingConfigMode),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[pyclass]
 pub struct RoutingConfig {
     #[serde(flatten)]
     pub routing_config: RoutingConfigMode,
+}
+
+#[pymethods]
+impl RoutingConfig {
+    #[new]
+    pub fn new(routing_config: RoutingConfigMode) -> Self {
+        RoutingConfig { routing_config }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -363,6 +412,14 @@ pub struct RoutingConfig {
 #[pyclass]
 pub struct PrebuiltVoiceConfig {
     pub voice_name: String,
+}
+
+#[pymethods]
+impl PrebuiltVoiceConfig {
+    #[new]
+    pub fn new(voice_name: String) -> Self {
+        PrebuiltVoiceConfig { voice_name }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -390,11 +447,32 @@ pub struct SpeakerVoiceConfig {
     pub voice_config: VoiceConfig,
 }
 
+#[pymethods]
+impl SpeakerVoiceConfig {
+    #[new]
+    pub fn new(speaker: String, voice_config: VoiceConfig) -> Self {
+        SpeakerVoiceConfig {
+            speaker,
+            voice_config,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct MultiSpeakerVoiceConfig {
     pub speaker_voice_configs: Vec<SpeakerVoiceConfig>,
+}
+
+#[pymethods]
+impl MultiSpeakerVoiceConfig {
+    #[new]
+    pub fn new(speaker_voice_configs: Vec<SpeakerVoiceConfig>) -> Self {
+        MultiSpeakerVoiceConfig {
+            speaker_voice_configs,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
@@ -1014,8 +1092,63 @@ impl PartMetadata {
 
 #[pyclass]
 #[pyo3(get_all)]
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
-#[serde(rename_all = "camelCase", default)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(untagged)]
+pub enum DataNum {
+    Text(String),
+    InlineData(Blob),
+    FileData(FileData),
+    FunctionCall(FunctionCall),
+    FunctionResponse(FunctionResponse),
+    ExecutableCode(ExecutableCode),
+    CodeExecutionResult(CodeExecutionResult),
+}
+
+// helper for extracting data from PyAny to DataNum
+fn extract_data_from_py_object(data: &Bound<'_, PyAny>) -> Result<DataNum, TypeError> {
+    if data.is_instance_of::<PyString>() {
+        return Ok(DataNum::Text(data.extract::<String>()?));
+    }
+
+    // Check for native Rust types wrapped in PyO3
+    if data.is_instance_of::<Blob>() {
+        return Ok(DataNum::InlineData(data.extract::<Blob>()?));
+    }
+
+    if data.is_instance_of::<FileData>() {
+        return Ok(DataNum::FileData(data.extract::<FileData>()?));
+    }
+
+    if data.is_instance_of::<FunctionCall>() {
+        return Ok(DataNum::FunctionCall(data.extract::<FunctionCall>()?));
+    }
+
+    if data.is_instance_of::<FunctionResponse>() {
+        return Ok(DataNum::FunctionResponse(
+            data.extract::<FunctionResponse>()?,
+        ));
+    }
+
+    if data.is_instance_of::<ExecutableCode>() {
+        return Ok(DataNum::ExecutableCode(data.extract::<ExecutableCode>()?));
+    }
+
+    if data.is_instance_of::<CodeExecutionResult>() {
+        return Ok(DataNum::CodeExecutionResult(
+            data.extract::<CodeExecutionResult>()?,
+        ));
+    }
+
+    // If none of the above, return an error
+    Err(TypeError::InvalidDataType(
+        data.get_type().name()?.to_string(),
+    ))
+}
+
+#[pyclass]
+#[pyo3(get_all)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Part {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thought: Option<bool>,
@@ -1029,26 +1162,8 @@ pub struct Part {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub media_resolution: Option<MediaResolution>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub text: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub inline_data: Option<Blob>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_data: Option<FileData>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub function_call: Option<FunctionCall>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub function_response: Option<FunctionResponse>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub executable_code: Option<ExecutableCode>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub code_execution_result: Option<CodeExecutionResult>,
+    #[serde(flatten)]
+    pub data: DataNum,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub video_metadata: Option<VideoMetadata>,
@@ -1057,42 +1172,32 @@ pub struct Part {
 #[pymethods]
 impl Part {
     #[new]
-    #[pyo3(signature = (text=None, inline_data=None, file_data=None, function_call=None, function_response=None, executable_code=None, code_execution_result=None, video_metadata=None, thought=None, thought_signature=None, part_metadata=None, media_resolution=None))]
+    #[pyo3(signature = (data, thought=None, thought_signature=None, part_metadata=None, media_resolution=None,  video_metadata=None))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        text: Option<String>,
-        inline_data: Option<Blob>,
-        file_data: Option<FileData>,
-        function_call: Option<FunctionCall>,
-        function_response: Option<FunctionResponse>,
-        executable_code: Option<ExecutableCode>,
-        code_execution_result: Option<CodeExecutionResult>,
-        video_metadata: Option<VideoMetadata>,
+        data: &Bound<'_, PyAny>,
         thought: Option<bool>,
         thought_signature: Option<String>,
         part_metadata: Option<PartMetadata>,
         media_resolution: Option<MediaResolution>,
-    ) -> Self {
-        Part {
-            text,
-            inline_data,
-            file_data,
-            function_call,
-            function_response,
-            executable_code,
-            code_execution_result,
-            video_metadata,
+        video_metadata: Option<VideoMetadata>,
+    ) -> Result<Self, TypeError> {
+        let data_enum = extract_data_from_py_object(data)?;
+
+        Ok(Part {
             thought,
             thought_signature,
             part_metadata,
             media_resolution,
-        }
+            data: data_enum,
+            video_metadata,
+        })
     }
 }
 
 #[pyclass]
 #[pyo3(get_all)]
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Content {
     /// Optional. The producer of the content. Must be either 'user' or 'model'.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1101,12 +1206,119 @@ pub struct Content {
     pub parts: Vec<Part>,
 }
 
+// Helper function to extract parts from a PyAny object
+fn extract_parts_from_py_object(parts: &Bound<'_, PyAny>) -> Result<Vec<Part>, TypeError> {
+    use pyo3::types::{PyList, PyString};
+
+    // Check for String first - most common case, convert to text Part
+    if parts.is_instance_of::<PyString>() {
+        let text = parts.extract::<String>()?;
+        return Ok(vec![Part {
+            data: DataNum::Text(text),
+            thought: None,
+            thought_signature: None,
+            part_metadata: None,
+            media_resolution: None,
+            video_metadata: None,
+        }]);
+    }
+
+    // Check for single Part instance
+    if parts.is_instance_of::<Part>() {
+        return Ok(vec![parts.extract::<Part>()?]);
+    }
+
+    // Check for DataNum variants and wrap in Part
+    if let Ok(data_num) = extract_data_from_py_object(parts) {
+        return Ok(vec![Part {
+            data: data_num,
+            thought: None,
+            thought_signature: None,
+            part_metadata: None,
+            media_resolution: None,
+            video_metadata: None,
+        }]);
+    }
+
+    // Check for PyList - can contain Parts, DataNum variants, or strings
+    if parts.is_instance_of::<PyList>() {
+        let list = parts.cast::<PyList>()?;
+        let mut part_vec = Vec::with_capacity(list.len());
+
+        for item in list.iter() {
+            // Try to extract as Part first
+            if item.is_instance_of::<Part>() {
+                part_vec.push(item.extract::<Part>()?);
+            }
+            // Try to extract as String
+            else if item.is_instance_of::<PyString>() {
+                let text = item.extract::<String>()?;
+                part_vec.push(Part {
+                    data: DataNum::Text(text),
+                    thought: None,
+                    thought_signature: None,
+                    part_metadata: None,
+                    media_resolution: None,
+                    video_metadata: None,
+                });
+            }
+            // Try to extract as DataNum variant
+            else if let Ok(data_num) = extract_data_from_py_object(&item) {
+                part_vec.push(Part {
+                    data: data_num,
+                    thought: None,
+                    thought_signature: None,
+                    part_metadata: None,
+                    media_resolution: None,
+                    video_metadata: None,
+                });
+            } else {
+                return Err(TypeError::InvalidListType(
+                    item.get_type().name()?.to_string(),
+                ));
+            }
+        }
+        return Ok(part_vec);
+    }
+
+    Err(TypeError::InvalidPartType)
+}
+
 #[pymethods]
 impl Content {
+    /// Create a new Content instance.
+    ///
+    /// # Arguments
+    /// * `role` - Optional role string ('user' or 'model')
+    /// * `parts` - Can be:
+    ///   - A string (converted to a text Part)
+    ///   - A single Part instance
+    ///   - A DataNum variant (Blob, FileData, FunctionCall, etc.)
+    ///   - A list containing any combination of the above
+    ///
+    /// # Examples
+    /// ```python
+    /// # Simple text message
+    /// content = Content(role="user", parts="Hello, world!")
+    ///
+    /// # Multiple parts
+    /// content = Content(role="user", parts=[
+    ///     "Check this image:",
+    ///     Blob(mime_type="image/png", data="base64data...")
+    /// ])
+    ///
+    /// # Single Part with metadata
+    /// part = Part(data="Hello", thought=True)
+    /// content = Content(role="user", parts=part)
+    /// ```
     #[new]
-    #[pyo3(signature = (role=None, parts=vec![]))]
-    pub fn new(role: Option<String>, parts: Vec<Part>) -> Self {
-        Content { role, parts }
+    #[pyo3(signature = (parts, role=None))]
+    pub fn new(parts: &Bound<'_, PyAny>, role: Option<String>) -> PyResult<Self> {
+        let parts_vec = extract_parts_from_py_object(parts)?;
+        Ok(Content {
+            role,
+            parts: parts_vec,
+        })
     }
 }
 
@@ -1634,7 +1846,6 @@ pub struct Tool {
 #[serde(rename_all = "camelCase", default)]
 #[pyclass]
 pub struct GeminiGenerateContentRequest {
-    #[pyo3(get)]
     pub contents: Vec<Content>,
 
     #[serde(skip_serializing_if = "Option::is_none")]

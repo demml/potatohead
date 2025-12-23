@@ -53,6 +53,18 @@ pub enum TypeError {
 
     #[error("Invalid message type in list. Received: {0}")]
     InvalidMessageTypeInList(String),
+
+    #[error("Either 'auto_mode' or 'manual_mode' must be provided, but not both.")]
+    MissingRoutingConfigMode,
+
+    #[error("Invalid data type for Part. Expected String, Blob, FileData, FunctionCall, FunctionResponse, ExecutableCode, or CodeExecutionResult. Got: {0}")]
+    InvalidDataType(String),
+
+    #[error("Invalid list type for Part. Expected a list of Strings or a list of Message objects. Got: {0}")]
+    InvalidListType(String),
+
+    #[error("Parts must be a string, Part, DataNum variant, or a list of these types")]
+    InvalidPartType,
 }
 
 impl From<TypeError> for PyErr {
@@ -71,6 +83,12 @@ impl From<PyErr> for TypeError {
 
 impl<'a, 'py> From<PyClassGuardError<'a, 'py>> for TypeError {
     fn from(err: PyClassGuardError<'a, 'py>) -> Self {
+        TypeError::Error(err.to_string())
+    }
+}
+
+impl<'a, 'py> From<pyo3::CastError<'a, 'py>> for TypeError {
+    fn from(err: pyo3::CastError<'a, 'py>) -> Self {
         TypeError::Error(err.to_string())
     }
 }
