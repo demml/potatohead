@@ -155,7 +155,9 @@ pub enum Modality {
     ModalityUnspecified,
     Text,
     Image,
+    Video,
     Audio,
+    Document,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]

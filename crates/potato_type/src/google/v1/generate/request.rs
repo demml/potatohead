@@ -14,7 +14,7 @@ use std::collections::HashMap;
 //https://cloud.google.com/vertex-ai/generative-ai/docs/reference/rest/v1beta1/Content
 //https://docs.cloud.google.com/vertex-ai/generative-ai/docs/reference/rest/v1/projects.locations.endpoints/generateContent
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[pyclass]
 pub enum SchemaType {
@@ -178,7 +178,7 @@ impl Schema {
 }
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum HarmCategory {
     #[default]
@@ -197,7 +197,7 @@ pub enum HarmCategory {
 
 /// Probability-based threshold levels for blocking.
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum HarmBlockThreshold {
     HarmBlockThresholdUnspecified,
@@ -210,7 +210,7 @@ pub enum HarmBlockThreshold {
 }
 
 /// Specifies whether the threshold is used for probability or severity score.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[pyclass]
 pub enum HarmBlockMethod {
@@ -220,7 +220,7 @@ pub enum HarmBlockMethod {
 }
 
 /// Safety settings for harm blocking.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct SafetySetting {
@@ -245,16 +245,18 @@ impl SafetySetting {
 }
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Modality {
     ModalityUnspecified,
     Text,
     Image,
     Audio,
+    Video,
+    Document,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[pyclass]
 pub enum MediaResolution {
@@ -264,7 +266,7 @@ pub enum MediaResolution {
     MediaResolutionHigh,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[pyclass]
 pub enum ModelRoutingPreference {
@@ -274,7 +276,7 @@ pub enum ModelRoutingPreference {
     PrioritizeCost,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[pyclass]
 pub enum ThinkingLevel {
@@ -283,7 +285,7 @@ pub enum ThinkingLevel {
     High,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 #[pyclass(name = "GeminiThinkingConfig")]
 pub struct ThinkingConfig {
@@ -312,7 +314,7 @@ impl ThinkingConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 #[pyclass(name = "GeminiImageConfig")]
 pub struct ImageConfig {
@@ -332,7 +334,7 @@ impl ImageConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct AutoRoutingMode {
@@ -351,7 +353,7 @@ impl AutoRoutingMode {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct ManualRoutingMode {
@@ -366,7 +368,7 @@ impl ManualRoutingMode {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 #[pyclass]
@@ -391,7 +393,7 @@ impl RoutingConfigMode {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct RoutingConfig {
@@ -407,7 +409,7 @@ impl RoutingConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct PrebuiltVoiceConfig {
@@ -422,7 +424,7 @@ impl PrebuiltVoiceConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct VoiceConfig {
@@ -439,7 +441,7 @@ impl VoiceConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct SpeakerVoiceConfig {
@@ -458,7 +460,7 @@ impl SpeakerVoiceConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct MultiSpeakerVoiceConfig {
@@ -475,7 +477,7 @@ impl MultiSpeakerVoiceConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 #[pyclass]
 pub struct SpeechConfig {
@@ -886,7 +888,7 @@ impl GeminiSettings {
 }
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Language {
     LanguageUnspecified,
@@ -894,7 +896,7 @@ pub enum Language {
 }
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Outcome {
     OutcomeUnspecified,
@@ -905,7 +907,7 @@ pub enum Outcome {
 
 #[pyclass]
 #[pyo3(get_all)]
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct FileData {
     /// Required. The IANA standard MIME type of the source data.
     pub mime_type: String,
@@ -917,7 +919,7 @@ pub struct FileData {
 }
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct PartialArgs {
     pub json_path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -925,7 +927,7 @@ pub struct PartialArgs {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub null_value: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub number_value: Option<i64>,
+    pub number_value: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub string_value: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -940,7 +942,7 @@ impl PartialArgs {
         json_path: String,
         will_continue: Option<bool>,
         null_value: Option<bool>,
-        number_value: Option<i64>,
+        number_value: Option<f32>,
         string_value: Option<String>,
         bool_value: Option<bool>,
     ) -> Self {
@@ -956,7 +958,7 @@ impl PartialArgs {
 }
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct FunctionCall {
     /// Required. The name of the function to call.
     pub name: String,
@@ -1005,7 +1007,7 @@ impl FunctionCall {
 
 #[pyclass]
 #[pyo3(get_all)]
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct Blob {
     /// Required. The IANA standard MIME type of the source data.
     pub mime_type: String,
@@ -1026,7 +1028,7 @@ pub struct FunctionResponse {
 
 #[pyclass]
 #[pyo3(get_all)]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecutableCode {
     /// Required. Programming language of the code.
@@ -1037,7 +1039,7 @@ pub struct ExecutableCode {
 
 #[pyclass]
 #[pyo3(get_all)]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeExecutionResult {
     /// Required. Outcome of the code execution.
@@ -1049,7 +1051,7 @@ pub struct CodeExecutionResult {
 
 #[pyclass]
 #[pyo3(get_all)]
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct VideoMetadata {
     /// Optional. The start offset of the video.
@@ -1350,7 +1352,7 @@ pub struct FunctionDeclaration {
     pub response_json_schema: Option<Value>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct DataStoreSpec {
     pub data_store: String,
@@ -1358,7 +1360,7 @@ pub struct DataStoreSpec {
     pub filter: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct VertexAISearch {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1386,7 +1388,7 @@ pub struct VertexRagStore {
     pub vector_distance_threshold: Option<f64>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct RagResource {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1417,35 +1419,35 @@ pub struct Filter {
     pub vector_similarity_threshold: Option<f64>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct RankService {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_name: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct LlmRanker {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_name: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum RankingConfig {
     RankService(RankService),
     LlmRanker(LlmRanker),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Ranking {
     #[serde(flatten)]
     pub ranking_config: RankingConfig,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ApiSpecType {
     ApiSpecUnspecified,
@@ -1453,10 +1455,10 @@ pub enum ApiSpecType {
     ElasticSearch,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SimpleSearchParams {}
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ElasticSearchParams {
     pub index: String,
@@ -1473,7 +1475,7 @@ pub enum ExternalApiParams {
     ElasticSearchParams(ElasticSearchParams),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AuthType {
     AuthTypeUnspecified,
@@ -1485,7 +1487,7 @@ pub enum AuthType {
     OidcAuth,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum HttpElementLocation {
     HttpInUnspecified,
@@ -1496,7 +1498,7 @@ pub enum HttpElementLocation {
     HttpInCookie,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ApiKeyConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1509,20 +1511,20 @@ pub struct ApiKeyConfig {
     pub http_element_location: Option<HttpElementLocation>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct HttpBasicAuthConfig {
     pub credential_secret: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct GoogleServiceAccountConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub service_account: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum OauthConfigValue {
@@ -1530,14 +1532,14 @@ pub enum OauthConfigValue {
     ServiceAccount(String),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct OauthConfig {
     #[serde(flatten)]
     pub oauth_config: OauthConfigValue,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum OidcConfigValue {
@@ -1545,14 +1547,14 @@ pub enum OidcConfigValue {
     ServiceAccount(String),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct OidcConfig {
     #[serde(flatten)]
     pub oidc_config: OidcConfigValue,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum AuthConfigValue {
@@ -1563,7 +1565,7 @@ pub enum AuthConfigValue {
     OidcConfig(OidcConfig),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthConfig {
     pub auth_type: AuthType,
@@ -1600,7 +1602,7 @@ pub struct Retrieval {
     pub source: RetrievalSource,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct Interval {
@@ -1610,7 +1612,7 @@ pub struct Interval {
     pub end_time: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct GoogleSearch {
@@ -1618,7 +1620,7 @@ pub struct GoogleSearch {
     pub time_range_filter: Interval,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[pyclass]
 pub enum PhishBlockThreshold {
@@ -1631,7 +1633,7 @@ pub enum PhishBlockThreshold {
     BlockOnlyExtremelyHigh,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct VertexGoogleSearch {
@@ -1657,7 +1659,7 @@ impl VertexGoogleSearch {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct EnterpriseWebSearch {
@@ -1683,7 +1685,7 @@ impl EnterpriseWebSearch {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct ParallelAiSearch {
@@ -1720,7 +1722,7 @@ impl ParallelAiSearch {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 #[pyclass]
@@ -1745,7 +1747,7 @@ impl GoogleSearchNum {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DynamicRetrievalMode {
     ModeUnspecified,
@@ -1768,35 +1770,35 @@ pub struct GoogleSearchRetrieval {
     pub dynamic_retrieval_config: Option<DynamicRetrievalConfig>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct GoogleMaps {
     pub enable_widget: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct CodeExecution {}
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ComputerUseEnvironment {
     EnvironmentUnspecified,
     EnvironmentBrowser,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ComputerUse {
     pub environment: ComputerUseEnvironment,
     pub excluded_predefined_functions: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct UrlContext {}
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FileSearch {
     pub file_search_store_names: Vec<String>,
@@ -1844,7 +1846,6 @@ pub struct Tool {
 
 #[derive(Debug, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
 pub struct GeminiGenerateContentRequestV1 {
     pub contents: Vec<Content>,
 

@@ -1,9 +1,9 @@
 use crate::error::ProviderError;
 use crate::providers::openai::Usage;
+use crate::providers::traits::{LogProbExt, ResponseExt, TokenUsage};
 use base64::prelude::*;
-use potato_type::common::{LogProbExt, ResponseExt, TokenUsage};
+use potato_prompt::{prompt::types::PromptContent, Message};
 use potato_type::google::chat::{GeminiSettings, HarmBlockThreshold, HarmCategory, Modality};
-use potato_type::prompt::{Message, PromptContent};
 use potato_util::utils::ResponseLogProbs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -750,8 +750,10 @@ pub enum BlockedReason {
     Safety,
     Other,
     Blocklist,
+    ModelArmor,
     ProhibitedContent,
     ImageSafety,
+    Jailbreak,
 }
 
 /// Status of the url retrieval.
@@ -871,11 +873,11 @@ pub struct UsageMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub candidates_token_count: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_token_count: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_use_prompt_token_count: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thoughts_token_count: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub total_token_count: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cached_content_token_count: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
