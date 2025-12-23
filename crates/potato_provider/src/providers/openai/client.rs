@@ -1,14 +1,11 @@
 use crate::error::ProviderError;
 
 use crate::providers::embed::EmbeddingResponse;
-use crate::providers::openai::{
-    OpenAIChatMessage, OpenAIChatRequest, OpenAIChatResponse, OpenAIEmbeddingRequest,
-};
 use crate::providers::types::add_extra_body_to_prompt;
 use crate::providers::types::build_http_client;
 use crate::providers::types::ServiceType;
-use potato_prompt::Prompt;
-use potato_type::openai::embedding::OpenAIEmbeddingResponse;
+use potato_type::openai::v1::{OpenAIEmbeddingRequest, OpenAIEmbeddingResponse};
+use potato_type::prompt::Prompt;
 use potato_type::{Common, Provider};
 use reqwest::Client;
 use reqwest::Response;

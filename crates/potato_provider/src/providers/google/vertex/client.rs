@@ -6,8 +6,8 @@ use crate::providers::google::{
 };
 use crate::providers::types::build_http_client;
 use crate::providers::types::{add_extra_body_to_prompt, ServiceType};
-use potato_prompt::Prompt;
-use potato_type::google::predict::{PredictRequest, PredictResponse};
+use potato_type::google::v1::embedding::{PredictRequest, PredictResponse};
+use potato_type::prompt::Prompt;
 use potato_type::Provider;
 use reqwest::header::{HeaderValue, AUTHORIZATION};
 use reqwest::Client;

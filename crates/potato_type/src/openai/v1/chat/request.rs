@@ -360,3 +360,31 @@ pub struct OpenAIChatRequest<'a> {
     #[serde(flatten)]
     pub settings: Option<&'a OpenAIChatSettings>,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OpenAIEmbeddingRequest<T>
+where
+    T: Serialize,
+{
+    pub input: Vec<String>,
+
+    #[serde(flatten)]
+    pub settings: T,
+}
+
+impl<T> OpenAIEmbeddingRequest<T>
+where
+    T: Serialize,
+{
+    /// Creates a new OpenAI embedding request with generic settings
+    ///
+    /// # Arguments
+    /// * `inputs` - Vector of strings to embed
+    /// * `settings` - Any configuration type that implements Serialize
+    ///
+    /// # Returns
+    /// * `Self` - New embedding request instance
+    pub fn new(input: Vec<String>, settings: T) -> Self {
+        Self { input, settings }
+    }
+}

@@ -101,6 +101,7 @@ fn get_system_role(provider: &Provider) -> &'static str {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(untagged)]
 pub enum MessageNum {
     OpenAIMessageV1(OpenAIChatMessage),
     AnthropicMessageV1(AnthropicMessage),
@@ -475,6 +476,13 @@ impl Prompt {
     pub fn model_dump_value(&self) -> Value {
         // Convert the Prompt to a JSON Value
         serde_json::to_value(self).unwrap_or(Value::Null)
+    }
+
+    pub fn to_request_json(&self) -> Result<Value, TypeError> {
+        // Convert the Prompt to a JSON Value
+        let json_value = serde_json::to_value(self)?;
+
+        Ok(json_value)
     }
 }
 

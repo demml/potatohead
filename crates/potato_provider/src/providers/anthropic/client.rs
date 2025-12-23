@@ -1,16 +1,17 @@
 use crate::error::ProviderError;
 
-use potato_type::anthropic::v1::message::AnthropicMessageRequest;
-use potato_type::anthropic::v1::message::{AnthropicChatResponse, MessageParam};
-
 use crate::providers::types::add_extra_body_to_prompt;
 use crate::providers::types::build_http_client;
 use crate::providers::types::ServiceType;
 use http::{header, HeaderMap};
-use potato_prompt::Prompt;
+use potato_type::anthropic::v1::message::{AnthropicChatResponse, AnthropicSettings};
+
+use potato_type::prompt::MessageNum;
+use potato_type::prompt::Prompt;
 use potato_type::{Common, Provider};
 use reqwest::Client;
 use reqwest::Response;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{debug, error, instrument};
 
@@ -154,7 +155,7 @@ impl AnthropicClient {
         Ok(response)
     }
 
-    /// Sends a chat completion request to the OpenAI API. This is a rust-only method
+    /// Sends a message request to the OpenAI API. This is a rust-only method
     /// that allows you to interact with the OpenAI API without needing Python.
     ///
     /// # Arguments:
@@ -166,84 +167,90 @@ impl AnthropicClient {
     /// * `Result<ChatResponse, ProviderError>`: Returns a `ChatResponse` on success or an `ProviderError` on failure.
     ///
     #[instrument(name = "anthropic_chat_completion", skip_all)]
-    pub async fn chat_completion(
-        &self,
-        prompt: &Prompt,
-    ) -> Result<AnthropicChatResponse, ProviderError> {
+    pub async fn message(&self, prompt: &Prompt) -> Result<AnthropicChatResponse, ProviderError> {
         if let AnthropicAuth::NotSet = self.config.auth {
             return Err(ProviderError::MissingAuthenticationError);
         }
 
-        let settings = &prompt.model_settings;
         let mut additional_headers = HeaderMap::new();
-
-        // Build messages without intermediate Vec allocations
-        let message_count = prompt.system_instruction.len() + prompt.message.len();
-        let mut messages = Vec::with_capacity(message_count);
-
-        // Convert system instructions
-        for msg in &prompt.system_instruction {
-            messages.push(MessageParam::from_message(msg)?);
-        }
-
-        // Convert user messages
-        for msg in &prompt.message {
-            messages.push(MessageParam::from_message(msg)?);
-        }
-
-        // Create the Anthropic chat request
-        let chat_request = AnthropicMessageRequest {
-            model: prompt.model.clone(),
-            messages,
-            settings: prompt.model_settings.get_anthropic_settings(),
-        };
-
-        // serialize the prompt to JSON
-        let mut serialized_prompt =
-            serde_json::to_value(chat_request).map_err(ProviderError::SerializationError)?;
-
-        // if prompt has response_json_schema,
-        let schema = prompt
-            .response_json_schema
-            .as_ref()
-            .map(|schema| self.create_structured_output_schema(schema));
-
-        if let Some(schema) = schema {
-            // add output_format to the prompt
-            additional_headers.insert(
-                ANTHROPIC_BETA,
-                header::HeaderValue::from_static(ANTHROPIC_STRUCTURED_OUTPUT),
-            );
-            if let Value::Object(map) = &mut serialized_prompt {
-                map.insert("output_format".to_string(), schema);
-            }
-        }
-
-        // if settings.extra_body is provided, merge it with the prompt
-        if let Some(extra_body) = settings.extra_body() {
-            add_extra_body_to_prompt(&mut serialized_prompt, extra_body);
-        }
+        let request_body =
+            build_anthropic_message_request_from_prompt(prompt, &mut additional_headers)?;
 
         debug!(
-            "Sending chat completion request to Anthropic API: {:?}",
-            serialized_prompt
+            "Sending message request to Anthropic API: {:?}",
+            request_body
         );
 
-        let response = self
-            .make_request(&serialized_prompt, additional_headers)
-            .await?;
-
+        let response = self.make_request(&request_body, additional_headers).await?;
         let chat_response: AnthropicChatResponse = response.json().await?;
         debug!("Chat completion successful");
 
         Ok(chat_response)
     }
+}
 
-    fn create_structured_output_schema(&self, json_schema: &Value) -> Value {
-        serde_json::json!({
-            "type": "json_schema",
-            "schema": json_schema,
+pub(crate) fn create_structured_output_schema(json_schema: &Value) -> Value {
+    serde_json::json!({
+        "type": "json_schema",
+        "schema": json_schema,
 
-        })
+    })
+}
+
+pub(crate) fn build_anthropic_message_request_from_prompt(
+    prompt: &Prompt,
+    additional_headers: &mut HeaderMap,
+) -> Result<Value, ProviderError> {
+    let settings = &prompt.model_settings;
+    let message_count = prompt.system_instructions.len() + prompt.messages.len();
+    let mut messages = Vec::with_capacity(message_count);
+
+    // Convert system instructions
+    for msg in &prompt.system_instructions {
+        messages.push(msg);
     }
+
+    // Convert user messages
+    for msg in &prompt.messages {
+        messages.push(msg);
+    }
+
+    let schema = prompt
+        .response_json_schema
+        .as_ref()
+        .map(|schema| create_structured_output_schema(schema));
+
+    if let Some(schema) = schema {
+        additional_headers.insert(
+            ANTHROPIC_BETA,
+            header::HeaderValue::from_static(ANTHROPIC_STRUCTURED_OUTPUT),
+        );
+    }
+
+    let request = AnthropicMessageRequest {
+        model: prompt.model.as_str(),
+        messages: &messages,
+        settings: &settings.get_anthropic_settings(),
+        output_format: schema,
+    };
+
+    let mut serialized = serde_json::to_value(request)?;
+
+    // if settings.extra_body is provided, merge it with the prompt
+    if let Some(extra_body) = settings.extra_body() {
+        add_extra_body_to_prompt(&mut serialized, extra_body);
+    }
+
+    Ok(serialized)
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct AnthropicMessageRequest<'a> {
+    pub model: &'a str,
+    pub messages: &'a [MessageNum],
+    #[serde(flatten)]
+    pub settings: &'a AnthropicSettings,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_format: Option<Value>,
 }

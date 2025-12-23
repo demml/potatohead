@@ -1,5 +1,4 @@
 use gcloud_auth::error::Error as GCloudAuthError;
-use potato_prompt::PromptError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::pyclass::PyClassGuardError;
 use pyo3::PyErr;
@@ -68,9 +67,6 @@ pub enum ProviderError {
 
     #[error(transparent)]
     UtilError(#[from] potato_util::UtilError),
-
-    #[error(transparent)]
-    PromptError(#[from] PromptError),
 
     #[error(transparent)]
     DecodeError(#[from] base64::DecodeError),

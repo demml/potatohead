@@ -7,10 +7,10 @@ use crate::providers::embed::EmbeddingResponse;
 use crate::providers::google::{GeminiClient, VertexClient};
 use crate::providers::openai::OpenAIClient;
 use crate::providers::types::ChatResponse;
-use potato_prompt::Prompt;
-use potato_type::google::predict::PredictRequest;
-use potato_type::google::predict::PredictResponse;
+use potato_type::google::v1::embedding::PredictRequest;
+use potato_type::google::v1::embedding::PredictResponse;
 use potato_type::google::EmbeddingConfigTrait;
+use potato_type::prompt::Prompt;
 use potato_type::Provider;
 use reqwest::header::HeaderName;
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -77,8 +77,8 @@ impl GenAiClient {
                 Ok(ChatResponse::VertexGenerate(response))
             }
             GenAiClient::Anthropic(client) => {
-                let response = client.chat_completion(task).await.inspect_err(|e| {
-                    error!(error = %e, "Failed to complete chat");
+                let response = client.message(task).await.inspect_err(|e| {
+                    error!(error = %e, "Failed to complete message");
                 })?;
                 Ok(ChatResponse::AnthropicMessageV1(response))
             }

@@ -1,6 +1,7 @@
 use crate::common::get_image_media_types;
 use crate::common::ResponseExt;
 
+use crate::prompt::MessageNum;
 use crate::traits::get_var_regex;
 use crate::traits::{MessageFactory, PromptMessageExt};
 use crate::TypeError;
@@ -1728,12 +1729,4 @@ impl ResponseExt for AnthropicChatResponse {
             _ => None,
         })
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct AnthropicMessageRequest {
-    pub model: String,
-    pub messages: Vec<MessageParam>,
-    #[serde(flatten)]
-    pub settings: AnthropicSettings,
 }

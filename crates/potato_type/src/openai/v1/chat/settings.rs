@@ -35,18 +35,19 @@ impl AudioParam {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[pyclass]
-pub struct ContentPart {
+pub struct PredictionContentPart {
     #[pyo3(get, set)]
+    #[serde(rename = "type")]
     pub r#type: String,
     #[pyo3(get, set)]
     pub text: String,
 }
 
 #[pymethods]
-impl ContentPart {
+impl PredictionContentPart {
     #[new]
     pub fn new(r#type: String, text: String) -> Self {
-        ContentPart { r#type, text }
+        PredictionContentPart { r#type, text }
     }
 
     pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
@@ -64,14 +65,17 @@ impl ContentPart {
 #[pyclass]
 pub enum Content {
     Text(String),
-    Array(Vec<ContentPart>),
+    Array(Vec<PredictionContentPart>),
 }
 
 #[pymethods]
 impl Content {
     #[new]
     #[pyo3(signature = (text=None, parts=None))]
-    pub fn new(text: Option<String>, parts: Option<Vec<ContentPart>>) -> Result<Self, TypeError> {
+    pub fn new(
+        text: Option<String>,
+        parts: Option<Vec<PredictionContentPart>>,
+    ) -> Result<Self, TypeError> {
         match (text, parts) {
             (Some(t), None) => Ok(Content::Text(t)),
             (None, Some(p)) => Ok(Content::Array(p)),
