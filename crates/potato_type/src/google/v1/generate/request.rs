@@ -3,11 +3,19 @@ use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use serde::{Deserialize, Serialize};
+use serde_json::Map;
 use serde_json::Value;
 use std::collections::HashMap;
 
+// API Reference:
+// Note - This is an attempt at combining both the Gemini and Vertex API specs as they are largely the same
+// I'm not sure why google decided on the the anti-pattern of having two separate APIs for what is effectively the same thing, but here we are
+//https://cloud.google.com/vertex-ai/generative-ai/docs/reference/rest/v1beta1/Content
+//https://docs.cloud.google.com/vertex-ai/generative-ai/docs/reference/rest/v1/projects.locations.endpoints/generateContent
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[pyclass]
 pub enum SchemaType {
     TypeUnspecified,
     String,
@@ -21,58 +29,151 @@ pub enum SchemaType {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct Schema {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "type")]
     pub r#type: Option<SchemaType>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nullable: Option<bool>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub default: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub items: Option<Box<Schema>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub min_items: Option<String>,
+    #[serde(rename = "enum")]
+    pub r#enum: Option<Vec<String>>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_items: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub r#enum: Option<Vec<String>>,
+    pub min_items: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub properties: Option<HashMap<String, Schema>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub property_ordering: Option<Vec<String>>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub required: Option<Vec<String>>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_properties: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_properties: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub minimum: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub maximum: Option<f64>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_length: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_length: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pattern: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub example: Option<Value>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub any_of: Option<Vec<Schema>>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub additional_properties: Option<Value>,
-    #[serde(rename = "ref", skip_serializing_if = "Option::is_none")]
-    pub ref_path: Option<String>,
+    pub property_ordering: Option<Vec<String>>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub defs: Option<HashMap<String, Schema>>,
+    pub default: Option<Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub items: Option<Box<Schema>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minimum: Option<f64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub maximum: Option<f64>,
+}
+
+#[pymethods]
+impl Schema {
+    #[new]
+    #[pyo3(signature = (type_=None, format=None, title=None, description=None, nullable=None, enum_=None, max_items=None, min_items=None, properties=None, required=None, min_properties=None, max_properties=None, min_length=None, max_length=None, pattern=None, example=None, any_of=None, property_ordering=None, default=None, items=None, minimum=None, maximum=None))]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        type_: Option<SchemaType>,
+        format: Option<String>,
+        title: Option<String>,
+        description: Option<String>,
+        nullable: Option<bool>,
+        enum_: Option<Vec<String>>,
+        max_items: Option<String>,
+        min_items: Option<String>,
+        properties: Option<HashMap<String, Schema>>,
+        required: Option<Vec<String>>,
+        min_properties: Option<String>,
+        max_properties: Option<String>,
+        min_length: Option<String>,
+        max_length: Option<String>,
+        pattern: Option<String>,
+        example: Option<Bound<'_, PyAny>>,
+        any_of: Option<Vec<Schema>>,
+        property_ordering: Option<Vec<String>>,
+        default: Option<Bound<'_, PyAny>>,
+        items: Option<Schema>,
+        minimum: Option<f64>,
+        maximum: Option<f64>,
+    ) -> Self {
+        let example = match example {
+            Some(e) => Some(pyobject_to_json(&e).unwrap_or(Value::Null)),
+            None => None,
+        };
+
+        let default = match default {
+            Some(d) => Some(pyobject_to_json(&d).unwrap_or(Value::Null)),
+            None => None,
+        };
+
+        // need to add a Box to items
+        let items = match items {
+            Some(i) => Some(Box::new(i)),
+            None => None,
+        };
+
+        Schema {
+            r#type: type_,
+            format,
+            title,
+            description,
+            nullable,
+            r#enum: enum_,
+            max_items,
+            min_items,
+            properties,
+            required,
+            min_properties,
+            max_properties,
+            min_length,
+            max_length,
+            pattern,
+            example,
+            any_of,
+            property_ordering,
+            default,
+            items,
+            minimum,
+            maximum,
+        }
+    }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
 }
 
 #[pyclass]
@@ -81,14 +182,16 @@ pub struct Schema {
 pub enum HarmCategory {
     #[default]
     HarmCategoryUnspecified,
-    HarmCategoryHateSpeech,
-    HarmCategoryDangerousContent,
+    HarmCategoryDerogatory,
+    HarmCategoryToxicity,
+    HarmCategoryViolence,
+    HarmCategorySexual,
+    HarmCategoryMedical,
+    HarmCategoryDangerous,
     HarmCategoryHarassment,
+    HarmCategoryHateSpeech,
     HarmCategorySexuallyExplicit,
-    HarmCategoryImageHate,
-    HarmCategoryImageDangerousContent,
-    HarmCategoryImageHarassment,
-    HarmCategoryImageSexuallyExplicit,
+    HarmCategoryDangerousContent,
 }
 
 /// Probability-based threshold levels for blocking.
@@ -126,25 +229,16 @@ pub struct SafetySetting {
     /// Required. The harm block threshold.
     #[pyo3(get)]
     pub threshold: HarmBlockThreshold,
-    /// Optional. Specify if the threshold is used for probability or severity score.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[pyo3(get)]
-    pub method: Option<HarmBlockMethod>,
 }
 
 #[pymethods]
 impl SafetySetting {
     #[new]
-    #[pyo3(signature = (category, threshold, method=None))]
-    pub fn new(
-        category: HarmCategory,
-        threshold: HarmBlockThreshold,
-        method: Option<HarmBlockMethod>,
-    ) -> Self {
+    #[pyo3(signature = (category, threshold))]
+    pub fn new(category: HarmCategory, threshold: HarmBlockThreshold) -> Self {
         SafetySetting {
             category,
             threshold,
-            method,
         }
     }
 }
@@ -178,6 +272,15 @@ pub enum ModelRoutingPreference {
     PrioritizeCost,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[pyclass]
+pub enum ThinkingLevel {
+    ThinkingLevelUnspecified,
+    Low,
+    High,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", default)]
 #[pyclass(name = "GeminiThinkingConfig")]
@@ -186,16 +289,43 @@ pub struct ThinkingConfig {
     pub include_thoughts: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking_budget: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking_level: Option<ThinkingLevel>,
 }
 
 #[pymethods]
 impl ThinkingConfig {
     #[new]
-    #[pyo3(signature = (include_thoughts=None, thinking_budget=None))]
-    pub fn new(include_thoughts: Option<bool>, thinking_budget: Option<i32>) -> Self {
+    #[pyo3(signature = (include_thoughts=None, thinking_budget=None, thinking_level=None))]
+    pub fn new(
+        include_thoughts: Option<bool>,
+        thinking_budget: Option<i32>,
+        thinking_level: Option<ThinkingLevel>,
+    ) -> Self {
         ThinkingConfig {
             include_thoughts,
             thinking_budget,
+            thinking_level,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", default)]
+#[pyclass(name = "GeminiImageConfig")]
+pub struct ImageConfig {
+    pub aspect_ratio: Option<String>,
+    pub image_size: Option<String>,
+}
+
+#[pymethods]
+impl ImageConfig {
+    #[new]
+    #[pyo3(signature = (aspect_ratio=None, image_size=None))]
+    pub fn new(aspect_ratio: Option<String>, image_size: Option<String>) -> Self {
+        ImageConfig {
+            aspect_ratio,
+            image_size,
         }
     }
 }
@@ -235,44 +365,36 @@ pub struct PrebuiltVoiceConfig {
     pub voice_name: String,
 }
 
-#[pymethods]
-impl PrebuiltVoiceConfig {
-    #[new]
-    pub fn new(voice_name: String) -> Self {
-        PrebuiltVoiceConfig { voice_name }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-#[serde(untagged)]
-#[pyclass]
-pub enum VoiceConfigMode {
-    PrebuiltVoiceConfig(PrebuiltVoiceConfig),
-}
-
-#[pymethods]
-impl VoiceConfigMode {
-    #[new]
-    pub fn new(prebuilt_voice_config: PrebuiltVoiceConfig) -> Self {
-        VoiceConfigMode::PrebuiltVoiceConfig(prebuilt_voice_config)
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct VoiceConfig {
-    #[serde(flatten)]
-    pub voice_config: VoiceConfigMode,
+    pub prebuilt_voice_config: PrebuiltVoiceConfig,
 }
 
 #[pymethods]
 impl VoiceConfig {
     #[new]
-    pub fn new(voice_config: VoiceConfigMode) -> Self {
-        VoiceConfig { voice_config }
+    pub fn new(prebuilt_voice_config: PrebuiltVoiceConfig) -> Self {
+        VoiceConfig {
+            prebuilt_voice_config,
+        }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[pyclass]
+pub struct SpeakerVoiceConfig {
+    pub speaker: String,
+    pub voice_config: VoiceConfig,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[pyclass]
+pub struct MultiSpeakerVoiceConfig {
+    pub speaker_voice_configs: Vec<SpeakerVoiceConfig>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
@@ -282,15 +404,22 @@ pub struct SpeechConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub voice_config: Option<VoiceConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub multi_speaker_voice_config: Option<MultiSpeakerVoiceConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub language_code: Option<String>,
 }
 
 #[pymethods]
 impl SpeechConfig {
     #[new]
-    pub fn new(voice_config: Option<VoiceConfig>, language_code: Option<String>) -> Self {
+    pub fn new(
+        voice_config: Option<VoiceConfig>,
+        multi_speaker_voice_config: Option<MultiSpeakerVoiceConfig>,
+        language_code: Option<String>,
+    ) -> Self {
         SpeechConfig {
             voice_config,
+            multi_speaker_voice_config,
             language_code,
         }
     }
@@ -309,12 +438,26 @@ pub struct GenerationConfig {
     pub response_mime_type: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_schema: Option<Schema>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "_responseJsonSchema")]
+    pub underscore_response_json_schema: Option<Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_json_schema: Option<Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get)]
     pub response_modalities: Option<Vec<Modality>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get)]
-    pub thinking_config: Option<ThinkingConfig>,
+    pub candidate_count: Option<i32>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
+    pub max_output_tokens: Option<i32>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get)]
@@ -330,22 +473,6 @@ pub struct GenerationConfig {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get)]
-    pub candidate_count: Option<i32>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[pyo3(get)]
-    pub max_output_tokens: Option<i32>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[pyo3(get)]
-    pub response_logprobs: Option<bool>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[pyo3(get)]
-    pub logprobs: Option<i32>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[pyo3(get)]
     pub presence_penalty: Option<f32>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -357,17 +484,27 @@ pub struct GenerationConfig {
     pub seed: Option<i32>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_schema: Option<Schema>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_json_schema: Option<Value>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub routing_config: Option<RoutingConfig>,
+    #[pyo3(get)]
+    pub response_logprobs: Option<bool>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get)]
-    pub audio_timestamp: Option<bool>,
+    pub logprobs: Option<i32>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_enhanced_civic_answers: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
+    pub speech_config: Option<SpeechConfig>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
+    pub thinking_config: Option<ThinkingConfig>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[pyo3(get)]
+    pub image_config: Option<ImageConfig>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get)]
@@ -375,7 +512,7 @@ pub struct GenerationConfig {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get)]
-    pub speech_config: Option<SpeechConfig>,
+    pub audio_timestamp: Option<bool>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get)]
@@ -402,10 +539,6 @@ impl GenerationConfig {
         presence_penalty: Option<f32>,
         frequency_penalty: Option<f32>,
         seed: Option<i32>,
-        //TODO: revisit this later
-        //response_schema: Option<Schema>,
-        //response_json_schema: Option<Value>,
-        //routing_config: Option<RoutingConfig>,
         audio_timestamp: Option<bool>,
         media_resolution: Option<MediaResolution>,
         speech_config: Option<SpeechConfig>,
@@ -469,6 +602,7 @@ impl ModelArmorConfig {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Mode {
     ModeUnspecified,
+    Validated,
     Any,
     #[default]
     Auto,
@@ -545,9 +679,9 @@ impl RetrievalConfig {
 #[serde(rename_all = "camelCase", default)]
 pub struct ToolConfig {
     #[pyo3(get)]
-    function_calling_config: Option<FunctionCallingConfig>,
+    pub function_calling_config: Option<FunctionCallingConfig>,
     #[pyo3(get)]
-    retrieval_config: Option<RetrievalConfig>,
+    pub retrieval_config: Option<RetrievalConfig>,
 }
 
 #[pymethods]
@@ -578,11 +712,11 @@ pub struct GeminiSettings {
 
     #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub generation_config: Option<GenerationConfig>,
+    pub safety_settings: Option<Vec<SafetySetting>>,
 
     #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub safety_settings: Option<Vec<SafetySetting>>,
+    pub generation_config: Option<GenerationConfig>,
 
     #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -590,12 +724,15 @@ pub struct GeminiSettings {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_body: Option<Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cached_content: Option<String>,
 }
 
 #[pymethods]
 impl GeminiSettings {
     #[new]
-    #[pyo3(signature = (labels=None, tool_config=None, generation_config=None, safety_settings=None, model_armor_config=None, extra_body=None))]
+    #[pyo3(signature = (labels=None, tool_config=None, generation_config=None, safety_settings=None, model_armor_config=None, extra_body=None, cached_content=None))]
     pub fn new(
         labels: Option<HashMap<String, String>>,
         tool_config: Option<ToolConfig>,
@@ -603,6 +740,7 @@ impl GeminiSettings {
         safety_settings: Option<Vec<SafetySetting>>,
         model_armor_config: Option<ModelArmorConfig>,
         extra_body: Option<&Bound<'_, PyAny>>,
+        cached_content: Option<String>,
     ) -> Result<Self, UtilError> {
         let extra = match extra_body {
             Some(obj) => Some(pyobject_to_json(obj)?),
@@ -616,6 +754,7 @@ impl GeminiSettings {
             safety_settings,
             model_armor_config,
             extra_body: extra,
+            cached_content,
         })
     }
 
@@ -701,12 +840,89 @@ pub struct FileData {
 
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+pub struct PartialArgs {
+    pub json_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub will_continue: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub null_value: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub number_value: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub string_value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bool_value: Option<bool>,
+}
+
+#[pymethods]
+impl PartialArgs {
+    #[new]
+    #[pyo3(signature = (json_path, will_continue=None, null_value=None, number_value=None, string_value=None, bool_value=None))]
+    pub fn new(
+        json_path: String,
+        will_continue: Option<bool>,
+        null_value: Option<bool>,
+        number_value: Option<i64>,
+        string_value: Option<String>,
+        bool_value: Option<bool>,
+    ) -> Self {
+        PartialArgs {
+            json_path,
+            will_continue,
+            null_value,
+            number_value,
+            string_value,
+            bool_value,
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct FunctionCall {
     /// Required. The name of the function to call.
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     /// Optional. The function parameters and values in JSON object format.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub args: Option<HashMap<String, Value>>,
+    pub args: Option<Map<String, Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub will_continue: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub partial_args: Option<Vec<PartialArgs>>,
+}
+
+#[pymethods]
+impl FunctionCall {
+    #[new]
+    #[pyo3(signature = (name, id=None, args=None, will_continue=None, partial_args=None))]
+    pub fn new(
+        name: String,
+        id: Option<String>,
+        args: Option<&Bound<'_, PyDict>>,
+        will_continue: Option<bool>,
+        partial_args: Option<Vec<PartialArgs>>,
+    ) -> Self {
+        let args = match args {
+            Some(dict) => {
+                let json_value = pyobject_to_json(dict).unwrap_or(Value::Null);
+                if let Value::Object(map) = json_value {
+                    Some(map)
+                } else {
+                    None
+                }
+            }
+            None => None,
+        };
+        FunctionCall {
+            name,
+            id,
+            args,
+            will_continue,
+            partial_args,
+        }
+    }
 }
 
 #[pyclass]
@@ -733,6 +949,7 @@ pub struct FunctionResponse {
 #[pyclass]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct ExecutableCode {
     /// Required. Programming language of the code.
     pub language: Language,
@@ -743,6 +960,7 @@ pub struct ExecutableCode {
 #[pyclass]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct CodeExecutionResult {
     /// Required. Outcome of the code execution.
     pub outcome: Outcome,
@@ -754,6 +972,7 @@ pub struct CodeExecutionResult {
 #[pyclass]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct VideoMetadata {
     /// Optional. The start offset of the video.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -764,9 +983,52 @@ pub struct VideoMetadata {
 }
 
 #[pyclass]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct PartMetadata {
+    #[serde(flatten)]
+    pub r#struct: Map<String, Value>,
+}
+
+#[pymethods]
+impl PartMetadata {
+    #[new]
+    #[pyo3(signature = (struct_=None))]
+    pub fn new(struct_: Option<&Bound<'_, PyDict>>) -> Result<Self, TypeError> {
+        let struct_map = match struct_ {
+            Some(dict) => {
+                let json_value = pyobject_to_json(dict)?;
+                if let Value::Object(map) = json_value {
+                    map
+                } else {
+                    Map::new()
+                }
+            }
+            None => Map::new(),
+        };
+        Ok(PartMetadata {
+            r#struct: struct_map,
+        })
+    }
+}
+
+#[pyclass]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
 pub struct Part {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thought: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thought_signature: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub part_metadata: Option<PartMetadata>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media_resolution: Option<MediaResolution>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
 
@@ -795,7 +1057,8 @@ pub struct Part {
 #[pymethods]
 impl Part {
     #[new]
-    #[pyo3(signature = (text=None, inline_data=None, file_data=None, function_call=None, function_response=None, executable_code=None, code_execution_result=None, video_metadata=None))]
+    #[pyo3(signature = (text=None, inline_data=None, file_data=None, function_call=None, function_response=None, executable_code=None, code_execution_result=None, video_metadata=None, thought=None, thought_signature=None, part_metadata=None, media_resolution=None))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         text: Option<String>,
         inline_data: Option<Blob>,
@@ -805,6 +1068,10 @@ impl Part {
         executable_code: Option<ExecutableCode>,
         code_execution_result: Option<CodeExecutionResult>,
         video_metadata: Option<VideoMetadata>,
+        thought: Option<bool>,
+        thought_signature: Option<String>,
+        part_metadata: Option<PartMetadata>,
+        media_resolution: Option<MediaResolution>,
     ) -> Self {
         Part {
             text,
@@ -815,6 +1082,10 @@ impl Part {
             executable_code,
             code_execution_result,
             video_metadata,
+            thought,
+            thought_signature,
+            part_metadata,
+            media_resolution,
         }
     }
 }
@@ -841,11 +1112,22 @@ impl Content {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[pyclass]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Behavior {
+    #[default]
+    Unspecified,
+    Blocking,
+    NonBlocking,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
+#[pyclass]
 #[serde(rename_all = "camelCase", default)]
 pub struct FunctionDeclaration {
     pub name: String,
+    pub description: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+    pub behavior: Option<Behavior>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parameters: Option<Schema>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -938,7 +1220,6 @@ pub struct LlmRanker {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum RankingConfig {
     RankService(RankService),
@@ -1107,6 +1388,210 @@ pub struct Retrieval {
     pub source: RetrievalSource,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[pyclass]
+pub struct Interval {
+    #[pyo3(get)]
+    pub start_time: String,
+    #[pyo3(get)]
+    pub end_time: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[pyclass]
+pub struct GoogleSearch {
+    #[pyo3(get)]
+    pub time_range_filter: Interval,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[pyclass]
+pub enum PhishBlockThreshold {
+    PhishBlockThresholdUnspecified,
+    BlockLowAndAbove,
+    BlockMediumAndAbove,
+    BlockHighAndAbove,
+    BlockHigherAndAbove,
+    BlockVeryHighAndAbove,
+    BlockOnlyExtremelyHigh,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[pyclass]
+pub struct VertexGoogleSearch {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exclude_domains: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blocking_confidence: Option<PhishBlockThreshold>,
+}
+
+#[pymethods]
+impl VertexGoogleSearch {
+    #[new]
+    #[pyo3(signature = (exclude_domains=None, blocking_confidence=None))]
+    pub fn new(
+        exclude_domains: Option<Vec<String>>,
+        blocking_confidence: Option<PhishBlockThreshold>,
+    ) -> Self {
+        VertexGoogleSearch {
+            exclude_domains,
+            blocking_confidence,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[pyclass]
+pub struct EnterpriseWebSearch {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exclude_domains: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blocking_confidence: Option<PhishBlockThreshold>,
+}
+
+#[pymethods]
+impl EnterpriseWebSearch {
+    #[new]
+    #[pyo3(signature = (exclude_domains=None, blocking_confidence=None))]
+    pub fn new(
+        exclude_domains: Option<Vec<String>>,
+        blocking_confidence: Option<PhishBlockThreshold>,
+    ) -> Self {
+        EnterpriseWebSearch {
+            exclude_domains,
+            blocking_confidence,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[pyclass]
+pub struct ParallelAiSearch {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_key: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_configs: Option<Map<String, Value>>,
+}
+
+#[pymethods]
+impl ParallelAiSearch {
+    #[new]
+    #[pyo3(signature = (api_key=None, custom_configs=None))]
+    pub fn new(
+        api_key: Option<String>,
+        custom_configs: Option<&Bound<'_, PyDict>>,
+    ) -> Result<Self, TypeError> {
+        let custom_configs_map = match custom_configs {
+            Some(dict) => {
+                let json_value = pyobject_to_json(dict)?;
+                if let Value::Object(map) = json_value {
+                    Some(map)
+                } else {
+                    None
+                }
+            }
+            None => None,
+        };
+        Ok(ParallelAiSearch {
+            api_key,
+            custom_configs: custom_configs_map,
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+#[pyclass]
+pub enum GoogleSearchNum {
+    GeminiSearch(GoogleSearch),
+    VertexSearch(VertexGoogleSearch),
+}
+
+#[pymethods]
+impl GoogleSearchNum {
+    #[new]
+    #[pyo3(signature = (gemini_search=None, vertex_search=None))]
+    pub fn new(
+        gemini_search: Option<GoogleSearch>,
+        vertex_search: Option<VertexGoogleSearch>,
+    ) -> Self {
+        match (gemini_search, vertex_search) {
+            (Some(gemini), None) => GoogleSearchNum::GeminiSearch(gemini),
+            (None, Some(vertex)) => GoogleSearchNum::VertexSearch(vertex),
+            _ => panic!("Exactly one of gemini_search or vertex_search must be provided"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DynamicRetrievalMode {
+    ModeUnspecified,
+    ModeDynamic,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct DynamicRetrievalConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<DynamicRetrievalMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dynamic_threshold: Option<f64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct GoogleSearchRetrieval {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dynamic_retrieval_config: Option<DynamicRetrievalConfig>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct GoogleMaps {
+    pub enable_widget: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[pyclass]
+pub struct CodeExecution {}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ComputerUseEnvironment {
+    EnvironmentUnspecified,
+    EnvironmentBrowser,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ComputerUse {
+    pub environment: ComputerUseEnvironment,
+    pub excluded_predefined_functions: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct UrlContext {}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct FileSearch {
+    pub file_search_store_names: Vec<String>,
+    pub metadata_filter: String,
+    pub top_k: i32,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 #[pyclass]
@@ -1115,25 +1600,41 @@ pub struct Tool {
     pub function_declarations: Option<Vec<FunctionDeclaration>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retrieval: Option<Retrieval>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub google_search: Option<GoogleSearch>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub google_search_retrieval: Option<GoogleSearchRetrieval>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub google_maps: Option<GoogleMaps>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub enterprise_web_search: Option<EnterpriseWebSearch>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code_execution: Option<CodeExecution>,
+
+    // for some reason, each api has a different definition of Google Search...cool
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub url_context: Option<UrlContext>,
+    pub google_search: Option<GoogleSearchNum>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub google_maps: Option<GoogleMaps>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enterprise_web_search: Option<EnterpriseWebSearch>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parallel_ai_search: Option<ParallelAiSearch>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub computer_use: Option<ComputerUse>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url_context: Option<UrlContext>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_search: Option<FileSearch>,
 }
 
 #[derive(Debug, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase", default)]
+#[pyclass]
 pub struct GeminiGenerateContentRequest {
+    #[pyo3(get)]
     pub contents: Vec<Content>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
