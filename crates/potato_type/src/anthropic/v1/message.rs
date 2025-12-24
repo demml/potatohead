@@ -910,6 +910,7 @@ impl WebSearchToolResultBlockParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(untagged)]
 pub(crate) enum ContentBlock {
     Text(TextBlockParam),
     Image(ImageBlockParam),
@@ -1076,6 +1077,25 @@ impl PromptMessageExt for MessageParam {
 
         // Convert HashSet to Vec for return
         variables.into_iter().collect()
+    }
+}
+
+impl MessageParam {
+    /// Helper function to create a MessageParam from a single TextBlockParam
+    pub fn to_text_block_param(&self) -> Result<TextBlockParam, TypeError> {
+        if self.content.len() != 1 {
+            return Err(TypeError::InvalidInput(
+                "MessageParam must contain exactly one content block to convert to TextBlockParam"
+                    .to_string(),
+            ));
+        }
+
+        match &self.content[0].inner {
+            ContentBlock::Text(text_block) => Ok(text_block.clone()),
+            _ => Err(TypeError::InvalidInput(
+                "Content block is not of type TextBlockParam".to_string(),
+            )),
+        }
     }
 }
 
@@ -1748,4 +1768,53 @@ pub(crate) fn create_structured_output_schema(json_schema: &Value) -> Value {
         "schema": json_schema,
 
     })
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[pyclass]
+pub struct SystemPrompt {
+    #[pyo3(get)]
+    #[serde(flatten)]
+    pub content: Vec<TextBlockParam>,
+}
+
+#[pymethods]
+impl SystemPrompt {
+    /// Create a new SystemPrompt
+    /// Accepts either a single string or a list of TextBlockParams
+    /// # Arguments
+    /// * `content` - Either a string or a list of TextBlockParams
+    /// # Returns
+    /// * `SystemPrompt` - The created SystemPrompt
+    /// Errors
+    /// * `TypeError` - If the content is not a string or a list of TextBlockParams
+    #[new]
+    pub fn new(content: &Bound<'_, PyAny>) -> Result<Self, TypeError> {
+        let content_blocks: Vec<TextBlockParam> =
+            if content.is_instance_of::<pyo3::types::PyString>() {
+                let text = content.extract::<String>()?;
+                let text_block = TextBlockParam::new(text, None, None)?;
+                vec![text_block]
+            } else if content.is_instance_of::<pyo3::types::PyList>() {
+                let content_list = content.extract::<Vec<Bound<'_, PyAny>>>()?;
+                let mut blocks = Vec::new();
+                for item in content_list {
+                    let text_block = item.extract::<TextBlockParam>().map_err(|_| {
+                        TypeError::InvalidInput(
+                            "All items in the list must be TextBlockParam".to_string(),
+                        )
+                    })?;
+                    blocks.push(text_block);
+                }
+                blocks
+            } else {
+                return Err(TypeError::InvalidInput(
+                    "Content must be either a string or a list of TextBlockParam".to_string(),
+                ));
+            };
+
+        Ok(Self {
+            content: content_blocks,
+        })
+    }
 }

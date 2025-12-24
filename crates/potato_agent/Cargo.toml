@@ -12,6 +12,7 @@ doctest = false
 [dependencies]
 potato-type = { workspace = true }
 potato-provider = { workspace = true }
+potato-state = { workspace = true }
 potato-util = { workspace = true }
 
 base64 = { workspace = true }

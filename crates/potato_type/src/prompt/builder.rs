@@ -46,6 +46,7 @@ impl MessageNum {
             MessageNum::OpenAIMessageV1(_) => RequestType::OpenAIChatV1,
             MessageNum::AnthropicMessageV1(_) => RequestType::AnthropicMessageV1,
             MessageNum::GeminiContentV1(_) => RequestType::GeminiContentV1,
+            MessageNum::AnthropicSystemMessageV1(_) => RequestType::AnthropicMessageV1,
         }
     }
 }
@@ -87,7 +88,49 @@ impl ProviderRequest {
         }
     }
 
-    pub(crate) fn messages_mut(&mut self) -> &mut Vec<MessageNum> {
+    pub fn prepend_system_instructions(
+        &mut self,
+        instructions: Vec<MessageNum>,
+    ) -> Result<(), TypeError> {
+        if instructions.is_empty() {
+            return Ok(());
+        }
+
+        match self {
+            ProviderRequest::OpenAIV1(req) => {
+                // OpenAI includes system messages in the main messages vec
+                // Prepend new instructions to existing messages
+                let mut combined = instructions;
+                combined.extend(req.messages.drain(..));
+                req.messages = combined;
+                Ok(())
+            }
+            ProviderRequest::AnthropicV1(req) => {
+                // Anthropic has a SystemPrompt which contains Vec<TextBlockParam>
+                // Convert MessageNum to TextBlockParam and prepend to existing system content
+                let mut combined = instructions;
+                combined.extend(req.system.drain(..));
+                req.system = combined;
+                Ok(())
+            }
+            ProviderRequest::GeminiV1(req) => {
+                // Gemini only supports a single system instruction
+                if instructions.len() > 1 {
+                    return Err(TypeError::Error(
+                        "Gemini only supports a single system instruction".to_string(),
+                    ));
+                }
+
+                // Take the first instruction, replace existing if present
+                if let Some(instruction) = instructions.into_iter().next() {
+                    req.system_instruction = Some(instruction);
+                }
+                Ok(())
+            }
+        }
+    }
+
+    pub fn messages_mut(&mut self) -> &mut Vec<MessageNum> {
         match self {
             ProviderRequest::OpenAIV1(req) => &mut req.messages,
             ProviderRequest::AnthropicV1(req) => &mut req.messages,
@@ -125,8 +168,8 @@ impl ProviderRequest {
                 }
             }
             ProviderRequest::AnthropicV1(req) => {
-                for msg in &req.system {
-                    py_system_instructions.append(msg.to_bound_py_object(py)?)?;
+                for system_msg in &req.system {
+                    py_system_instructions.append(system_msg.to_bound_py_object(py)?)?;
                 }
             }
             ProviderRequest::GeminiV1(req) => {

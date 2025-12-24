@@ -74,22 +74,32 @@ fn parse_messages(
     default_role: &str,
 ) -> Result<Vec<MessageNum>, TypeError> {
     // Single message
-    if !messages.is_instance_of::<PyList>() && !messages.is_instance_of::<PyTuple>() {
-        return Ok(vec![parse_single_message(
-            messages,
-            provider,
-            default_role,
-        )?]);
+    let mut messages =
+        if !messages.is_instance_of::<PyList>() && !messages.is_instance_of::<PyTuple>() {
+            vec![parse_single_message(messages, provider, default_role)?]
+        } else {
+            // List/tuple of messages
+            messages
+                .try_iter()?
+                .map(|item| {
+                    let item = item?;
+                    parse_single_message(&item, provider, default_role)
+                })
+                .collect::<Result<Vec<_>, _>>()?
+        };
+
+    // Convert Anthropic system messages to TextBlockParam format
+    if provider == &Provider::Anthropic
+        && (default_role == Role::System.as_str()
+            || default_role == Role::Assistant.as_str()
+            || default_role == Role::Developer.as_str())
+    {
+        for msg in messages.iter_mut() {
+            msg.anthropic_message_to_system_message()?;
+        }
     }
 
-    // List/tuple of messages
-    messages
-        .try_iter()?
-        .map(|item| {
-            let item = item?;
-            parse_single_message(&item, provider, default_role)
-        })
-        .collect()
+    Ok(messages)
 }
 
 fn get_system_role(provider: &Provider) -> &'static str {
@@ -98,8 +108,22 @@ fn get_system_role(provider: &Provider) -> &'static str {
             Role::Developer.into()
         }
         Provider::Anthropic => Role::Assistant.into(),
-        _ => "system",
+        _ => Role::System.into(),
     }
+}
+
+/// Helper for extracting system instructions from optional parameter
+pub fn extract_system_instructions(
+    system_instruction: Option<&Bound<'_, PyAny>>,
+    provider: &Provider,
+) -> Result<Vec<MessageNum>, TypeError> {
+    let system_instructions = if let Some(sys_inst) = system_instruction {
+        parse_messages(sys_inst, &provider, get_system_role(&provider))?
+    } else {
+        vec![]
+    };
+
+    Ok(system_instructions)
 }
 
 #[pyclass]

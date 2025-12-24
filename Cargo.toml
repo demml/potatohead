@@ -24,6 +24,7 @@ potato-type = { path = "crates/potato_type", version = "0.10.0" }
 potato-workflow = { path = "crates/potato_workflow", version = "0.10.0" }
 potato-util = { path = "crates/potato_util", version = "0.10.0" }
 potato-head = { path = "crates/potato_head", version = "0.10.0" }
+potato-state = { path = "crates/potato_state", version = "0.10.0" }
 
 anyhow = "1.0.93"
 base64 = "0.*"

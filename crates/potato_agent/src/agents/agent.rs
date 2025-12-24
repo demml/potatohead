@@ -3,15 +3,15 @@ use crate::{
     agents::task::Task,
     agents::types::{AgentResponse, PyAgentResponse},
 };
-use potato_prompt::prompt::settings::ModelSettings;
-use potato_prompt::{prompt::parse_prompt, Prompt};
-
 use potato_provider::providers::anthropic::client::AnthropicClient;
-use potato_provider::{providers::google::VertexClient, GenAiClient, OpenAIClient};
-use potato_type::prompt::{parse_response_to_json, Message, MessageNum, Role};
-
 use potato_provider::providers::types::ServiceType;
 use potato_provider::GeminiClient;
+use potato_provider::{providers::google::VertexClient, GenAiClient, OpenAIClient};
+use potato_state::block_on;
+use potato_type::prompt::extract_system_instructions;
+use potato_type::prompt::ModelSettings;
+use potato_type::prompt::Prompt;
+use potato_type::prompt::{parse_response_to_json, Message, MessageNum, Role};
 use potato_type::Provider;
 use potato_util::create_uuid7;
 use pyo3::{prelude::*, IntoPyObjectExt};
@@ -62,7 +62,7 @@ impl Agent {
     }
     pub async fn new(
         provider: Provider,
-        system_instruction: Option<Vec<Message>>,
+        system_instruction: Vec<MessageNum>,
     ) -> Result<Self, AgentError> {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(ServiceType::Generate)?),
@@ -79,8 +79,6 @@ impl Agent {
                 return Err(AgentError::MissingProviderError);
             } // Add other providers here as needed
         };
-
-        let system_instruction = system_instruction.unwrap_or_default();
 
         Ok(Self {
             client: Arc::new(client),
@@ -131,8 +129,8 @@ impl Agent {
             for param in &prompt.parameters {
                 // Bind parameter context to the user message
                 if let Some(value) = parameter_context.get(param) {
-                    for message in &mut prompt.message {
-                        if message.role == "user" {
+                    for message in prompt.request.messages_mut() {
+                        if message.role() == Role::User.as_str() {
                             debug!("Binding parameter: {} with value: {}", param, value);
                             message.bind_mut(param, &value.to_string())?;
                         }
@@ -142,8 +140,8 @@ impl Agent {
                 // If global context is provided, bind it to the user message
                 if let Some(global_value) = global_context {
                     if let Some(value) = global_value.get(param) {
-                        for message in &mut prompt.message {
-                            if message.role == "user" {
+                        for message in prompt.request.messages_mut() {
+                            if message.role() == Role::User.as_str() {
                                 debug!("Binding global parameter: {} with value: {}", param, value);
                                 message.bind_mut(param, &value.to_string())?;
                             }
@@ -155,18 +153,22 @@ impl Agent {
         Ok(())
     }
 
-    fn append_system_instructions(&self, prompt: &mut Prompt) {
+    /// If system instructions are set on the agent, prepend them to the prompt.
+    /// Agent system instructions take precedence over task system instructions.
+    /// If a user wishes to be more dynamic based on the task, they should set system instructions on the task/prompt
+    fn prepend_system_instructions(&self, prompt: &mut Prompt) {
         if !self.system_instruction.is_empty() {
-            let mut combined_messages = self.system_instruction.clone();
-            combined_messages.extend(prompt.system_instruction.clone());
-            prompt.system_instruction = combined_messages;
+            prompt
+                .request
+                .prepend_system_instructions(self.system_instruction.clone())
+                .unwrap();
         }
     }
     pub async fn execute_task(&self, task: &Task) -> Result<AgentResponse, AgentError> {
         // Extract the prompt from the task
         debug!("Executing task: {}, count: {}", task.id, task.retry_count);
         let mut prompt = task.prompt.clone();
-        self.append_system_instructions(&mut prompt);
+        self.prepend_system_instructions(&mut prompt);
 
         // Use the client to execute the task
         let chat_response = self.client.generate_content(&prompt).await?;
@@ -179,7 +181,7 @@ impl Agent {
         // Extract the prompt from the task
         debug!("Executing prompt");
         let mut prompt = prompt.clone();
-        self.append_system_instructions(&mut prompt);
+        self.prepend_system_instructions(&mut prompt);
 
         // Use the client to execute the task
         let chat_response = self.client.generate_content(&prompt).await?;
@@ -200,13 +202,12 @@ impl Agent {
             self.append_task_with_message_context(&mut task, &context_messages);
             self.bind_context(&mut task.prompt, &parameter_context, &global_context)?;
 
-            self.append_system_instructions(&mut task.prompt);
+            self.prepend_system_instructions(&mut task.prompt);
             (task.prompt.clone(), task.id.clone())
         };
 
         // Now do the async work without holding the lock
         let chat_response = self.client.generate_content(&prompt).await?;
-
         Ok(AgentResponse::new(task_id, chat_response))
     }
 
@@ -328,7 +329,6 @@ impl<'de> Deserialize<'de> for Agent {
 #[derive(Debug, Clone)]
 pub struct PyAgent {
     pub agent: Arc<Agent>,
-    pub runtime: Arc<tokio::runtime::Runtime>,
 }
 
 #[pymethods]
@@ -346,35 +346,11 @@ impl PyAgent {
         system_instruction: Option<&Bound<'_, PyAny>>,
     ) -> Result<Self, AgentError> {
         let provider = Provider::extract_provider(provider)?;
-
-        let system_instruction = if let Some(system_instruction) = system_instruction {
-            Some(
-                parse_prompt(system_instruction)?
-                    .into_iter()
-                    .map(|mut msg| {
-                        msg.role = match provider {
-                            Provider::OpenAI
-                            | Provider::Gemini
-                            | Provider::Vertex
-                            | Provider::Google => Role::Developer.to_string(),
-                            Provider::Anthropic => Role::Assistant.to_string(),
-                            _ => msg.role,
-                        };
-                        msg
-                    })
-                    .collect::<Vec<Message>>(),
-            )
-        } else {
-            None
-        };
-
-        let runtime = tokio::runtime::Runtime::new()?;
-
-        let agent = runtime.block_on(async { Agent::new(provider, system_instruction).await })?;
+        let system_instructions = extract_system_instructions(system_instruction, &provider)?;
+        let agent = block_on(async { Agent::new(provider, system_instructions).await })?;
 
         Ok(Self {
             agent: Arc::new(agent),
-            runtime: Arc::new(runtime),
         })
     }
 
@@ -420,9 +396,7 @@ impl PyAgent {
             task.prompt.model_identifier()
         );
 
-        let chat_response = self
-            .runtime
-            .block_on(async { self.agent.execute_task(task).await })?;
+        let chat_response = block_on(async { self.agent.execute_task(task).await })?;
 
         debug!("Task executed successfully");
         let output = output_type.as_ref().map(|obj| obj.clone().unbind());

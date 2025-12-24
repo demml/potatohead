@@ -1153,6 +1153,7 @@ dependencies = [
  "gcloud-auth",
  "http",
  "potato-provider",
+ "potato-state",
  "potato-type",
  "potato-util",
  "pyo3",
@@ -1196,6 +1197,15 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.17",
  "token-source",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "potato-state"
+version = "0.10.0"
+dependencies = [
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
 ]

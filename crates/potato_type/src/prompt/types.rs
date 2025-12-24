@@ -1,5 +1,7 @@
 use crate::anthropic::v1::message::MessageParam;
 use crate::anthropic::v1::message::MessageParam as AnthropicMessage;
+
+use crate::anthropic::v1::message::TextBlockParam;
 use crate::common::document_format;
 use crate::common::get_audio_media_types;
 use crate::common::get_document_media_types;
@@ -33,6 +35,20 @@ pub enum Role {
     Tool,
     Model,
     System,
+}
+
+impl Role {
+    /// Returns the string representation of the role
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Role::User => "user",
+            Role::Assistant => "assistant",
+            Role::Developer => "developer",
+            Role::Tool => "tool",
+            Role::Model => "model",
+            Role::System => "system",
+        }
+    }
 }
 
 impl Display for Role {
@@ -674,9 +690,32 @@ pub enum MessageNum {
     OpenAIMessageV1(OpenAIChatMessage),
     AnthropicMessageV1(AnthropicMessage),
     GeminiContentV1(GeminiContent),
+
+    // this is a special case for Anthropic system messages
+    AnthropicSystemMessageV1(TextBlockParam),
 }
 
 impl MessageNum {
+    pub fn anthropic_message_to_system_message(&mut self) -> Result<(), TypeError> {
+        match self {
+            MessageNum::AnthropicMessageV1(msg) => {
+                let text_param = msg.to_text_block_param()?;
+                *self = MessageNum::AnthropicSystemMessageV1(text_param);
+                Ok(())
+            }
+            _ => Err(TypeError::Error(
+                "Cannot convert non-AnthropicMessageV1 to system message".to_string(),
+            )),
+        }
+    }
+    pub fn role(&self) -> &str {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => &msg.role,
+            MessageNum::AnthropicMessageV1(msg) => &msg.role,
+            MessageNum::GeminiContentV1(msg) => &msg.role,
+            _ => "system",
+        }
+    }
     pub fn bind(&self, name: &str, value: &str) -> Result<Self, TypeError> {
         match self {
             MessageNum::OpenAIMessageV1(msg) => {
@@ -691,13 +730,15 @@ impl MessageNum {
                 let bound_msg = msg.bind(name, value)?;
                 Ok(MessageNum::GeminiContentV1(bound_msg))
             }
+            _ => Ok(self.clone()),
         }
     }
-    pub(crate) fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
+    pub fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
         match self {
             MessageNum::OpenAIMessageV1(msg) => msg.bind_mut(name, value),
             MessageNum::AnthropicMessageV1(msg) => msg.bind_mut(name, value),
             MessageNum::GeminiContentV1(msg) => msg.bind_mut(name, value),
+            _ => Ok(()),
         }
     }
 
@@ -706,6 +747,7 @@ impl MessageNum {
             MessageNum::OpenAIMessageV1(msg) => msg.extract_variables(),
             MessageNum::AnthropicMessageV1(msg) => msg.extract_variables(),
             MessageNum::GeminiContentV1(msg) => msg.extract_variables(),
+            _ => vec![],
         }
     }
 
@@ -726,6 +768,10 @@ impl MessageNum {
                 let bound_msg = msg.clone().into_bound_py_any(py)?;
                 Ok(bound_msg)
             }
+            MessageNum::AnthropicSystemMessageV1(msg) => {
+                let bound_msg = msg.clone().into_bound_py_any(py)?;
+                Ok(bound_msg)
+            }
         }
     }
 
@@ -736,6 +782,7 @@ impl MessageNum {
             }
             MessageNum::AnthropicMessageV1(msg) => msg.role == Role::Assistant.to_string(),
             MessageNum::GeminiContentV1(msg) => msg.role == Role::Model.to_string(),
+            MessageNum::AnthropicSystemMessageV1(_) => true,
         }
     }
 }
