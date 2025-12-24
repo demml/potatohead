@@ -1,10 +1,13 @@
-use crate::prompt::{MessageNum, Role};
-use crate::traits::get_var_regex;
+use crate::prompt::builder::ProviderRequest;
+use crate::prompt::{MessageNum, ModelSettings, Role};
+use crate::traits::{get_var_regex, RequestAdapter};
 use crate::traits::{MessageFactory, PromptMessageExt};
+use crate::Provider;
 use crate::{SettingsType, TypeError};
 use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyList};
+use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use serde_json::Value;
@@ -1366,6 +1369,16 @@ impl PromptMessageExt for GeminiContent {
         // Convert HashSet to Vec for return
         variables.into_iter().collect()
     }
+
+    fn from_text(content: String, role: &str) -> Result<Self, TypeError> {
+        Ok(Self {
+            role: role.to_string(),
+            parts: vec![Part {
+                data: DataNum::Text(content),
+                ..Default::default()
+            }],
+        })
+    }
 }
 
 impl MessageFactory for GeminiContent {
@@ -2374,4 +2387,101 @@ pub struct GeminiGenerateContentRequestV1 {
 
     #[serde(flatten)]
     pub settings: GeminiSettings,
+}
+
+impl RequestAdapter for GeminiGenerateContentRequestV1 {
+    fn messages_mut(&mut self) -> &mut Vec<MessageNum> {
+        &mut self.contents
+    }
+    fn messages(&self) -> &[MessageNum] {
+        &self.contents
+    }
+    fn system_instructions(&self) -> Vec<&MessageNum> {
+        if let Some(system_msg) = &self.system_instruction {
+            vec![system_msg]
+        } else {
+            vec![]
+        }
+    }
+    fn response_json_schema(&self) -> Option<&Value> {
+        self.settings
+            .generation_config
+            .as_ref()
+            .and_then(|cfg| cfg.response_json_schema.as_ref())
+    }
+    fn preprend_system_instructions(&mut self, messages: Vec<MessageNum>) -> Result<(), TypeError> {
+        if messages.len() > 1 {
+            return Err(TypeError::Error(
+                "Gemini only supports a single system instruction".to_string(),
+            ));
+        }
+
+        // Take the first instruction, replace existing if present
+        if let Some(instruction) = messages.into_iter().next() {
+            self.system_instruction = Some(instruction);
+        }
+        Ok(())
+    }
+
+    fn get_py_system_instructions<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyList>, TypeError> {
+        let py_system_instructions = PyList::empty(py);
+        if let Some(system_msg) = &self.system_instruction {
+            py_system_instructions.append(system_msg.to_bound_py_object(py)?)?;
+        }
+
+        Ok(py_system_instructions)
+    }
+
+    fn model_settings<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        let settings = self.settings.clone();
+        Ok(settings.into_bound_py_any(py)?)
+    }
+
+    fn to_request_body(&self) -> Result<Value, TypeError> {
+        Ok(serde_json::to_value(self)?)
+    }
+
+    fn match_provider(&self, provider: &Provider) -> bool {
+        // can match Gemini, Google or Vertex
+        matches!(
+            provider,
+            Provider::Gemini | Provider::Google | Provider::Vertex
+        )
+    }
+
+    fn build_provider_enum(
+        messages: Vec<MessageNum>,
+        system_instructions: Vec<MessageNum>,
+        _model: String,
+        settings: ModelSettings,
+        response_json_schema: Option<Value>,
+    ) -> Result<ProviderRequest, TypeError> {
+        // check system_instructions only has one element for Gemini
+        // Get first element if exists
+        let system_instruction = if system_instructions.is_empty() {
+            None
+        } else if system_instructions.len() > 1 {
+            return Err(TypeError::MoreThanOneSystemInstruction);
+        } else {
+            system_instructions.into_iter().next()
+        };
+
+        let mut gemini_settings = match settings {
+            ModelSettings::GoogleChat(s) => s,
+            _ => GeminiSettings::default(),
+        };
+
+        if let Some(schema) = response_json_schema {
+            gemini_settings.configure_for_structured_output(schema);
+        }
+
+        Ok(ProviderRequest::GeminiV1(GeminiGenerateContentRequestV1 {
+            contents: messages,
+            system_instruction,
+            settings: gemini_settings,
+        }))
+    }
 }

@@ -1,17 +1,13 @@
-use crate::anthropic::v1::message::{
-    create_structured_output_schema as anthropic_create_structured_output_schema,
-    AnthropicMessageRequestV1, AnthropicSettings,
-};
+use crate::anthropic::v1::message::AnthropicMessageRequestV1;
 use crate::google::v1::generate::request::GeminiGenerateContentRequestV1;
-use crate::google::v1::generate::GeminiSettings;
 use crate::openai::v1::chat::request::OpenAIChatCompletionRequestV1;
-use crate::openai::v1::create_structured_output_schema;
 use crate::prompt::types::MessageNum;
 use crate::prompt::ModelSettings;
+use crate::traits::RequestAdapter;
 use crate::{Provider, TypeError};
+use potato_macro::dispatch_trait_method;
 use pyo3::types::PyList;
 use pyo3::types::PyListMethods;
-use pyo3::IntoPyObjectExt;
 use pyo3::Python;
 use pyo3::{Bound, PyAny};
 use serde::{Deserialize, Serialize};
@@ -62,80 +58,27 @@ pub enum ProviderRequest {
 }
 
 impl ProviderRequest {
+    pub fn insert_message(&mut self, message: MessageNum, idx: Option<usize>) -> () {
+        self.messages_mut().insert(idx.unwrap_or(0), message);
+    }
+
     pub fn messages(&self) -> &[MessageNum] {
-        match self {
-            ProviderRequest::OpenAIV1(req) => &req.messages,
-            ProviderRequest::AnthropicV1(req) => &req.messages,
-            ProviderRequest::GeminiV1(req) => &req.contents,
-        }
+        dispatch_trait_method!(self, RequestAdapter, messages())
     }
 
     pub fn system_instructions(&self) -> Vec<&MessageNum> {
-        match self {
-            ProviderRequest::OpenAIV1(req) => req
-                .messages
-                .iter()
-                .filter(|msg| msg.is_system_message())
-                .collect(),
-            ProviderRequest::AnthropicV1(req) => req.system.iter().collect(),
-            ProviderRequest::GeminiV1(req) => {
-                if let Some(system_msg) = &req.system_instruction {
-                    vec![system_msg]
-                } else {
-                    vec![]
-                }
-            }
-        }
+        dispatch_trait_method!(self, RequestAdapter, system_instructions())
+    }
+
+    pub fn messages_mut(&mut self) -> &mut Vec<MessageNum> {
+        dispatch_trait_method!(mut self, RequestAdapter, messages_mut())
     }
 
     pub fn prepend_system_instructions(
         &mut self,
         instructions: Vec<MessageNum>,
     ) -> Result<(), TypeError> {
-        if instructions.is_empty() {
-            return Ok(());
-        }
-
-        match self {
-            ProviderRequest::OpenAIV1(req) => {
-                // OpenAI includes system messages in the main messages vec
-                // Prepend new instructions to existing messages
-                let mut combined = instructions;
-                combined.extend(req.messages.drain(..));
-                req.messages = combined;
-                Ok(())
-            }
-            ProviderRequest::AnthropicV1(req) => {
-                // Anthropic has a SystemPrompt which contains Vec<TextBlockParam>
-                // Convert MessageNum to TextBlockParam and prepend to existing system content
-                let mut combined = instructions;
-                combined.extend(req.system.drain(..));
-                req.system = combined;
-                Ok(())
-            }
-            ProviderRequest::GeminiV1(req) => {
-                // Gemini only supports a single system instruction
-                if instructions.len() > 1 {
-                    return Err(TypeError::Error(
-                        "Gemini only supports a single system instruction".to_string(),
-                    ));
-                }
-
-                // Take the first instruction, replace existing if present
-                if let Some(instruction) = instructions.into_iter().next() {
-                    req.system_instruction = Some(instruction);
-                }
-                Ok(())
-            }
-        }
-    }
-
-    pub fn messages_mut(&mut self) -> &mut Vec<MessageNum> {
-        match self {
-            ProviderRequest::OpenAIV1(req) => &mut req.messages,
-            ProviderRequest::AnthropicV1(req) => &mut req.messages,
-            ProviderRequest::GeminiV1(req) => &mut req.contents,
-        }
+        dispatch_trait_method!(mut self, RequestAdapter, preprend_system_instructions(instructions))
     }
 
     pub(crate) fn get_py_messages<'py>(
@@ -155,184 +98,36 @@ impl ProviderRequest {
         &self,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyList>, TypeError> {
-        let py_system_instructions = PyList::empty(py);
-
-        match self {
-            ProviderRequest::OpenAIV1(req) => {
-                for msg in &req.messages {
-                    // OpenAI does not have separate system instructions
-                    // but we can filter them out if needed
-                    if msg.is_system_message() {
-                        py_system_instructions.append(msg.to_bound_py_object(py)?)?;
-                    }
-                }
-            }
-            ProviderRequest::AnthropicV1(req) => {
-                for system_msg in &req.system {
-                    py_system_instructions.append(system_msg.to_bound_py_object(py)?)?;
-                }
-            }
-            ProviderRequest::GeminiV1(req) => {
-                if let Some(system_msg) = &req.system_instruction {
-                    py_system_instructions.append(system_msg.to_bound_py_object(py)?)?;
-                }
-            }
-        }
-
-        Ok(py_system_instructions)
+        dispatch_trait_method!(self, RequestAdapter, get_py_system_instructions(py))
     }
 
     pub(crate) fn model_settings<'py>(
         &self,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyAny>, TypeError> {
-        match &self {
-            ProviderRequest::OpenAIV1(req) => {
-                let settings = req.settings.as_ref().cloned().unwrap_or_default();
-                Ok(settings.into_bound_py_any(py)?)
-            }
-            ProviderRequest::AnthropicV1(req) => {
-                let settings = req.settings.clone();
-                Ok(settings.into_bound_py_any(py)?)
-            }
-            ProviderRequest::GeminiV1(req) => {
-                let settings = req.settings.clone();
-                Ok(settings.into_bound_py_any(py)?)
-            }
-        }
+        dispatch_trait_method!(self, RequestAdapter, model_settings(py))
     }
 
-    pub(crate) fn response_json_schema(&self) -> Option<&Value> {
-        match &self {
-            ProviderRequest::OpenAIV1(req) => req.response_format.as_ref(),
-            ProviderRequest::AnthropicV1(req) => req.output_format.as_ref(),
-            ProviderRequest::GeminiV1(req) => req
-                .settings
-                .generation_config
-                .as_ref()
-                .and_then(|cfg| cfg.response_json_schema.as_ref()),
-        }
+    pub fn response_json_schema(&self) -> Option<&Value> {
+        dispatch_trait_method!(self, RequestAdapter, response_json_schema())
     }
 
     pub fn has_structured_output(&self) -> bool {
         self.response_json_schema().is_some()
     }
 
-    fn to_anthropic_request(&self) -> Result<Value, TypeError> {
-        match self {
-            ProviderRequest::AnthropicV1(req) => Ok(serde_json::to_value(req)?),
-            _ => Err(TypeError::InvalidRequestTypeForAnthropic),
+    /// Retrieve the JSON request body for the specified provider
+    /// This method will first attempt to match the provider type,
+    /// returning an error if there is a mismatch.
+    pub fn to_request(&self, provider: &Provider) -> Result<Value, TypeError> {
+        let is_matched = dispatch_trait_method!(self, RequestAdapter, match_provider(provider));
+
+        if !is_matched {
+            return Err(TypeError::Error(
+                "ProviderRequest does not match the specified provider".to_string(),
+            ));
         }
-    }
-
-    fn to_gemini_request(&self) -> Result<Value, TypeError> {
-        match self {
-            ProviderRequest::GeminiV1(req) => Ok(serde_json::to_value(req)?),
-            _ => Err(TypeError::InvalidRequestTypeForGemini),
-        }
-    }
-
-    fn to_openai_request(&self) -> Result<Value, TypeError> {
-        match self {
-            ProviderRequest::OpenAIV1(req) => Ok(serde_json::to_value(req)?),
-            _ => Err(TypeError::InvalidRequestTypeForOpenAI),
-        }
-    }
-
-    pub fn create_request_for_provider(&self, provider: &Provider) -> Result<Value, TypeError> {
-        match provider {
-            Provider::Anthropic => self.to_anthropic_request(),
-            Provider::Gemini | Provider::Vertex | Provider::Google => self.to_gemini_request(),
-            Provider::OpenAI => self.to_openai_request(),
-            _ => Err(TypeError::UnsupportedProviderForRequestCreation),
-        }
-    }
-
-    fn build_openai_v1(
-        messages: Vec<MessageNum>,
-        system_instructions: Vec<MessageNum>,
-        model: String,
-        settings: ModelSettings,
-        response_format: Option<Value>,
-    ) -> Result<Self, TypeError> {
-        let openai_messages: Vec<_> = system_instructions.into_iter().chain(messages).collect();
-
-        let openai_settings = match settings {
-            ModelSettings::OpenAIChat(s) => Some(s),
-            _ => None,
-        };
-
-        let response_json_schema = match &response_format {
-            Some(schema) => Some(create_structured_output_schema(schema)),
-            None => None,
-        };
-
-        Ok(ProviderRequest::OpenAIV1(OpenAIChatCompletionRequestV1 {
-            model,
-            messages: openai_messages,
-            response_format: response_json_schema,
-            settings: openai_settings,
-        }))
-    }
-
-    fn build_anthropic_v1(
-        messages: Vec<MessageNum>,
-        system_instructions: Vec<MessageNum>,
-        model: String,
-        settings: ModelSettings,
-        output_format: Option<Value>,
-    ) -> Result<Self, TypeError> {
-        // Extract Anthropic-specific settings
-        let anthropic_settings = match settings {
-            ModelSettings::AnthropicChat(s) => s,
-            _ => AnthropicSettings::default(),
-        };
-
-        let output_format = if let Some(json_schema) = output_format {
-            Some(anthropic_create_structured_output_schema(&json_schema))
-        } else {
-            None
-        };
-
-        Ok(ProviderRequest::AnthropicV1(AnthropicMessageRequestV1 {
-            model,
-            messages,
-            system: system_instructions,
-            settings: anthropic_settings,
-            output_format,
-        }))
-    }
-
-    fn build_gemini_v1(
-        messages: Vec<MessageNum>,
-        system_instructions: Vec<MessageNum>,
-        settings: ModelSettings,
-        response_schema: Option<Value>,
-    ) -> Result<Self, TypeError> {
-        // check system_instructions only has one element for Gemini
-        // Get first element if exists
-        let system_instruction = if system_instructions.is_empty() {
-            None
-        } else if system_instructions.len() > 1 {
-            return Err(TypeError::MoreThanOneSystemInstruction);
-        } else {
-            system_instructions.into_iter().next()
-        };
-
-        let mut gemini_settings = match settings {
-            ModelSettings::GoogleChat(s) => s,
-            _ => GeminiSettings::default(),
-        };
-
-        if let Some(schema) = response_schema {
-            gemini_settings.configure_for_structured_output(schema);
-        }
-
-        Ok(ProviderRequest::GeminiV1(GeminiGenerateContentRequestV1 {
-            contents: messages,
-            system_instruction,
-            settings: gemini_settings,
-        }))
+        dispatch_trait_method!(self, RequestAdapter, to_request_body())
     }
 
     /// Serialize to JSON for API requests
@@ -365,23 +160,24 @@ pub fn to_provider_request(
 
     // Build appropriate request based on type
     match request_type {
-        RequestType::OpenAIChatV1 => ProviderRequest::build_openai_v1(
+        RequestType::OpenAIChatV1 => OpenAIChatCompletionRequestV1::build_provider_enum(
             messages,
             system_instructions,
             model,
             model_settings,
             response_json_schema,
         ),
-        RequestType::AnthropicMessageV1 => ProviderRequest::build_anthropic_v1(
+        RequestType::AnthropicMessageV1 => AnthropicMessageRequestV1::build_provider_enum(
             messages,
             system_instructions,
             model,
             model_settings,
             response_json_schema,
         ),
-        RequestType::GeminiContentV1 => ProviderRequest::build_gemini_v1(
+        RequestType::GeminiContentV1 => GeminiGenerateContentRequestV1::build_provider_enum(
             messages,
             system_instructions,
+            model,
             model_settings,
             response_json_schema,
         ),

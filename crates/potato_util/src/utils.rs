@@ -21,6 +21,21 @@ pub fn create_uuid7() -> String {
 pub struct PyHelperFuncs {}
 
 impl PyHelperFuncs {
+    /// Convert any type implementing `IntoPyObject` to a Python object
+    /// # Arguments
+    /// * `py` - A Python interpreter instance
+    /// * `object` - A reference to an object implementing `IntoPyObject`
+    /// # Returns
+    /// * `Result<Bound<'py, PyAny>, UtilError>` - A result containing the Python object or an error
+    pub fn to_bound_py_object<'py, T>(
+        py: Python<'py>,
+        object: &T,
+    ) -> Result<Bound<'py, PyAny>, UtilError>
+    where
+        T: IntoPyObject<'py> + Clone,
+    {
+        Ok(object.clone().into_bound_py_any(py)?)
+    }
     pub fn __str__<T: Serialize>(object: T) -> String {
         match ColoredFormatter::with_styler(
             PrettyFormatter::default(),

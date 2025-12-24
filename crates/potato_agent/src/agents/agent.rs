@@ -102,7 +102,7 @@ impl Agent {
                 if let Some(messages) = context_messages.get(dep) {
                     for message in messages {
                         // prepend the messages from dependencies
-                        task.prompt.message.insert(0, message.clone());
+                        task.prompt.request.insert_message()
                     }
                 }
             }
@@ -358,7 +358,6 @@ impl PyAgent {
     #[pyo3(signature = (task, output_type=None))]
     pub fn execute_task(
         &self,
-        py: Python<'_>,
         task: &mut Task,
         output_type: Option<Bound<'_, PyAny>>,
     ) -> Result<PyAgentResponse, AgentError> {

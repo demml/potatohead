@@ -158,7 +158,7 @@ impl OpenAIClient {
             return Err(ProviderError::MissingAuthenticationError);
         }
 
-        let request_body = prompt.request.create_request_for_provider(&self.provider)?;
+        let request_body = prompt.request.to_request(&self.provider)?;
 
         debug!(
             "Sending chat completion request to OpenAI API: {:?}",

@@ -179,9 +179,9 @@ impl AnthropicClient {
         }
 
         // in most cases this will be a direct conversion of struct to serde_json::Value
-        // however, this allows for extension in the future if we want to all conversion of one type to another
+        // however, this allows for extension in the future if we want to allow conversion of one type to another
         // i.e., converting an anthropic request to a gemini request
-        let request_body = prompt.request.create_request_for_provider(&self.provider)?;
+        let request_body = prompt.request.to_request(&self.provider)?;
 
         debug!(
             "Sending message request to Anthropic API: {:?}",

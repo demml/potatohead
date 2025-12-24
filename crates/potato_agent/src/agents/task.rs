@@ -1,5 +1,5 @@
 use crate::{AgentResponse, PyAgentResponse};
-use potato_prompt::Prompt;
+use potato_type::prompt::Prompt;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;

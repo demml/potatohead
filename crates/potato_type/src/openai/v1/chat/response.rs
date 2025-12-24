@@ -1,4 +1,11 @@
-use crate::common::{LogProbExt, ResponseExt, TokenUsage};
+use crate::traits::PromptMessageExt;
+use crate::{
+    common::{LogProbExt, ResponseExt, TokenUsage},
+    openai::v1::ChatMessage,
+    prompt::MessageNum,
+    traits::{MessageResponseExt, ResponseAdapter},
+    TypeError,
+};
 use potato_util::utils::ResponseLogProbs;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
@@ -93,6 +100,19 @@ pub struct Choice {
     pub finish_reason: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logprobs: Option<LogProbs>,
+}
+
+impl MessageResponseExt for Choice {
+    fn to_message_num(&self) -> Result<Option<MessageNum>, TypeError> {
+        // if content is None, return None
+        if let Some(content) = &self.message.content {
+            let chat_msg = ChatMessage::from_text(content.clone(), &self.message.role)?;
+            let message_num = MessageNum::OpenAIMessageV1(chat_msg);
+            Ok(Some(message_num))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 #[pyclass]
@@ -191,5 +211,33 @@ impl LogProbExt for OpenAIChatResponse {
 impl OpenAIChatResponse {
     pub fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
+    }
+}
+
+impl ResponseAdapter for OpenAIChatResponse {
+    fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.choices.is_empty()
+    }
+
+    fn to_bound_py_object<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        Ok(PyHelperFuncs::to_bound_py_object(py, self)?)
+    }
+
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn to_message_num(&self) -> Result<Vec<MessageNum>, TypeError> {
+        let mut results = Vec::new();
+        for choice in &self.choices {
+            if let Some(message_num) = choice.to_message_num()? {
+                results.push(message_num);
+            }
+        }
+        Ok(results)
     }
 }

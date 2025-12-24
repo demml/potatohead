@@ -1,7 +1,9 @@
 use crate::openai::v1::chat::settings::OpenAIChatSettings;
+use crate::prompt::builder::ProviderRequest;
 use crate::prompt::types::MessageNum;
-use crate::traits::{get_var_regex, MessageFactory, PromptMessageExt};
-use crate::TypeError;
+use crate::prompt::ModelSettings;
+use crate::traits::{get_var_regex, MessageFactory, PromptMessageExt, RequestAdapter};
+use crate::{Provider, TypeError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyList, PyString};
 use pyo3::IntoPyObjectExt;
@@ -336,6 +338,14 @@ impl PromptMessageExt for ChatMessage {
         // Convert HashSet to Vec for return
         variables.into_iter().collect()
     }
+
+    fn from_text(content: String, role: &str) -> Result<Self, TypeError> {
+        Ok(Self {
+            role: role.to_string(),
+            content: vec![ContentPart::Text(TextContentPart::new(content))],
+            name: None,
+        })
+    }
 }
 
 impl MessageFactory for ChatMessage {
@@ -359,6 +369,86 @@ pub struct OpenAIChatCompletionRequestV1 {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(flatten)]
     pub settings: Option<OpenAIChatSettings>,
+}
+
+impl RequestAdapter for OpenAIChatCompletionRequestV1 {
+    fn messages_mut(&mut self) -> &mut Vec<MessageNum> {
+        &mut self.messages
+    }
+    fn messages(&self) -> &[MessageNum] {
+        &self.messages
+    }
+    fn system_instructions(&self) -> Vec<&MessageNum> {
+        self.messages
+            .iter()
+            .filter(|msg| msg.is_system_message())
+            .collect()
+    }
+    fn response_json_schema(&self) -> Option<&Value> {
+        self.response_format.as_ref()
+    }
+    fn preprend_system_instructions(&mut self, messages: Vec<MessageNum>) -> Result<(), TypeError> {
+        let mut combined = messages;
+        combined.extend(self.messages.drain(..));
+        self.messages = combined;
+        Ok(())
+    }
+
+    fn get_py_system_instructions<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyList>, TypeError> {
+        let py_system_instructions = PyList::empty(py);
+        for msg in &self.messages {
+            // OpenAI does not have separate system instructions
+            // but we can filter them out if needed
+            if msg.is_system_message() {
+                py_system_instructions.append(msg.to_bound_py_object(py)?)?;
+            }
+        }
+
+        Ok(py_system_instructions)
+    }
+
+    fn model_settings<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        let settings = self.settings.as_ref().cloned().unwrap_or_default();
+        Ok(settings.into_bound_py_any(py)?)
+    }
+
+    fn to_request_body(&self) -> Result<Value, TypeError> {
+        Ok(serde_json::to_value(self)?)
+    }
+
+    fn match_provider(&self, provider: &Provider) -> bool {
+        *provider == Provider::OpenAI
+    }
+
+    fn build_provider_enum(
+        messages: Vec<MessageNum>,
+        system_instructions: Vec<MessageNum>,
+        model: String,
+        settings: ModelSettings,
+        response_json_schema: Option<Value>,
+    ) -> Result<ProviderRequest, TypeError> {
+        let openai_messages: Vec<_> = system_instructions.into_iter().chain(messages).collect();
+
+        let openai_settings = match settings {
+            ModelSettings::OpenAIChat(s) => Some(s),
+            _ => None,
+        };
+
+        let response_json_schema = match &response_json_schema {
+            Some(schema) => Some(create_structured_output_schema(schema)),
+            None => None,
+        };
+
+        Ok(ProviderRequest::OpenAIV1(OpenAIChatCompletionRequestV1 {
+            model,
+            messages: openai_messages,
+            response_format: response_json_schema,
+            settings: openai_settings,
+        }))
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]

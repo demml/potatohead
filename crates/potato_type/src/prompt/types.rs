@@ -392,8 +392,7 @@ pub fn get_pydantic_module<'py>(py: Python<'py>, module_name: &str) -> PyResult<
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Message {
-    pub content: PromptContent,
-    pub role: String,
+    pub content: MessageNum,
     pub variables: Vec<String>,
 }
 

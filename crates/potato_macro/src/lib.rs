@@ -92,3 +92,26 @@ macro_rules! try_extract_to_enum {
         )+
     };
 }
+
+/// Macro for dispatching trait method calls on enum variants
+/// Supports both immutable and mutable references
+#[macro_export]
+macro_rules! dispatch_trait_method {
+    // Immutable reference pattern
+    ($enum:expr, $trait:path, $method:ident($($args:expr),* $(,)?)) => {
+        match $enum {
+            Self::OpenAIV1(inner) => <_ as $trait>::$method(inner, $($args),*),
+            Self::AnthropicV1(inner) => <_ as $trait>::$method(inner, $($args),*),
+            Self::GeminiV1(inner) => <_ as $trait>::$method(inner, $($args),*),
+        }
+    };
+
+    // Mutable reference pattern - use 'mut' as first token before trait path
+    (mut $enum:expr, $trait:path, $method:ident($($args:expr),* $(,)?)) => {
+        match $enum {
+            Self::OpenAIV1(inner) => <_ as $trait>::$method(inner, $($args),*),
+            Self::AnthropicV1(inner) => <_ as $trait>::$method(inner, $($args),*),
+            Self::GeminiV1(inner) => <_ as $trait>::$method(inner, $($args),*),
+        }
+    };
+}

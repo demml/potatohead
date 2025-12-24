@@ -1,14 +1,18 @@
 use crate::common::get_image_media_types;
 use crate::common::ResponseExt;
+use crate::Provider;
 
+use crate::prompt::builder::ProviderRequest;
 use crate::prompt::MessageNum;
+use crate::prompt::ModelSettings;
 use crate::traits::get_var_regex;
+use crate::traits::RequestAdapter;
 use crate::traits::{MessageFactory, PromptMessageExt};
 use crate::TypeError;
 use potato_util::{json_to_pydict, json_to_pyobject};
 use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyList};
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -1768,6 +1772,78 @@ pub(crate) fn create_structured_output_schema(json_schema: &Value) -> Value {
         "schema": json_schema,
 
     })
+}
+
+impl RequestAdapter for AnthropicMessageRequestV1 {
+    fn messages_mut(&mut self) -> &mut Vec<MessageNum> {
+        &mut self.messages
+    }
+    fn messages(&self) -> &[MessageNum] {
+        &self.messages
+    }
+    fn system_instructions(&self) -> Vec<&MessageNum> {
+        self.system.iter().collect()
+    }
+    fn response_json_schema(&self) -> Option<&Value> {
+        self.output_format.as_ref()
+    }
+
+    fn preprend_system_instructions(&mut self, messages: Vec<MessageNum>) -> Result<(), TypeError> {
+        let mut combined = messages;
+        combined.extend(self.system.drain(..));
+        self.system = combined;
+        Ok(())
+    }
+
+    fn get_py_system_instructions<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyList>, TypeError> {
+        let py_system_instructions = PyList::empty(py);
+        for system_msg in &self.system {
+            py_system_instructions.append(system_msg.to_bound_py_object(py)?)?;
+        }
+
+        Ok(py_system_instructions)
+    }
+
+    fn model_settings<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        let settings = self.settings.clone();
+        Ok(settings.into_bound_py_any(py)?)
+    }
+
+    fn to_request_body(&self) -> Result<Value, TypeError> {
+        Ok(serde_json::to_value(self)?)
+    }
+    fn match_provider(&self, provider: &Provider) -> bool {
+        *provider == Provider::Anthropic
+    }
+    fn build_provider_enum(
+        messages: Vec<MessageNum>,
+        system_instructions: Vec<MessageNum>,
+        model: String,
+        settings: ModelSettings,
+        response_json_schema: Option<Value>,
+    ) -> Result<ProviderRequest, TypeError> {
+        let anthropic_settings = match settings {
+            ModelSettings::AnthropicChat(s) => s,
+            _ => AnthropicSettings::default(),
+        };
+
+        let output_format = if let Some(json_schema) = response_json_schema {
+            Some(create_structured_output_schema(&json_schema))
+        } else {
+            None
+        };
+
+        Ok(ProviderRequest::AnthropicV1(AnthropicMessageRequestV1 {
+            model,
+            messages,
+            system: system_instructions,
+            settings: anthropic_settings,
+            output_format,
+        }))
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
