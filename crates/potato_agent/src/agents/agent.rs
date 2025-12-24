@@ -8,7 +8,7 @@ use potato_prompt::{prompt::parse_prompt, Prompt};
 
 use potato_provider::providers::anthropic::client::AnthropicClient;
 use potato_provider::{providers::google::VertexClient, GenAiClient, OpenAIClient};
-use potato_type::prompt::{parse_response_to_json, Message, Role};
+use potato_type::prompt::{parse_response_to_json, Message, MessageNum, Role};
 
 use potato_provider::providers::types::ServiceType;
 use potato_provider::GeminiClient;
@@ -32,7 +32,7 @@ pub struct Agent {
     pub id: String,
     client: Arc<GenAiClient>,
     pub provider: Provider,
-    pub system_instruction: Vec<Message>,
+    pub system_instruction: Vec<MessageNum>,
 }
 
 /// Rust method implementation of the Agent
