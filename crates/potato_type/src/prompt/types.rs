@@ -15,17 +15,12 @@ use mime_guess;
 use potato_util::PyHelperFuncs;
 use potato_util::{json_to_pyobject, pyobject_to_json};
 use pyo3::types::PyAnyMethods;
-use pyo3::types::PyDict;
 use pyo3::types::PyString;
 use pyo3::{prelude::*, IntoPyObjectExt};
-use regex::Regex;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashSet;
 use std::fmt::Display;
-use std::sync::OnceLock;
-use tracing::instrument;
 use tracing::{debug, error};
 
 pub enum Role {
@@ -387,127 +382,6 @@ impl PromptContent {
 
 pub fn get_pydantic_module<'py>(py: Python<'py>, module_name: &str) -> PyResult<Bound<'py, PyAny>> {
     py.import("pydantic_ai")?.getattr(module_name)
-}
-
-#[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct Message {
-    pub content: MessageNum,
-    pub variables: Vec<String>,
-}
-
-#[pymethods]
-impl Message {
-    #[new]
-    #[pyo3(signature = (content))]
-    pub fn new(content: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let content = PromptContent::new(content)?;
-        let variables = Self::extract_variables(&content);
-        Ok(Self {
-            content,
-            role: Role::User.to_string(),
-            variables,
-        })
-    }
-
-    pub fn bind(&self, name: &str, value: &str) -> Result<Message, TypeError> {
-        let placeholder = format!("${{{name}}}");
-
-        let content = match &self.content {
-            PromptContent::Str(content) => {
-                let new_content = content.replace(&placeholder, value);
-                PromptContent::Str(new_content)
-            }
-            _ => self.content.clone(),
-        };
-
-        Ok(Message {
-            content,
-            role: self.role.clone(),
-            variables: self.variables.clone(),
-        })
-    }
-
-    #[instrument(skip_all)]
-    pub fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
-        debug!("Binding variable: {name} with value: {value}");
-        let placeholder = format!("${{{name}}}");
-
-        match &mut self.content {
-            PromptContent::Str(content) => {
-                *content = content.replace(&placeholder, value);
-            }
-            _ => return Err(TypeError::CannotBindNonStringContent),
-        }
-
-        Ok(())
-    }
-
-    pub fn unwrap<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.content.to_pyobject(py)
-    }
-
-    pub fn model_dump<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
-        let message = PyDict::new(py);
-
-        message.set_item("role", self.role.clone())?;
-        message.set_item("content", self.unwrap(py)?)?;
-        Ok(message)
-    }
-
-    pub fn __str__(&self) -> String {
-        PyHelperFuncs::__str__(self)
-    }
-}
-
-impl Message {
-    pub fn new_rs(content: PromptContent) -> Self {
-        let variables = Self::extract_variables(&content);
-        Self {
-            content,
-
-            role: Role::User.to_string(),
-            variables,
-        }
-    }
-    pub fn from(content: PromptContent, role: Role) -> Self {
-        let variables = Self::extract_variables(&content);
-        Self {
-            content,
-            role: role.to_string(),
-            variables,
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        match &self.content {
-            PromptContent::Str(s) => s.is_empty(),
-            _ => false,
-        }
-    }
-
-    pub fn extract_variables(content: &PromptContent) -> Vec<String> {
-        let mut variables = HashSet::new();
-
-        if let PromptContent::Str(content) = content {
-            // Create regex to find all ${variable_name} patterns
-            // This is lazily initialized to avoid recompiling the regex each call
-            static VAR_REGEX: OnceLock<Regex> = OnceLock::new();
-            let regex = VAR_REGEX.get_or_init(|| {
-                Regex::new(r"\$\{([^}]+)\}").expect("Failed to compile variable regex")
-            });
-
-            // Find all matches and collect variable names
-            for captures in regex.captures_iter(content) {
-                if let Some(name) = captures.get(1) {
-                    variables.insert(name.as_str().to_string());
-                }
-            }
-        }
-
-        // Convert HashSet to Vec for return
-        variables.into_iter().collect()
-    }
 }
 
 /// Checks if an object is a subclass of a pydantic BaseModel. This is used when validating structured outputs

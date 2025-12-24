@@ -98,6 +98,12 @@ pub enum TypeError {
 
     #[error("OpenAI response content is empty.")]
     EmptyOpenAIResponseContent,
+
+    #[error("{0}")]
+    UnsupportedConversion(String),
+
+    #[error("Cannot convert message to self")]
+    CantConvertSelf,
 }
 
 impl From<TypeError> for PyErr {

@@ -2,7 +2,9 @@ use crate::openai::v1::chat::settings::OpenAIChatSettings;
 use crate::prompt::builder::ProviderRequest;
 use crate::prompt::types::MessageNum;
 use crate::prompt::ModelSettings;
-use crate::traits::{get_var_regex, MessageFactory, PromptMessageExt, RequestAdapter};
+use crate::traits::{
+    get_var_regex, MessageConversion, MessageFactory, PromptMessageExt, RequestAdapter,
+};
 use crate::{Provider, TypeError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyList, PyString};
@@ -10,6 +12,14 @@ use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
+
+// anthropic conversion imports
+use crate::anthropic::v1::message::{
+    ContentBlock, ContentBlockParam, MessageParam, TextBlockParam,
+};
+
+// google conversion imports
+use crate::google::v1::generate::request::{DataNum, GeminiContent, Part};
 
 pub const OPENAI_CONTENT_PART_TEXT: &str = "text";
 pub const OPENAI_CONTENT_PART_IMAGE_URL: &str = "image_url";
@@ -355,6 +365,87 @@ impl MessageFactory for ChatMessage {
             content: vec![ContentPart::Text(TextContentPart::new(content))],
             name: None,
         })
+    }
+}
+
+impl MessageConversion for ChatMessage {
+    fn to_anthropic_message(&self) -> Result<MessageParam, TypeError> {
+        // Extract text content from all text content parts
+        let mut content_blocks = Vec::new();
+
+        for part in &self.content {
+            match part {
+                ContentPart::Text(text_part) => {
+                    content_blocks.push(ContentBlockParam {
+                        inner: ContentBlock::Text(TextBlockParam::new_rs(
+                            text_part.text.clone(),
+                            None,
+                            None,
+                        )),
+                    });
+                }
+                _ => {
+                    return Err(TypeError::UnsupportedConversion(
+                        "Only text content parts are currently supported for conversion"
+                            .to_string(),
+                    ));
+                }
+            }
+        }
+
+        if content_blocks.is_empty() {
+            return Err(TypeError::UnsupportedConversion(
+                "Message contains no text content to convert".to_string(),
+            ));
+        }
+
+        Ok(MessageParam {
+            content: content_blocks,
+            role: self.role.clone(),
+        })
+    }
+
+    fn to_google_message(&self) -> Result<GeminiContent, TypeError> {
+        // Extract text content from all text content parts
+        let mut parts = Vec::new();
+
+        for part in &self.content {
+            match part {
+                ContentPart::Text(text_part) => {
+                    parts.push(Part {
+                        data: DataNum::Text(text_part.text.clone()),
+                        thought: None,
+                        thought_signature: None,
+                        part_metadata: None,
+                        media_resolution: None,
+                        video_metadata: None,
+                    });
+                }
+                _ => {
+                    return Err(TypeError::UnsupportedConversion(
+                        "Only text content parts are currently supported for conversion"
+                            .to_string(),
+                    ));
+                }
+            }
+        }
+
+        if parts.is_empty() {
+            return Err(TypeError::UnsupportedConversion(
+                "Message contains no text content to convert".to_string(),
+            ));
+        }
+
+        Ok(GeminiContent {
+            role: self.role.clone(),
+            parts,
+        })
+    }
+
+    fn to_openai_message(&self) -> Result<Self, TypeError> {
+        // Already an OpenAI message, raise error
+        // this method should never be called on OpenAI messages
+        Err(TypeError::CantConvertSelf)
     }
 }
 

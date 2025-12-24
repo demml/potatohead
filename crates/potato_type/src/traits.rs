@@ -72,3 +72,38 @@ pub trait MessageResponseExt {
 pub trait MessageFactory: Sized {
     fn from_text(content: String, role: &str) -> Result<Self, TypeError>;
 }
+
+/// Trait for converting between different provider message formats
+///
+/// This trait enables conversion of messages between different LLM provider formats
+/// (e.g., Anthropic MessageParam ↔ Google GeminiContent ↔ OpenAI ChatMessage).
+///
+/// Currently focused on text content conversion, with support for other content
+/// types planned for future implementation.
+pub trait MessageConversion {
+    /// Convert this message to an Anthropic MessageParam
+    ///
+    /// # Errors
+    /// Returns `TypeError::UnsupportedConversion` if the message contains
+    /// content types that cannot be represented in Anthropic's format
+    fn to_anthropic_message(
+        &self,
+    ) -> Result<crate::anthropic::v1::message::MessageParam, TypeError>;
+
+    /// Convert this message to a Google GeminiContent
+    ///
+    /// # Errors
+    /// Returns `TypeError::UnsupportedConversion` if the message contains
+    /// content types that cannot be represented in Google's format
+    fn to_google_message(
+        &self,
+    ) -> Result<crate::google::v1::generate::request::GeminiContent, TypeError>;
+
+    /// Convert this message to an OpenAI ChatMessage
+    ///
+    /// # Errors
+    /// Returns `TypeError::UnsupportedConversion` if the message contains
+    /// content types that cannot be represented in OpenAI's format
+    fn to_openai_message(&self)
+        -> Result<crate::openai::v1::chat::request::ChatMessage, TypeError>;
+}
