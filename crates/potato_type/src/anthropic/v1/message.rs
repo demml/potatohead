@@ -1,13 +1,15 @@
 use crate::common::get_image_media_types;
 use crate::common::ResponseExt;
-use crate::Provider;
-
 use crate::prompt::builder::ProviderRequest;
 use crate::prompt::MessageNum;
 use crate::prompt::ModelSettings;
+use crate::prompt::Role;
 use crate::traits::get_var_regex;
+use crate::traits::MessageResponseExt;
 use crate::traits::RequestAdapter;
+use crate::traits::ResponseAdapter;
 use crate::traits::{MessageFactory, PromptMessageExt};
+use crate::Provider;
 use crate::TypeError;
 use potato_util::{json_to_pydict, json_to_pyobject};
 use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
@@ -989,6 +991,155 @@ impl ContentBlockParam {
     }
 }
 
+impl ContentBlockParam {
+    /// Helper function to create a ContentBlockParam from a ResponseContentBlockInner
+    ///
+    /// Converts response content blocks (from API responses) into request content blocks
+    /// that can be used in subsequent requests. This is useful for multi-turn conversations
+    /// where the assistant's response needs to be included in the next request.
+    ///
+    /// # Arguments
+    /// * `block` - A reference to a ResponseContentBlockInner from an API response
+    ///
+    /// # Returns
+    /// * `Result<Self, TypeError>` - The converted ContentBlockParam or an error
+    pub fn from_response_content_block(
+        block: &ResponseContentBlockInner,
+    ) -> Result<Self, TypeError> {
+        match block {
+            ResponseContentBlockInner::Text(text_block) => {
+                // Convert Vec<TextCitation> to Option<TextCitationParam>
+                // Take the first citation if available, as request format uses singular citation
+                let citations = text_block.citations.as_ref().and_then(|cits| {
+                    cits.first().map(|cit| match cit {
+                        TextCitation::CharLocation(c) => {
+                            TextCitationParam::CharLocation(CitationCharLocationParam {
+                                cited_text: c.cited_text.clone(),
+                                document_index: c.document_index,
+                                document_title: c.document_title.clone(),
+                                end_char_index: c.end_char_index,
+                                start_char_index: c.start_char_index,
+                                r#type: c.r#type.clone(),
+                            })
+                        }
+                        TextCitation::PageLocation(c) => {
+                            TextCitationParam::PageLocation(CitationPageLocationParam {
+                                cited_text: c.cited_text.clone(),
+                                document_index: c.document_index,
+                                document_title: c.document_title.clone(),
+                                end_page_number: c.end_page_number,
+                                start_page_number: c.start_page_number,
+                                r#type: c.r#type.clone(),
+                            })
+                        }
+                        TextCitation::ContentBlockLocation(c) => {
+                            TextCitationParam::ContentBlockLocation(
+                                CitationContentBlockLocationParam {
+                                    cited_text: c.cited_text.clone(),
+                                    document_index: c.document_index,
+                                    document_title: c.document_title.clone(),
+                                    end_block_index: c.end_block_index,
+                                    start_block_index: c.start_block_index,
+                                    r#type: c.r#type.clone(),
+                                },
+                            )
+                        }
+                        TextCitation::WebSearchResultLocation(c) => {
+                            TextCitationParam::WebSearchResultLocation(
+                                CitationWebSearchResultLocationParam {
+                                    cited_text: c.cited_text.clone(),
+                                    encrypted_index: c.encrypted_index.clone(),
+                                    title: c.title.clone(),
+                                    r#type: c.r#type.clone(),
+                                    url: c.url.clone(),
+                                },
+                            )
+                        }
+                        TextCitation::SearchResultLocation(c) => {
+                            TextCitationParam::SearchResultLocation(
+                                CitationSearchResultLocationParam {
+                                    cited_text: c.cited_text.clone(),
+                                    end_block_index: c.end_block_index,
+                                    search_result_index: c.search_result_index,
+                                    source: c.source.clone(),
+                                    start_block_index: c.start_block_index,
+                                    title: c.title.clone(),
+                                    r#type: c.r#type.clone(),
+                                },
+                            )
+                        }
+                    })
+                });
+
+                Ok(Self {
+                    inner: ContentBlock::Text(TextBlockParam {
+                        text: text_block.text.clone(),
+                        cache_control: None,
+                        citations,
+                        r#type: text_block.r#type.clone(),
+                    }),
+                })
+            }
+            ResponseContentBlockInner::Thinking(thinking_block) => Ok(Self {
+                inner: ContentBlock::Thinking(ThinkingBlockParam {
+                    thinking: thinking_block.thinking.clone(),
+                    signature: thinking_block.signature.clone(),
+                    r#type: thinking_block.r#type.clone(),
+                }),
+            }),
+            ResponseContentBlockInner::RedactedThinking(redacted_thinking_block) => Ok(Self {
+                inner: ContentBlock::RedactedThinking(RedactedThinkingBlockParam {
+                    data: redacted_thinking_block.data.clone(),
+                    r#type: redacted_thinking_block.r#type.clone(),
+                }),
+            }),
+            ResponseContentBlockInner::ToolUse(tool_use_block) => Ok(Self {
+                inner: ContentBlock::ToolUse(ToolUseBlockParam {
+                    id: tool_use_block.id.clone(),
+                    name: tool_use_block.name.clone(),
+                    input: tool_use_block.input.clone(),
+                    cache_control: None,
+                    r#type: tool_use_block.r#type.clone(),
+                }),
+            }),
+            ResponseContentBlockInner::ServerToolUse(server_tool_use_block) => Ok(Self {
+                inner: ContentBlock::ServerToolUse(ServerToolUseBlockParam {
+                    id: server_tool_use_block.id.clone(),
+                    name: server_tool_use_block.name.clone(),
+                    input: server_tool_use_block.input.clone(),
+                    cache_control: None,
+                    r#type: server_tool_use_block.r#type.clone(),
+                }),
+            }),
+            ResponseContentBlockInner::WebSearchToolResult(web_search_tool_result_block) => {
+                match &web_search_tool_result_block.content {
+                    WebSearchToolResultBlockContent::Results(results) => {
+                        // Take the first result and convert it to WebSearchResultBlockParam
+                        let first_result = results.first().ok_or_else(|| {
+                            TypeError::InvalidInput(
+                                "WebSearchToolResult must contain at least one result".to_string(),
+                            )
+                        })?;
+
+                        Ok(Self {
+                            inner: ContentBlock::WebSearchResult(WebSearchResultBlockParam {
+                                encrypted_content: first_result.encrypted_content.clone(),
+                                title: first_result.title.clone(),
+                                url: first_result.url.clone(),
+                                page_agent: first_result.page_age.clone(), // Note: page_age -> page_agent mapping
+                                r#type: first_result.r#type.clone(),
+                            }),
+                        })
+                    }
+                    WebSearchToolResultBlockContent::Error(_) => Err(TypeError::InvalidInput(
+                        "Cannot convert WebSearchToolResult error to ContentBlockParam".to_string(),
+                    )),
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
 pub struct MessageParam {
@@ -1081,6 +1232,15 @@ impl PromptMessageExt for MessageParam {
 
         // Convert HashSet to Vec for return
         variables.into_iter().collect()
+    }
+
+    fn from_text(content: String, role: &str) -> Result<Self, TypeError> {
+        Ok(Self {
+            role: role.to_string(),
+            content: vec![ContentBlockParam {
+                inner: ContentBlock::Text(TextBlockParam::new_rs(content, None, None)),
+            }],
+        })
     }
 }
 
@@ -1687,6 +1847,22 @@ impl ResponseContentBlock {
     }
 }
 
+impl MessageResponseExt for ResponseContentBlock {
+    fn to_message_num(&self) -> Result<Option<MessageNum>, TypeError> {
+        // Convert the response content block to a request content block parameter
+        let content_block_param = ContentBlockParam::from_response_content_block(&self.inner)?;
+
+        // Create a MessageParam with the converted content block
+        let message_param = MessageParam {
+            content: vec![content_block_param],
+            role: Role::Assistant.to_string(),
+        };
+
+        // Convert MessageParam to MessageNum
+        Ok(Some(MessageNum::AnthropicMessageV1(message_param)))
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 #[pyclass]
@@ -1752,6 +1928,34 @@ impl ResponseExt for AnthropicChatResponse {
             ResponseContentBlockInner::Text(ref text_block) => Some(text_block.text.clone()),
             _ => None,
         })
+    }
+}
+
+impl ResponseAdapter for AnthropicChatResponse {
+    fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.content.is_empty()
+    }
+
+    fn to_bound_py_object<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        Ok(PyHelperFuncs::to_bound_py_object(py, self)?)
+    }
+
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn to_message_num(&self) -> Result<Vec<MessageNum>, TypeError> {
+        let mut results = Vec::new();
+        for content in &self.content {
+            if let Some(message_num) = content.to_message_num()? {
+                results.push(message_num);
+            }
+        }
+        Ok(results)
     }
 }
 
