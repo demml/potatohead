@@ -95,6 +95,9 @@ pub enum TypeError {
 
     #[error("Unsupported provider for request creation.")]
     UnsupportedProviderForRequestCreation,
+
+    #[error("OpenAI response content is empty.")]
+    EmptyOpenAIResponseContent,
 }
 
 impl From<TypeError> for PyErr {

@@ -66,7 +66,7 @@ pub trait ResponseAdapter {
 }
 
 pub trait MessageResponseExt {
-    fn to_message_num(&self) -> Result<Option<MessageNum>, TypeError>;
+    fn to_message_num(&self) -> Result<MessageNum, TypeError>;
 }
 
 pub trait MessageFactory: Sized {

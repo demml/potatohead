@@ -1848,7 +1848,7 @@ impl ResponseContentBlock {
 }
 
 impl MessageResponseExt for ResponseContentBlock {
-    fn to_message_num(&self) -> Result<Option<MessageNum>, TypeError> {
+    fn to_message_num(&self) -> Result<MessageNum, TypeError> {
         // Convert the response content block to a request content block parameter
         let content_block_param = ContentBlockParam::from_response_content_block(&self.inner)?;
 
@@ -1859,7 +1859,7 @@ impl MessageResponseExt for ResponseContentBlock {
         };
 
         // Convert MessageParam to MessageNum
-        Ok(Some(MessageNum::AnthropicMessageV1(message_param)))
+        Ok(MessageNum::AnthropicMessageV1(message_param))
     }
 }
 
@@ -1951,8 +1951,9 @@ impl ResponseAdapter for AnthropicChatResponse {
     fn to_message_num(&self) -> Result<Vec<MessageNum>, TypeError> {
         let mut results = Vec::new();
         for content in &self.content {
-            if let Some(message_num) = content.to_message_num()? {
-                results.push(message_num);
+            match content.to_message_num() {
+                Ok(msg) => results.push(msg),
+                Err(e) => return Err(e),
             }
         }
         Ok(results)

@@ -1,9 +1,13 @@
 use crate::common::TokenUsage;
 use crate::google::v1::generate::request::Modality;
 use crate::google::v1::generate::request::{GeminiContent, HarmBlockThreshold, HarmCategory};
+use crate::prompt::MessageNum;
+use crate::traits::MessageResponseExt;
+use crate::traits::ResponseAdapter;
+use crate::TypeError;
+use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -475,6 +479,13 @@ pub struct Candidate {
     pub finish_message: Option<String>,
 }
 
+impl MessageResponseExt for Candidate {
+    fn to_message_num(&self) -> Result<MessageNum, TypeError> {
+        // Convert MessageParam to MessageNum
+        Ok(MessageNum::GeminiContentV1(self.content.clone()))
+    }
+}
+
 /// Response message for GenerateContent.
 #[pyclass]
 #[pyo3(get_all)]
@@ -492,4 +503,33 @@ pub struct GenerateContentResponse {
     pub prompt_feedback: Option<PromptFeedback>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage_metadata: Option<UsageMetadata>,
+}
+
+impl ResponseAdapter for GenerateContentResponse {
+    fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.candidates.is_empty()
+    }
+
+    fn to_bound_py_object<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        Ok(PyHelperFuncs::to_bound_py_object(py, self)?)
+    }
+
+    fn id(&self) -> &str {
+        &self.response_id.as_deref().unwrap_or("")
+    }
+
+    fn to_message_num(&self) -> Result<Vec<MessageNum>, TypeError> {
+        let mut results = Vec::new();
+        for choice in &self.candidates {
+            match choice.to_message_num() {
+                Ok(message_num) => results.push(message_num),
+                Err(_) => continue,
+            }
+        }
+        Ok(results)
+    }
 }

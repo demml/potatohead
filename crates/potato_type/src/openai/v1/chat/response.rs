@@ -103,14 +103,14 @@ pub struct Choice {
 }
 
 impl MessageResponseExt for Choice {
-    fn to_message_num(&self) -> Result<Option<MessageNum>, TypeError> {
+    fn to_message_num(&self) -> Result<MessageNum, TypeError> {
         // if content is None, return None
         if let Some(content) = &self.message.content {
             let chat_msg = ChatMessage::from_text(content.clone(), &self.message.role)?;
             let message_num = MessageNum::OpenAIMessageV1(chat_msg);
-            Ok(Some(message_num))
+            Ok(message_num)
         } else {
-            Ok(None)
+            Err(TypeError::EmptyOpenAIResponseContent)
         }
     }
 }
@@ -234,8 +234,9 @@ impl ResponseAdapter for OpenAIChatResponse {
     fn to_message_num(&self) -> Result<Vec<MessageNum>, TypeError> {
         let mut results = Vec::new();
         for choice in &self.choices {
-            if let Some(message_num) = choice.to_message_num()? {
-                results.push(message_num);
+            match choice.to_message_num() {
+                Ok(message_num) => results.push(message_num),
+                Err(_) => continue,
             }
         }
         Ok(results)
