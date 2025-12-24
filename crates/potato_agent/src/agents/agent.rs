@@ -11,10 +11,11 @@ use potato_state::block_on;
 use potato_type::prompt::extract_system_instructions;
 use potato_type::prompt::ModelSettings;
 use potato_type::prompt::Prompt;
-use potato_type::prompt::{parse_response_to_json, Message, MessageNum, Role};
+use potato_type::prompt::{Message, MessageNum, Role};
 use potato_type::Provider;
 use potato_util::create_uuid7;
-use pyo3::{prelude::*, IntoPyObjectExt};
+use pyo3::prelude::*;
+use pyo3::types::PyList;
 use serde::{
     de::{self, MapAccess, Visitor},
     ser::SerializeStruct,
@@ -354,34 +355,15 @@ impl PyAgent {
         })
     }
 
-    #[pyo3(signature = (task, output_type=None, model=None))]
+    #[pyo3(signature = (task, output_type=None))]
     pub fn execute_task(
         &self,
         py: Python<'_>,
         task: &mut Task,
         output_type: Option<Bound<'_, PyAny>>,
-        model: Option<&str>,
     ) -> Result<PyAgentResponse, AgentError> {
         // Extract the prompt from the task
         debug!("Executing task");
-
-        // if output_type is not None,  mutate task prompt
-        if let Some(output_type) = &output_type {
-            match parse_response_to_json(py, output_type) {
-                Ok((response_type, response_format)) => {
-                    task.prompt.response_type = response_type;
-                    task.prompt.response_json_schema = response_format;
-                }
-                Err(_) => {
-                    return Err(AgentError::InvalidOutputType(output_type.to_string()));
-                }
-            }
-        }
-
-        // if model is not None, set task prompt model (this will override the task prompt model)
-        if let Some(model) = model {
-            task.prompt.model = model.to_string();
-        }
 
         // agent provider and task.prompt provider must match
         if task.prompt.provider != *self.agent.client_provider() {
@@ -405,33 +387,21 @@ impl PyAgent {
         Ok(response)
     }
 
-    #[pyo3(signature = (prompt, output_type=None, model=None))]
+    /// Executes a prompt directly without a task.
+    /// # Arguments:
+    /// * `prompt` - The prompt to execute.
+    /// * `output_type` - An optional Python type to bind the response to. If
+    /// provide, it is expected that the output type_object matches the response schema defined in the prompt.
+    /// # Returns:
+    /// * `PyAgentResponse` - The response from the agent.
+    #[pyo3(signature = (prompt, output_type=None))]
     pub fn execute_prompt(
         &self,
-        py: Python<'_>,
         prompt: &mut Prompt,
         output_type: Option<Bound<'_, PyAny>>,
-        model: Option<&str>,
     ) -> Result<PyAgentResponse, AgentError> {
         // Extract the prompt from the task
         debug!("Executing task");
-        // if output_type is not None,  mutate task prompt
-        if let Some(output_type) = &output_type {
-            match parse_response_to_json(py, output_type) {
-                Ok((response_type, response_format)) => {
-                    prompt.response_type = response_type;
-                    prompt.response_json_schema = response_format;
-                }
-                Err(_) => {
-                    return Err(AgentError::InvalidOutputType(output_type.to_string()));
-                }
-            }
-        }
-
-        // if model is not None, set task prompt model (this will override the task prompt model)
-        if let Some(model) = model {
-            prompt.model = model.to_string();
-        }
 
         // agent provider and task.prompt provider must match
         if prompt.provider != *self.agent.client_provider() {
@@ -441,9 +411,7 @@ impl PyAgent {
             ));
         }
 
-        let chat_response = self
-            .runtime
-            .block_on(async { self.agent.execute_prompt(prompt).await })?;
+        let chat_response = block_on(async { self.agent.execute_prompt(prompt).await })?;
 
         debug!("Task executed successfully");
         let output = output_type.as_ref().map(|obj| obj.clone().unbind());
@@ -456,12 +424,16 @@ impl PyAgent {
     pub fn system_instruction<'py>(
         &self,
         py: Python<'py>,
-    ) -> Result<Bound<'py, PyAny>, AgentError> {
-        Ok(self
+    ) -> Result<Bound<'py, PyList>, AgentError> {
+        let instructions = self
             .agent
             .system_instruction
-            .clone()
-            .into_bound_py_any(py)?)
+            .iter()
+            .map(|msg_num| msg_num.to_bound_py_object(py))
+            .collect::<Result<Vec<_>, _>>()
+            .map(|instructions| PyList::new(py, &instructions))?;
+
+        Ok(instructions?)
     }
 
     #[getter]

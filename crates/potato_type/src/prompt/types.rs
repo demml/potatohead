@@ -751,10 +751,7 @@ impl MessageNum {
         }
     }
 
-    pub(crate) fn to_bound_py_object<'py>(
-        &self,
-        py: Python<'py>,
-    ) -> Result<Bound<'py, PyAny>, TypeError> {
+    pub fn to_bound_py_object<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         match self {
             MessageNum::OpenAIMessageV1(msg) => {
                 let bound_msg = msg.clone().into_bound_py_any(py)?;
