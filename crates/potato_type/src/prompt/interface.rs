@@ -15,8 +15,8 @@ use crate::{Provider, SaveName};
 use potato_macro::try_extract_message;
 use potato_util::utils::extract_string_value;
 use potato_util::PyHelperFuncs;
+use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
-use pyo3::{prelude::*, IntoPyObjectExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
@@ -164,7 +164,7 @@ impl Prompt {
     pub fn new(
         py: Python<'_>,
         message: &Bound<'_, PyAny>,
-        model: String,
+        model: &str,
         provider: &Bound<'_, PyAny>,
         system_instruction: Option<&Bound<'_, PyAny>>,
         model_settings: Option<&Bound<'_, PyAny>>,
@@ -357,13 +357,14 @@ impl Prompt {
 impl Prompt {
     pub fn new_rs(
         messages: Vec<MessageNum>,
-        model: String,
+        model: &str,
         provider: Provider,
         system_instructions: Vec<MessageNum>,
         model_settings: Option<ModelSettings>,
         response_json_schema: Option<Value>,
         response_type: ResponseType,
     ) -> Result<Self, TypeError> {
+        let model = model.to_string();
         // get version from crate
         let version = potato_util::version();
         // If model_settings is not provided, set model and provider to undefined if missing
@@ -383,7 +384,7 @@ impl Prompt {
         let request = to_provider_request(
             messages,
             system_instructions,
-            model,
+            model.clone(),
             model_settings,
             response_json_schema,
         )?;
@@ -621,7 +622,7 @@ mod tests {
         .unwrap();
 
         // Check if the prompt was created successfully
-        assert_eq!(prompt.messages.len(), 1);
+        assert_eq!(prompt.request.messages().len(), 1);
 
         // check prompt parameters
         assert!(prompt.parameters.len() == 2);
@@ -634,7 +635,9 @@ mod tests {
         assert_eq!(parameters[1], "param2");
 
         // bind parameter
-        let bound_msg = prompt.messages[0].bind("param1", "Value1").unwrap();
+        let bound_msg = prompt.request.messages()[0]
+            .bind("param1", "Value1")
+            .unwrap();
         let bound_msg = bound_msg.bind("param2", "Value2").unwrap();
 
         // Check if the bound message contains the correct values
@@ -679,7 +682,7 @@ mod tests {
         .unwrap();
 
         // Check the first user message
-        if let MessageNum::OpenAIMessageV1(msg) = &prompt.messages[0] {
+        if let MessageNum::OpenAIMessageV1(msg) = &prompt.request.messages()[0] {
             if let ContentPart::Text(text_part) = &msg.content[0] {
                 assert_eq!(text_part.text, "What company is this logo from?");
             } else {
@@ -690,7 +693,7 @@ mod tests {
         }
 
         // Check the second user message (ImageUrl)
-        if let MessageNum::OpenAIMessageV1(msg) = &prompt.messages[1] {
+        if let MessageNum::OpenAIMessageV1(msg) = &prompt.request.messages()[1] {
             if let ContentPart::ImageUrl(image_url) = &msg.content[0] {
                 assert_eq!(image_url.image_url.url, "https://iili.io/3Hs4FMg.png");
                 assert_eq!(image_url.r#type, "image_url");
@@ -723,7 +726,7 @@ mod tests {
         .unwrap();
 
         // Check the 2nd user message (file)
-        if let MessageNum::OpenAIMessageV1(msg) = &prompt.messages[1] {
+        if let MessageNum::OpenAIMessageV1(msg) = &prompt.request.messages()[1] {
             if let ContentPart::FileContent(file_content) = &msg.content[0] {
                 assert_eq!(file_content.file.file_id.as_ref().unwrap(), "fileid");
                 assert_eq!(file_content.file.filename.as_ref().unwrap(), "filename");
@@ -750,7 +753,7 @@ mod tests {
         .unwrap();
 
         // Check if the response json schema is set correctly
-        assert!(prompt.response_json_schema.is_some());
+        assert!(prompt.response_json_schema().is_some());
     }
 
     #[test]
@@ -775,7 +778,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(prompt.messages.len(), 1);
+        assert_eq!(prompt.request.messages().len(), 1);
         assert_eq!(prompt.parameters.len(), 2);
 
         let mut parameters = prompt.parameters.clone();
@@ -784,7 +787,9 @@ mod tests {
         assert_eq!(parameters[1], "param2");
 
         // Test parameter binding
-        let bound_msg = prompt.messages[0].bind("param1", "Value1").unwrap();
+        let bound_msg = prompt.request.messages()[0]
+            .bind("param1", "Value1")
+            .unwrap();
         let bound_msg = bound_msg.bind("param2", "Value2").unwrap();
 
         match bound_msg {
@@ -822,7 +827,7 @@ mod tests {
         .unwrap();
 
         // Check first message (text)
-        if let MessageNum::AnthropicMessageV1(msg) = &prompt.messages[0] {
+        if let MessageNum::AnthropicMessageV1(msg) = &prompt.request.messages()[0] {
             if let crate::anthropic::v1::message::ContentBlock::Text(text_block) =
                 &msg.content[0].inner
             {
@@ -835,7 +840,7 @@ mod tests {
         }
 
         // Check second message (image URL)
-        if let MessageNum::AnthropicMessageV1(msg) = &prompt.messages[1] {
+        if let MessageNum::AnthropicMessageV1(msg) = &prompt.request.messages()[1] {
             if let crate::anthropic::v1::message::ContentBlock::Image(image_block) =
                 &msg.content[0].inner
             {
@@ -875,7 +880,7 @@ mod tests {
         .unwrap();
 
         // Check second message (base64 image)
-        if let MessageNum::AnthropicMessageV1(msg) = &prompt.messages[1] {
+        if let MessageNum::AnthropicMessageV1(msg) = &prompt.request.messages()[1] {
             if let crate::anthropic::v1::message::ContentBlock::Image(image_block) =
                 &msg.content[0].inner
             {
@@ -917,7 +922,7 @@ mod tests {
         .unwrap();
 
         // Check second message (PDF document)
-        if let MessageNum::AnthropicMessageV1(msg) = &prompt.messages[1] {
+        if let MessageNum::AnthropicMessageV1(msg) = &prompt.request.messages()[1] {
             if let crate::anthropic::v1::message::ContentBlock::Document(document_block) =
                 &msg.content[0].inner
             {
@@ -960,7 +965,7 @@ mod tests {
         .unwrap();
 
         // Check second message (URL PDF)
-        if let MessageNum::AnthropicMessageV1(msg) = &prompt.messages[1] {
+        if let MessageNum::AnthropicMessageV1(msg) = &prompt.request.messages()[1] {
             if let crate::anthropic::v1::message::ContentBlock::Document(document_block) =
                 &msg.content[0].inner
             {
@@ -1000,7 +1005,7 @@ mod tests {
         .unwrap();
 
         // Check second message (plain text document)
-        if let MessageNum::AnthropicMessageV1(msg) = &prompt.messages[1] {
+        if let MessageNum::AnthropicMessageV1(msg) = &prompt.request.messages()[1] {
             if let crate::anthropic::v1::message::ContentBlock::Document(document_block) =
                 &msg.content[0].inner
             {
@@ -1047,8 +1052,8 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(prompt.messages.len(), 3);
-        assert_eq!(prompt.system_instructions.len(), 1);
+        assert_eq!(prompt.request.messages().len(), 3);
+        assert_eq!(prompt.request.system_instructions().len(), 1);
         assert_eq!(prompt.provider, Provider::Anthropic);
         assert_eq!(prompt.model, "claude-3-5-sonnet-20241022");
     }

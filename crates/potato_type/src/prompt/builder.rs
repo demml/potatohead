@@ -66,6 +66,24 @@ impl ProviderRequest {
         }
     }
 
+    pub fn system_instructions(&self) -> Vec<&MessageNum> {
+        match self {
+            ProviderRequest::OpenAIV1(req) => req
+                .messages
+                .iter()
+                .filter(|msg| msg.is_system_message())
+                .collect(),
+            ProviderRequest::AnthropicV1(req) => req.system.iter().collect(),
+            ProviderRequest::GeminiV1(req) => {
+                if let Some(system_msg) = &req.system_instruction {
+                    vec![system_msg]
+                } else {
+                    vec![]
+                }
+            }
+        }
+    }
+
     pub(crate) fn messages_mut(&mut self) -> &mut Vec<MessageNum> {
         match self {
             ProviderRequest::OpenAIV1(req) => &mut req.messages,
