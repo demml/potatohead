@@ -1,9 +1,8 @@
 use crate::error::ProviderError;
-
 use crate::providers::embed::EmbeddingResponse;
-use crate::providers::types::add_extra_body_to_prompt;
 use crate::providers::types::build_http_client;
 use crate::providers::types::ServiceType;
+use potato_type::openai::v1::OpenAIChatResponse;
 use potato_type::openai::v1::{OpenAIEmbeddingRequest, OpenAIEmbeddingResponse};
 use potato_type::prompt::Prompt;
 use potato_type::{Common, Provider};
@@ -159,75 +158,19 @@ impl OpenAIClient {
             return Err(ProviderError::MissingAuthenticationError);
         }
 
-        let settings = &prompt.model_settings;
-
-        // get the system messages from the prompt first
-        let mut messages: Vec<OpenAIChatMessage> = prompt
-            .system_instruction
-            .iter()
-            .map(OpenAIChatMessage::from_message)
-            .collect::<Result<Vec<_>, _>>()?;
-
-        // Add user messages to the chat
-        messages.extend(
-            prompt
-                .message
-                .iter()
-                .map(OpenAIChatMessage::from_message)
-                .collect::<Result<Vec<_>, _>>()?,
-        );
-
-        // if prompt has response_json_schema, format it for openai
-        let schema = prompt
-            .response_json_schema
-            .as_ref()
-            .map(|schema| self.create_structured_output_schema(schema));
-
-        // Create the OpenAI chat request
-        let chat_request = OpenAIChatRequest {
-            model: prompt.model.clone(),
-            messages,
-            settings: prompt.model_settings.get_openai_settings(),
-            response_format: schema,
-        };
-
-        // serialize the prompt to JSON
-        let mut serialized_prompt =
-            serde_json::to_value(chat_request).map_err(ProviderError::SerializationError)?;
-
-        // if settings.extra_body is provided, merge it with the prompt
-        if let Some(extra_body) = settings.extra_body() {
-            add_extra_body_to_prompt(&mut serialized_prompt, extra_body);
-        }
+        let request_body = prompt.request.create_request_for_provider(&self.provider)?;
 
         debug!(
             "Sending chat completion request to OpenAI API: {:?}",
-            serialized_prompt
+            request_body
         );
 
-        let response = self.make_request(&serialized_prompt).await?;
+        let response = self.make_request(&request_body).await?;
 
         let chat_response: OpenAIChatResponse = response.json().await?;
         debug!("Chat completion successful");
 
         Ok(chat_response)
-    }
-
-    fn create_structured_output_schema(&self, json_schema: &Value) -> Value {
-        // get title from schema
-        let title = json_schema
-            .get("title")
-            .and_then(Value::as_str)
-            .unwrap_or("StructuredOutput");
-
-        serde_json::json!({
-            "type": "json_schema",
-            "json_schema": {
-                "name": title,
-                "schema": json_schema,
-                "strict": true
-            }
-        })
     }
 
     #[instrument(skip_all)]

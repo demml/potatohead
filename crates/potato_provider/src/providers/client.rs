@@ -62,19 +62,19 @@ impl GenAiClient {
                 let response = client.chat_completion(task).await.inspect_err(|e| {
                     error!(error = %e, "Failed to complete chat");
                 })?;
-                Ok(ChatResponse::OpenAI(response))
+                Ok(ChatResponse::OpenAIV1(response))
             }
             GenAiClient::Gemini(client) => {
                 let response = client.generate_content(task).await.inspect_err(|e| {
                     error!(error = %e, "Failed to generate content");
                 })?;
-                Ok(ChatResponse::Gemini(response))
+                Ok(ChatResponse::GeminiV1(response))
             }
             GenAiClient::Vertex(client) => {
                 let response = client.generate_content(task).await.inspect_err(|e| {
                     error!(error = %e, "Failed to generate content");
                 })?;
-                Ok(ChatResponse::VertexGenerate(response))
+                Ok(ChatResponse::VertexGenerateV1(response))
             }
             GenAiClient::Anthropic(client) => {
                 let response = client.message(task).await.inspect_err(|e| {

@@ -1,4 +1,7 @@
-use crate::anthropic::v1::message::{AnthropicMessageRequestV1, AnthropicSettings};
+use crate::anthropic::v1::message::{
+    create_structured_output_schema as anthropic_create_structured_output_schema,
+    AnthropicMessageRequestV1, AnthropicSettings,
+};
 use crate::google::v1::generate::request::GeminiGenerateContentRequestV1;
 use crate::google::v1::generate::GeminiSettings;
 use crate::openai::v1::chat::request::OpenAIChatCompletionRequestV1;
@@ -240,6 +243,12 @@ impl ProviderRequest {
         let anthropic_settings = match settings {
             ModelSettings::AnthropicChat(s) => s,
             _ => AnthropicSettings::default(),
+        };
+
+        let output_format = if let Some(json_schema) = output_format {
+            Some(anthropic_create_structured_output_schema(&json_schema))
+        } else {
+            None
         };
 
         Ok(ProviderRequest::AnthropicV1(AnthropicMessageRequestV1 {

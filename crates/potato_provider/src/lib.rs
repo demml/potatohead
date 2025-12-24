@@ -1,6 +1,5 @@
 pub mod error;
 pub mod providers;
-
 pub use error::ProviderError;
 pub use providers::{
     client::GenAiClient,

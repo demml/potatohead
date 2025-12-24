@@ -2,7 +2,7 @@ use crate::error::ProviderError;
 use crate::providers::google::auth::{GoogleAuth, GoogleUrl};
 use crate::providers::google::traits::{ApiConfigExt, RequestClient};
 use crate::providers::types::build_http_client;
-use crate::providers::types::{add_extra_body_to_prompt, ServiceType};
+use crate::providers::types::ServiceType;
 use potato_type::google::v1::embedding::{PredictRequest, PredictResponse};
 use potato_type::google::v1::generate::GenerateContentResponse;
 use potato_type::prompt::Prompt;

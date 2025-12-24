@@ -1,9 +1,9 @@
 use crate::error::ProviderError;
-use crate::providers::embed::EmbeddingResponse;
 use crate::providers::google::auth::{GoogleAuth, GoogleUrl};
 use crate::providers::google::traits::{ApiConfigExt, RequestClient};
 use crate::providers::types::build_http_client;
-use crate::providers::types::{add_extra_body_to_prompt, ServiceType};
+use crate::providers::types::ServiceType;
+use crate::EmbeddingResponse;
 use potato_type::google::v1::generate::GenerateContentResponse;
 use potato_type::google::EmbeddingConfigTrait;
 use potato_type::google::{GeminiEmbeddingRequest, GeminiEmbeddingResponse};

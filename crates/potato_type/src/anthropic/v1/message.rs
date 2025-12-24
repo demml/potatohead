@@ -1741,3 +1741,11 @@ pub struct AnthropicMessageRequestV1 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_format: Option<Value>,
 }
+
+pub(crate) fn create_structured_output_schema(json_schema: &Value) -> Value {
+    serde_json::json!({
+        "type": "json_schema",
+        "schema": json_schema,
+
+    })
+}

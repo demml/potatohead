@@ -1,6 +1,4 @@
 use crate::error::ProviderError;
-
-use crate::providers::types::add_extra_body_to_prompt;
 use crate::providers::types::build_http_client;
 use crate::providers::types::ServiceType;
 use http::{header, HeaderMap};
@@ -196,12 +194,4 @@ impl AnthropicClient {
 
         Ok(chat_response)
     }
-}
-
-pub(crate) fn create_structured_output_schema(json_schema: &Value) -> Value {
-    serde_json::json!({
-        "type": "json_schema",
-        "schema": json_schema,
-
-    })
 }
