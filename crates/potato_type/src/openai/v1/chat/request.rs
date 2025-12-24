@@ -1,4 +1,5 @@
 use crate::openai::v1::chat::settings::OpenAIChatSettings;
+use crate::prompt::types::MessageNum;
 use crate::traits::{get_var_regex, MessageFactory, PromptMessageExt};
 use crate::TypeError;
 use pyo3::prelude::*;
@@ -6,7 +7,6 @@ use pyo3::types::{PyAny, PyList, PyString};
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::borrow::Cow;
 use std::collections::HashSet;
 
 pub const OPENAI_CONTENT_PART_TEXT: &str = "text";
@@ -348,17 +348,17 @@ impl MessageFactory for ChatMessage {
     }
 }
 
-#[derive(Debug, Serialize)]
-pub struct OpenAIChatRequest<'a> {
-    pub model: Cow<'a, str>,
-    pub messages: &'a [ChatMessage],
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct OpenAIChatCompletionRequestV1 {
+    pub model: String,
+    pub messages: Vec<MessageNum>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_format: Option<&'a Value>,
+    pub response_format: Option<Value>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(flatten)]
-    pub settings: Option<&'a OpenAIChatSettings>,
+    pub settings: Option<OpenAIChatSettings>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -387,4 +387,21 @@ where
     pub fn new(input: Vec<String>, settings: T) -> Self {
         Self { input, settings }
     }
+}
+
+pub fn create_structured_output_schema(json_schema: &Value) -> Value {
+    // get title from schema
+    let title = json_schema
+        .get("title")
+        .and_then(Value::as_str)
+        .unwrap_or("StructuredOutput");
+
+    serde_json::json!({
+        "type": "json_schema",
+        "json_schema": {
+            "name": title,
+            "schema": json_schema,
+            "strict": true
+        }
+    })
 }

@@ -243,14 +243,3 @@ pub(crate) fn build_anthropic_message_request_from_prompt(
 
     Ok(serialized)
 }
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct AnthropicMessageRequest<'a> {
-    pub model: &'a str,
-    pub messages: &'a [MessageNum],
-    #[serde(flatten)]
-    pub settings: &'a AnthropicSettings,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub output_format: Option<Value>,
-}

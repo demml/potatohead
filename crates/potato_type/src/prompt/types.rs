@@ -1,9 +1,13 @@
 use crate::anthropic::v1::message::MessageParam;
+use crate::anthropic::v1::message::MessageParam as AnthropicMessage;
 use crate::common::document_format;
 use crate::common::get_audio_media_types;
 use crate::common::get_document_media_types;
 use crate::common::get_image_media_types;
 use crate::common::image_format;
+use crate::google::v1::generate::GeminiContent;
+use crate::openai::v1::chat::request::ChatMessage as OpenAIChatMessage;
+use crate::traits::PromptMessageExt;
 use crate::{StructuredOutput, TypeError};
 use mime_guess;
 use potato_util::PyHelperFuncs;
@@ -28,6 +32,7 @@ pub enum Role {
     Developer,
     Tool,
     Model,
+    System,
 }
 
 impl Display for Role {
@@ -38,6 +43,7 @@ impl Display for Role {
             Role::Developer => write!(f, "developer"),
             Role::Tool => write!(f, "tool"),
             Role::Model => write!(f, "model"),
+            Role::System => write!(f, "system"),
         }
     }
 }
@@ -50,6 +56,7 @@ impl Into<&str> for Role {
             Role::Developer => "developer",
             Role::Tool => "tool",
             Role::Model => "model",
+            Role::System => "system",
         }
     }
 }
@@ -657,6 +664,78 @@ impl Display for ResponseType {
             ResponseType::Score => write!(f, "Score"),
             ResponseType::Pydantic => write!(f, "Pydantic"),
             ResponseType::Null => write!(f, "Null"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(untagged)]
+pub enum MessageNum {
+    OpenAIMessageV1(OpenAIChatMessage),
+    AnthropicMessageV1(AnthropicMessage),
+    GeminiContentV1(GeminiContent),
+}
+
+impl MessageNum {
+    pub(crate) fn bind(&self, name: &str, value: &str) -> Result<Self, TypeError> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => {
+                let bound_msg = msg.bind(name, value)?;
+                Ok(MessageNum::OpenAIMessageV1(bound_msg))
+            }
+            MessageNum::AnthropicMessageV1(msg) => {
+                let bound_msg = msg.bind(name, value)?;
+                Ok(MessageNum::AnthropicMessageV1(bound_msg))
+            }
+            MessageNum::GeminiContentV1(msg) => {
+                let bound_msg = msg.bind(name, value)?;
+                Ok(MessageNum::GeminiContentV1(bound_msg))
+            }
+        }
+    }
+    pub(crate) fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => msg.bind_mut(name, value),
+            MessageNum::AnthropicMessageV1(msg) => msg.bind_mut(name, value),
+            MessageNum::GeminiContentV1(msg) => msg.bind_mut(name, value),
+        }
+    }
+
+    pub(crate) fn extract_variables(&self) -> Vec<String> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => msg.extract_variables(),
+            MessageNum::AnthropicMessageV1(msg) => msg.extract_variables(),
+            MessageNum::GeminiContentV1(msg) => msg.extract_variables(),
+        }
+    }
+
+    pub(crate) fn to_bound_py_object<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyAny>, TypeError> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => {
+                let bound_msg = msg.clone().into_bound_py_any(py)?;
+                Ok(bound_msg)
+            }
+            MessageNum::AnthropicMessageV1(msg) => {
+                let bound_msg = msg.clone().into_bound_py_any(py)?;
+                Ok(bound_msg)
+            }
+            MessageNum::GeminiContentV1(msg) => {
+                let bound_msg = msg.clone().into_bound_py_any(py)?;
+                Ok(bound_msg)
+            }
+        }
+    }
+
+    pub(crate) fn is_system_message(&self) -> bool {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => {
+                msg.role == Role::Developer.to_string() || msg.role == Role::System.to_string()
+            }
+            MessageNum::AnthropicMessageV1(msg) => msg.role == Role::Assistant.to_string(),
+            MessageNum::GeminiContentV1(msg) => msg.role == Role::Model.to_string(),
         }
     }
 }

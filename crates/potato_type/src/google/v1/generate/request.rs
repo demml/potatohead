@@ -1,3 +1,4 @@
+use crate::prompt::{MessageNum, Role};
 use crate::traits::get_var_regex;
 use crate::traits::{MessageFactory, PromptMessageExt};
 use crate::{SettingsType, TypeError};
@@ -520,13 +521,6 @@ pub struct GenerationConfig {
     pub response_mime_type: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_schema: Option<Schema>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "_responseJsonSchema")]
-    pub underscore_response_json_schema: Option<Value>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub response_json_schema: Option<Value>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -604,11 +598,12 @@ pub struct GenerationConfig {
 #[pymethods]
 impl GenerationConfig {
     #[new]
-    #[pyo3(signature = (stop_sequences=None, response_mime_type=None, response_modalities=None, thinking_config=None, temperature=None, top_p=None, top_k=None, candidate_count=None, max_output_tokens=None, response_logprobs=None, logprobs=None, presence_penalty=None, frequency_penalty=None, seed=None, audio_timestamp=None, media_resolution=None, speech_config=None, enable_affective_dialog=None))]
+    #[pyo3(signature = (stop_sequences=None, response_mime_type=None, response_json_schema=None, response_modalities=None, thinking_config=None, temperature=None, top_p=None, top_k=None, candidate_count=None, max_output_tokens=None, response_logprobs=None, logprobs=None, presence_penalty=None, frequency_penalty=None, seed=None, audio_timestamp=None, media_resolution=None, speech_config=None, enable_affective_dialog=None, enable_enhanced_civic_answers=None, image_config=None))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         stop_sequences: Option<Vec<String>>,
         response_mime_type: Option<String>,
+        response_json_schema: Option<&Bound<'_, PyAny>>,
         response_modalities: Option<Vec<Modality>>,
         thinking_config: Option<ThinkingConfig>,
         temperature: Option<f32>,
@@ -625,7 +620,13 @@ impl GenerationConfig {
         media_resolution: Option<MediaResolution>,
         speech_config: Option<SpeechConfig>,
         enable_affective_dialog: Option<bool>,
+        enable_enhanced_civic_answers: Option<bool>,
+        image_config: Option<ImageConfig>,
     ) -> Self {
+        let response_json_schema = match response_json_schema {
+            Some(rs) => Some(pyobject_to_json(&rs).unwrap_or(Value::Null)),
+            None => None,
+        };
         Self {
             stop_sequences,
             response_mime_type,
@@ -645,7 +646,9 @@ impl GenerationConfig {
             media_resolution,
             speech_config,
             enable_affective_dialog,
-            ..Default::default()
+            response_json_schema,
+            enable_enhanced_civic_answers,
+            image_config,
         }
     }
 
@@ -879,15 +882,17 @@ impl GeminiSettings {
 }
 
 impl GeminiSettings {
-    pub fn configure_for_structured_output(&mut self) {
+    pub fn configure_for_structured_output(&mut self, response_json_schema: Value) {
         // Ensure generation_config exists and set response_mime_type
         match self.generation_config.as_mut() {
             Some(generation_config) => {
                 generation_config.response_mime_type = Some("application/json".to_string());
+                generation_config.response_json_schema = Some(response_json_schema);
             }
             None => {
                 self.generation_config = Some(GenerationConfig {
                     response_mime_type: Some("application/json".to_string()),
+                    response_json_schema: Some(response_json_schema),
                     ..Default::default()
                 });
             }
@@ -1206,8 +1211,7 @@ impl Default for Part {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct GeminiContent {
     /// Optional. The producer of the content. Must be either 'user' or 'model'.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub role: Option<String>,
+    pub role: String,
     /// Required. Ordered Parts that constitute a single message.
     pub parts: Vec<Part>,
 }
@@ -1302,7 +1306,7 @@ impl GeminiContent {
     pub fn new(parts: &Bound<'_, PyAny>, role: Option<String>) -> PyResult<Self> {
         let parts_vec = extract_parts_from_py_object(parts)?;
         Ok(GeminiContent {
-            role,
+            role: role.unwrap_or_else(|| Role::User.to_string()),
             parts: parts_vec,
         })
     }
@@ -1358,7 +1362,7 @@ impl PromptMessageExt for GeminiContent {
 impl MessageFactory for GeminiContent {
     fn from_text(content: String, role: &str) -> Result<Self, TypeError> {
         Ok(Self {
-            role: Some(role.to_string()),
+            role: role.to_string(),
             parts: vec![Part {
                 data: DataNum::Text(content),
                 ..Default::default()
@@ -2351,15 +2355,14 @@ impl Tool {
     }
 }
 
-#[derive(Debug, Serialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct GeminiGenerateContentRequestV1 {
-    pub contents: Vec<GeminiContent>,
+    pub contents: Vec<MessageNum>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub system_instruction: Option<GeminiContent>,
+    pub system_instruction: Option<MessageNum>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(flatten)]
-    pub settings: Option<GeminiSettings>,
+    pub settings: GeminiSettings,
 }

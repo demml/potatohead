@@ -80,6 +80,9 @@ pub enum TypeError {
 
     #[error("Invalid OIDC configuration provided.")]
     InvalidOidcConfig,
+
+    #[error("More than one system instruction provided where only one is allowed.")]
+    MoreThanOneSystemInstruction,
 }
 
 impl From<TypeError> for PyErr {

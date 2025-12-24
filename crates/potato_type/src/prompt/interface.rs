@@ -3,11 +3,13 @@ use crate::error::TypeError;
 use crate::google::v1::generate::request::{GeminiContent, GeminiSettings};
 use crate::openai::v1::chat::request::ChatMessage as OpenAIChatMessage;
 use crate::openai::v1::chat::settings::OpenAIChatSettings;
+use crate::prompt::builder::{to_provider_request, ProviderRequest};
 use crate::prompt::settings::ModelSettings;
 use crate::prompt::types::parse_response_to_json;
 use crate::prompt::types::ResponseType;
 use crate::prompt::types::Role;
-use crate::traits::{MessageFactory, PromptMessageExt};
+use crate::prompt::MessageNum;
+use crate::traits::MessageFactory;
 use crate::SettingsType;
 use crate::{Provider, SaveName};
 use potato_macro::try_extract_message;
@@ -100,73 +102,10 @@ fn get_system_role(provider: &Provider) -> &'static str {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(untagged)]
-pub enum MessageNum {
-    OpenAIMessageV1(OpenAIChatMessage),
-    AnthropicMessageV1(AnthropicMessage),
-    GeminiContentV1(GeminiContent),
-}
-
-impl MessageNum {
-    pub fn bind(&self, name: &str, value: &str) -> Result<Self, TypeError> {
-        match self {
-            MessageNum::OpenAIMessageV1(msg) => {
-                let bound_msg = msg.bind(name, value)?;
-                Ok(MessageNum::OpenAIMessageV1(bound_msg))
-            }
-            MessageNum::AnthropicMessageV1(msg) => {
-                let bound_msg = msg.bind(name, value)?;
-                Ok(MessageNum::AnthropicMessageV1(bound_msg))
-            }
-            MessageNum::GeminiContentV1(msg) => {
-                let bound_msg = msg.bind(name, value)?;
-                Ok(MessageNum::GeminiContentV1(bound_msg))
-            }
-        }
-    }
-    fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
-        match self {
-            MessageNum::OpenAIMessageV1(msg) => msg.bind_mut(name, value),
-            MessageNum::AnthropicMessageV1(msg) => msg.bind_mut(name, value),
-            MessageNum::GeminiContentV1(msg) => msg.bind_mut(name, value),
-        }
-    }
-
-    fn extract_variables(&self) -> Vec<String> {
-        match self {
-            MessageNum::OpenAIMessageV1(msg) => msg.extract_variables(),
-            MessageNum::AnthropicMessageV1(msg) => msg.extract_variables(),
-            MessageNum::GeminiContentV1(msg) => msg.extract_variables(),
-        }
-    }
-
-    fn to_bound_py_object<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
-        match self {
-            MessageNum::OpenAIMessageV1(msg) => {
-                let bound_msg = msg.clone().into_bound_py_any(py)?;
-                Ok(bound_msg)
-            }
-            MessageNum::AnthropicMessageV1(msg) => {
-                let bound_msg = msg.clone().into_bound_py_any(py)?;
-                Ok(bound_msg)
-            }
-            MessageNum::GeminiContentV1(msg) => {
-                let bound_msg = msg.clone().into_bound_py_any(py)?;
-                Ok(bound_msg)
-            }
-        }
-    }
-}
-
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Prompt {
-    pub messages: Vec<MessageNum>,
-
-    pub system_instructions: Vec<MessageNum>,
-
-    pub model_settings: ModelSettings,
+    pub request: ProviderRequest,
 
     #[pyo3(get)]
     pub model: String,
@@ -175,8 +114,6 @@ pub struct Prompt {
     pub provider: Provider,
 
     pub version: String,
-
-    pub response_json_schema: Option<Value>,
 
     #[pyo3(get)]
     pub parameters: Vec<String>,
@@ -210,28 +147,40 @@ impl Prompt {
     /// Creates a new Prompt object.
     /// Main parsing logic is as follows:
     /// 1. Extract model settings if provided, otherwise use provider default settings.
-    /// 2. Message and system instructions are expected to be a variant of MessageNum (OpenAIChatMessage or AnthropicMessage).
-    /// On instantiation, message will be check if is_instance_of pystring. If pystring, provider ill be used to map to appropriate message Text type
-    /// If message is a pylist, each item will be checked for is_instance_of pystring or MessageNum variant and converted accordingly.
-    /// If message is a single MessageNum variant, it will be extracted and wrapped in a vec.
+    /// 2. Message and system instructions are expected to be a variant of MessageNum (OpenAIChatMessage, AnthropicMessage or GeminiContent).
+    /// 3. On instantiation, message will be check if is_instance_of pystring. If pystring, provider will be used to map to appropriate message Text type
+    /// 4. If message is a pylist, each item will be checked for is_instance_of pystring or MessageNum variant and converted accordingly.
+    /// 5. If message is a single MessageNum variant, it will be extracted and wrapped in a vec.
+    /// 6. After messages are parsed, a full provider request struct will by built using to_provider_request function.
+    /// # Arguments:
+    /// * `message`: A single message or list of messages representing user input.
+    /// * `model`: The model identifier to use for the prompt.
+    /// * `provider`: The provider to use for the prompt.
+    /// * `system_instruction`: Optional system instruction message or list of messages.
+    /// * `model_settings`: Optional model settings to use for the prompt.
+    /// * `response_format`: Optional response format to enforce structured output.
     #[new]
     #[pyo3(signature = (message, model, provider, system_instruction=None, model_settings=None, response_format=None))]
     pub fn new(
         py: Python<'_>,
         message: &Bound<'_, PyAny>,
-        model: &str,
+        model: String,
         provider: &Bound<'_, PyAny>,
         system_instruction: Option<&Bound<'_, PyAny>>,
         model_settings: Option<&Bound<'_, PyAny>>,
         response_format: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
     ) -> Result<Self, TypeError> {
+        // 1. get model settings if provided
         let model_settings = model_settings
             .as_ref()
             .map(|s| extract_model_settings(s))
             .transpose()?;
+
+        // 2. extract provider
         let provider = Provider::extract_provider(provider)?;
 
-        // Parse user messages with "user" role
+        // 3. Parse user messages with "user" role
+        // We'll use this to figure out the type of request struct to create
         let messages = parse_messages(message, &provider, Role::User.into())?;
         let system_instructions = if let Some(sys_inst) = system_instruction {
             parse_messages(sys_inst, &provider, get_system_role(&provider))?
@@ -239,7 +188,7 @@ impl Prompt {
             vec![]
         };
 
-        // validate response_json_schema
+        // 4.  validate response_json_schema
         let (response_type, response_json_schema) = match response_format {
             Some(response_format) => {
                 // check if response_format is a pydantic model and extract the model json schema
@@ -261,7 +210,7 @@ impl Prompt {
 
     #[getter]
     pub fn model_settings<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
-        self.model_settings.settings(py)
+        self.request.model_settings(py)
     }
 
     #[getter]
@@ -302,24 +251,16 @@ impl Prompt {
     }
 
     #[getter]
-    pub fn messages<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
-        let py_messages = PyList::empty(py);
-        for msg in &self.messages {
-            py_messages.append(msg.to_bound_py_object(py)?)?;
-        }
-        Ok(py_messages.into_bound_py_any(py)?)
+    pub fn messages<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyList>, TypeError> {
+        self.request.get_py_messages(py)
     }
 
     #[getter]
     pub fn system_instructions<'py>(
         &self,
         py: Python<'py>,
-    ) -> Result<Bound<'py, PyAny>, TypeError> {
-        let py_messages = PyList::empty(py);
-        for msg in &self.system_instructions {
-            py_messages.append(msg.to_bound_py_object(py)?)?;
-        }
-        Ok(py_messages.into_bound_py_any(py)?)
+    ) -> Result<Bound<'py, PyList>, TypeError> {
+        self.request.get_py_system_instructions(py)
     }
 
     /// Binds a variable in the prompt to a value. This will return a new Prompt with the variable bound to the value.
@@ -337,11 +278,10 @@ impl Prompt {
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> Result<Self, TypeError> {
         let mut new_prompt = self.clone();
-        // Create a new Prompt with the bound value
+
         if let (Some(name), Some(value)) = (name, value) {
-            // Bind in both user and system messages
-            for message in &mut new_prompt.messages {
-                let var_value = extract_string_value(value)?;
+            let var_value = extract_string_value(value)?;
+            for message in new_prompt.request.messages_mut() {
                 message.bind_mut(name, &var_value)?;
             }
         }
@@ -351,19 +291,18 @@ impl Prompt {
                 let var_name = key.extract::<String>()?;
                 let var_value = extract_string_value(&val)?;
 
-                // Bind in both user and system messages
-                for message in &mut new_prompt.messages {
+                for message in new_prompt.request.messages_mut() {
                     message.bind_mut(&var_name, &var_value)?;
                 }
             }
         }
 
-        // Validate that at least one binding method was used
         if name.is_none() && kwargs.is_none_or(|k| k.is_empty()) {
             return Err(TypeError::Error(
                 "Must provide either (name, value) or keyword arguments for binding".to_string(),
             ));
         }
+
         Ok(new_prompt)
     }
 
@@ -380,11 +319,9 @@ impl Prompt {
         value: Option<&Bound<'_, PyAny>>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> Result<(), TypeError> {
-        // Create a new Prompt with the bound value
         if let (Some(name), Some(value)) = (name, value) {
-            // Bind in both user and system messages
-            for message in &mut self.messages {
-                let var_value = extract_string_value(value)?;
+            let var_value = extract_string_value(value)?;
+            for message in self.request.messages_mut() {
                 message.bind_mut(name, &var_value)?;
             }
         }
@@ -394,32 +331,33 @@ impl Prompt {
                 let var_name = key.extract::<String>()?;
                 let var_value = extract_string_value(&val)?;
 
-                // Bind in both user and system messages
-                for message in &mut self.messages {
+                for message in self.request.messages_mut() {
                     message.bind_mut(&var_name, &var_value)?;
                 }
             }
         }
 
-        // Validate that at least one binding method was used
         if name.is_none() && kwargs.is_none_or(|k| k.is_empty()) {
             return Err(TypeError::Error(
                 "Must provide either (name, value) or keyword arguments for binding".to_string(),
             ));
         }
+
         Ok(())
     }
 
     #[getter]
     pub fn response_json_schema(&self) -> Option<String> {
-        Some(PyHelperFuncs::__str__(self.response_json_schema.as_ref()))
+        Some(PyHelperFuncs::__str__(
+            self.request.response_json_schema().as_ref()?,
+        ))
     }
 }
 
 impl Prompt {
     pub fn new_rs(
         messages: Vec<MessageNum>,
-        model: &str,
+        model: String,
         provider: Provider,
         system_instructions: Vec<MessageNum>,
         model_settings: Option<ModelSettings>,
@@ -441,15 +379,21 @@ impl Prompt {
         // extract named parameters in prompt
         let parameters = Self::extract_variables(&messages, &system_instructions);
 
-        Ok(Self {
+        // Build the provider request
+        let request = to_provider_request(
             messages,
-            version,
             system_instructions,
+            model,
             model_settings,
             response_json_schema,
+        )?;
+
+        Ok(Self {
+            request,
+            version,
             parameters,
             response_type,
-            model: model.to_string(),
+            model,
             provider,
         })
     }

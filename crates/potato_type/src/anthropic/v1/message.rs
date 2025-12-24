@@ -1730,3 +1730,14 @@ impl ResponseExt for AnthropicChatResponse {
         })
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct AnthropicMessageRequestV1 {
+    pub model: String,
+    pub messages: Vec<MessageNum>,
+    pub system: Vec<MessageNum>,
+    #[serde(flatten)]
+    pub settings: AnthropicSettings,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_format: Option<Value>,
+}
