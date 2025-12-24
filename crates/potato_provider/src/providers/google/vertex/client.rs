@@ -1,12 +1,10 @@
 use crate::error::ProviderError;
 use crate::providers::google::auth::{GoogleAuth, GoogleUrl};
 use crate::providers::google::traits::{ApiConfigExt, RequestClient};
-use crate::providers::google::{
-    Content, GeminiGenerateContentRequest, GenerateContentResponse, Part,
-};
 use crate::providers::types::build_http_client;
 use crate::providers::types::{add_extra_body_to_prompt, ServiceType};
 use potato_type::google::v1::embedding::{PredictRequest, PredictResponse};
+use potato_type::google::v1::generate::GenerateContentResponse;
 use potato_type::prompt::Prompt;
 use potato_type::Provider;
 use reqwest::header::{HeaderValue, AUTHORIZATION};
@@ -131,63 +129,18 @@ impl VertexClient {
             return Err(ProviderError::MissingAuthenticationError);
         }
 
-        let settings = &prompt.model_settings;
-
-        // get the user messages from the prompt first
-        let contents: Vec<Content> = prompt
-            .message
-            .iter()
-            .map(Content::from_message)
-            .collect::<Result<Vec<_>, _>>()?;
-
-        // system messages are optional and can only be content with multiple parts
-        let system_instruction: Option<Content> = if prompt.system_instruction.is_empty() {
-            None
-        } else {
-            let parts: Result<Vec<Part>, ProviderError> = prompt
-                .system_instruction
-                .iter()
-                .map(Part::from_message)
-                .collect();
-
-            Some(Content {
-                parts: parts?,
-                role: None,
-            })
-        };
-
-        let mut gemini_settings = settings.get_gemini_settings().unwrap_or_default();
-
-        if prompt.response_json_schema.is_some() {
-            gemini_settings.configure_for_structured_output();
-        }
-
-        // Create the Gemini generate content request
-        let chat_request = GeminiGenerateContentRequest {
-            contents,
-            system_instruction,
-            settings: Some(gemini_settings),
-            ..Default::default()
-        };
-
-        // serialize the prompt to JSON
-        let mut serialized_prompt = serde_json::to_value(chat_request)?;
-
-        // if settings.extra_body is provided, merge it with the prompt
-        if let Some(extra_body) = settings.extra_body() {
-            add_extra_body_to_prompt(&mut serialized_prompt, extra_body);
-        }
+        let request_body = prompt.request.create_request_for_provider(&self.provider)?;
 
         debug!(
             "Sending chat completion request to Gemini API: {:?}",
-            serialized_prompt
+            request_body
         );
 
         let response = VertexRequestClient::make_request(
             &self.client,
             &self.config,
             &prompt.model,
-            &serialized_prompt,
+            &request_body,
         )
         .await?;
 

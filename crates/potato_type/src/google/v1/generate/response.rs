@@ -480,7 +480,7 @@ pub struct Candidate {
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct GenerateContentResponseV1 {
+pub struct GenerateContentResponse {
     pub candidates: Vec<Candidate>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_version: Option<String>,

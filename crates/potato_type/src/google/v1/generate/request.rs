@@ -1206,6 +1206,15 @@ impl Default for Part {
     }
 }
 
+impl Part {
+    pub fn from_text(content: String) -> Self {
+        Self {
+            data: DataNum::Text(content),
+            ..Default::default()
+        }
+    }
+}
+
 #[pyclass]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]

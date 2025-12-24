@@ -1,3 +1,5 @@
+use crate::google::v1::generate::{GeminiContent, Part};
+use crate::prompt::Role;
 use crate::TypeError;
 use potato_util::PyHelperFuncs;
 use potato_util::{json_to_pyobject, pyobject_to_json};
@@ -198,5 +200,34 @@ impl GeminiEmbeddingResponse {
     pub fn into_py_bound_any<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         let bound = Py::new(py, self.clone())?;
         Ok(bound.into_bound_py_any(py)?)
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GeminiEmbeddingRequest<T>
+where
+    T: Serialize,
+{
+    pub content: GeminiContent,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(flatten)]
+    pub embedding_config: Option<T>,
+}
+
+impl<T> GeminiEmbeddingRequest<T>
+where
+    T: Serialize,
+{
+    pub fn new(inputs: Vec<String>, config: T) -> Self {
+        let parts = inputs.into_iter().map(|x| Part::from_text(x)).collect();
+
+        Self {
+            content: GeminiContent {
+                parts,
+                role: Role::User.to_string(),
+            },
+            embedding_config: Some(config),
+        }
     }
 }

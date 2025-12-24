@@ -4,14 +4,12 @@ use crate::providers::types::add_extra_body_to_prompt;
 use crate::providers::types::build_http_client;
 use crate::providers::types::ServiceType;
 use http::{header, HeaderMap};
-use potato_type::anthropic::v1::message::{AnthropicChatResponse, AnthropicSettings};
+use potato_type::anthropic::v1::message::AnthropicChatResponse;
 
-use potato_type::prompt::MessageNum;
 use potato_type::prompt::Prompt;
 use potato_type::{Common, Provider};
 use reqwest::Client;
 use reqwest::Response;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{debug, error, instrument};
 
@@ -173,8 +171,19 @@ impl AnthropicClient {
         }
 
         let mut additional_headers = HeaderMap::new();
-        let request_body =
-            build_anthropic_message_request_from_prompt(prompt, &mut additional_headers)?;
+
+        // get request from prompt.request
+        if prompt.request.has_structured_output() {
+            additional_headers.insert(
+                ANTHROPIC_BETA,
+                header::HeaderValue::from_static(ANTHROPIC_STRUCTURED_OUTPUT),
+            );
+        }
+
+        // in most cases this will be a direct conversion of struct to serde_json::Value
+        // however, this allows for extension in the future if we want to all conversion of one type to another
+        // i.e., converting an anthropic request to a gemini request
+        let request_body = prompt.request.create_request_for_provider(&self.provider)?;
 
         debug!(
             "Sending message request to Anthropic API: {:?}",
@@ -183,7 +192,7 @@ impl AnthropicClient {
 
         let response = self.make_request(&request_body, additional_headers).await?;
         let chat_response: AnthropicChatResponse = response.json().await?;
-        debug!("Chat completion successful");
+        debug!("Message successful");
 
         Ok(chat_response)
     }
@@ -195,51 +204,4 @@ pub(crate) fn create_structured_output_schema(json_schema: &Value) -> Value {
         "schema": json_schema,
 
     })
-}
-
-pub(crate) fn build_anthropic_message_request_from_prompt(
-    prompt: &Prompt,
-    additional_headers: &mut HeaderMap,
-) -> Result<Value, ProviderError> {
-    let settings = &prompt.model_settings;
-    let message_count = prompt.system_instructions.len() + prompt.messages.len();
-    let mut messages = Vec::with_capacity(message_count);
-
-    // Convert system instructions
-    for msg in &prompt.system_instructions {
-        messages.push(msg);
-    }
-
-    // Convert user messages
-    for msg in &prompt.messages {
-        messages.push(msg);
-    }
-
-    let schema = prompt
-        .response_json_schema
-        .as_ref()
-        .map(|schema| create_structured_output_schema(schema));
-
-    if let Some(schema) = schema {
-        additional_headers.insert(
-            ANTHROPIC_BETA,
-            header::HeaderValue::from_static(ANTHROPIC_STRUCTURED_OUTPUT),
-        );
-    }
-
-    let request = AnthropicMessageRequest {
-        model: prompt.model.as_str(),
-        messages: &messages,
-        settings: &settings.get_anthropic_settings(),
-        output_format: schema,
-    };
-
-    let mut serialized = serde_json::to_value(request)?;
-
-    // if settings.extra_body is provided, merge it with the prompt
-    if let Some(extra_body) = settings.extra_body() {
-        add_extra_body_to_prompt(&mut serialized, extra_body);
-    }
-
-    Ok(serialized)
 }

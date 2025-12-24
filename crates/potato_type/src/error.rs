@@ -83,6 +83,18 @@ pub enum TypeError {
 
     #[error("More than one system instruction provided where only one is allowed.")]
     MoreThanOneSystemInstruction,
+
+    #[error("Invalid request type for Anthropic provider.")]
+    InvalidRequestTypeForAnthropic,
+
+    #[error("Invalid request type for Gemini provider.")]
+    InvalidRequestTypeForGemini,
+
+    #[error("Invalid request type for OpenAI provider.")]
+    InvalidRequestTypeForOpenAI,
+
+    #[error("Unsupported provider for request creation.")]
+    UnsupportedProviderForRequestCreation,
 }
 
 impl From<TypeError> for PyErr {

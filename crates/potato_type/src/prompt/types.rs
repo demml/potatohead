@@ -677,7 +677,7 @@ pub enum MessageNum {
 }
 
 impl MessageNum {
-    pub(crate) fn bind(&self, name: &str, value: &str) -> Result<Self, TypeError> {
+    pub fn bind(&self, name: &str, value: &str) -> Result<Self, TypeError> {
         match self {
             MessageNum::OpenAIMessageV1(msg) => {
                 let bound_msg = msg.bind(name, value)?;

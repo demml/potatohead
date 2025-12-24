@@ -5,7 +5,7 @@ use crate::openai::v1::chat::request::OpenAIChatCompletionRequestV1;
 use crate::openai::v1::create_structured_output_schema;
 use crate::prompt::types::MessageNum;
 use crate::prompt::ModelSettings;
-use crate::TypeError;
+use crate::{Provider, TypeError};
 use pyo3::types::PyList;
 use pyo3::types::PyListMethods;
 use pyo3::IntoPyObjectExt;
@@ -165,6 +165,40 @@ impl ProviderRequest {
                 .generation_config
                 .as_ref()
                 .and_then(|cfg| cfg.response_json_schema.as_ref()),
+        }
+    }
+
+    pub fn has_structured_output(&self) -> bool {
+        self.response_json_schema().is_some()
+    }
+
+    fn to_anthropic_request(&self) -> Result<Value, TypeError> {
+        match self {
+            ProviderRequest::AnthropicV1(req) => Ok(serde_json::to_value(req)?),
+            _ => Err(TypeError::InvalidRequestTypeForAnthropic),
+        }
+    }
+
+    fn to_gemini_request(&self) -> Result<Value, TypeError> {
+        match self {
+            ProviderRequest::GeminiV1(req) => Ok(serde_json::to_value(req)?),
+            _ => Err(TypeError::InvalidRequestTypeForGemini),
+        }
+    }
+
+    fn to_openai_request(&self) -> Result<Value, TypeError> {
+        match self {
+            ProviderRequest::OpenAIV1(req) => Ok(serde_json::to_value(req)?),
+            _ => Err(TypeError::InvalidRequestTypeForOpenAI),
+        }
+    }
+
+    pub fn create_request_for_provider(&self, provider: &Provider) -> Result<Value, TypeError> {
+        match provider {
+            Provider::Anthropic => self.to_anthropic_request(),
+            Provider::Gemini | Provider::Vertex | Provider::Google => self.to_gemini_request(),
+            Provider::OpenAI => self.to_openai_request(),
+            _ => Err(TypeError::UnsupportedProviderForRequestCreation),
         }
     }
 
