@@ -1,12 +1,9 @@
 use crate::agents::error::AgentError;
 use potato_provider::ChatResponse;
-use potato_util::json_to_pyobject;
 use potato_util::utils::{LogProbs, ResponseLogProbs};
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
-use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use tracing::instrument;
 use tracing::warn;
 #[pyclass]
@@ -84,23 +81,13 @@ impl PyAgentResponse {
         }
     }
 
-    /// This will map a the content of the response to a python object.
-    /// A python object in this case will be either a passed pydantic model or support potatohead types.
-    /// If neither is porvided, an attempt is made to parse the serde Value into an appropriate Python type.
-    /// Types:
-    /// - Serde Null -> Python None
-    /// - Serde Bool -> Python bool
-    /// - Serde String -> Python str
-    /// - Serde Number -> Python int or float
-    /// - Serde Array -> Python list (with each item converted to Python type)
-    /// - Serde Object -> Python dict (with each key-value pair converted to Python type)
     #[getter]
     #[instrument(skip_all)]
     pub fn structured_output<'py>(
         &mut self,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyAny>, AgentError> {
-        let bound = match self.output_type {
+        let bound = match &self.output_type {
             Some(output_type) => Some(output_type.bind(py)),
             None => None,
         };
@@ -115,7 +102,7 @@ impl PyAgentResponse {
 impl PyAgentResponse {
     pub fn new(response: AgentResponse, output_type: Option<Py<PyAny>>) -> Self {
         Self {
-            response,
+            inner: response,
             output_type,
             failed_conversion: false,
         }
