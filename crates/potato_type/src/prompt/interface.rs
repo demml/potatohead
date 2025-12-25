@@ -89,6 +89,7 @@ fn parse_messages(
         };
 
     // Convert Anthropic system messages to TextBlockParam format
+    // optimize this later - maybe
     if provider == &Provider::Anthropic
         && (default_role == Role::System.as_str()
             || default_role == Role::Assistant.as_str()
