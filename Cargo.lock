@@ -1181,6 +1181,9 @@ dependencies = [
 [[package]]
 name = "potato-macro"
 version = "0.10.0"
+dependencies = [
+ "thiserror 2.0.17",
+]
 
 [[package]]
 name = "potato-provider"
@@ -1189,6 +1192,7 @@ dependencies = [
  "base64",
  "gcloud-auth",
  "http",
+ "potato-macro",
  "potato-type",
  "potato-util",
  "pyo3",

@@ -1,13 +1,16 @@
 use crate::google::v1::generate::{GeminiContent, Part};
+use crate::prompt::MessageNum;
+use crate::prompt::ResponseContent;
 use crate::prompt::Role;
+use crate::traits::ResponseAdapter;
 use crate::TypeError;
+use potato_util::utils::ResponseLogProbs;
 use potato_util::PyHelperFuncs;
 use potato_util::{json_to_pyobject, pyobject_to_json};
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[pyclass]
 #[serde(rename_all = "camelCase", default)]
@@ -88,6 +91,59 @@ impl PredictResponse {
     pub fn into_py_bound_any<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         let bound = Py::new(py, self.clone())?;
         Ok(bound.into_bound_py_any(py)?)
+    }
+}
+
+impl ResponseAdapter for PredictResponse {
+    fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
+
+    fn is_empty(&self) -> bool {
+        match &self.predictions {
+            Value::Array(arr) => arr.is_empty(),
+            _ => false,
+        }
+    }
+
+    fn to_bound_py_object<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        Ok(PyHelperFuncs::to_bound_py_object(py, self)?)
+    }
+
+    fn id(&self) -> &str {
+        &self.deployed_model_id
+    }
+
+    fn to_message_num(&self) -> Result<Vec<MessageNum>, TypeError> {
+        Err(TypeError::Error(
+            "Cannot convert PredictResponse to MessageNum".to_string(),
+        ))
+    }
+
+    fn get_content(&self) -> ResponseContent {
+        ResponseContent::PredictResponse(self.clone())
+    }
+
+    fn structured_output<'py>(
+        &self,
+        py: Python<'py>,
+        _output_model: Option<Bound<'py, PyAny>>,
+    ) -> Result<Bound<'py, PyAny>, TypeError> {
+        if self.is_empty() {
+            // return Py None if no content
+            return Ok(py.None().into_bound_py_any(py)?);
+        }
+
+        let val = self.predictions.clone();
+        Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
+    }
+
+    fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        Ok(py.None().into_bound_py_any(py)?)
+    }
+
+    fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
+        vec![]
     }
 }
 

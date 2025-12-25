@@ -1,3 +1,5 @@
+pub mod error;
+
 /// Generic macro for extracting Python objects into Rust enum variants.
 /// Returns early with Ok(variant) on first successful match.
 ///
@@ -114,4 +116,21 @@ macro_rules! dispatch_trait_method {
             Self::GeminiV1(inner) => <_ as $trait>::$method(inner, $($args),*),
         }
     };
+}
+
+/// Macro for dispatching trait method calls on response enum variants
+#[macro_export]
+macro_rules! dispatch_response_trait_method {
+    // Immutable reference pattern
+    ($enum:expr, $trait:path, $method:ident($($args:expr),* $(,)?)) => {
+        match $enum {
+            Self::OpenAIV1(inner) => <_ as $trait>::$method(inner, $($args),*),
+            Self::GeminiV1(inner) => <_ as $trait>::$method(inner, $($args),*),
+            Self::VertexGenerateV1(inner) => <_ as $trait>::$method(inner, $($args),*),
+            Self::AnthropicMessageV1(inner) => <_ as $trait>::$method(inner, $($args),*),
+            Self::VertexPredictV1(inner) => <_ as $trait>::$method(inner, $($args),*)
+        }
+    };
+
+
 }

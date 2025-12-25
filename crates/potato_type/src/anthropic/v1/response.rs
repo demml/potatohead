@@ -1,7 +1,7 @@
 use crate::anthropic::v1::request::{ContentBlockParam, MessageParam};
 use crate::prompt::Role;
 use crate::prompt::{MessageNum, ResponseContent};
-use crate::traits::{LogProbExt, MessageResponseExt, ResponseAdapter, TokenUsage};
+use crate::traits::{MessageResponseExt, ResponseAdapter};
 use crate::TypeError;
 use potato_util::utils::construct_structured_response;
 use potato_util::utils::ResponseLogProbs;
@@ -369,20 +369,6 @@ pub struct AnthropicChatResponse {
     pub content: Vec<ResponseContentBlock>,
 }
 
-impl TokenUsage for AnthropicChatResponse {
-    /// Returns the total token count across all modalities.
-    fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
-        Ok(PyHelperFuncs::to_bound_py_object(py, &self.usage)?)
-    }
-}
-
-impl LogProbExt for AnthropicChatResponse {
-    fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
-        // Anthropic responses do not include log probabilities
-        Vec::new()
-    }
-}
-
 #[pymethods]
 impl AnthropicChatResponse {
     #[getter]
@@ -444,5 +430,14 @@ impl ResponseAdapter for AnthropicChatResponse {
             }
             _ => return Ok(py.None().into_bound_py_any(py)?),
         };
+    }
+
+    fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        Ok(PyHelperFuncs::to_bound_py_object(py, &self.usage)?)
+    }
+
+    fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
+        // Anthropic responses do not include log probabilities
+        Vec::new()
     }
 }

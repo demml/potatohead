@@ -1,9 +1,10 @@
 use crate::error::ProviderError;
+use potato_macro::dispatch_response_trait_method;
 use potato_type::anthropic::v1::response::AnthropicChatResponse;
 use potato_type::google::v1::generate::GenerateContentResponse;
 use potato_type::google::PredictResponse;
 use potato_type::openai::v1::OpenAIChatResponse;
-use potato_util::PyHelperFuncs;
+use potato_type::traits::ResponseAdapter;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use reqwest::header::HeaderMap;
@@ -92,6 +93,14 @@ pub enum ChatResponse {
 
 #[pymethods]
 impl ChatResponse {
+    pub fn token_usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, ProviderError> {
+        Ok(dispatch_response_trait_method!(
+            self,
+            ResponseAdapter,
+            usage(py)
+        )?)
+    }
+
     pub fn to_py<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, ProviderError> {
         // try unwrapping the prompt, if it exists
         match self {
@@ -103,48 +112,24 @@ impl ChatResponse {
         }
     }
     pub fn __str__(&self) -> String {
-        match self {
-            ChatResponse::OpenAIV1(resp) => PyHelperFuncs::__str__(resp),
-            ChatResponse::GeminiV1(resp) => PyHelperFuncs::__str__(resp),
-            ChatResponse::VertexGenerateV1(resp) => PyHelperFuncs::__str__(resp),
-            ChatResponse::VertexPredictV1(resp) => PyHelperFuncs::__str__(resp),
-            ChatResponse::AnthropicMessageV1(resp) => PyHelperFuncs::__str__(resp),
-        }
+        dispatch_response_trait_method!(self, ResponseAdapter, __str__())
     }
 }
 
 impl ChatResponse {
     pub fn is_empty(&self) -> bool {
-        match self {
-            ChatResponse::OpenAIV1(resp) => resp.choices.is_empty(),
-            ChatResponse::GeminiV1(resp) => resp.candidates.is_empty(),
-            ChatResponse::VertexGenerateV1(resp) => resp.candidates.is_empty(),
-            ChatResponse::AnthropicMessageV1(resp) => resp.content.is_empty(),
-            _ => true,
-        }
+        dispatch_response_trait_method!(self, ResponseAdapter, is_empty())
     }
 
     pub fn to_python<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, ProviderError> {
-        match self {
-            ChatResponse::OpenAIV1(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::GeminiV1(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::VertexGenerateV1(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::AnthropicMessageV1(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            _ => Err(ProviderError::NotImplementedError(
-                "to_python not implemented for this provider".to_string(),
-            )),
-        }
+        Ok(dispatch_response_trait_method!(
+            self,
+            ResponseAdapter,
+            to_bound_py_object(py)
+        )?)
     }
 
     pub fn id(&self) -> String {
-        match self {
-            ChatResponse::OpenAIV1(resp) => resp.id.clone(),
-            ChatResponse::GeminiV1(resp) => resp.response_id.clone().unwrap_or("".to_string()),
-            ChatResponse::VertexGenerateV1(resp) => {
-                resp.response_id.clone().unwrap_or("".to_string())
-            }
-            ChatResponse::AnthropicMessageV1(resp) => resp.id.clone(),
-            _ => "".to_string(),
-        }
+        dispatch_response_trait_method!(self, ResponseAdapter, id()).to_string()
     }
 }

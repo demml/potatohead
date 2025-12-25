@@ -2,7 +2,7 @@ use crate::google::v1::generate::request::Modality;
 use crate::google::v1::generate::request::{GeminiContent, HarmBlockThreshold, HarmCategory};
 use crate::google::v1::generate::DataNum;
 use crate::prompt::{MessageNum, ResponseContent};
-use crate::traits::{LogProbExt, MessageResponseExt, ResponseAdapter, TokenUsage};
+use crate::traits::{MessageResponseExt, ResponseAdapter};
 use crate::TypeError;
 use potato_util::utils::construct_structured_response;
 use potato_util::utils::ResponseLogProbs;
@@ -488,12 +488,6 @@ pub struct GenerateContentResponse {
     pub usage_metadata: Option<UsageMetadata>,
 }
 
-impl TokenUsage for GenerateContentResponse {
-    /// Returns the total token count across all modalities.
-    fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
-        Ok(PyHelperFuncs::to_bound_py_object(py, &self.usage_metadata)?)
-    }
-}
 impl ResponseAdapter for GenerateContentResponse {
     fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
@@ -550,9 +544,12 @@ impl ResponseAdapter for GenerateContentResponse {
             }
         }
     }
-}
 
-impl LogProbExt for GenerateContentResponse {
+    /// Returns the total token count across all modalities.
+    fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        Ok(PyHelperFuncs::to_bound_py_object(py, &self.usage_metadata)?)
+    }
+
     fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
         let mut probabilities = Vec::new();
         if let Some(choice) = self.candidates.first() {

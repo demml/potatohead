@@ -7,5 +7,6 @@ repository = { workspace = true }
 [lib]
 proc-macro = false  # This is NOT a proc-macro crate, just regular macros
 
+
 [dependencies]
-# No dependencies needed for declarative macros
+thiserror = { workspace = true }

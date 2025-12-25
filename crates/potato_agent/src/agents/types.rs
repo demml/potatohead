@@ -1,10 +1,9 @@
 use crate::agents::error::AgentError;
 use potato_provider::ChatResponse;
 
+use potato_macro::dispatch_response_trait_method;
 use potato_type::prompt::ResponseContent;
-use potato_type::traits::LogProbExt;
 use potato_type::traits::ResponseAdapter;
-use potato_type::traits::{MessageResponseExt, TokenUsage};
 use potato_util::json_to_pyobject;
 use potato_util::utils::{LogProbs, ResponseLogProbs};
 use potato_util::PyHelperFuncs;
@@ -24,15 +23,7 @@ pub struct AgentResponse {
 #[pymethods]
 impl AgentResponse {
     pub fn token_usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
-        match &self.response {
-            ChatResponse::OpenAIV1(resp) => Ok(resp.usage(py)?),
-            ChatResponse::GeminiV1(resp) => Ok(resp.usage(py)?),
-            ChatResponse::VertexGenerateV1(resp) => Ok(resp.usage(py)?),
-            ChatResponse::AnthropicMessageV1(resp) => Ok(resp.usage(py)?),
-            _ => Err(AgentError::NotSupportedError(
-                "Token usage not supported for the vertex predict response type".to_string(),
-            )),
-        }
+        dispatch_response_trait_method!(self, ResponseAdapter, usage(py)).map_err(Into::into)
     }
 
     /// Returns the response as a Python object

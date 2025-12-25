@@ -3,7 +3,6 @@ use crate::traits::PromptMessageExt;
 use crate::{
     openai::v1::ChatMessage,
     prompt::MessageNum,
-    traits::{LogProbExt, TokenUsage},
     traits::{MessageResponseExt, ResponseAdapter},
     TypeError,
 };
@@ -165,38 +164,6 @@ pub struct OpenAIChatResponse {
     pub system_fingerprint: Option<String>,
 }
 
-impl TokenUsage for OpenAIChatResponse {
-    /// Returns the total token count across all modalities.
-    fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
-        Ok(PyHelperFuncs::to_bound_py_object(py, &self.usage)?)
-    }
-}
-
-impl LogProbExt for OpenAIChatResponse {
-    fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
-        let mut probabilities = Vec::new();
-        if let Some(choice) = self.choices.first() {
-            if let Some(logprobs) = &choice.logprobs {
-                if let Some(content) = &logprobs.content {
-                    for log_content in content {
-                        // Look for single digit tokens (1, 2, 3, 4, 5)
-                        if log_content.token.len() == 1
-                            && log_content.token.chars().next().unwrap().is_ascii_digit()
-                        {
-                            probabilities.push(ResponseLogProbs {
-                                token: log_content.token.clone(),
-                                logprob: log_content.logprob,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        probabilities
-    }
-}
-
 #[pymethods]
 impl OpenAIChatResponse {
     pub fn __str__(&self) -> String {
@@ -254,5 +221,33 @@ impl ResponseAdapter for OpenAIChatResponse {
             // return Py None if no content
             return Ok(py.None().into_bound_py_any(py)?);
         }
+    }
+
+    /// Returns the total token count across all modalities.
+    fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        Ok(PyHelperFuncs::to_bound_py_object(py, &self.usage)?)
+    }
+
+    fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
+        let mut probabilities = Vec::new();
+        if let Some(choice) = self.choices.first() {
+            if let Some(logprobs) = &choice.logprobs {
+                if let Some(content) = &logprobs.content {
+                    for log_content in content {
+                        // Look for single digit tokens (1, 2, 3, 4, 5)
+                        if log_content.token.len() == 1
+                            && log_content.token.chars().next().unwrap().is_ascii_digit()
+                        {
+                            probabilities.push(ResponseLogProbs {
+                                token: log_content.token.clone(),
+                                logprob: log_content.logprob,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        probabilities
     }
 }

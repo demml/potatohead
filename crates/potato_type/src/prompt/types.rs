@@ -9,6 +9,7 @@ use crate::common::get_image_media_types;
 use crate::common::image_format;
 use crate::google::v1::generate::Candidate;
 use crate::google::v1::generate::GeminiContent;
+use crate::google::PredictResponse;
 use crate::openai::v1::chat::request::ChatMessage as OpenAIChatMessage;
 use crate::openai::v1::Choice;
 use crate::traits::MessageConversion;
@@ -747,4 +748,5 @@ pub enum ResponseContent {
     OpenAI(Choice),
     Google(Candidate),
     Anthropic(ResponseContentBlock),
+    PredictResponse(PredictResponse),
 }

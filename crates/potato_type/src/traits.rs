@@ -74,8 +74,14 @@ pub trait ResponseAdapter {
     /// Converts the response to a vector of MessageNum
     fn to_message_num(&self) -> Result<Vec<MessageNum>, TypeError>;
 
+    // Get the token usage as a Python object
+    fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError>;
+
     /// Retrieves the first content choice from the response
     fn get_content(&self) -> ResponseContent;
+
+    /// Retrieves the log probabilities from the response
+    fn get_log_probs(&self) -> Vec<ResponseLogProbs>;
 
     /// Returns the structured output of the response
     /// For all response types the flow is as follows:
@@ -139,13 +145,4 @@ pub trait MessageConversion {
     /// content types that cannot be represented in OpenAI's format
     fn to_openai_message(&self)
         -> Result<crate::openai::v1::chat::request::ChatMessage, TypeError>;
-}
-
-pub trait LogProbExt {
-    fn get_log_probs(&self) -> Vec<ResponseLogProbs>;
-}
-
-pub trait TokenUsage {
-    /// Get the token usage as a Python object
-    fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError>;
 }
