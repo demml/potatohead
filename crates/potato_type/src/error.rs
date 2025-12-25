@@ -104,6 +104,9 @@ pub enum TypeError {
 
     #[error("Cannot convert message to self")]
     CantConvertSelf,
+
+    #[error("Unsupported provider for message conversion")]
+    UnsupportedProviderError,
 }
 
 impl From<TypeError> for PyErr {

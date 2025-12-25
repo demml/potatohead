@@ -1,6 +1,5 @@
 use crate::anthropic::v1::message::MessageParam;
 use crate::anthropic::v1::message::MessageParam as AnthropicMessage;
-
 use crate::anthropic::v1::message::TextBlockParam;
 use crate::common::document_format;
 use crate::common::get_audio_media_types;
@@ -9,7 +8,9 @@ use crate::common::get_image_media_types;
 use crate::common::image_format;
 use crate::google::v1::generate::GeminiContent;
 use crate::openai::v1::chat::request::ChatMessage as OpenAIChatMessage;
+use crate::traits::MessageConversion;
 use crate::traits::PromptMessageExt;
+use crate::Provider;
 use crate::{StructuredOutput, TypeError};
 use mime_guess;
 use potato_util::PyHelperFuncs;
@@ -557,6 +558,8 @@ impl Display for ResponseType {
     }
 }
 
+// add conversion logic based on message conversion trait
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum MessageNum {
@@ -569,6 +572,85 @@ pub enum MessageNum {
 }
 
 impl MessageNum {
+    /// Checks if the message type matches the given provider
+    fn matches_provider(&self, provider: &Provider) -> bool {
+        matches!(
+            (self, provider),
+            (MessageNum::OpenAIMessageV1(_), Provider::OpenAI)
+                | (MessageNum::AnthropicMessageV1(_), Provider::Anthropic)
+                | (MessageNum::AnthropicSystemMessageV1(_), Provider::Anthropic)
+                | (MessageNum::GeminiContentV1(_), Provider::Google)
+                | (MessageNum::GeminiContentV1(_), Provider::Vertex)
+                | (MessageNum::GeminiContentV1(_), Provider::Gemini)
+        )
+    }
+
+    /// Converts the message to an openai message
+    /// This is only done for anthropic and gemini messages
+    /// openai message will return a failure if called on an openai message
+    /// Control flow should ensure this is only called on non-openai messages
+    fn to_openai_message(&self) -> Result<MessageNum, TypeError> {
+        match self {
+            MessageNum::AnthropicMessageV1(msg) => {
+                Ok(MessageNum::OpenAIMessageV1(msg.to_openai_message()?))
+            }
+            MessageNum::GeminiContentV1(msg) => {
+                Ok(MessageNum::OpenAIMessageV1(msg.to_openai_message()?))
+            }
+            _ => Err(TypeError::CantConvertSelf),
+        }
+    }
+
+    /// Converts to Anthropic message format
+    fn to_anthropic_message(&self) -> Result<MessageNum, TypeError> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => {
+                Ok(MessageNum::AnthropicMessageV1(msg.to_anthropic_message()?))
+            }
+            MessageNum::GeminiContentV1(msg) => {
+                Ok(MessageNum::AnthropicMessageV1(msg.to_anthropic_message()?))
+            }
+            _ => Err(TypeError::CantConvertSelf),
+        }
+    }
+
+    /// Converts to Google Gemini message format
+    fn to_google_message(&self) -> Result<MessageNum, TypeError> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => {
+                Ok(MessageNum::GeminiContentV1(msg.to_google_message()?))
+            }
+            MessageNum::AnthropicMessageV1(msg) => {
+                Ok(MessageNum::GeminiContentV1(msg.to_google_message()?))
+            }
+            _ => Err(TypeError::CantConvertSelf),
+        }
+    }
+
+    fn convert_message_to_provider_type(
+        &self,
+        provider: &Provider,
+    ) -> Result<MessageNum, TypeError> {
+        match provider {
+            Provider::OpenAI => self.to_openai_message(),
+            Provider::Anthropic => self.to_anthropic_message(),
+            Provider::Google => self.to_google_message(),
+            Provider::Vertex => self.to_google_message(),
+            Provider::Gemini => self.to_google_message(),
+            _ => Err(TypeError::UnsupportedProviderError),
+        }
+    }
+
+    pub fn convert_message(&mut self, provider: &Provider) -> Result<(), TypeError> {
+        // if message already matches provider, return Ok
+        if self.matches_provider(provider) {
+            return Ok(());
+        }
+        let converted = self.convert_message_to_provider_type(provider)?;
+        *self = converted;
+        Ok(())
+    }
+
     pub fn anthropic_message_to_system_message(&mut self) -> Result<(), TypeError> {
         match self {
             MessageNum::AnthropicMessageV1(msg) => {
