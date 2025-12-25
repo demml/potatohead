@@ -966,8 +966,7 @@ impl PyWorkflow {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use potato_prompt::Prompt;
-    use potato_type::prompt::{Message, PromptContent, ResponseType};
+    use potato_type::prompt::Prompt;
 
     #[test]
     fn test_workflow_creation() {

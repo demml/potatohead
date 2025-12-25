@@ -34,22 +34,40 @@ pub trait PromptMessageExt:
     fn from_text(content: String, role: &str) -> Result<Self, TypeError>;
 }
 
+/// Core trait that must be implemented for all request types
 pub trait RequestAdapter {
+    /// Returns all messages in the request
     fn messages(&self) -> &[MessageNum];
+    /// Returns a mutable reference to the messages in the request
     fn messages_mut(&mut self) -> &mut Vec<MessageNum>;
+    /// Returns all system instructions in the request
     fn system_instructions(&self) -> Vec<&MessageNum>;
+    /// Returns the response JSON schema if set
     fn response_json_schema(&self) -> Option<&Value>;
+    /// Inserts a message at the specified index (or at the start if None)
     fn insert_message(&mut self, message: MessageNum, idx: Option<usize>) -> () {
         self.messages_mut().insert(idx.unwrap_or(0), message);
     }
+    /// Prepends system instructions to the messages
     fn preprend_system_instructions(&mut self, messages: Vec<MessageNum>) -> Result<(), TypeError>;
+
+    /// Returns the system instructions as a Python list
+    /// # Arguments
+    /// * `py` - The Python GIL token
+    /// Returns a Python list of system instruction messages
     fn get_py_system_instructions<'py>(
         &self,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyList>, TypeError>;
+    /// Returns the model settings for the request
     fn model_settings<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError>;
+    /// Converts the request to a JSON value for sending to the provider
     fn to_request_body(&self) -> Result<Value, TypeError>;
+    /// Checks if the request matches the given provider
     fn match_provider(&self, provider: &Provider) -> bool;
+    /// Builds a provider-specific request enum from the given parameters
+    /// The ProviderRequest enum encapsulates all supported provider request types and is an
+    /// attribute of the Prompt struct. ProviderRequest is built on instantiation of the Prompt
     fn build_provider_enum(
         messages: Vec<MessageNum>,
         system_instructions: Vec<MessageNum>,
@@ -58,6 +76,8 @@ pub trait RequestAdapter {
         response_json_schema: Option<Value>,
     ) -> Result<ProviderRequest, TypeError>;
 
+    /// Sets the response JSON schema for the request
+    /// Typically used as part of workflows when adding tasks
     fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) -> ();
 }
 
