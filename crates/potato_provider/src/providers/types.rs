@@ -5,12 +5,19 @@ use potato_type::google::v1::generate::GenerateContentResponse;
 use potato_type::google::PredictResponse;
 use potato_type::openai::v1::OpenAIChatResponse;
 use potato_type::traits::ResponseAdapter;
+use potato_util::utils::ResponseLogProbs;
 use pyo3::prelude::*;
-use pyo3::IntoPyObjectExt;
 use reqwest::header::HeaderMap;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+pub const GENERATE_CONTENT: &str = "generateContent";
+pub const EMBED_CONTENT: &str = "embedContent";
+pub const CHAT_COMPLETIONS: &str = "chat/completions";
+pub const PREDICT: &str = "predict";
+pub const EMBEDDINGS: &str = "embeddings";
+pub const MESSAGES: &str = "messages";
 
 #[derive(Debug, PartialEq)]
 pub enum ServiceType {
@@ -22,28 +29,28 @@ impl ServiceType {
     /// Get the service type string
     pub fn gemini_endpoint(&self) -> &'static str {
         match self {
-            Self::Generate => "generateContent",
-            Self::Embed => "embedContent",
+            Self::Generate => GENERATE_CONTENT,
+            Self::Embed => EMBED_CONTENT,
         }
     }
     pub fn vertex_endpoint(&self) -> &'static str {
         match self {
-            Self::Generate => "generateContent",
-            Self::Embed => "predict",
+            Self::Generate => GENERATE_CONTENT,
+            Self::Embed => PREDICT, // vertex uses "predict" for embeddings since it calls models directly
         }
     }
 
     pub fn openai_endpoint(&self) -> &'static str {
         match self {
-            Self::Generate => "chat/completions",
-            Self::Embed => "embeddings",
+            Self::Generate => CHAT_COMPLETIONS,
+            Self::Embed => EMBEDDINGS,
         }
     }
 
     pub fn anthropic_endpoint(&self) -> &'static str {
         match self {
-            Self::Generate => "messages",
-            Self::Embed => "embeddings",
+            Self::Generate => MESSAGES,
+            Self::Embed => EMBEDDINGS,
         }
     }
 }
@@ -81,7 +88,8 @@ pub fn build_http_client(default_headers: Option<HeaderMap>) -> Result<Client, P
         .map_err(ProviderError::from)
 }
 
-#[pyclass]
+/// Unified ChatResponse enum to encapsulate different provider responses
+/// Follows  our strategy pattern for dispatching methods to the appropriate inner type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ChatResponse {
     OpenAIV1(OpenAIChatResponse),
@@ -91,8 +99,8 @@ pub enum ChatResponse {
     AnthropicMessageV1(AnthropicChatResponse),
 }
 
-#[pymethods]
 impl ChatResponse {
+    /// Returns the token usage as a Python object
     pub fn token_usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, ProviderError> {
         Ok(dispatch_response_trait_method!(
             self,
@@ -101,27 +109,11 @@ impl ChatResponse {
         )?)
     }
 
-    pub fn to_py<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, ProviderError> {
-        // try unwrapping the prompt, if it exists
-        match self {
-            ChatResponse::OpenAIV1(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::GeminiV1(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::VertexGenerateV1(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::VertexPredictV1(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::AnthropicMessageV1(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-        }
-    }
-    pub fn __str__(&self) -> String {
-        dispatch_response_trait_method!(self, ResponseAdapter, __str__())
-    }
-}
-
-impl ChatResponse {
-    pub fn is_empty(&self) -> bool {
-        dispatch_response_trait_method!(self, ResponseAdapter, is_empty())
-    }
-
-    pub fn to_python<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, ProviderError> {
+    /// Converts the response to a Python object
+    pub fn to_bound_py_object<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyAny>, ProviderError> {
         Ok(dispatch_response_trait_method!(
             self,
             ResponseAdapter,
@@ -129,7 +121,35 @@ impl ChatResponse {
         )?)
     }
 
+    /// Returns the string representation of the response
+    pub fn __str__(&self) -> String {
+        dispatch_response_trait_method!(self, ResponseAdapter, __str__())
+    }
+
+    /// Checks if the response is empty
+    pub fn is_empty(&self) -> bool {
+        dispatch_response_trait_method!(self, ResponseAdapter, is_empty())
+    }
+
+    /// Converts the response to a vector of MessageNum
     pub fn id(&self) -> String {
         dispatch_response_trait_method!(self, ResponseAdapter, id()).to_string()
+    }
+
+    /// Converts the response to a vector of MessageNum
+    pub fn structured_output<'py>(
+        &self,
+        py: Python<'py>,
+        output_type: Option<&Bound<'py, PyAny>>,
+    ) -> Result<Bound<'py, PyAny>, ProviderError> {
+        Ok(dispatch_response_trait_method!(
+            self,
+            ResponseAdapter,
+            structured_output(py, output_type)
+        )?)
+    }
+
+    pub fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
+        dispatch_response_trait_method!(self, ResponseAdapter, get_log_probs())
     }
 }

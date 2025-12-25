@@ -523,7 +523,7 @@ impl ResponseAdapter for GenerateContentResponse {
     fn structured_output<'py>(
         &self,
         py: Python<'py>,
-        output_model: Option<Bound<'py, PyAny>>,
+        output_model: Option<&Bound<'py, PyAny>>,
     ) -> Result<Bound<'py, PyAny>, TypeError> {
         let parts = match self.candidates.first().cloned() {
             Some(candidate) => candidate.content.parts,

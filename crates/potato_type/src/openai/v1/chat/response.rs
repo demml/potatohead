@@ -206,7 +206,7 @@ impl ResponseAdapter for OpenAIChatResponse {
     fn structured_output<'py>(
         &self,
         py: Python<'py>,
-        output_model: Option<Bound<'py, PyAny>>,
+        output_model: Option<&Bound<'py, PyAny>>,
     ) -> Result<Bound<'py, PyAny>, TypeError> {
         if self.choices.is_empty() {
             // return Py None if no content

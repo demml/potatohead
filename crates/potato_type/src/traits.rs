@@ -100,7 +100,7 @@ pub trait ResponseAdapter {
     fn structured_output<'py>(
         &self,
         py: Python<'py>,
-        output_type: Option<Bound<'py, PyAny>>,
+        output_type: Option<&Bound<'py, PyAny>>,
     ) -> Result<Bound<'py, PyAny>, TypeError>;
 }
 

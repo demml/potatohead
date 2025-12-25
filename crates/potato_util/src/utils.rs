@@ -440,7 +440,7 @@ mod tests {
 pub fn convert_text_to_structured_output<'py>(
     py: Python<'py>,
     text: String,
-    output_model: Bound<'py, PyAny>,
+    output_model: &Bound<'py, PyAny>,
 ) -> Result<Bound<'py, PyAny>, UtilError> {
     let output = output_model.call_method1("model_validate_json", (&text,));
     match output {
@@ -474,7 +474,7 @@ pub fn convert_text_to_structured_output<'py>(
 pub fn construct_structured_response<'py>(
     py: Python<'py>,
     text: String,
-    output_model: Option<Bound<'py, PyAny>>,
+    output_model: Option<&Bound<'py, PyAny>>,
 ) -> Result<Bound<'py, PyAny>, UtilError> {
     match output_model {
         Some(model) => convert_text_to_structured_output(py, text, model),

@@ -1,9 +1,5 @@
 use crate::agents::error::AgentError;
 use potato_provider::ChatResponse;
-
-use potato_macro::dispatch_response_trait_method;
-use potato_type::prompt::ResponseContent;
-use potato_type::traits::ResponseAdapter;
 use potato_util::json_to_pyobject;
 use potato_util::utils::{LogProbs, ResponseLogProbs};
 use potato_util::PyHelperFuncs;
@@ -23,12 +19,12 @@ pub struct AgentResponse {
 #[pymethods]
 impl AgentResponse {
     pub fn token_usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
-        dispatch_response_trait_method!(self, ResponseAdapter, usage(py)).map_err(Into::into)
+        Ok(self.response.token_usage(py)?)
     }
 
     /// Returns the response as a Python object
     pub fn response<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
-        Ok(self.response.to_python(py)?)
+        Ok(self.response.to_bound_py_object(py)?)
     }
 }
 
@@ -37,39 +33,23 @@ impl AgentResponse {
         Self { id, response }
     }
 
-    /// WIll retrieve the first content choice from the response
-    #[instrument(skip_all)]
-    pub fn content(&self) -> ResponseContent {
-        match &self.response {
-            ChatResponse::OpenAIV1(resp) => resp.get_content(),
-            ChatResponse::GeminiV1(resp) => resp.get_content(),
-            ChatResponse::VertexGenerateV1(resp) => resp.get_content(),
-            ChatResponse::AnthropicMessageV1(resp) => resp.get_content(),
-            _ => {
-                warn!("Content not available for this response type");
-                None
-            }
-        }
+    pub fn log_probs(&self) -> Vec<ResponseLogProbs> {
+        self.response.get_log_probs()
     }
 
-    pub fn log_probs(&self) -> Vec<ResponseLogProbs> {
-        match &self.response {
-            ChatResponse::OpenAIV1(resp) => resp.get_log_probs(),
-            ChatResponse::GeminiV1(resp) => resp.get_log_probs(),
-            ChatResponse::VertexGenerateV1(resp) => resp.get_log_probs(),
-            ChatResponse::AnthropicMessageV1(resp) => resp.get_log_probs(),
-            _ => {
-                warn!("Log probabilities not available for this response type");
-                vec![]
-            }
-        }
+    pub fn structured_output<'py>(
+        &self,
+        py: Python<'py>,
+        output_type: Option<&Bound<'py, PyAny>>,
+    ) -> Result<Bound<'py, PyAny>, AgentError> {
+        Ok(self.response.structured_output(py, output_type)?)
     }
 }
 
 #[pyclass(name = "AgentResponse")]
 #[derive(Debug, Serialize)]
 pub struct PyAgentResponse {
-    pub response: AgentResponse,
+    pub inner: AgentResponse,
 
     #[serde(skip_serializing)]
     pub output_type: Option<Py<PyAny>>,
@@ -82,25 +62,25 @@ pub struct PyAgentResponse {
 impl PyAgentResponse {
     #[getter]
     pub fn id(&self) -> &str {
-        &self.response.id
+        &self.inner.id
     }
 
     /// Return the token usage of the response
     #[getter]
     pub fn token_usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
-        self.response.token_usage(py)
+        self.inner.token_usage(py)
     }
 
     /// Returns the actual response object from the provider
     #[getter]
     pub fn response<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
-        self.response.response(py)
+        self.inner.response(py)
     }
 
     #[getter]
     pub fn log_probs(&self) -> LogProbs {
         LogProbs {
-            tokens: self.response.log_probs(),
+            tokens: self.inner.log_probs(),
         }
     }
 
@@ -120,44 +100,11 @@ impl PyAgentResponse {
         &mut self,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyAny>, AgentError> {
-        let content_value = self.response.content();
-
-        // If the content is None, return None
-        if content_value.is_none() {
-            return Ok(py.None().into_bound_py_any(py)?);
-        }
-        // convert content_value to string
-        let content_value = content_value.unwrap();
-
-        match &self.output_type {
-            Some(output_type) => {
-                // Match the value. For loading into pydantic models, it's expected that the api response is a JSON string.
-
-                let bound = output_type
-                    .bind(py)
-                    .call_method1("model_validate_json", (&content_value,));
-
-                match bound {
-                    Ok(obj) => {
-                        // Successfully validated the model
-                        Ok(obj)
-                    }
-                    Err(err) => {
-                        // Model validation failed
-                        // convert string to json and then to python object
-                        warn!("Failed to validate model: {}", err);
-                        self.failed_conversion = true;
-                        let val = serde_json::from_str::<Value>(&content_value)?;
-                        Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
-                    }
-                }
-            }
-            None => {
-                // If no output type is provided, attempt to parse the content as JSON
-                let val = Value::String(content_value);
-                Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
-            }
-        }
+        let bound = match self.output_type {
+            Some(output_type) => Some(output_type.bind(py)),
+            None => None,
+        };
+        self.inner.structured_output(py, bound)
     }
 
     pub fn __str__(&self) -> String {

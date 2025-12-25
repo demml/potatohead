@@ -127,7 +127,7 @@ impl ResponseAdapter for PredictResponse {
     fn structured_output<'py>(
         &self,
         py: Python<'py>,
-        _output_model: Option<Bound<'py, PyAny>>,
+        _output_model: Option<&Bound<'py, PyAny>>,
     ) -> Result<Bound<'py, PyAny>, TypeError> {
         if self.is_empty() {
             // return Py None if no content

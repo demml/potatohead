@@ -416,7 +416,7 @@ impl ResponseAdapter for AnthropicChatResponse {
     fn structured_output<'py>(
         &self,
         py: Python<'py>,
-        output_model: Option<Bound<'py, PyAny>>,
+        output_model: Option<&Bound<'py, PyAny>>,
     ) -> Result<Bound<'py, PyAny>, TypeError> {
         if self.content.is_empty() {
             return Ok(py.None().into_bound_py_any(py)?);
