@@ -2,8 +2,7 @@ use crate::error::ProviderError;
 use crate::providers::types::build_http_client;
 use crate::providers::types::ServiceType;
 use http::{header, HeaderMap};
-use potato_type::anthropic::v1::message::AnthropicChatResponse;
-
+use potato_type::anthropic::v1::response::AnthropicChatResponse;
 use potato_type::prompt::Prompt;
 use potato_type::{Common, Provider};
 use reqwest::Client;

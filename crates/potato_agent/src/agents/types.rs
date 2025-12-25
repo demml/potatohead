@@ -1,8 +1,10 @@
 use crate::agents::error::AgentError;
 use potato_provider::ChatResponse;
 
-use potato_provider::Usage;
-use potato_type::common::{LogProbExt, ResponseExt};
+use potato_type::prompt::ResponseContent;
+use potato_type::traits::LogProbExt;
+use potato_type::traits::ResponseAdapter;
+use potato_type::traits::{MessageResponseExt, TokenUsage};
 use potato_util::json_to_pyobject;
 use potato_util::utils::{LogProbs, ResponseLogProbs};
 use potato_util::PyHelperFuncs;
@@ -12,7 +14,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
 use tracing::warn;
-
 #[pyclass]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentResponse {
@@ -22,15 +23,21 @@ pub struct AgentResponse {
 
 #[pymethods]
 impl AgentResponse {
-    pub fn token_usage(&self) -> Result<Usage, AgentError> {
+    pub fn token_usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
         match &self.response {
-            ChatResponse::OpenAIV1(resp) => Ok(resp.usage.clone()),
-            ChatResponse::GeminiV1(resp) => Ok(resp.get_token_usage()),
-            ChatResponse::VertexGenerate(resp) => Ok(resp.get_token_usage()),
+            ChatResponse::OpenAIV1(resp) => Ok(resp.usage(py)?),
+            ChatResponse::GeminiV1(resp) => Ok(resp.usage(py)?),
+            ChatResponse::VertexGenerateV1(resp) => Ok(resp.usage(py)?),
+            ChatResponse::AnthropicMessageV1(resp) => Ok(resp.usage(py)?),
             _ => Err(AgentError::NotSupportedError(
                 "Token usage not supported for the vertex predict response type".to_string(),
             )),
         }
+    }
+
+    /// Returns the response as a Python object
+    pub fn response<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+        Ok(self.response.to_python(py)?)
     }
 }
 
@@ -39,12 +46,13 @@ impl AgentResponse {
         Self { id, response }
     }
 
+    /// WIll retrieve the first content choice from the response
     #[instrument(skip_all)]
-    pub fn content(&self) -> Option<String> {
+    pub fn content(&self) -> ResponseContent {
         match &self.response {
-            ChatResponse::OpenAI(resp) => resp.get_content(),
-            ChatResponse::Gemini(resp) => resp.get_content(),
-            ChatResponse::VertexGenerate(resp) => resp.get_content(),
+            ChatResponse::OpenAIV1(resp) => resp.get_content(),
+            ChatResponse::GeminiV1(resp) => resp.get_content(),
+            ChatResponse::VertexGenerateV1(resp) => resp.get_content(),
             ChatResponse::AnthropicMessageV1(resp) => resp.get_content(),
             _ => {
                 warn!("Content not available for this response type");
@@ -55,9 +63,10 @@ impl AgentResponse {
 
     pub fn log_probs(&self) -> Vec<ResponseLogProbs> {
         match &self.response {
-            ChatResponse::OpenAI(resp) => resp.get_log_probs(),
-            ChatResponse::Gemini(resp) => resp.get_log_probs(),
-            ChatResponse::VertexGenerate(resp) => resp.get_log_probs(),
+            ChatResponse::OpenAIV1(resp) => resp.get_log_probs(),
+            ChatResponse::GeminiV1(resp) => resp.get_log_probs(),
+            ChatResponse::VertexGenerateV1(resp) => resp.get_log_probs(),
+            ChatResponse::AnthropicMessageV1(resp) => resp.get_log_probs(),
             _ => {
                 warn!("Log probabilities not available for this response type");
                 vec![]
@@ -85,9 +94,16 @@ impl PyAgentResponse {
         &self.response.id
     }
 
+    /// Return the token usage of the response
     #[getter]
-    pub fn token_usage(&self) -> Result<Usage, AgentError> {
-        self.response.token_usage()
+    pub fn token_usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+        self.response.token_usage(py)
+    }
+
+    /// Returns the actual response object from the provider
+    #[getter]
+    pub fn response<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+        self.response.response(py)
     }
 
     #[getter]
@@ -109,7 +125,10 @@ impl PyAgentResponse {
     /// - Serde Object -> Python dict (with each key-value pair converted to Python type)
     #[getter]
     #[instrument(skip_all)]
-    pub fn result<'py>(&mut self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+    pub fn structured_output<'py>(
+        &mut self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyAny>, AgentError> {
         let content_value = self.response.content();
 
         // If the content is None, return None

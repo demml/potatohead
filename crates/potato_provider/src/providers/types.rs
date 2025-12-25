@@ -1,5 +1,5 @@
 use crate::error::ProviderError;
-use potato_type::anthropic::v1::message::AnthropicChatResponse;
+use potato_type::anthropic::v1::response::AnthropicChatResponse;
 use potato_type::google::v1::generate::GenerateContentResponse;
 use potato_type::google::PredictResponse;
 use potato_type::openai::v1::OpenAIChatResponse;

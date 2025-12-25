@@ -1,6 +1,6 @@
 use crate::{
     error::TypeError,
-    prompt::{MessageNum, ModelSettings},
+    prompt::{MessageNum, ModelSettings, ResponseContent},
     Provider,
 };
 use potato_util::utils::ResponseLogProbs;
@@ -64,6 +64,7 @@ pub trait ResponseAdapter {
     fn to_bound_py_object<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError>;
     fn id(&self) -> &str;
     fn to_message_num(&self) -> Result<Vec<MessageNum>, TypeError>;
+    fn get_content(&self) -> ResponseContent;
 }
 
 pub trait MessageResponseExt {
@@ -89,7 +90,7 @@ pub trait MessageConversion {
     /// content types that cannot be represented in Anthropic's format
     fn to_anthropic_message(
         &self,
-    ) -> Result<crate::anthropic::v1::message::MessageParam, TypeError>;
+    ) -> Result<crate::anthropic::v1::request::MessageParam, TypeError>;
 
     /// Convert this message to a Google GeminiContent
     ///
@@ -109,9 +110,6 @@ pub trait MessageConversion {
         -> Result<crate::openai::v1::chat::request::ChatMessage, TypeError>;
 }
 
-pub trait ResponseExt {
-    fn get_content(&self) -> Option<String>;
-}
 pub trait LogProbExt {
     fn get_log_probs(&self) -> Vec<ResponseLogProbs>;
 }

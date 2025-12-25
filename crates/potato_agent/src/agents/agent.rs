@@ -11,7 +11,7 @@ use potato_state::block_on;
 use potato_type::prompt::extract_system_instructions;
 use potato_type::prompt::ModelSettings;
 use potato_type::prompt::Prompt;
-use potato_type::prompt::{Message, MessageNum, Role};
+use potato_type::prompt::{MessageNum, Role};
 use potato_type::Provider;
 use potato_util::create_uuid7;
 use pyo3::prelude::*;

@@ -1,8 +1,9 @@
+use crate::prompt::ResponseContent;
 use crate::traits::PromptMessageExt;
 use crate::{
     openai::v1::ChatMessage,
     prompt::MessageNum,
-    traits::{LogProbExt, ResponseExt, TokenUsage},
+    traits::{LogProbExt, TokenUsage},
     traits::{MessageResponseExt, ResponseAdapter},
     TypeError,
 };
@@ -169,12 +170,6 @@ impl TokenUsage for OpenAIChatResponse {
     }
 }
 
-impl ResponseExt for OpenAIChatResponse {
-    fn get_content(&self) -> Option<String> {
-        self.choices.first().and_then(|c| c.message.content.clone())
-    }
-}
-
 impl LogProbExt for OpenAIChatResponse {
     fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
         let mut probabilities = Vec::new();
@@ -208,6 +203,8 @@ impl OpenAIChatResponse {
 }
 
 impl ResponseAdapter for OpenAIChatResponse {
+    type Content = Choice;
+
     fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
     }
@@ -233,5 +230,9 @@ impl ResponseAdapter for OpenAIChatResponse {
             }
         }
         Ok(results)
+    }
+
+    fn get_content(&self) -> ResponseContent {
+        ResponseContent::OpenAI(self.choices.first().cloned().unwrap_or_default())
     }
 }

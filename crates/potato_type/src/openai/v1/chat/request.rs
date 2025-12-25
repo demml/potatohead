@@ -14,7 +14,7 @@ use serde_json::Value;
 use std::collections::HashSet;
 
 // anthropic conversion imports
-use crate::anthropic::v1::message::{
+use crate::anthropic::v1::request::{
     ContentBlock, ContentBlockParam, MessageParam, TextBlockParam,
 };
 

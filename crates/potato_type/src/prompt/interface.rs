@@ -1,4 +1,4 @@
-use crate::anthropic::v1::message::{AnthropicSettings, MessageParam as AnthropicMessage};
+use crate::anthropic::v1::request::{AnthropicSettings, MessageParam as AnthropicMessage};
 use crate::error::TypeError;
 use crate::google::v1::generate::request::{GeminiContent, GeminiSettings};
 use crate::openai::v1::chat::request::ChatMessage as OpenAIChatMessage;
@@ -460,7 +460,7 @@ impl Prompt {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::anthropic::v1::message::{
+    use crate::anthropic::v1::request::{
         Base64ImageSource, Base64PDFSource, ContentBlockParam, DocumentBlockParam, ImageBlockParam,
         MessageParam, PlainTextSource, TextBlockParam, UrlImageSource, UrlPDFSource,
     };
@@ -525,7 +525,7 @@ mod tests {
         MessageParam {
             role: "user".to_string(),
             content: vec![ContentBlockParam {
-                inner: crate::anthropic::v1::message::ContentBlock::Text(text_block),
+                inner: crate::anthropic::v1::request::ContentBlock::Text(text_block),
             }],
         }
     }
@@ -535,7 +535,7 @@ mod tests {
         MessageParam {
             role: "assistant".to_string(),
             content: vec![ContentBlockParam {
-                inner: crate::anthropic::v1::message::ContentBlock::Text(text_block),
+                inner: crate::anthropic::v1::request::ContentBlock::Text(text_block),
             }],
         }
     }
@@ -544,14 +544,14 @@ mod tests {
         let image_source =
             Base64ImageSource::new("image/png".to_string(), "base64data".to_string()).unwrap();
         let image_block = ImageBlockParam {
-            source: crate::anthropic::v1::message::ImageSource::Base64(image_source),
+            source: crate::anthropic::v1::request::ImageSource::Base64(image_source),
             cache_control: None,
             r#type: "image".to_string(),
         };
         MessageParam {
             role: "user".to_string(),
             content: vec![ContentBlockParam {
-                inner: crate::anthropic::v1::message::ContentBlock::Image(image_block),
+                inner: crate::anthropic::v1::request::ContentBlock::Image(image_block),
             }],
         }
     }
@@ -559,14 +559,14 @@ mod tests {
     fn create_anthropic_url_image_message() -> MessageParam {
         let image_source = UrlImageSource::new("https://iili.io/3Hs4FMg.png".to_string());
         let image_block = ImageBlockParam {
-            source: crate::anthropic::v1::message::ImageSource::Url(image_source),
+            source: crate::anthropic::v1::request::ImageSource::Url(image_source),
             cache_control: None,
             r#type: "image".to_string(),
         };
         MessageParam {
             role: "user".to_string(),
             content: vec![ContentBlockParam {
-                inner: crate::anthropic::v1::message::ContentBlock::Image(image_block),
+                inner: crate::anthropic::v1::request::ContentBlock::Image(image_block),
             }],
         }
     }
@@ -574,7 +574,7 @@ mod tests {
     fn create_anthropic_base64_pdf_message() -> MessageParam {
         let pdf_source = Base64PDFSource::new("base64pdfdata".to_string()).unwrap();
         let document_block = DocumentBlockParam {
-            source: crate::anthropic::v1::message::DocumentSource::Base64(pdf_source),
+            source: crate::anthropic::v1::request::DocumentSource::Base64(pdf_source),
             cache_control: None,
             title: Some("test_document.pdf".to_string()),
             context: None,
@@ -584,7 +584,7 @@ mod tests {
         MessageParam {
             role: "user".to_string(),
             content: vec![ContentBlockParam {
-                inner: crate::anthropic::v1::message::ContentBlock::Document(document_block),
+                inner: crate::anthropic::v1::request::ContentBlock::Document(document_block),
             }],
         }
     }
@@ -592,7 +592,7 @@ mod tests {
     fn create_anthropic_url_pdf_message() -> MessageParam {
         let pdf_source = UrlPDFSource::new("https://example.com/document.pdf".to_string());
         let document_block = DocumentBlockParam {
-            source: crate::anthropic::v1::message::DocumentSource::Url(pdf_source),
+            source: crate::anthropic::v1::request::DocumentSource::Url(pdf_source),
             cache_control: None,
             title: Some("test_document.pdf".to_string()),
             context: None,
@@ -602,7 +602,7 @@ mod tests {
         MessageParam {
             role: "user".to_string(),
             content: vec![ContentBlockParam {
-                inner: crate::anthropic::v1::message::ContentBlock::Document(document_block),
+                inner: crate::anthropic::v1::request::ContentBlock::Document(document_block),
             }],
         }
     }
@@ -610,7 +610,7 @@ mod tests {
     fn create_anthropic_plain_text_document_message() -> MessageParam {
         let text_source = PlainTextSource::new("Plain text document content".to_string());
         let document_block = DocumentBlockParam {
-            source: crate::anthropic::v1::message::DocumentSource::Text(text_source),
+            source: crate::anthropic::v1::request::DocumentSource::Text(text_source),
             cache_control: None,
             title: Some("text_document.txt".to_string()),
             context: Some("Context for the document".to_string()),
@@ -620,7 +620,7 @@ mod tests {
         MessageParam {
             role: "user".to_string(),
             content: vec![ContentBlockParam {
-                inner: crate::anthropic::v1::message::ContentBlock::Document(document_block),
+                inner: crate::anthropic::v1::request::ContentBlock::Document(document_block),
             }],
         }
     }
@@ -788,7 +788,7 @@ mod tests {
         let message = MessageParam {
             role: "user".to_string(),
             content: vec![ContentBlockParam {
-                inner: crate::anthropic::v1::message::ContentBlock::Text(text_block),
+                inner: crate::anthropic::v1::request::ContentBlock::Text(text_block),
             }],
         };
 
@@ -819,7 +819,7 @@ mod tests {
 
         match bound_msg {
             MessageNum::AnthropicMessageV1(msg) => {
-                if let crate::anthropic::v1::message::ContentBlock::Text(text_block) =
+                if let crate::anthropic::v1::request::ContentBlock::Text(text_block) =
                     &msg.content[0].inner
                 {
                     assert_eq!(text_block.text, "Test prompt. Value1 Value2");
@@ -853,7 +853,7 @@ mod tests {
 
         // Check first message (text)
         if let MessageNum::AnthropicMessageV1(msg) = &prompt.request.messages()[0] {
-            if let crate::anthropic::v1::message::ContentBlock::Text(text_block) =
+            if let crate::anthropic::v1::request::ContentBlock::Text(text_block) =
                 &msg.content[0].inner
             {
                 assert_eq!(text_block.text, "What company is this logo from?");
@@ -866,11 +866,11 @@ mod tests {
 
         // Check second message (image URL)
         if let MessageNum::AnthropicMessageV1(msg) = &prompt.request.messages()[1] {
-            if let crate::anthropic::v1::message::ContentBlock::Image(image_block) =
+            if let crate::anthropic::v1::request::ContentBlock::Image(image_block) =
                 &msg.content[0].inner
             {
                 match &image_block.source {
-                    crate::anthropic::v1::message::ImageSource::Url(url_source) => {
+                    crate::anthropic::v1::request::ImageSource::Url(url_source) => {
                         assert_eq!(url_source.url, "https://iili.io/3Hs4FMg.png");
                         assert_eq!(url_source.r#type, "url");
                     }
@@ -906,11 +906,11 @@ mod tests {
 
         // Check second message (base64 image)
         if let MessageNum::AnthropicMessageV1(msg) = &prompt.request.messages()[1] {
-            if let crate::anthropic::v1::message::ContentBlock::Image(image_block) =
+            if let crate::anthropic::v1::request::ContentBlock::Image(image_block) =
                 &msg.content[0].inner
             {
                 match &image_block.source {
-                    crate::anthropic::v1::message::ImageSource::Base64(base64_source) => {
+                    crate::anthropic::v1::request::ImageSource::Base64(base64_source) => {
                         assert_eq!(base64_source.media_type, "image/png");
                         assert_eq!(base64_source.data, "base64data");
                         assert_eq!(base64_source.r#type, "base64");
@@ -948,11 +948,11 @@ mod tests {
 
         // Check second message (PDF document)
         if let MessageNum::AnthropicMessageV1(msg) = &prompt.request.messages()[1] {
-            if let crate::anthropic::v1::message::ContentBlock::Document(document_block) =
+            if let crate::anthropic::v1::request::ContentBlock::Document(document_block) =
                 &msg.content[0].inner
             {
                 match &document_block.source {
-                    crate::anthropic::v1::message::DocumentSource::Base64(pdf_source) => {
+                    crate::anthropic::v1::request::DocumentSource::Base64(pdf_source) => {
                         assert_eq!(pdf_source.media_type, "application/pdf");
                         assert_eq!(pdf_source.data, "base64pdfdata");
                         assert_eq!(pdf_source.r#type, "base64");
@@ -991,11 +991,11 @@ mod tests {
 
         // Check second message (URL PDF)
         if let MessageNum::AnthropicMessageV1(msg) = &prompt.request.messages()[1] {
-            if let crate::anthropic::v1::message::ContentBlock::Document(document_block) =
+            if let crate::anthropic::v1::request::ContentBlock::Document(document_block) =
                 &msg.content[0].inner
             {
                 match &document_block.source {
-                    crate::anthropic::v1::message::DocumentSource::Url(url_source) => {
+                    crate::anthropic::v1::request::DocumentSource::Url(url_source) => {
                         assert_eq!(url_source.url, "https://example.com/document.pdf");
                         assert_eq!(url_source.r#type, "url");
                     }
@@ -1031,11 +1031,11 @@ mod tests {
 
         // Check second message (plain text document)
         if let MessageNum::AnthropicMessageV1(msg) = &prompt.request.messages()[1] {
-            if let crate::anthropic::v1::message::ContentBlock::Document(document_block) =
+            if let crate::anthropic::v1::request::ContentBlock::Document(document_block) =
                 &msg.content[0].inner
             {
                 match &document_block.source {
-                    crate::anthropic::v1::message::DocumentSource::Text(text_source) => {
+                    crate::anthropic::v1::request::DocumentSource::Text(text_source) => {
                         assert_eq!(text_source.media_type, "text/plain");
                         assert_eq!(text_source.data, "Plain text document content");
                         assert_eq!(text_source.r#type, "text");

@@ -1,10 +1,10 @@
 use crate::google::v1::generate::request::Modality;
 use crate::google::v1::generate::request::{GeminiContent, HarmBlockThreshold, HarmCategory};
-use crate::prompt::MessageNum;
-use crate::traits::MessageResponseExt;
-use crate::traits::ResponseAdapter;
-use crate::traits::TokenUsage;
+use crate::prompt::{MessageNum, ResponseContent};
+use crate::traits::{LogProbExt, MessageResponseExt, ResponseAdapter, TokenUsage};
+
 use crate::TypeError;
+use potato_util::utils::ResponseLogProbs;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -381,7 +381,6 @@ pub struct LogprobsCandidate {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TopCandidates {
-    /// Sorted by log probability in descending order.
     pub candidates: Option<Vec<LogprobsCandidate>>,
 }
 
@@ -390,9 +389,8 @@ pub struct TopCandidates {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct LogprobsResult {
-    /// Length = total number of decoding steps.
     pub top_candidates: Option<Vec<TopCandidates>>,
-    /// Length = total number of decoding steps. The chosen candidates may or may not be in topCandidates.
+
     pub chosen_candidates: Option<Vec<LogprobsCandidate>>,
 }
 
@@ -520,5 +518,34 @@ impl ResponseAdapter for GenerateContentResponse {
             }
         }
         Ok(results)
+    }
+
+    fn get_content(&self) -> ResponseContent {
+        ResponseContent::Google(self.candidates.first().cloned().unwrap())
+    }
+}
+
+impl LogProbExt for GenerateContentResponse {
+    fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
+        let mut probabilities = Vec::new();
+        if let Some(choice) = self.candidates.first() {
+            if let Some(logprobs_result) = &choice.logprobs_result {
+                if let Some(chosen_candidates) = &logprobs_result.chosen_candidates {
+                    for log_content in chosen_candidates {
+                        // Look for single digit tokens (1, 2, 3, 4, 5)
+                        if let Some(token) = &log_content.token {
+                            if token.len() == 1 && token.chars().next().unwrap().is_ascii_digit() {
+                                probabilities.push(ResponseLogProbs {
+                                    token: token.clone(),
+                                    logprob: log_content.log_probability.unwrap_or(0.0),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        probabilities
     }
 }

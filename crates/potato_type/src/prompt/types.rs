@@ -1,13 +1,16 @@
-use crate::anthropic::v1::message::MessageParam;
-use crate::anthropic::v1::message::MessageParam as AnthropicMessage;
-use crate::anthropic::v1::message::TextBlockParam;
+use crate::anthropic::v1::request::MessageParam;
+use crate::anthropic::v1::request::MessageParam as AnthropicMessage;
+use crate::anthropic::v1::request::TextBlockParam;
+use crate::anthropic::v1::response::ResponseContentBlock;
 use crate::common::document_format;
 use crate::common::get_audio_media_types;
 use crate::common::get_document_media_types;
 use crate::common::get_image_media_types;
 use crate::common::image_format;
+use crate::google::v1::generate::Candidate;
 use crate::google::v1::generate::GeminiContent;
 use crate::openai::v1::chat::request::ChatMessage as OpenAIChatMessage;
+use crate::openai::v1::Choice;
 use crate::traits::MessageConversion;
 use crate::traits::PromptMessageExt;
 use crate::Provider;
@@ -737,4 +740,11 @@ impl MessageNum {
             MessageNum::AnthropicSystemMessageV1(_) => true,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum ResponseContent {
+    OpenAI(Choice),
+    Google(Candidate),
+    Anthropic(ResponseContentBlock),
 }

@@ -1,4 +1,4 @@
-use crate::anthropic::v1::message::AnthropicMessageRequestV1;
+use crate::anthropic::v1::request::AnthropicMessageRequestV1;
 use crate::google::v1::generate::request::GeminiGenerateContentRequestV1;
 use crate::openai::v1::chat::request::OpenAIChatCompletionRequestV1;
 use crate::prompt::types::MessageNum;

@@ -1,4 +1,4 @@
-use crate::anthropic::v1::message::AnthropicSettings;
+use crate::anthropic::v1::request::AnthropicSettings;
 use crate::error::TypeError;
 use crate::{
     google::v1::generate::request::GeminiSettings, openai::v1::chat::settings::OpenAIChatSettings,

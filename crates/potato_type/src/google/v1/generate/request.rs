@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use crate::openai::v1::chat::request::{ChatMessage, ContentPart, TextContentPart};
 
 // anthropic imports
-use crate::anthropic::v1::message::{
+use crate::anthropic::v1::request::{
     ContentBlock, ContentBlockParam, MessageParam, TextBlockParam,
 };
 
