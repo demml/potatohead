@@ -7,13 +7,13 @@ use crate::{
     traits::{MessageResponseExt, ResponseAdapter},
     TypeError,
 };
-use potato_util::json_to_pyobject;
+
 use potato_util::utils::{convert_text_to_structured_output, ResponseLogProbs};
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
-use tracing::warn;
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Function {
@@ -241,7 +241,13 @@ impl ResponseAdapter for OpenAIChatResponse {
         py: Python<'py>,
         output_model: Bound<'py, PyAny>, // add
     ) -> Result<Bound<'py, PyAny>, TypeError> {
+        if self.choices.is_empty() {
+            // return Py None if no content
+            return Ok(py.None().into_bound_py_any(py)?);
+        }
+
         let content = self.choices.first().cloned().unwrap_or_default();
+
         if let Some(text) = &content.message.content {
             return Ok(convert_text_to_structured_output(py, text, output_model)?);
         } else {
