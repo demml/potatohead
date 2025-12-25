@@ -1121,13 +1121,13 @@ impl PartMetadata {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum DataNum {
-    Text(String),
     InlineData(Blob),
     FileData(FileData),
     FunctionCall(FunctionCall),
     FunctionResponse(FunctionResponse),
     ExecutableCode(ExecutableCode),
     CodeExecutionResult(CodeExecutionResult),
+    Text(String),
 }
 
 // helper for extracting data from PyAny to DataNum

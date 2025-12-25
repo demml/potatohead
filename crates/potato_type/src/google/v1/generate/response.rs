@@ -1,12 +1,14 @@
 use crate::google::v1::generate::request::Modality;
 use crate::google::v1::generate::request::{GeminiContent, HarmBlockThreshold, HarmCategory};
+use crate::google::v1::generate::DataNum;
 use crate::prompt::{MessageNum, ResponseContent};
 use crate::traits::{LogProbExt, MessageResponseExt, ResponseAdapter, TokenUsage};
-
 use crate::TypeError;
+use potato_util::utils::convert_text_to_structured_output;
 use potato_util::utils::ResponseLogProbs;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
+use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -522,6 +524,31 @@ impl ResponseAdapter for GenerateContentResponse {
 
     fn get_content(&self) -> ResponseContent {
         ResponseContent::Google(self.candidates.first().cloned().unwrap())
+    }
+
+    fn structured_output<'py>(
+        &self,
+        py: Python<'py>,
+        output_model: Bound<'py, PyAny>,
+    ) -> Result<Bound<'py, PyAny>, TypeError> {
+        let parts = match self.candidates.first().cloned() {
+            Some(candidate) => candidate.content.parts,
+            None => return Ok(py.None().into_bound_py_any(py)?),
+        };
+
+        if parts.is_empty() {
+            return Ok(py.None().into_bound_py_any(py)?);
+        }
+
+        let data = parts.first().cloned().unwrap_or_default().data;
+
+        match data {
+            DataNum::Text(text) => Ok(convert_text_to_structured_output(py, &text, output_model)?),
+            _ => {
+                // Non-text content types can't be converted to structured output
+                Ok(py.None().into_bound_py_any(py)?)
+            }
+        }
     }
 }
 

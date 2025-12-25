@@ -17,7 +17,7 @@ use uuid::Uuid;
 pub fn create_uuid7() -> String {
     Uuid::now_v7().to_string()
 }
-
+use tracing::warn;
 pub struct PyHelperFuncs {}
 
 impl PyHelperFuncs {
@@ -422,5 +422,41 @@ mod tests {
         let result = calculate_weighted_score(&log_probs);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), None);
+    }
+}
+
+/// Generic function to convert text to a structured output model
+/// It is expected that output_model is a pydantic model or a potatohead type that implements serde json deserialization
+/// via model_validate_json method.
+/// Flow:
+/// 1. Attempt to validate the model using model_validate_json
+/// 2. If validation fails, attempt to parse the text as JSON and convert to python object
+/// # Arguments
+/// * `py` - A Python interpreter instance
+/// * `text` - The text to be converted (typically from an LLM response that returns structured output)
+/// * `output_model` - A bound python object representing the output model
+/// # Returns
+/// * `Result<Bound<'py, PyAny>, UtilError>` - A result containing the structured output or an error
+pub fn convert_text_to_structured_output<'py>(
+    py: Python<'py>,
+    text: &str,
+    output_model: Bound<'py, PyAny>,
+) -> Result<Bound<'py, PyAny>, UtilError> {
+    let output = output_model.call_method1("model_validate_json", (&text,));
+    match output {
+        Ok(obj) => {
+            // Successfully validated the model
+            Ok(obj)
+        }
+        Err(err) => {
+            // Model validation failed
+            // convert string to json and then to python object
+            warn!(
+                "Failed to validate model: {}, Attempting fallback to JSON parsing",
+                err
+            );
+            let val = serde_json::from_str::<serde_json::Value>(&text)?;
+            Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
+        }
     }
 }

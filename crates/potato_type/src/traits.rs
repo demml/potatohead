@@ -65,6 +65,11 @@ pub trait ResponseAdapter {
     fn id(&self) -> &str;
     fn to_message_num(&self) -> Result<Vec<MessageNum>, TypeError>;
     fn get_content(&self) -> ResponseContent;
+    fn structured_output<'py>(
+        &self,
+        py: Python<'py>,
+        output_type: Bound<'py, PyAny>,
+    ) -> Result<Bound<'py, PyAny>, TypeError>;
 }
 
 pub trait MessageResponseExt {
