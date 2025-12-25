@@ -12,7 +12,7 @@ use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
-
+use serde_json::Value;
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Function {
@@ -24,7 +24,8 @@ pub struct Function {
 #[serde(default)]
 pub struct ToolCall {
     pub id: String,
-    pub type_: String,
+    #[serde(rename = "type")]
+    pub r#type: String,
     pub function: Function,
 }
 
@@ -201,6 +202,32 @@ impl ResponseAdapter for OpenAIChatResponse {
 
     fn get_content(&self) -> ResponseContent {
         ResponseContent::OpenAI(self.choices.first().cloned().unwrap_or_default())
+    }
+
+    fn tool_call_output(&self) -> Option<Value> {
+        if self.choices.is_empty() {
+            return None;
+        }
+        let content = self.choices.first().cloned().unwrap_or_default();
+
+        if !content.message.tool_calls.is_empty() {
+            serde_json::to_value(&content.message.tool_calls).ok()
+        } else {
+            None
+        }
+    }
+
+    fn structured_output_value(&self) -> Option<Value> {
+        if self.choices.is_empty() {
+            return None;
+        }
+        let content = self.choices.first().cloned().unwrap_or_default();
+
+        if let Some(text) = content.message.content {
+            serde_json::from_str(&text).ok()
+        } else {
+            None
+        }
     }
 
     fn structured_output<'py>(

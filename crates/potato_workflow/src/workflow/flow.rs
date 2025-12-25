@@ -10,6 +10,7 @@ pub use potato_agent::agents::{
 };
 use potato_agent::PyAgentResponse;
 use potato_type::prompt::{parse_response_to_json, Message, Role};
+use potato_type::Provider;
 use potato_util::{create_uuid7, utils::update_serde_map_with, PyHelperFuncs};
 use potato_util::{json_to_pydict, pyobject_to_json};
 use pyo3::prelude::*;
@@ -364,6 +365,7 @@ fn get_agent_for_task(workflow: &Arc<RwLock<Workflow>>, agent_id: &str) -> Optio
 fn build_task_context(
     workflow: &Arc<RwLock<Workflow>>,
     task_dependencies: &Vec<String>,
+    provider: &Provider,
 ) -> Result<Context, WorkflowError> {
     let wf = workflow.read().unwrap();
     let mut ctx = HashMap::new();
@@ -373,7 +375,7 @@ fn build_task_context(
         debug!("Building context for task dependency: {}", dep_id);
         if let Some(dep) = wf.task_list.get_task(dep_id) {
             if let Some(result) = &dep.read().unwrap().result {
-                let msg_to_insert = result.response.to_message(Role::Assistant);
+                let msg_to_insert = result.response.to_message_num(provider);
 
                 match msg_to_insert {
                     Ok(message) => {
@@ -457,13 +459,14 @@ fn spawn_task_execution(
     })
 }
 
-fn get_parameters_from_context(task: Arc<RwLock<Task>>) -> (String, Vec<String>, String) {
+fn get_parameters_from_context(task: Arc<RwLock<Task>>) -> (String, Vec<String>, String, Provider) {
     let (task_id, dependencies, agent_id) = {
         let task_guard = task.read().unwrap();
         (
             task_guard.id.clone(),
             task_guard.dependencies.clone(),
             task_guard.agent_id.clone(),
+            task_guard.prompt.provider.clone(),
         )
     };
 
@@ -485,8 +488,8 @@ fn spawn_task_executions(
     let event_tracker = workflow.read().unwrap().event_tracker.clone();
 
     for task in ready_tasks {
-        // Get task parameters
-        let (task_id, dependencies, agent_id) = get_parameters_from_context(task.clone());
+        // Get task parameters for active task
+        let (task_id, dependencies, agent_id, provider) = get_parameters_from_context(task.clone());
 
         // Mark task as running
         // This will also record the task started event
@@ -495,9 +498,10 @@ fn spawn_task_executions(
         // Build the context
         // Here we:
         // 1. Get the task dependencies and their results (these will be injected as assistant messages)
+        // We need to know the provider here so that we can convert  messages to a different provider type if needed
         // 2. Parse dependent tasks for any structured outputs and return as a serde_json::Value (this will be task-level context)
         let (context, parameter_context, global_context) =
-            build_task_context(workflow, &dependencies)?;
+            build_task_context(workflow, &dependencies, &provider)?;
 
         // Get/clone agent ARC
         let agent = get_agent_for_task(workflow, &agent_id);

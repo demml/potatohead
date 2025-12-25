@@ -731,7 +731,7 @@ impl MessageNum {
         }
     }
 
-    pub(crate) fn is_system_message(&self) -> bool {
+    pub fn is_system_message(&self) -> bool {
         match self {
             MessageNum::OpenAIMessageV1(msg) => {
                 msg.role == Role::Developer.to_string() || msg.role == Role::System.to_string()

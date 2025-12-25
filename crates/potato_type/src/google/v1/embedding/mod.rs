@@ -145,6 +145,14 @@ impl ResponseAdapter for PredictResponse {
     fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
         vec![]
     }
+
+    fn structured_output_value(&self) -> Option<Value> {
+        None
+    }
+
+    fn tool_call_output(&self) -> Option<Value> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

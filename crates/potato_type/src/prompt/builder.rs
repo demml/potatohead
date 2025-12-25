@@ -62,6 +62,10 @@ impl ProviderRequest {
         self.messages_mut().insert(idx.unwrap_or(0), message);
     }
 
+    pub fn push_message(&mut self, message: MessageNum) -> () {
+        self.messages_mut().push(message);
+    }
+
     pub fn messages(&self) -> &[MessageNum] {
         dispatch_trait_method!(self, RequestAdapter, messages())
     }

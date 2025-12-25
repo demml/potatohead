@@ -4,7 +4,9 @@ use potato_type::anthropic::v1::response::AnthropicChatResponse;
 use potato_type::google::v1::generate::GenerateContentResponse;
 use potato_type::google::PredictResponse;
 use potato_type::openai::v1::OpenAIChatResponse;
+use potato_type::prompt::MessageNum;
 use potato_type::traits::ResponseAdapter;
+use potato_type::Provider;
 use potato_util::utils::ResponseLogProbs;
 use pyo3::prelude::*;
 use reqwest::header::HeaderMap;
@@ -151,5 +153,32 @@ impl ChatResponse {
 
     pub fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
         dispatch_response_trait_method!(self, ResponseAdapter, get_log_probs())
+    }
+
+    /// Converts the response messages to a vector of MessageNum for requests
+    /// If necessary, will convert each message to the appropriate provider format
+    pub fn to_message_num(&self, provider: &Provider) -> Result<Vec<MessageNum>, ProviderError> {
+        // convert response to MessageNum of existing provider type
+        let mut messages =
+            dispatch_response_trait_method!(self, ResponseAdapter, to_message_num())?;
+
+        // convert each message to the target provider type if needed
+        // if the response provider type matches the target provider, no conversion done
+        for msg in messages.iter_mut() {
+            msg.convert_message(provider)?;
+        }
+        Ok(messages)
+    }
+
+    /// Retrieves the structured output value as a serde_json::Value
+    /// output is either a structure response or tool call data
+    pub fn extract_structured_data(&self) -> Option<Value> {
+        if let Some(output) =
+            dispatch_response_trait_method!(self, ResponseAdapter, structured_output_value())
+        {
+            return Some(output);
+        } else {
+            return dispatch_response_trait_method!(self, ResponseAdapter, tool_call_output());
+        }
     }
 }

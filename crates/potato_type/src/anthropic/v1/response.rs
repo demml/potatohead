@@ -413,6 +413,15 @@ impl ResponseAdapter for AnthropicChatResponse {
         ResponseContent::Anthropic(self.content.first().cloned().unwrap())
     }
 
+    fn tool_call_output(&self) -> Option<Value> {
+        for block in &self.content {
+            if let ResponseContentBlockInner::ToolUse(tool_use_block) = &block.inner {
+                return Some(serde_json::to_value(tool_use_block).ok()?);
+            }
+        }
+        None
+    }
+
     fn structured_output<'py>(
         &self,
         py: Python<'py>,
@@ -430,6 +439,18 @@ impl ResponseAdapter for AnthropicChatResponse {
             }
             _ => return Ok(py.None().into_bound_py_any(py)?),
         };
+    }
+
+    fn structured_output_value(&self) -> Option<Value> {
+        if self.content.is_empty() {
+            return None;
+        }
+
+        let inner = self.content.first().cloned().unwrap().inner;
+        match inner {
+            ResponseContentBlockInner::Text(block) => serde_json::from_str(&block.text).ok(),
+            _ => None,
+        }
     }
 
     fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {

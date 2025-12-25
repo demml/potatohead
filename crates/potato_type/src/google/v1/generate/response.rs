@@ -10,6 +10,7 @@ use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -520,6 +521,23 @@ impl ResponseAdapter for GenerateContentResponse {
         ResponseContent::Google(self.candidates.first().cloned().unwrap())
     }
 
+    fn tool_call_output(&self) -> Option<Value> {
+        let parts = match self.candidates.first().cloned() {
+            Some(candidate) => candidate.content.parts,
+            None => return None,
+        };
+
+        if parts.is_empty() {
+            return None;
+        }
+        let data = parts.first().cloned().unwrap_or_default().data;
+
+        // match on function call data
+        match data {
+            DataNum::FunctionCall(func_call) => serde_json::to_value(&func_call).ok(),
+            _ => None,
+        }
+    }
     fn structured_output<'py>(
         &self,
         py: Python<'py>,
@@ -542,6 +560,22 @@ impl ResponseAdapter for GenerateContentResponse {
                 // Non-text content types can't be converted to structured output
                 Ok(py.None().into_bound_py_any(py)?)
             }
+        }
+    }
+
+    fn structured_output_value(&self) -> Option<Value> {
+        let parts = match self.candidates.first().cloned() {
+            Some(candidate) => candidate.content.parts,
+            None => return None,
+        };
+
+        if parts.is_empty() {
+            return None;
+        }
+        let data = parts.first().cloned().unwrap_or_default().data;
+        match data {
+            DataNum::Text(text) => serde_json::from_str(&text).ok(),
+            _ => None,
         }
     }
 

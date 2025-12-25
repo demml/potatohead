@@ -90,19 +90,62 @@ impl Agent {
     }
 
     #[instrument(skip_all)]
-    fn append_task_with_message_context(
+    fn append_task_with_message_dependency_context(
         &self,
         task: &mut Task,
-        context_messages: &HashMap<String, Vec<Message>>,
+        context_messages: &HashMap<String, Vec<MessageNum>>,
     ) {
         //
         debug!(task.id = %task.id, task.dependencies = ?task.dependencies, context_messages = ?context_messages, "Appending messages");
-        if !task.dependencies.is_empty() {
-            for dep in &task.dependencies {
-                if let Some(messages) = context_messages.get(dep) {
-                    for message in messages {
-                        // prepend the messages from dependencies
-                        task.prompt.request.insert_message()
+
+        if task.dependencies.is_empty() {
+            return;
+        }
+
+        let messages = task.prompt.request.messages_mut();
+        let first_user_idx = messages.iter().position(|msg| !msg.is_system_message());
+
+        match first_user_idx {
+            Some(insert_idx) => {
+                // Collect all dependency messages to insert
+                let mut dependency_messages = Vec::new();
+
+                for dep_id in &task.dependencies {
+                    if let Some(messages) = context_messages.get(dep_id) {
+                        debug!(
+                            "Adding {} messages from dependency {}",
+                            messages.len(),
+                            dep_id
+                        );
+                        dependency_messages.extend(messages.iter().cloned());
+                    }
+                }
+
+                // Insert all dependency messages before the first user message
+                // This preserves conversation order from dependencies
+                for (offset, message) in dependency_messages.into_iter().enumerate() {
+                    task.prompt
+                        .request
+                        .insert_message(message, Some(insert_idx + offset))
+                }
+
+                debug!(
+                    "Inserted {} dependency messages before user message at index {}",
+                    task.dependencies.len(),
+                    insert_idx
+                );
+            }
+            None => {
+                warn!(
+                    "No user message found in task {}, appending dependency context to end",
+                    task.id
+                );
+
+                for dep_id in &task.dependencies {
+                    if let Some(messages) = context_messages.get(dep_id) {
+                        for message in messages {
+                            task.prompt.request.push_message(message.clone());
+                        }
                     }
                 }
             }
@@ -193,14 +236,14 @@ impl Agent {
     pub async fn execute_task_with_context(
         &self,
         task: &Arc<RwLock<Task>>,
-        context_messages: HashMap<String, Vec<Message>>,
+        context_messages: HashMap<String, Vec<MessageNum>>,
         parameter_context: Value,
         global_context: Option<Value>,
     ) -> Result<AgentResponse, AgentError> {
         // Prepare prompt and context before await
         let (prompt, task_id) = {
             let mut task = task.write().unwrap();
-            self.append_task_with_message_context(&mut task, &context_messages);
+            self.append_task_with_message_dependency_context(&mut task, &context_messages);
             self.bind_context(&mut task.prompt, &parameter_context, &global_context)?;
 
             self.prepend_system_instructions(&mut task.prompt);

@@ -10,6 +10,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::OnceLock;
+
 pub static VAR_REGEX: OnceLock<Regex> = OnceLock::new();
 pub fn get_var_regex() -> &'static Regex {
     VAR_REGEX.get_or_init(|| Regex::new(r"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}").unwrap())
@@ -102,6 +103,12 @@ pub trait ResponseAdapter {
         py: Python<'py>,
         output_type: Option<&Bound<'py, PyAny>>,
     ) -> Result<Bound<'py, PyAny>, TypeError>;
+
+    /// Returns the structured output value as a serde_json::Value
+    fn structured_output_value(&self) -> Option<Value>;
+
+    /// Returns any tool calls made in the response, if applicable
+    fn tool_call_output(&self) -> Option<Value>;
 }
 
 pub trait MessageResponseExt {
