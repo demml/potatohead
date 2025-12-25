@@ -4,7 +4,7 @@ use crate::google::v1::generate::DataNum;
 use crate::prompt::{MessageNum, ResponseContent};
 use crate::traits::{LogProbExt, MessageResponseExt, ResponseAdapter, TokenUsage};
 use crate::TypeError;
-use potato_util::utils::convert_text_to_structured_output;
+use potato_util::utils::construct_structured_response;
 use potato_util::utils::ResponseLogProbs;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
@@ -529,7 +529,7 @@ impl ResponseAdapter for GenerateContentResponse {
     fn structured_output<'py>(
         &self,
         py: Python<'py>,
-        output_model: Bound<'py, PyAny>,
+        output_model: Option<Bound<'py, PyAny>>,
     ) -> Result<Bound<'py, PyAny>, TypeError> {
         let parts = match self.candidates.first().cloned() {
             Some(candidate) => candidate.content.parts,
@@ -543,7 +543,7 @@ impl ResponseAdapter for GenerateContentResponse {
         let data = parts.first().cloned().unwrap_or_default().data;
 
         match data {
-            DataNum::Text(text) => Ok(convert_text_to_structured_output(py, &text, output_model)?),
+            DataNum::Text(text) => Ok(construct_structured_response(py, text, output_model)?),
             _ => {
                 // Non-text content types can't be converted to structured output
                 Ok(py.None().into_bound_py_any(py)?)

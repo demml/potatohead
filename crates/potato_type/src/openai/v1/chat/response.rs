@@ -8,7 +8,7 @@ use crate::{
     TypeError,
 };
 
-use potato_util::utils::{convert_text_to_structured_output, ResponseLogProbs};
+use potato_util::utils::{construct_structured_response, ResponseLogProbs};
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
@@ -239,7 +239,7 @@ impl ResponseAdapter for OpenAIChatResponse {
     fn structured_output<'py>(
         &self,
         py: Python<'py>,
-        output_model: Bound<'py, PyAny>, // add
+        output_model: Option<Bound<'py, PyAny>>,
     ) -> Result<Bound<'py, PyAny>, TypeError> {
         if self.choices.is_empty() {
             // return Py None if no content
@@ -248,8 +248,8 @@ impl ResponseAdapter for OpenAIChatResponse {
 
         let content = self.choices.first().cloned().unwrap_or_default();
 
-        if let Some(text) = &content.message.content {
-            return Ok(convert_text_to_structured_output(py, text, output_model)?);
+        if let Some(text) = content.message.content {
+            return Ok(construct_structured_response(py, text, output_model)?);
         } else {
             // return Py None if no content
             return Ok(py.None().into_bound_py_any(py)?);

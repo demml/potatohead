@@ -439,7 +439,7 @@ mod tests {
 /// * `Result<Bound<'py, PyAny>, UtilError>` - A result containing the structured output or an error
 pub fn convert_text_to_structured_output<'py>(
     py: Python<'py>,
-    text: &str,
+    text: String,
     output_model: Bound<'py, PyAny>,
 ) -> Result<Bound<'py, PyAny>, UtilError> {
     let output = output_model.call_method1("model_validate_json", (&text,));
@@ -456,6 +456,31 @@ pub fn convert_text_to_structured_output<'py>(
                 err
             );
             let val = serde_json::from_str::<serde_json::Value>(&text)?;
+            Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
+        }
+    }
+}
+
+/// Helper function to extract result from LLM response text
+/// If an output model is provided, it will attempt to convert the text to the structured output
+/// using the provided model. If no model is provided, it will attempt to convert the response to an appropriate
+/// Python type directly.
+/// # Arguments
+/// * `py` - A Python interpreter instance
+/// * `text` - The text to be converted (typically from an LLM response)
+/// * `output_model` - An optional bound python object representing the output model
+/// # Returns
+/// * `Result<Bound<'py, PyAny>, UtilError>` - A result containing the structured output or an error
+pub fn construct_structured_response<'py>(
+    py: Python<'py>,
+    text: String,
+    output_model: Option<Bound<'py, PyAny>>,
+) -> Result<Bound<'py, PyAny>, UtilError> {
+    match output_model {
+        Some(model) => convert_text_to_structured_output(py, text, model),
+        None => {
+            // No output model provided, return the text as a Python string
+            let val = Value::String(text);
             Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
         }
     }

@@ -59,16 +59,42 @@ pub trait RequestAdapter {
 }
 
 pub trait ResponseAdapter {
+    /// Returns a string representation of the response
     fn __str__(&self) -> String;
+
+    /// Checks if the response is empty
     fn is_empty(&self) -> bool;
+
+    /// Converts the response to a Python object
     fn to_bound_py_object<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError>;
+
+    /// Returns the response ID
     fn id(&self) -> &str;
+
+    /// Converts the response to a vector of MessageNum
     fn to_message_num(&self) -> Result<Vec<MessageNum>, TypeError>;
+
+    /// Retrieves the first content choice from the response
     fn get_content(&self) -> ResponseContent;
+
+    /// Returns the structured output of the response
+    /// For all response types the flow is as follows:
+    /// 1. Check if the response has content (string/text)
+    /// 2. If no content, return Python None
+    /// 3. If content exists, check if an output_type/model is provided
+    /// 4. If output_type/model is provided, attempt to convert the content to that type
+    /// 5. If conversion fails, attempt to construct a generic Python object from the content
+    /// 6. If no output_type/model is provided, return the content as a generic Python object
+    /// # Arguments
+    /// * `py`: The Python GIL token
+    /// * `output_type`: An optional Python type/model to convert the content into. This can be a pydantic model or any object
+    /// that implements model_validate_json that can parse from a JSON string.
+    /// # Returns
+    /// * `Result<Bound<'py, PyAny>, TypeError>`: The structured output as a Python object or an error
     fn structured_output<'py>(
         &self,
         py: Python<'py>,
-        output_type: Bound<'py, PyAny>,
+        output_type: Option<Bound<'py, PyAny>>,
     ) -> Result<Bound<'py, PyAny>, TypeError>;
 }
 
