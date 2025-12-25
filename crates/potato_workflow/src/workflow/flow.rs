@@ -763,7 +763,6 @@ impl PyWorkflow {
                     id.clone(),
                     PyAgent {
                         agent: agent.clone(),
-                        runtime: self.runtime.clone(),
                     },
                 ))
             })
