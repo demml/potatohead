@@ -36,13 +36,12 @@ pub struct PyTask {
 #[pymethods]
 impl PyTask {
     #[getter]
-    pub fn result<'py>(&mut self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
-        match &mut self.result {
-            Some(resp) => {
-                //Ok(chat_resp)
-                Ok(Some(resp.result(py)?))
-            }
-            None => Ok(None),
+    pub fn result<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        if let Some(resp) = &self.result {
+            let output = resp.structured_output(py)?;
+            Ok(output)
+        } else {
+            Ok(py.None().bind(py).clone())
         }
     }
 }

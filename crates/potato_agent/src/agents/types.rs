@@ -83,10 +83,7 @@ impl PyAgentResponse {
 
     #[getter]
     #[instrument(skip_all)]
-    pub fn structured_output<'py>(
-        &mut self,
-        py: Python<'py>,
-    ) -> Result<Bound<'py, PyAny>, AgentError> {
+    pub fn structured_output<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
         let bound = match &self.output_type {
             Some(output_type) => Some(output_type.bind(py)),
             None => None,
