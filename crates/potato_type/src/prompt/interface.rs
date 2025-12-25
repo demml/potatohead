@@ -454,6 +454,15 @@ impl Prompt {
 
         Ok(json_value)
     }
+
+    pub fn set_response_json_schema(
+        &mut self,
+        response_json_schema: Option<Value>,
+        response_type: ResponseType,
+    ) {
+        self.request.set_response_json_schema(response_json_schema);
+        self.response_type = response_type;
+    }
 }
 
 // tests

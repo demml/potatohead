@@ -138,6 +138,10 @@ impl ProviderRequest {
     pub fn to_json(&self) -> Result<Value, TypeError> {
         Ok(serde_json::to_value(self)?)
     }
+
+    pub fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) -> () {
+        dispatch_trait_method!(mut self, RequestAdapter, set_response_json_schema(response_json_schema))
+    }
 }
 
 pub fn to_provider_request(

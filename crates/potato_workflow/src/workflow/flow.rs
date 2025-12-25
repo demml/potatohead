@@ -9,7 +9,7 @@ pub use potato_agent::agents::{
     task::{PyTask, Task, TaskStatus},
 };
 use potato_agent::PyAgentResponse;
-use potato_type::prompt::{parse_response_to_json, Message, Role};
+use potato_type::prompt::{parse_response_to_json, MessageNum};
 use potato_type::Provider;
 use potato_util::{create_uuid7, utils::update_serde_map_with, PyHelperFuncs};
 use potato_util::{json_to_pydict, pyobject_to_json};
@@ -417,7 +417,7 @@ fn spawn_task_execution(
     task: Arc<RwLock<Task>>,
     task_id: String,
     agent: Option<Arc<Agent>>,
-    context: HashMap<String, Vec<Message>>,
+    context: HashMap<String, Vec<MessageNum>>,
     parameter_context: Value,
     global_context: Option<Value>,
 ) -> tokio::task::JoinHandle<()> {
@@ -460,7 +460,7 @@ fn spawn_task_execution(
 }
 
 fn get_parameters_from_context(task: Arc<RwLock<Task>>) -> (String, Vec<String>, String, Provider) {
-    let (task_id, dependencies, agent_id) = {
+    let (task_id, dependencies, agent_id, provider) = {
         let task_guard = task.read().unwrap();
         (
             task_guard.id.clone(),
@@ -470,7 +470,7 @@ fn get_parameters_from_context(task: Arc<RwLock<Task>>) -> (String, Vec<String>,
         )
     };
 
-    (task_id, dependencies, agent_id)
+    (task_id, dependencies, agent_id, provider)
 }
 
 /// Helper for spawning a task execution
@@ -796,9 +796,12 @@ impl PyWorkflow {
     ) -> Result<(), WorkflowError> {
         if let Some(output_type) = output_type {
             // Parse and set the response format
-            (task.prompt.response_type, task.prompt.response_json_schema) =
-                parse_response_to_json(py, &output_type)
-                    .map_err(|e| WorkflowError::InvalidOutputType(e.to_string()))?;
+            let (response_type, response_json_schema) = parse_response_to_json(py, &output_type)
+                .map_err(|e| WorkflowError::InvalidOutputType(e.to_string()))?;
+
+            // update the task prompt with the response schema
+            task.prompt
+                .set_response_json_schema(response_json_schema, response_type);
 
             // Store the output type for later use
             self.output_types

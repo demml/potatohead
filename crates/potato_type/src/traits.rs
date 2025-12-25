@@ -57,6 +57,8 @@ pub trait RequestAdapter {
         settings: ModelSettings,
         response_json_schema: Option<Value>,
     ) -> Result<ProviderRequest, TypeError>;
+
+    fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) -> ();
 }
 
 pub trait ResponseAdapter {

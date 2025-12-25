@@ -1719,6 +1719,11 @@ impl RequestAdapter for AnthropicMessageRequestV1 {
             output_format,
         }))
     }
+
+    fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) -> () {
+        self.output_format =
+            response_json_schema.map(|json_schema| create_structured_output_schema(&json_schema));
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]

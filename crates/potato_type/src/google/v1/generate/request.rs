@@ -2563,4 +2563,11 @@ impl RequestAdapter for GeminiGenerateContentRequestV1 {
             settings: gemini_settings,
         }))
     }
+
+    fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) -> () {
+        if let Some(cfg) = &mut self.settings.generation_config {
+            cfg.response_mime_type = Some("application/json".to_string());
+            cfg.response_json_schema = response_json_schema;
+        }
+    }
 }
