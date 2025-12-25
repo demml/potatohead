@@ -3,6 +3,7 @@ use crate::{
     prompt::{MessageNum, ModelSettings},
     Provider,
 };
+use potato_util::utils::ResponseLogProbs;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use regex::Regex;
@@ -106,4 +107,16 @@ pub trait MessageConversion {
     /// content types that cannot be represented in OpenAI's format
     fn to_openai_message(&self)
         -> Result<crate::openai::v1::chat::request::ChatMessage, TypeError>;
+}
+
+pub trait ResponseExt {
+    fn get_content(&self) -> Option<String>;
+}
+pub trait LogProbExt {
+    fn get_log_probs(&self) -> Vec<ResponseLogProbs>;
+}
+
+pub trait TokenUsage {
+    /// Get the token usage as a Python object
+    fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError>;
 }

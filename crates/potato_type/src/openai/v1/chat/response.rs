@@ -1,8 +1,8 @@
 use crate::traits::PromptMessageExt;
 use crate::{
-    common::{LogProbExt, ResponseExt, TokenUsage},
     openai::v1::ChatMessage,
     prompt::MessageNum,
+    traits::{LogProbExt, ResponseExt, TokenUsage},
     traits::{MessageResponseExt, ResponseAdapter},
     TypeError,
 };
@@ -146,20 +146,6 @@ pub struct Usage {
     pub finish_reason: Option<String>,
 }
 
-impl TokenUsage for Usage {
-    fn total_tokens(&self) -> u64 {
-        self.total_tokens
-    }
-
-    fn prompt_tokens(&self) -> u64 {
-        self.prompt_tokens
-    }
-
-    fn completion_tokens(&self) -> u64 {
-        self.completion_tokens
-    }
-}
-
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
@@ -174,6 +160,13 @@ pub struct OpenAIChatResponse {
     pub service_tier: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_fingerprint: Option<String>,
+}
+
+impl TokenUsage for OpenAIChatResponse {
+    /// Returns the total token count across all modalities.
+    fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        Ok(PyHelperFuncs::to_bound_py_object(py, &self.usage)?)
+    }
 }
 
 impl ResponseExt for OpenAIChatResponse {

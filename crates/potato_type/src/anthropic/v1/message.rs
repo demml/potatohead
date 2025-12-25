@@ -1,5 +1,4 @@
 use crate::common::get_image_media_types;
-use crate::common::ResponseExt;
 use crate::google::v1::generate::request::{DataNum, GeminiContent, Part};
 use crate::openai::v1::chat::request::{ChatMessage, ContentPart, TextContentPart};
 use crate::prompt::builder::ProviderRequest;
@@ -7,11 +6,10 @@ use crate::prompt::MessageNum;
 use crate::prompt::ModelSettings;
 use crate::prompt::Role;
 use crate::traits::get_var_regex;
-use crate::traits::MessageConversion;
-use crate::traits::MessageResponseExt;
-use crate::traits::RequestAdapter;
-use crate::traits::ResponseAdapter;
-use crate::traits::{MessageFactory, PromptMessageExt};
+use crate::traits::{
+    MessageConversion, MessageFactory, MessageResponseExt, PromptMessageExt, RequestAdapter,
+    ResponseAdapter, ResponseExt, TokenUsage,
+};
 use crate::Provider;
 use crate::TypeError;
 use potato_util::{json_to_pydict, json_to_pyobject};
@@ -1992,6 +1990,13 @@ pub struct AnthropicChatResponse {
     #[pyo3(get)]
     pub usage: Usage,
     pub content: Vec<ResponseContentBlock>,
+}
+
+impl TokenUsage for AnthropicChatResponse {
+    /// Returns the total token count across all modalities.
+    fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        Ok(PyHelperFuncs::to_bound_py_object(py, &self.usage)?)
+    }
 }
 
 #[pymethods]

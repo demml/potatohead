@@ -1,9 +1,9 @@
-use crate::common::TokenUsage;
 use crate::google::v1::generate::request::Modality;
 use crate::google::v1::generate::request::{GeminiContent, HarmBlockThreshold, HarmCategory};
 use crate::prompt::MessageNum;
 use crate::traits::MessageResponseExt;
 use crate::traits::ResponseAdapter;
+use crate::traits::TokenUsage;
 use crate::TypeError;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
@@ -55,23 +55,6 @@ pub struct UsageMetadata {
     pub tool_use_prompt_tokens_details: Option<Vec<ModalityTokenCount>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub traffic_type: Option<TrafficType>,
-}
-
-impl TokenUsage for UsageMetadata {
-    /// Returns the total token count across all modalities.
-    fn total_tokens(&self) -> u64 {
-        let token_count = self.total_token_count.unwrap_or(0);
-
-        token_count as u64
-    }
-
-    fn prompt_tokens(&self) -> u64 {
-        self.prompt_token_count.unwrap_or(0) as u64
-    }
-
-    fn completion_tokens(&self) -> u64 {
-        self.candidates_token_count.unwrap_or(0) as u64
-    }
 }
 
 #[pyclass]
@@ -505,6 +488,12 @@ pub struct GenerateContentResponse {
     pub usage_metadata: Option<UsageMetadata>,
 }
 
+impl TokenUsage for GenerateContentResponse {
+    /// Returns the total token count across all modalities.
+    fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        Ok(PyHelperFuncs::to_bound_py_object(py, &self.usage_metadata)?)
+    }
+}
 impl ResponseAdapter for GenerateContentResponse {
     fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)

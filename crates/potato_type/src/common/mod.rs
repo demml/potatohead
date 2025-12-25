@@ -1,5 +1,4 @@
 use crate::TypeError;
-use potato_util::utils::ResponseLogProbs;
 use std::collections::HashSet;
 use std::sync::OnceLock;
 
@@ -74,19 +73,4 @@ pub(crate) fn document_format(media_type: &str) -> Result<String, TypeError> {
         }
     };
     Ok(format.to_string())
-}
-
-pub trait ResponseExt {
-    fn get_content(&self) -> Option<String>;
-}
-pub trait LogProbExt {
-    fn get_log_probs(&self) -> Vec<ResponseLogProbs>;
-}
-
-pub trait TokenUsage {
-    fn total_tokens(&self) -> u64;
-
-    fn prompt_tokens(&self) -> u64;
-
-    fn completion_tokens(&self) -> u64;
 }

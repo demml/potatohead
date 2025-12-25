@@ -24,8 +24,8 @@ pub struct AgentResponse {
 impl AgentResponse {
     pub fn token_usage(&self) -> Result<Usage, AgentError> {
         match &self.response {
-            ChatResponse::OpenAI(resp) => Ok(resp.usage.clone()),
-            ChatResponse::Gemini(resp) => Ok(resp.get_token_usage()),
+            ChatResponse::OpenAIV1(resp) => Ok(resp.usage.clone()),
+            ChatResponse::GeminiV1(resp) => Ok(resp.get_token_usage()),
             ChatResponse::VertexGenerate(resp) => Ok(resp.get_token_usage()),
             _ => Err(AgentError::NotSupportedError(
                 "Token usage not supported for the vertex predict response type".to_string(),
