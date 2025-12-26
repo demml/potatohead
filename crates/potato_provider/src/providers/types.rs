@@ -176,9 +176,9 @@ impl ChatResponse {
         if let Some(output) =
             dispatch_response_trait_method!(self, ResponseAdapter, structured_output_value())
         {
-            return Some(output);
+            Some(output)
         } else {
-            return dispatch_response_trait_method!(self, ResponseAdapter, tool_call_output());
+            dispatch_response_trait_method!(self, ResponseAdapter, tool_call_output())
         }
     }
 

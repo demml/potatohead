@@ -214,9 +214,9 @@ fn extract_content_from_py_object(content: &Bound<'_, PyAny>) -> PyResult<Vec<Co
 
             if potato_macro::extract_and_push!(
                 item => parts,
-                ImageContentPart => |i| ContentPart::ImageUrl(i),
-                InputAudioContentPart => |a| ContentPart::InputAudio(a),
-                FileContentPart => |f| ContentPart::FileContent(f),
+                ImageContentPart => ContentPart::ImageUrl,
+                InputAudioContentPart => ContentPart::InputAudio,
+                FileContentPart => ContentPart::FileContent,
             ) {
                 continue;
             }
@@ -527,7 +527,7 @@ impl RequestAdapter for OpenAIChatCompletionRequestV1 {
 
         let response_json_schema = response_json_schema
             .as_ref()
-            .map(|schema| create_structured_output_schema(schema));
+            .map(create_structured_output_schema);
 
         Ok(ProviderRequest::OpenAIV1(OpenAIChatCompletionRequestV1 {
             model,

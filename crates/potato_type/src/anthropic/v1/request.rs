@@ -1665,7 +1665,7 @@ impl RequestAdapter for AnthropicMessageRequestV1 {
 
     fn preprend_system_instructions(&mut self, messages: Vec<MessageNum>) -> Result<(), TypeError> {
         let mut combined = messages;
-        combined.extend(self.system.drain(..));
+        combined.append(&mut self.system);
         self.system = combined;
         Ok(())
     }
@@ -1705,11 +1705,8 @@ impl RequestAdapter for AnthropicMessageRequestV1 {
             _ => AnthropicSettings::default(),
         };
 
-        let output_format = if let Some(json_schema) = response_json_schema {
-            Some(create_structured_output_schema(&json_schema))
-        } else {
-            None
-        };
+        let output_format =
+            response_json_schema.map(|json_schema| create_structured_output_schema(&json_schema));
 
         Ok(ProviderRequest::AnthropicV1(AnthropicMessageRequestV1 {
             model,
@@ -1720,7 +1717,7 @@ impl RequestAdapter for AnthropicMessageRequestV1 {
         }))
     }
 
-    fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) -> () {
+    fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) {
         self.output_format =
             response_json_schema.map(|json_schema| create_structured_output_schema(&json_schema));
     }

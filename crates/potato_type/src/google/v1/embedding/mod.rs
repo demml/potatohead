@@ -288,7 +288,7 @@ where
     T: Serialize,
 {
     pub fn new(inputs: Vec<String>, config: T) -> Self {
-        let parts = inputs.into_iter().map(|x| Part::from_text(x)).collect();
+        let parts = inputs.into_iter().map(Part::from_text).collect();
 
         Self {
             content: GeminiContent {

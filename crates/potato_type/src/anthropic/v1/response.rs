@@ -416,7 +416,7 @@ impl ResponseAdapter for AnthropicChatResponse {
     fn tool_call_output(&self) -> Option<Value> {
         for block in &self.content {
             if let ResponseContentBlockInner::ToolUse(tool_use_block) = &block.inner {
-                return Some(serde_json::to_value(tool_use_block).ok()?);
+                return serde_json::to_value(tool_use_block).ok();
             }
         }
         None

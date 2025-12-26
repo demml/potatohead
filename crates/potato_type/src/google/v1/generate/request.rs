@@ -144,21 +144,11 @@ impl Schema {
         minimum: Option<f64>,
         maximum: Option<f64>,
     ) -> Self {
-        let example = match example {
-            Some(e) => Some(pyobject_to_json(&e).unwrap_or(Value::Null)),
-            None => None,
-        };
-
-        let default = match default {
-            Some(d) => Some(pyobject_to_json(&d).unwrap_or(Value::Null)),
-            None => None,
-        };
+        let example = example.map(|e| pyobject_to_json(&e).unwrap_or(Value::Null));
+        let default = default.map(|d| pyobject_to_json(&d).unwrap_or(Value::Null));
 
         // need to add a Box to items
-        let items = match items {
-            Some(i) => Some(Box::new(i)),
-            None => None,
-        };
+        let items = items.map(Box::new);
 
         Schema {
             r#type: type_,
@@ -634,10 +624,8 @@ impl GenerationConfig {
         enable_enhanced_civic_answers: Option<bool>,
         image_config: Option<ImageConfig>,
     ) -> Self {
-        let response_json_schema = match response_json_schema {
-            Some(rs) => Some(pyobject_to_json(&rs).unwrap_or(Value::Null)),
-            None => None,
-        };
+        let response_json_schema =
+            response_json_schema.map(|rs| pyobject_to_json(rs).unwrap_or(Value::Null));
         Self {
             stop_sequences,
             response_mime_type,
@@ -833,6 +821,7 @@ pub struct GeminiSettings {
 impl GeminiSettings {
     #[new]
     #[pyo3(signature = (labels=None, tool_config=None, generation_config=None, safety_settings=None, model_armor_config=None, extra_body=None, cached_content=None, tools=None))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         labels: Option<HashMap<String, String>>,
         tool_config: Option<ToolConfig>,
@@ -2304,7 +2293,7 @@ impl GoogleMaps {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
 #[pyclass]
 pub struct CodeExecution {}

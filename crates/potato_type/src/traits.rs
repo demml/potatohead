@@ -45,7 +45,7 @@ pub trait RequestAdapter {
     /// Returns the response JSON schema if set
     fn response_json_schema(&self) -> Option<&Value>;
     /// Inserts a message at the specified index (or at the start if None)
-    fn insert_message(&mut self, message: MessageNum, idx: Option<usize>) -> () {
+    fn insert_message(&mut self, message: MessageNum, idx: Option<usize>) {
         self.messages_mut().insert(idx.unwrap_or(0), message);
     }
     /// Prepends system instructions to the messages
@@ -118,7 +118,7 @@ pub trait ResponseAdapter {
     /// # Arguments
     /// * `py`: The Python GIL token
     /// * `output_type`: An optional Python type/model to convert the content into. This can be a pydantic model or any object
-    /// that implements model_validate_json that can parse from a JSON string.
+    ///   that implements model_validate_json that can parse from a JSON string.
     /// # Returns
     /// * `Result<Bound<'py, PyAny>, TypeError>`: The structured output as a Python object or an error
     fn structured_output<'py>(
