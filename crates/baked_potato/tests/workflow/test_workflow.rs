@@ -1,5 +1,7 @@
 use baked_potato::{create_parameterized_prompt, create_prompt, LLMTestServer};
+use potato_agent::TaskStatus;
 use potato_agent::{Agent, Task};
+use potato_type::prompt::Role;
 use potato_type::{Provider, StructuredOutput};
 use potato_workflow::Workflow;
 use schemars::JsonSchema;
@@ -15,6 +17,13 @@ impl StructuredOutput for Parameters {}
 
 #[test]
 fn test_workflow() {
+    // Test workflow with multiple agents and tasks with dependencies
+    // Setup:
+    // - Create two agents
+    // - Create 2 tasks for agent1 and 2 tasks for agent2
+    // - Task3 depends on Task1 and Task2
+    // - Task4 depends on Task3
+    // - Final task depends on Task3 and Task4
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let mut mock = LLMTestServer::new();
     mock.start_server().unwrap();
@@ -72,10 +81,148 @@ fn test_workflow() {
     assert_eq!(workflow.task_list.len(), 5);
     assert!(!workflow.task_list.is_empty());
 
-    // run the workflow
-    runtime.block_on(async {
-        workflow.run(None).await.unwrap();
-    });
+    // run the workflow and check
+    let workflow_result = runtime.block_on(async { workflow.run(None).await.unwrap() });
+    let workflow_result = workflow_result.read().unwrap();
+
+    // Get task references for context verification
+    let task1 = workflow_result.task_list.get_task("task1").unwrap();
+    let task2 = workflow_result.task_list.get_task("task2").unwrap();
+    let task3 = workflow_result.task_list.get_task("task3").unwrap();
+    let task4 = workflow_result.task_list.get_task("task4").unwrap();
+    let final_task = workflow_result.task_list.get_task("final_task").unwrap();
+
+    // Verify all tasks have results
+    assert!(
+        task1.read().unwrap().result.is_some(),
+        "task1 should have a result"
+    );
+    assert!(
+        task2.read().unwrap().result.is_some(),
+        "task2 should have a result"
+    );
+    assert!(
+        task3.read().unwrap().result.is_some(),
+        "task3 should have a result"
+    );
+    assert!(
+        task4.read().unwrap().result.is_some(),
+        "task4 should have a result"
+    );
+    assert!(
+        final_task.read().unwrap().result.is_some(),
+        "final_task should have a result"
+    );
+
+    // Verify task statuses
+    assert_eq!(task1.read().unwrap().status, TaskStatus::Completed);
+    assert_eq!(task2.read().unwrap().status, TaskStatus::Completed);
+    assert_eq!(task3.read().unwrap().status, TaskStatus::Completed);
+    assert_eq!(task4.read().unwrap().status, TaskStatus::Completed);
+    assert_eq!(final_task.read().unwrap().status, TaskStatus::Completed);
+
+    // ===== Context Verification =====
+
+    // Task3 should have context from task1 and task2
+    // During execution, dependency messages are inserted before the first user message
+    let task3_unwrapped = task3.read().unwrap();
+    let task3_messages = task3_unwrapped.prompt.request.messages();
+    let task3_msg_count = task3_messages.len();
+    let original_msg_count = prompt.request.messages().len();
+
+    // Task3 should have 2 additional messages (from task1 and task2)
+    assert_eq!(
+        task3_msg_count,
+        original_msg_count + 2,
+        "task3 should have {} messages ({} original + 2 dependency contexts)",
+        original_msg_count + 2,
+        original_msg_count
+    );
+
+    // Verify the dependency messages are assistant messages (the response from dependencies)
+    let task3_assistant_messages: Vec<_> = task3_messages
+        .iter()
+        .filter(|msg| msg.role() == Role::Assistant.as_str())
+        .collect();
+    assert_eq!(
+        task3_assistant_messages.len(),
+        2,
+        "task3 should have 2 assistant messages from dependencies"
+    );
+
+    // Task4 should have context from task3
+    let task4_unqrapped = task4.read().unwrap();
+    let task4_messages = task4_unqrapped.prompt.request.messages();
+    let task4_msg_count = task4_messages.len();
+
+    // Task4 should have 1 additional message (from task3)
+    assert_eq!(
+        task4_msg_count,
+        original_msg_count + 1,
+        "task4 should have {} messages ({} original + 1 dependency context)",
+        original_msg_count + 1,
+        original_msg_count
+    );
+
+    let task4_assistant_messages: Vec<_> = task4_messages
+        .iter()
+        .filter(|msg| msg.role() == Role::Assistant.as_str())
+        .collect();
+    assert_eq!(
+        task4_assistant_messages.len(),
+        1,
+        "task4 should have 1 assistant message from dependency"
+    );
+
+    // Final task should have context from task3 and task4
+    let final_unwrapped = final_task.read().unwrap();
+    let final_messages = final_unwrapped.prompt.request.messages();
+    let final_msg_count = final_messages.len();
+
+    // Final task should have 2 additional messages (from task3 and task4)
+    assert_eq!(
+        final_msg_count,
+        original_msg_count + 2,
+        "final_task should have {} messages ({} original + 2 dependency contexts)",
+        original_msg_count + 2,
+        original_msg_count
+    );
+
+    let final_assistant_messages: Vec<_> = final_messages
+        .iter()
+        .filter(|msg| msg.role() == Role::Assistant.as_str())
+        .collect();
+    assert_eq!(
+        final_assistant_messages.len(),
+        2,
+        "final_task should have 2 assistant messages from dependencies"
+    );
+
+    // Verify message order: system messages first, then dependency contexts, then user message
+    // This follows the logic in Agent::append_task_with_message_dependency_context
+    for (task_name, messages) in [
+        ("task3", task3_messages),
+        ("task4", task4_messages),
+        ("final_task", final_messages),
+    ] {
+        let first_user_idx = messages
+            .iter()
+            .position(|msg| msg.role() == Role::User.as_str())
+            .expect(&format!("{} should have a user message", task_name));
+
+        // All assistant messages (dependency context) should come before the user message
+        for (idx, msg) in messages.iter().enumerate() {
+            if msg.role() == Role::Assistant.as_str() {
+                assert!(
+                    idx < first_user_idx,
+                    "{}: assistant message at index {} should come before user message at index {}",
+                    task_name,
+                    idx,
+                    first_user_idx
+                );
+            }
+        }
+    }
 
     // serialize the workflow
     let serialized = workflow.serialize().unwrap();
@@ -101,6 +248,9 @@ fn test_workflow() {
 
 #[test]
 fn test_parameterized_workflow() {
+    // Flow:
+    // - Create a workflow with two tasks
+    // - The second task uses a parameterized prompt with variables from the first task's output
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let mut mock = LLMTestServer::new();
     mock.start_server().unwrap();
@@ -158,6 +308,8 @@ fn test_parameterized_workflow() {
         .unwrap()
         .response_text();
 
+    // validate task1_output can be deserialized into Parameters struct
+    // Should be a structured output JSON
     let _ = Parameters::model_validate_json_str(&task1_output.unwrap());
 
     // assert original workflow is unmodified
@@ -179,8 +331,9 @@ fn test_parameterized_workflow() {
     let binding = binding.read().unwrap();
     let task2_output = binding.prompt.request.messages();
 
-    // assert task2_output len is 2
-    assert_eq!(task2_output.len(), 2);
+    // assert task2_output len is 3
+    // (1 developer message + 1 assistant message from task1 + 1 user message)
+    assert_eq!(task2_output.len(), 3);
 
     let serialized = workflow.serialize().unwrap();
 
