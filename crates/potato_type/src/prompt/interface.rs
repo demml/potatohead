@@ -121,8 +121,8 @@ pub fn extract_system_instructions(
     let system_instructions = if let Some(sys_inst) = system_instruction {
         Some(parse_messages(
             sys_inst,
-            &provider,
-            get_system_role(&provider),
+            provider,
+            get_system_role(provider),
         )?)
     } else {
         None
@@ -487,34 +487,31 @@ mod tests {
     fn create_openai_chat_message() -> OpenAIChatMessage {
         let text_part = TextContentPart::new("What company is this logo from?".to_string());
         let text_content_part = ContentPart::Text(text_part);
-        let text_message = OpenAIChatMessage {
+        OpenAIChatMessage {
             role: "user".to_string(),
             content: vec![text_content_part],
             name: None,
-        };
-        text_message
+        }
     }
 
     fn create_system_openai_chat_message() -> OpenAIChatMessage {
         let text_part = TextContentPart::new("system_prompt".to_string());
         let text_content_part = ContentPart::Text(text_part);
-        let text_message = OpenAIChatMessage {
+        OpenAIChatMessage {
             role: "developer".to_string(),
             content: vec![text_content_part],
             name: None,
-        };
-        text_message
+        }
     }
 
     fn create_openai_image_message() -> OpenAIChatMessage {
         let image_part = ImageContentPart::new("https://iili.io/3Hs4FMg.png".to_string(), None);
         let image_content_part = ContentPart::ImageUrl(image_part);
-        let image_message = OpenAIChatMessage {
+        OpenAIChatMessage {
             role: "user".to_string(),
             content: vec![image_content_part],
             name: None,
-        };
-        image_message
+        }
     }
 
     fn create_openai_file_message() -> OpenAIChatMessage {
@@ -524,12 +521,11 @@ mod tests {
             Some("filename".to_string()),
         );
         let file_content_part = ContentPart::FileContent(file_part);
-        let file_message = OpenAIChatMessage {
+        OpenAIChatMessage {
             role: "user".to_string(),
             content: vec![file_content_part],
             name: None,
-        };
-        file_message
+        }
     }
 
     fn create_anthropic_text_message() -> MessageParam {

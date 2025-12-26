@@ -267,10 +267,10 @@ impl ChatMessage {
 
             if !potato_macro::extract_and_push!(
                 content => result,
-                TextContentPart => |t| ContentPart::Text(t),
-                ImageContentPart => |i| ContentPart::ImageUrl(i),
-                InputAudioContentPart => |a| ContentPart::InputAudio(a),
-                FileContentPart => |f| ContentPart::FileContent(f),
+                TextContentPart => ContentPart::Text,
+                ImageContentPart => ContentPart::ImageUrl,
+                InputAudioContentPart => ContentPart::InputAudio,
+                FileContentPart => ContentPart::FileContent,
             ) {
                 // Macro returned false - no match found
                 return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
@@ -309,11 +309,8 @@ impl PromptMessageExt for ChatMessage {
         let placeholder = format!("${{{name}}}");
 
         for part in &mut self.content {
-            match part {
-                ContentPart::Text(text_part) => {
-                    text_part.text = text_part.text.replace(&placeholder, value);
-                }
-                _ => {}
+            if let ContentPart::Text(text_part) = part {
+                text_part.text = text_part.text.replace(&placeholder, value);
             }
         }
 
@@ -480,7 +477,7 @@ impl RequestAdapter for OpenAIChatCompletionRequestV1 {
     }
     fn preprend_system_instructions(&mut self, messages: Vec<MessageNum>) -> Result<(), TypeError> {
         let mut combined = messages;
-        combined.extend(self.messages.drain(..));
+        combined.append(&mut self.messages);
         self.messages = combined;
         Ok(())
     }
@@ -528,10 +525,9 @@ impl RequestAdapter for OpenAIChatCompletionRequestV1 {
             _ => None,
         };
 
-        let response_json_schema = match &response_json_schema {
-            Some(schema) => Some(create_structured_output_schema(schema)),
-            None => None,
-        };
+        let response_json_schema = response_json_schema
+            .as_ref()
+            .map(|schema| create_structured_output_schema(schema));
 
         Ok(ProviderRequest::OpenAIV1(OpenAIChatCompletionRequestV1 {
             model,
@@ -541,7 +537,7 @@ impl RequestAdapter for OpenAIChatCompletionRequestV1 {
         }))
     }
 
-    fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) -> () {
+    fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) {
         self.response_format =
             response_json_schema.map(|json_schema| create_structured_output_schema(&json_schema));
     }

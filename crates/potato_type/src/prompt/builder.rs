@@ -58,11 +58,11 @@ pub enum ProviderRequest {
 }
 
 impl ProviderRequest {
-    pub fn insert_message(&mut self, message: MessageNum, idx: Option<usize>) -> () {
+    pub fn insert_message(&mut self, message: MessageNum, idx: Option<usize>) {
         self.messages_mut().insert(idx.unwrap_or(0), message);
     }
 
-    pub fn push_message(&mut self, message: MessageNum) -> () {
+    pub fn push_message(&mut self, message: MessageNum) {
         self.messages_mut().push(message);
     }
 
@@ -139,7 +139,7 @@ impl ProviderRequest {
         Ok(serde_json::to_value(self)?)
     }
 
-    pub fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) -> () {
+    pub fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) {
         dispatch_trait_method!(mut self, RequestAdapter, set_response_json_schema(response_json_schema))
     }
 }

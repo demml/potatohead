@@ -64,9 +64,9 @@ impl Display for Role {
     }
 }
 
-impl Into<&str> for Role {
-    fn into(self) -> &'static str {
-        match self {
+impl From<Role> for &str {
+    fn from(role: Role) -> Self {
+        match role {
             Role::User => "user",
             Role::Assistant => "assistant",
             Role::Developer => "developer",

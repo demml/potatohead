@@ -1140,12 +1140,12 @@ fn extract_data_from_py_object(data: &Bound<'_, PyAny>) -> Result<DataNum, TypeE
     // Use macro for all type extractions
     potato_macro::try_extract_to_enum!(
         data,
-        Blob => |b| DataNum::InlineData(b),
-        FileData => |f| DataNum::FileData(f),
-        FunctionCall => |fc| DataNum::FunctionCall(fc),
-        FunctionResponse => |fr| DataNum::FunctionResponse(fr),
-        ExecutableCode => |ec| DataNum::ExecutableCode(ec),
-        CodeExecutionResult => |cer| DataNum::CodeExecutionResult(cer),
+        Blob => DataNum::InlineData,
+        FileData => DataNum::FileData,
+        FunctionCall => DataNum::FunctionCall,
+        FunctionResponse =>  DataNum::FunctionResponse,
+        ExecutableCode =>  DataNum::ExecutableCode,
+        CodeExecutionResult =>  DataNum::CodeExecutionResult,
     );
 
     // If none matched, return an error
@@ -1337,11 +1337,8 @@ impl PromptMessageExt for GeminiContent {
         let placeholder = format!("${{{name}}}");
 
         for part in &mut self.parts {
-            match &mut part.data {
-                DataNum::Text(text) => {
-                    *text = text.replace(&placeholder, value);
-                }
-                _ => {}
+            if let DataNum::Text(text) = &mut part.data {
+                *text = text.replace(&placeholder, value);
             }
         }
 
@@ -1724,7 +1721,7 @@ pub enum ApiSpecType {
     ElasticSearch,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[pyclass]
 pub struct SimpleSearchParams {}
 
@@ -2351,7 +2348,7 @@ impl ComputerUse {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[pyclass]
 pub struct UrlContext {}
 
@@ -2427,6 +2424,7 @@ pub struct Tool {
 impl Tool {
     #[new]
     #[pyo3(signature = (function_declarations=None, retrieval=None, google_search_retrieval=None, code_execution=None, google_search=None, google_maps=None, enterprise_web_search=None, parallel_ai_search=None, computer_use=None, url_context=None, file_search=None))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         function_declarations: Option<Vec<FunctionDeclaration>>,
         retrieval: Option<Retrieval>,
@@ -2564,7 +2562,7 @@ impl RequestAdapter for GeminiGenerateContentRequestV1 {
         }))
     }
 
-    fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) -> () {
+    fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) {
         if let Some(cfg) = &mut self.settings.generation_config {
             cfg.response_mime_type = Some("application/json".to_string());
             cfg.response_json_schema = response_json_schema;

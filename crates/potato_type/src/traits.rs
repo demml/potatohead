@@ -54,6 +54,7 @@ pub trait RequestAdapter {
     /// Returns the system instructions as a Python list
     /// # Arguments
     /// * `py` - The Python GIL token
+    /// # Returns
     /// Returns a Python list of system instruction messages
     fn get_py_system_instructions<'py>(
         &self,

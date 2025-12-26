@@ -503,7 +503,7 @@ impl ResponseAdapter for GenerateContentResponse {
     }
 
     fn id(&self) -> &str {
-        &self.response_id.as_deref().unwrap_or("")
+        self.response_id.as_deref().unwrap_or("")
     }
 
     fn to_message_num(&self) -> Result<Vec<MessageNum>, TypeError> {

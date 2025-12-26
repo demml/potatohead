@@ -389,42 +389,6 @@ pub fn calculate_weighted_score(log_probs: &[ResponseLogProbs]) -> Result<Option
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_calculate_weighted_score() {
-        let log_probs = vec![
-            ResponseLogProbs {
-                token: "1".into(),
-                logprob: 0.9,
-            },
-            ResponseLogProbs {
-                token: "2".into(),
-                logprob: 0.8,
-            },
-            ResponseLogProbs {
-                token: "3".into(),
-                logprob: 0.7,
-            },
-        ];
-
-        let result = calculate_weighted_score(&log_probs);
-        assert!(result.is_ok());
-
-        let val = result.unwrap().unwrap();
-        // round to int
-        assert_eq!(val.round(), 2.0);
-    }
-    #[test]
-    fn test_calculate_weighted_score_empty() {
-        let log_probs: Vec<ResponseLogProbs> = vec![];
-        let result = calculate_weighted_score(&log_probs);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), None);
-    }
-}
-
 /// Generic function to convert text to a structured output model
 /// It is expected that output_model is a pydantic model or a potatohead type that implements serde json deserialization
 /// via model_validate_json method.
@@ -483,5 +447,41 @@ pub fn construct_structured_response<'py>(
             let val = Value::String(text);
             Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_calculate_weighted_score() {
+        let log_probs = vec![
+            ResponseLogProbs {
+                token: "1".into(),
+                logprob: 0.9,
+            },
+            ResponseLogProbs {
+                token: "2".into(),
+                logprob: 0.8,
+            },
+            ResponseLogProbs {
+                token: "3".into(),
+                logprob: 0.7,
+            },
+        ];
+
+        let result = calculate_weighted_score(&log_probs);
+        assert!(result.is_ok());
+
+        let val = result.unwrap().unwrap();
+        // round to int
+        assert_eq!(val.round(), 2.0);
+    }
+    #[test]
+    fn test_calculate_weighted_score_empty() {
+        let log_probs: Vec<ResponseLogProbs> = vec![];
+        let result = calculate_weighted_score(&log_probs);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), None);
     }
 }
