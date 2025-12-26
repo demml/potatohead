@@ -18,4 +18,4 @@ pub use potato_provider::{
 pub use potato_workflow::*;
 
 #[cfg(feature = "mock")]
-pub use baked_potato::{mock::*, util::*};
+pub use baked_potato::mock::*;

@@ -1,6 +1,11 @@
-use baked_potato::{create_parameterized_prompt, create_prompt, LLMTestServer};
+use crate::common::{
+    create_anthropic_prompt, create_google_prompt, create_openai_prompt,
+    create_parameterized_prompt,
+};
+use baked_potato::LLMTestServer;
 use potato_agent::TaskStatus;
 use potato_agent::{Agent, Task};
+use potato_type::prompt::MessageNum;
 use potato_type::prompt::Role;
 use potato_type::{Provider, StructuredOutput};
 use potato_workflow::Workflow;
@@ -28,7 +33,7 @@ fn test_workflow() {
     let mut mock = LLMTestServer::new();
     mock.start_server().unwrap();
 
-    let prompt = create_prompt(None);
+    let prompt = create_openai_prompt(None);
     let mut workflow = Workflow::new("My Workflow");
 
     let agent1 = runtime
@@ -255,7 +260,7 @@ fn test_parameterized_workflow() {
     let mut mock = LLMTestServer::new();
     mock.start_server().unwrap();
 
-    let prompt = create_prompt(Some(Parameters::get_structured_output_schema()));
+    let prompt = create_openai_prompt(Some(Parameters::get_structured_output_schema()));
     let parameterized_prompt = create_parameterized_prompt();
 
     // assert 2 variables are in the prompt
@@ -350,7 +355,6 @@ fn test_vendor_switching() {
     let mut mock = LLMTestServer::new();
     mock.start_server().unwrap();
 
-    let prompt = create_prompt(None);
     let mut workflow = Workflow::new("Vendor Workflow");
 
     let openai_agent = runtime
@@ -369,7 +373,7 @@ fn test_vendor_switching() {
     workflow
         .add_task(Task::new(
             &openai_agent.id,
-            prompt.clone(),
+            create_openai_prompt(None),
             "openai_task",
             None,
             None,
@@ -379,7 +383,7 @@ fn test_vendor_switching() {
     workflow
         .add_task(Task::new(
             &anthropic_agent.id,
-            prompt.clone(),
+            create_anthropic_prompt(),
             "anthropic_task",
             Some(vec!["openai_task".to_string()]),
             None,
@@ -389,7 +393,7 @@ fn test_vendor_switching() {
     workflow
         .add_task(Task::new(
             &gemini_agent.id,
-            prompt.clone(),
+            create_google_prompt(),
             "gemini_task",
             Some(vec![
                 "openai_task".to_string(),
@@ -399,5 +403,126 @@ fn test_vendor_switching() {
         ))
         .unwrap();
 
-    let _result = runtime.block_on(async { workflow.run(None).await.unwrap() });
+    // This will fail if the message conversions do not work correctly
+    let result = runtime.block_on(async { workflow.run(None).await.unwrap() });
+    let workflow_result = result.read().unwrap();
+
+    // Verify all tasks completed
+    assert!(workflow_result.is_complete());
+
+    // Get task references
+    let openai_task = workflow_result.task_list.get_task("openai_task").unwrap();
+    let anthropic_task = workflow_result
+        .task_list
+        .get_task("anthropic_task")
+        .unwrap();
+    let gemini_task = workflow_result.task_list.get_task("gemini_task").unwrap();
+
+    // ===== Verify OpenAI Task Messages =====
+    let openai_unwrapped = openai_task.read().unwrap();
+    let openai_messages = openai_unwrapped.prompt.request.messages();
+
+    // All messages should be OpenAI type
+    for (idx, msg) in openai_messages.iter().enumerate() {
+        assert!(
+            matches!(msg, MessageNum::OpenAIMessageV1(_)),
+            "openai_task message at index {} should be OpenAIMessageV1, got: {:?}",
+            idx,
+            msg
+        );
+    }
+
+    // Verify at least has developer + user messages
+    assert!(
+        openai_messages.len() >= 2,
+        "openai_task should have at least 2 messages"
+    );
+
+    // ===== Verify Anthropic Task Messages =====
+    let anthropic_unwrapped = anthropic_task.read().unwrap();
+    let anthropic_messages = anthropic_unwrapped.prompt.request.messages();
+
+    // All messages should be Anthropic type (including converted OpenAI dependency)
+    for (idx, msg) in anthropic_messages.iter().enumerate() {
+        assert!(
+            matches!(msg, MessageNum::AnthropicMessageV1(_)),
+            "anthropic_task message at index {} should be AnthropicMessageV1, got: {:?}",
+            idx,
+            msg
+        );
+    }
+
+    // Should have: original user message + 1 assistant message from openai_task dependency
+    assert_eq!(
+        anthropic_messages.len(),
+        2,
+        "anthropic_task should have 2 messages (1 original + 1 from dependency)"
+    );
+
+    // Verify the dependency context (assistant message) was added
+    let anthropic_assistant_count = anthropic_messages
+        .iter()
+        .filter(|msg| msg.role() == Role::Assistant.as_str())
+        .count();
+    assert_eq!(
+        anthropic_assistant_count, 1,
+        "anthropic_task should have 1 assistant message from openai_task dependency"
+    );
+
+    // ===== Verify Gemini Task Messages =====
+    let gemini_unwrapped = gemini_task.read().unwrap();
+    let gemini_messages = gemini_unwrapped.prompt.request.messages();
+
+    // All messages should be Gemini type (including converted dependencies)
+    for (idx, msg) in gemini_messages.iter().enumerate() {
+        assert!(
+            matches!(msg, MessageNum::GeminiContentV1(_)),
+            "gemini_task message at index {} should be GeminiContentV1, got: {:?}",
+            idx,
+            msg
+        );
+    }
+
+    // Should have: original user message + 2 assistant messages from dependencies
+    assert_eq!(
+        gemini_messages.len(),
+        3,
+        "gemini_task should have 3 messages (1 original + 2 from dependencies)"
+    );
+
+    // Verify both dependency contexts (assistant messages) were added
+    let gemini_assistant_count = gemini_messages
+        .iter()
+        .filter(|msg| msg.role() == Role::Assistant.as_str())
+        .count();
+    assert_eq!(
+        gemini_assistant_count, 2,
+        "gemini_task should have 2 assistant messages from dependencies"
+    );
+
+    // ===== Verify Message Order =====
+    // For each task, verify assistant messages (dependencies) come before user messages
+    for (task_name, messages) in [
+        ("anthropic_task", anthropic_messages),
+        ("gemini_task", gemini_messages),
+    ] {
+        let first_user_idx = messages
+            .iter()
+            .position(|msg| msg.role() == Role::User.as_str())
+            .expect(&format!("{} should have a user message", task_name));
+
+        for (idx, msg) in messages.iter().enumerate() {
+            if msg.role() == Role::Assistant.as_str() {
+                assert!(
+                    idx < first_user_idx,
+                    "{}: assistant message at index {} should come before user message at index {}",
+                    task_name,
+                    idx,
+                    first_user_idx
+                );
+            }
+        }
+    }
+
+    mock.stop_server().unwrap();
 }
