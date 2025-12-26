@@ -163,7 +163,7 @@ impl ChatResponse {
             dispatch_response_trait_method!(self, ResponseAdapter, to_message_num())?;
 
         // convert each message to the target provider type if needed
-        // if the response provider type matches the target provider, no conversion done
+        // if the current message provider type matches the target provider, no conversion done
         for msg in messages.iter_mut() {
             msg.convert_message(provider)?;
         }

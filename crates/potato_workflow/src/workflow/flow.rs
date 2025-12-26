@@ -217,6 +217,12 @@ impl Workflow {
             .insert(agent.id.clone(), Arc::new(agent.clone()));
     }
 
+    pub fn add_agents(&mut self, agents: &[&Agent]) {
+        for agent in agents {
+            self.add_agent(agent);
+        }
+    }
+
     pub fn execution_plan(&self) -> Result<HashMap<i32, HashSet<String>>, WorkflowError> {
         let mut remaining: HashMap<String, HashSet<String>> = self
             .task_list
@@ -359,6 +365,15 @@ fn get_agent_for_task(workflow: &Arc<RwLock<Workflow>>, agent_id: &str) -> Optio
 }
 
 /// Builds the context for a task from its dependencies
+/// For a given list of dependency task IDs (tasks current task depends on),
+/// for each dependency:
+/// 1. Retrieve the task from the workflow's task list
+/// 2. If the task has a result, convert the result to MessageNum format (convert from response struct to request struct)
+/// 2a. Inside of to_message_num, convert each request message to the target provider format if needed
+/// 3. Insert the converted messages into the context hashmap
+/// 4. if the result has a structured output, extract it and merge into parameter context
+/// This is helpful for when a user wants to pass structured output variables that can be bound in subsequent tasks
+/// 5. Return the dependency context, parameter context, and global context
 /// # Arguments
 /// * `workflow` - A reference to the workflow instance
 /// * `task` - A reference to the task for which the context is being built
@@ -825,6 +840,12 @@ impl PyWorkflow {
         // extract the arc rust agent from the python agent
         let agent = agent.extract::<PyAgent>().unwrap().agent.clone();
         self.workflow.agents.insert(agent.id.clone(), agent);
+    }
+
+    pub fn add_agents(&mut self, agents: Vec<Bound<'_, PyAgent>>) {
+        for agent in agents {
+            self.add_agent(&agent);
+        }
     }
 
     pub fn is_complete(&self) -> bool {

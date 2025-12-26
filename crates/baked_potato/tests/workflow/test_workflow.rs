@@ -339,3 +339,65 @@ fn test_parameterized_workflow() {
 
     let _deserialized: Workflow = serde_json::from_str(&serialized).unwrap();
 }
+
+#[test]
+fn test_vendor_switching() {
+    // Flow:
+    // 3 tasks - 1 OpenAI -> 2 Anthropic -> 3 Gemini (depends on 1 and 2)
+    // OpenAI tasks output should be converted to Anthropic input
+    //  Anthropic tasks output should be converted to Gemini input
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let mut mock = LLMTestServer::new();
+    mock.start_server().unwrap();
+
+    let prompt = create_prompt(None);
+    let mut workflow = Workflow::new("Vendor Workflow");
+
+    let openai_agent = runtime
+        .block_on(async { Agent::new(Provider::OpenAI, None).await })
+        .unwrap();
+    let anthropic_agent = runtime
+        .block_on(async { Agent::new(Provider::Anthropic, None).await })
+        .unwrap();
+    let gemini_agent = runtime
+        .block_on(async { Agent::new(Provider::Gemini, None).await })
+        .unwrap();
+
+    // create tasks
+    workflow.add_agents(&[&openai_agent, &anthropic_agent, &gemini_agent]);
+
+    workflow
+        .add_task(Task::new(
+            &openai_agent.id,
+            prompt.clone(),
+            "openai_task",
+            None,
+            None,
+        ))
+        .unwrap();
+
+    workflow
+        .add_task(Task::new(
+            &anthropic_agent.id,
+            prompt.clone(),
+            "anthropic_task",
+            Some(vec!["openai_task".to_string()]),
+            None,
+        ))
+        .unwrap();
+
+    workflow
+        .add_task(Task::new(
+            &gemini_agent.id,
+            prompt.clone(),
+            "gemini_task",
+            Some(vec![
+                "openai_task".to_string(),
+                "anthropic_task".to_string(),
+            ]),
+            None,
+        ))
+        .unwrap();
+
+    let _result = runtime.block_on(async { workflow.run(None).await.unwrap() });
+}
