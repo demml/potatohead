@@ -1,5 +1,5 @@
 use crate::tasklist::TaskList;
-use crate::types::Context;
+
 use crate::{
     events::{EventTracker, TaskEvent},
     workflow::error::WorkflowError,
@@ -30,6 +30,8 @@ use tracing::{debug, error, info, warn};
 
 /// Python workflows are a work in progress
 use pyo3::types::PyDict;
+
+pub type Context = (HashMap<String, Vec<MessageNum>>, Value, Option<Value>);
 
 #[derive(Debug)]
 #[pyclass]
@@ -966,7 +968,22 @@ impl PyWorkflow {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use potato_type::openai::v1::chat::request::{
+        ChatMessage as OpenAIChatMessage, ContentPart, TextContentPart,
+    };
     use potato_type::prompt::Prompt;
+    use potato_type::prompt::ResponseType;
+
+    fn create_openai_chat_message_num() -> MessageNum {
+        let text_part = TextContentPart::new("What company is this logo from?".to_string());
+        let text_content_part = ContentPart::Text(text_part);
+        let text_message = OpenAIChatMessage {
+            role: "user".to_string(),
+            content: vec![text_content_part],
+            name: None,
+        };
+        MessageNum::OpenAIMessageV1(text_message)
+    }
 
     #[test]
     fn test_workflow_creation() {
@@ -978,9 +995,9 @@ mod tests {
     #[test]
     fn test_task_list_add_and_get() {
         let mut task_list = TaskList::new();
-        let prompt_content = PromptContent::Str("Test prompt".to_string());
+
         let prompt = Prompt::new_rs(
-            vec![Message::new_rs(prompt_content)],
+            vec![create_openai_chat_message_num()],
             "gpt-4o",
             potato_type::Provider::OpenAI,
             vec![],

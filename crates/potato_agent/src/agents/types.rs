@@ -41,6 +41,10 @@ impl AgentResponse {
     ) -> Result<Bound<'py, PyAny>, AgentError> {
         Ok(self.response.structured_output(py, output_type)?)
     }
+
+    pub fn response_text(&self) -> Option<String> {
+        self.response.response_text()
+    }
 }
 
 #[pyclass(name = "AgentResponse")]

@@ -461,4 +461,17 @@ impl ResponseAdapter for AnthropicChatResponse {
         // Anthropic responses do not include log probabilities
         Vec::new()
     }
+
+    fn response_text(&self) -> Option<String> {
+        if self.content.is_empty() {
+            return None;
+        }
+
+        let inner = self.content.first().cloned().unwrap().inner;
+
+        match inner {
+            ResponseContentBlockInner::Text(block) => Some(block.text),
+            _ => None,
+        }
+    }
 }

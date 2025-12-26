@@ -156,7 +156,7 @@ fn test_parameterized_workflow() {
         .result
         .as_ref()
         .unwrap()
-        .content();
+        .response_text();
 
     let _ = Parameters::model_validate_json_str(&task1_output.unwrap());
 
@@ -176,7 +176,8 @@ fn test_parameterized_workflow() {
         .is_empty());
 
     let binding = result.read().unwrap().task_list.get_task("task2").unwrap();
-    let task2_output = &binding.read().unwrap().prompt.message;
+    let binding = binding.read().unwrap();
+    let task2_output = binding.prompt.request.messages();
 
     // assert task2_output len is 2
     assert_eq!(task2_output.len(), 2);

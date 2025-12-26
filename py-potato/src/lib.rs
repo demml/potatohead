@@ -1,9 +1,8 @@
+use ::potato_head::prompt_types::*;
 use ::potato_head::PyEmbedder;
-use ::potato_head::{
-    prompt::settings::ModelSettings, AudioUrl, BinaryContent, ChatResponse, CompletionTokenDetails,
-    DocumentUrl, EventDetails, ImageUrl, Message, Prompt, PromptTokenDetails, Provider, PyAgent,
-    PyAgentResponse, PyTask, PyWorkflow, Score, Task, TaskEvent, TaskList, TaskStatus, Usage,
-    WorkflowResult,
+use potato_head::{
+    EventDetails, Provider, PyAgent, PyAgentResponse, PyTask, PyWorkflow, Task, TaskEvent,
+    TaskList, TaskStatus, WorkflowResult,
 };
 pub mod anthropic;
 pub mod google;
@@ -20,7 +19,6 @@ pub fn _potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Task>()?;
     m.add_class::<PyTask>()?;
     m.add_class::<Prompt>()?;
-    m.add_class::<Message>()?;
     m.add_class::<ModelSettings>()?;
     m.add_class::<Score>()?;
     m.add_class::<AudioUrl>()?;
@@ -28,12 +26,8 @@ pub fn _potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<DocumentUrl>()?;
     m.add_class::<ImageUrl>()?;
     m.add_class::<EventDetails>()?;
-    m.add_class::<ChatResponse>()?;
     m.add_class::<TaskEvent>()?;
     m.add_class::<WorkflowResult>()?;
-    m.add_class::<CompletionTokenDetails>()?;
-    m.add_class::<PromptTokenDetails>()?;
-    m.add_class::<Usage>()?;
     m.add_class::<TaskList>()?;
     m.add_class::<TaskStatus>()?;
     m.add_class::<PyAgentResponse>()?;

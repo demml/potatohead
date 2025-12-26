@@ -1,20 +1,10 @@
-use potato_head::openai_types::{
-    chat::{
-        AllowedTools, AllowedToolsMode, AudioParam, Content, ContentPart, CustomChoice,
-        CustomDefinition, CustomTool, CustomToolChoice, CustomToolFormat, FunctionChoice,
-        FunctionDefinition, FunctionTool, FunctionToolChoice, Grammar, GrammarFormat,
-        OpenAIChatSettings, Prediction, StreamOptions, TextFormat, Tool, ToolChoice,
-        ToolChoiceMode, ToolDefinition,
-    },
-    embedding::{OpenAIEmbeddingConfig, OpenAIEmbeddingResponse},
-};
+use potato_head::openai_types::*;
 use pyo3::prelude::*;
 
 pub fn add_openai_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<AllowedTools>()?;
     m.add_class::<AudioParam>()?;
     m.add_class::<Content>()?;
-    m.add_class::<ContentPart>()?;
     m.add_class::<CustomChoice>()?;
     m.add_class::<CustomDefinition>()?;
     m.add_class::<CustomTool>()?;

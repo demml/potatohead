@@ -1,7 +1,13 @@
+use std::vec;
+
 use baked_potato::LLMTestServer;
 use potato_agent::{Agent, Task};
-use potato_prompt::prompt::Prompt;
-use potato_type::prompt::{Message, PromptContent, ResponseType, Score};
+use potato_type::google::v1::generate::request::{DataNum, GeminiContent, Part};
+use potato_type::openai::v1::chat::request::{
+    ChatMessage as OpenAIChatMessage, ContentPart, TextContentPart,
+};
+use potato_type::prompt::Prompt;
+use potato_type::prompt::{MessageNum, ResponseType, Score};
 use potato_type::Provider;
 use potato_type::StructuredOutput;
 
@@ -13,9 +19,16 @@ fn test_openai_agent() {
     let mut mock = LLMTestServer::new();
     mock.start_server().unwrap();
 
-    let prompt_content = PromptContent::Str("Test prompt. ${param1} ${param2}".to_string());
+    let prompt_content = "Test prompt. ${param1} ${param2}".to_string();
+    let prompt_msg = OpenAIChatMessage {
+        role: "user".to_string(),
+        content: vec![ContentPart::Text(TextContentPart::new(
+            prompt_content.clone(),
+        ))],
+        name: None,
+    };
     let prompt = Prompt::new_rs(
-        vec![Message::new_rs(prompt_content)],
+        vec![MessageNum::OpenAIMessageV1(prompt_msg)],
         "gpt-4o",
         Provider::OpenAI,
         vec![],
@@ -47,9 +60,16 @@ fn test_gemini_agent() {
     let mut mock = LLMTestServer::new();
     mock.start_server().unwrap();
 
-    let prompt_content = PromptContent::Str("You are a helpful assistant".to_string());
+    let prompt_content = "You are a helpful assistant".to_string();
+    let gemini_msg = MessageNum::GeminiContentV1(GeminiContent {
+        role: "user".to_string(),
+        parts: vec![Part {
+            data: DataNum::Text(prompt_content.clone()),
+            ..Default::default()
+        }],
+    });
     let prompt = Prompt::new_rs(
-        vec![Message::new_rs(prompt_content)],
+        vec![gemini_msg],
         "gemini-2.5-flash",
         Provider::Gemini,
         vec![],
@@ -70,7 +90,7 @@ fn test_gemini_agent() {
 
     let response = runtime.block_on(async { agent.execute_prompt(&task.prompt).await.unwrap() });
 
-    let content = response.content().unwrap();
+    let content = response.response_text().unwrap();
     assert!(content.contains("AI learns from data to make predictions or decisions"));
 
     mock.stop_server().unwrap();
@@ -82,11 +102,18 @@ fn test_gemini_score_agent() {
     let mut mock = LLMTestServer::new();
     mock.start_server().unwrap();
 
-    let prompt_content = PromptContent::Str(
-        "Return a json object with the attributes score and explanation".to_string(),
-    );
+    let prompt_content =
+        "Return a json object with the attributes score and explanation".to_string();
+
+    let gemini_msg = MessageNum::GeminiContentV1(GeminiContent {
+        role: "user".to_string(),
+        parts: vec![Part {
+            data: DataNum::Text(prompt_content.clone()),
+            ..Default::default()
+        }],
+    });
     let prompt = Prompt::new_rs(
-        vec![Message::new_rs(prompt_content)],
+        vec![gemini_msg],
         "gemini-2.5-flash",
         Provider::Gemini,
         vec![],
@@ -107,7 +134,7 @@ fn test_gemini_score_agent() {
 
     let response = runtime.block_on(async { agent.execute_prompt(&task.prompt).await.unwrap() });
 
-    let content = response.content().unwrap();
+    let content = response.response_text().unwrap();
     let _score: Score = Score::model_validate_json_str(&content).unwrap();
 
     mock.stop_server().unwrap();
@@ -119,11 +146,17 @@ fn test_gemini_score_agent_integration() {
     let mut mock = LLMTestServer::new();
     mock.start_server().unwrap();
 
-    let prompt_content = PromptContent::Str(
-        "Return a json object with the attributes score and explanation".to_string(),
-    );
+    let prompt_content =
+        "Return a json object with the attributes score and explanation".to_string();
+    let gemini_msg = MessageNum::GeminiContentV1(GeminiContent {
+        role: "user".to_string(),
+        parts: vec![Part {
+            data: DataNum::Text(prompt_content.clone()),
+            ..Default::default()
+        }],
+    });
     let prompt = Prompt::new_rs(
-        vec![Message::new_rs(prompt_content)],
+        vec![gemini_msg],
         "gemini-2.5-flash",
         Provider::Gemini,
         vec![],
@@ -144,7 +177,7 @@ fn test_gemini_score_agent_integration() {
 
     let response = runtime.block_on(async { agent.execute_prompt(&task.prompt).await.unwrap() });
 
-    let content = response.content().unwrap();
+    let content = response.response_text().unwrap();
     let _score: Score = Score::model_validate_json_str(&content).unwrap();
 
     mock.stop_server().unwrap();

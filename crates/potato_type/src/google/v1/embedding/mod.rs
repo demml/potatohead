@@ -153,6 +153,10 @@ impl ResponseAdapter for PredictResponse {
     fn tool_call_output(&self) -> Option<Value> {
         None
     }
+
+    fn response_text(&self) -> Option<String> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

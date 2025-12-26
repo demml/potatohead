@@ -2,7 +2,7 @@ use baked_potato::LLMTestServer;
 use potato_provider::providers::embed::EmbeddingInput;
 use potato_provider::{Embedder, EmbeddingConfig};
 use potato_type::google::GeminiEmbeddingConfig;
-use potato_type::openai::embedding::OpenAIEmbeddingConfig;
+use potato_type::openai::v1::embedding::OpenAIEmbeddingConfig;
 use potato_type::Provider;
 
 /// This test is performed in a sync context in order to maintain compatibility with python (LLMTestServer can be used in rust and python)

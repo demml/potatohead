@@ -25,7 +25,6 @@ from .._potato_head import (
     SpeechConfig,
     ToolConfig,
     VoiceConfig,
-    VoiceConfigMode,
 )
 
 __all__ = [
@@ -34,7 +33,6 @@ __all__ = [
     "MediaResolution",
     "SpeechConfig",
     "PrebuiltVoiceConfig",
-    "VoiceConfigMode",
     "VoiceConfig",
     "GenerationConfig",
     "ToolConfig",

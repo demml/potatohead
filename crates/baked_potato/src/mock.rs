@@ -1,8 +1,9 @@
 use crate::error::MockError;
 use mockito;
-use potato_provider::{GenerateContentResponse, OpenAIChatResponse};
+use potato_type::google::v1::generate::{DataNum, GenerateContentResponse};
 use potato_type::google::GeminiEmbeddingResponse;
-use potato_type::openai::embedding::OpenAIEmbeddingResponse;
+use potato_type::openai::v1::embedding::OpenAIEmbeddingResponse;
+use potato_type::openai::v1::OpenAIChatResponse;
 use pyo3::prelude::*;
 use rand::Rng;
 use serde_json;
@@ -98,7 +99,7 @@ fn randomize_gemini_score_response(response: GenerateContentResponse) -> Generat
     // Update the first candidate's content
     if let Some(candidate) = cloned_response.candidates.get_mut(0) {
         if let Some(part) = candidate.content.parts.get_mut(0) {
-            part.text = Some(format!(
+            part.data = DataNum::Text(format!(
                 "{{\"score\": {}, \"reason\": \"{}\"}}",
                 score, reason
             ));

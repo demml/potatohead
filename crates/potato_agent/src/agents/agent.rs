@@ -63,7 +63,7 @@ impl Agent {
     }
     pub async fn new(
         provider: Provider,
-        system_instruction: Vec<MessageNum>,
+        system_instruction: Option<Vec<MessageNum>>,
     ) -> Result<Self, AgentError> {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(ServiceType::Generate)?),
@@ -84,7 +84,7 @@ impl Agent {
         Ok(Self {
             client: Arc::new(client),
             id: create_uuid7(),
-            system_instruction,
+            system_instruction: system_instruction.unwrap_or_default(),
             provider,
         })
     }

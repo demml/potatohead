@@ -606,4 +606,21 @@ impl ResponseAdapter for GenerateContentResponse {
 
         probabilities
     }
+
+    fn response_text(&self) -> Option<String> {
+        let parts = match self.candidates.first().cloned() {
+            Some(candidate) => candidate.content.parts,
+            None => return None,
+        };
+
+        if parts.is_empty() {
+            return None;
+        }
+        let data = parts.first().cloned().unwrap_or_default().data;
+
+        match data {
+            DataNum::Text(text) => Some(text),
+            _ => None,
+        }
+    }
 }

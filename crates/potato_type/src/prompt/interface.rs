@@ -117,11 +117,15 @@ fn get_system_role(provider: &Provider) -> &'static str {
 pub fn extract_system_instructions(
     system_instruction: Option<&Bound<'_, PyAny>>,
     provider: &Provider,
-) -> Result<Vec<MessageNum>, TypeError> {
+) -> Result<Option<Vec<MessageNum>>, TypeError> {
     let system_instructions = if let Some(sys_inst) = system_instruction {
-        parse_messages(sys_inst, &provider, get_system_role(&provider))?
+        Some(parse_messages(
+            sys_inst,
+            &provider,
+            get_system_role(&provider),
+        )?)
     } else {
-        vec![]
+        None
     };
 
     Ok(system_instructions)

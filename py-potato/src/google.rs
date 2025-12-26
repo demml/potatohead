@@ -1,13 +1,4 @@
-use potato_head::google_types::{
-    chat::{
-        FunctionCallingConfig, GeminiSettings, GenerationConfig, HarmBlockMethod,
-        HarmBlockThreshold, HarmCategory, LatLng, MediaResolution, Modality, Mode,
-        ModelArmorConfig, PrebuiltVoiceConfig, RetrievalConfig, SafetySetting, SpeechConfig,
-        ThinkingConfig, ToolConfig, VoiceConfig, VoiceConfigMode,
-    },
-    predict::{PredictRequest, PredictResponse},
-    EmbeddingTaskType, GeminiEmbeddingConfig, GeminiEmbeddingResponse,
-};
+use potato_head::google_types::*;
 use pyo3::prelude::*;
 
 pub fn add_google_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -17,7 +8,6 @@ pub fn add_google_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SpeechConfig>()?;
     m.add_class::<ThinkingConfig>()?;
     m.add_class::<VoiceConfig>()?;
-    m.add_class::<VoiceConfigMode>()?;
     m.add_class::<PrebuiltVoiceConfig>()?;
     m.add_class::<HarmCategory>()?;
     m.add_class::<HarmBlockMethod>()?;

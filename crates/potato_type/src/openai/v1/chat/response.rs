@@ -277,4 +277,13 @@ impl ResponseAdapter for OpenAIChatResponse {
 
         probabilities
     }
+
+    fn response_text(&self) -> Option<String> {
+        if self.choices.is_empty() {
+            return None;
+        }
+        let content = self.choices.first().cloned().unwrap_or_default();
+
+        content.message.content
+    }
 }

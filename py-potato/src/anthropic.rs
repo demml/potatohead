@@ -1,6 +1,4 @@
-use potato_head::anthropic_types::v1::message::{
-    AnthropicSettings, CacheControl, Metadata, ThinkingConfig, Tool, ToolChoice,
-};
+use potato_head::anthropic_types::*;
 use pyo3::prelude::*;
 
 pub fn add_anthropic_module(m: &Bound<'_, PyModule>) -> PyResult<()> {

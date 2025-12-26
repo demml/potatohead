@@ -181,4 +181,8 @@ impl ChatResponse {
             return dispatch_response_trait_method!(self, ResponseAdapter, tool_call_output());
         }
     }
+
+    pub fn response_text(&self) -> Option<String> {
+        dispatch_response_trait_method!(self, ResponseAdapter, response_text())
+    }
 }
