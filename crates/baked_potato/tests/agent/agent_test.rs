@@ -220,8 +220,44 @@ fn test_anthropic_agent() {
 
     let text = agent_response.response_text().unwrap();
 
-    println!("Anthropic Agent Response Text: {}", text);
     assert!(text.contains("This is a response from the Anthropic mock server"));
+
+    mock.stop_server().unwrap();
+}
+
+#[test]
+fn test_anthropic_agent_structured_output() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let mut mock = LLMTestServer::new();
+    mock.start_server().unwrap();
+
+    let prompt_content = "Give me a score!".to_string();
+
+    // this is doing py stuff
+    let prompt_msg = MessageParam::from_text(prompt_content, "user").unwrap();
+    let prompt = Prompt::new_rs(
+        vec![MessageNum::AnthropicMessageV1(prompt_msg)],
+        "claude-sonnet-4.5",
+        Provider::Anthropic,
+        vec![],
+        None,
+        Some(Score::get_structured_output_schema()),
+        ResponseType::Score,
+    )
+    .unwrap();
+
+    let agent = runtime
+        .block_on(async { Agent::new(Provider::Anthropic, None).await })
+        .unwrap();
+    let task = Task::new(&agent.id, prompt, "task1", None, None);
+
+    runtime.block_on(async {
+        agent.execute_task(&task).await.unwrap();
+    });
+
+    let response = runtime.block_on(async { agent.execute_prompt(&task.prompt).await.unwrap() });
+    let content = response.response_text().unwrap();
+    let _score: Score = Score::model_validate_json_str(&content).unwrap();
 
     mock.stop_server().unwrap();
 }

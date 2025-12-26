@@ -351,21 +351,13 @@ impl LLMApiMock {
 
         server
             .mock("POST", "/messages")
-            .expect(usize::MAX)
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(serde_json::to_string(&anthropic_message_response).unwrap())
-            .create();
-
-        server
-            .mock("POST", "/messages")
             .match_header("content-type", "application/json")
             .match_body(mockito::Matcher::PartialJson(serde_json::json!({
                 "messages": [
                     {
                         "content": [
                             {
-                                "text":  "Give me the structured response",
+                                "text":  "Give me a score!",
                                 "type": "text"
                             }
                         ]
@@ -376,6 +368,14 @@ impl LLMApiMock {
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(serde_json::to_string(&anthropic_message_structured_response).unwrap())
+            .create();
+
+        server
+            .mock("POST", "/messages")
+            .expect(usize::MAX)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&anthropic_message_response).unwrap())
             .create();
 
         Self {
