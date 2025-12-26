@@ -1,5 +1,6 @@
 use crate::error::MockError;
 use mockito;
+use potato_type::anthropic::AnthropicMessageResponse;
 use potato_type::google::v1::generate::{DataNum, GenerateContentResponse};
 use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::openai::v1::embedding::OpenAIEmbeddingResponse;
@@ -32,6 +33,12 @@ pub const GEMINI_CHAT_COMPLETION_RESPONSE: &str =
 
 pub const GEMINI_CHAT_COMPLETION_RESPONSE_WITH_SCORE: &str =
     include_str!("assets/gemini/chat_completion_with_score.json");
+
+pub const ANTHROPIC_MESSAGE_RESPONSE: &str =
+    include_str!("assets/anthropic/message_completion.json");
+
+pub const ANTHROPIC_MESSAGE_STRUCTURED_RESPONSE: &str =
+    include_str!("assets/anthropic/message_structured_completion.json");
 
 fn randomize_openai_embedding_response(
     response: OpenAIEmbeddingResponse,
@@ -138,6 +145,13 @@ impl LLMApiMock {
             serde_json::from_str(GEMINI_CHAT_COMPLETION_RESPONSE_WITH_SCORE).unwrap();
         let gemini_embedding_response: GeminiEmbeddingResponse =
             serde_json::from_str(GEMINI_EMBEDDING_RESPONSE).unwrap();
+
+        // anthropic message response
+        let anthropic_message_response: AnthropicMessageResponse =
+            serde_json::from_str(ANTHROPIC_MESSAGE_RESPONSE).unwrap();
+
+        let anthropic_message_structured_response: AnthropicMessageResponse =
+            serde_json::from_str(ANTHROPIC_MESSAGE_STRUCTURED_RESPONSE).unwrap();
 
         server
             .mock("POST", "/chat/completions")
@@ -333,6 +347,37 @@ impl LLMApiMock {
             })
             .create();
 
+        // mock the anthropic message response
+
+        server
+            .mock("POST", "/messages")
+            .expect(usize::MAX)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&anthropic_message_response).unwrap())
+            .create();
+
+        server
+            .mock("POST", "/messages")
+            .match_header("content-type", "application/json")
+            .match_body(mockito::Matcher::PartialJson(serde_json::json!({
+                "messages": [
+                    {
+                        "content": [
+                            {
+                                "text":  "Give me the structured response",
+                                "type": "text"
+                            }
+                        ]
+                    }
+                ]
+            })))
+            .expect(usize::MAX) // More specific expectation than usize::MAX
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&anthropic_message_structured_response).unwrap())
+            .create();
+
         Self {
             url: server.url(),
             server,
@@ -377,6 +422,10 @@ impl LLMTestServer {
             drop(server);
             std::env::remove_var("OPENAI_API_URL");
             std::env::remove_var("OPENAI_API_KEY");
+            std::env::remove_var("GEMINI_API_KEY");
+            std::env::remove_var("GEMINI_API_URL");
+            std::env::remove_var("ANTHROPIC_API_KEY");
+            std::env::remove_var("ANTHROPIC_API_URL");
         }
         println!("Mock LLM Server stopped");
     }
@@ -386,12 +435,17 @@ impl LLMTestServer {
             std::env::set_var("APP_ENV", "dev_client");
             std::env::set_var("OPENAI_API_KEY", "test_key");
             std::env::set_var("GEMINI_API_KEY", "gemini");
+            std::env::set_var("ANTHROPIC_API_KEY", "anthropic_key");
             std::env::set_var(
                 "OPENAI_API_URL",
                 self.openai_server.as_ref().unwrap().url.clone(),
             );
             std::env::set_var(
                 "GEMINI_API_URL",
+                self.openai_server.as_ref().unwrap().url.clone(),
+            );
+            std::env::set_var(
+                "ANTHROPIC_API_URL",
                 self.openai_server.as_ref().unwrap().url.clone(),
             );
 
@@ -425,6 +479,8 @@ impl LLMTestServer {
         std::env::remove_var("OPENAI_API_KEY");
         std::env::remove_var("GEMINI_API_KEY");
         std::env::remove_var("GEMINI_API_URL");
+        std::env::remove_var("ANTHROPIC_API_KEY");
+        std::env::remove_var("ANTHROPIC_API_URL");
         Ok(())
     }
 

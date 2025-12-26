@@ -2,7 +2,7 @@ use crate::error::ProviderError;
 use crate::providers::types::build_http_client;
 use crate::providers::types::ServiceType;
 use http::{header, HeaderMap};
-use potato_type::anthropic::v1::response::AnthropicChatResponse;
+use potato_type::anthropic::v1::response::AnthropicMessageResponse;
 use potato_type::prompt::Prompt;
 use potato_type::{Common, Provider};
 use reqwest::Client;
@@ -162,7 +162,10 @@ impl AnthropicClient {
     /// * `Result<ChatResponse, ProviderError>`: Returns a `ChatResponse` on success or an `ProviderError` on failure.
     ///
     #[instrument(name = "anthropic_chat_completion", skip_all)]
-    pub async fn message(&self, prompt: &Prompt) -> Result<AnthropicChatResponse, ProviderError> {
+    pub async fn message(
+        &self,
+        prompt: &Prompt,
+    ) -> Result<AnthropicMessageResponse, ProviderError> {
         if let AnthropicAuth::NotSet = self.config.auth {
             return Err(ProviderError::MissingAuthenticationError);
         }
@@ -188,7 +191,7 @@ impl AnthropicClient {
         );
 
         let response = self.make_request(&request_body, additional_headers).await?;
-        let chat_response: AnthropicChatResponse = response.json().await?;
+        let chat_response: AnthropicMessageResponse = response.json().await?;
         debug!("Message successful");
 
         Ok(chat_response)

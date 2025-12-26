@@ -1,6 +1,6 @@
 use crate::error::ProviderError;
 use potato_macro::dispatch_response_trait_method;
-use potato_type::anthropic::v1::response::AnthropicChatResponse;
+use potato_type::anthropic::v1::response::AnthropicMessageResponse;
 use potato_type::google::v1::generate::GenerateContentResponse;
 use potato_type::google::PredictResponse;
 use potato_type::openai::v1::OpenAIChatResponse;
@@ -98,7 +98,7 @@ pub enum ChatResponse {
     GeminiV1(GenerateContentResponse),
     VertexGenerateV1(GenerateContentResponse),
     VertexPredictV1(PredictResponse),
-    AnthropicMessageV1(AnthropicChatResponse),
+    AnthropicMessageV1(AnthropicMessageResponse),
 }
 
 impl ChatResponse {

@@ -351,7 +351,7 @@ pub struct Usage {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
-pub struct AnthropicChatResponse {
+pub struct AnthropicMessageResponse {
     #[pyo3(get)]
     pub id: String,
     #[pyo3(get)]
@@ -370,7 +370,7 @@ pub struct AnthropicChatResponse {
 }
 
 #[pymethods]
-impl AnthropicChatResponse {
+impl AnthropicMessageResponse {
     #[getter]
     pub fn content<'py>(&self, py: Python<'py>) -> Result<Vec<Bound<'py, PyAny>>, TypeError> {
         self.content
@@ -381,7 +381,7 @@ impl AnthropicChatResponse {
     }
 }
 
-impl ResponseAdapter for AnthropicChatResponse {
+impl ResponseAdapter for AnthropicMessageResponse {
     fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
     }
