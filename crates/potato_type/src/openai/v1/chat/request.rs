@@ -518,7 +518,8 @@ impl RequestAdapter for OpenAIChatCompletionRequestV1 {
         settings: ModelSettings,
         response_json_schema: Option<Value>,
     ) -> Result<ProviderRequest, TypeError> {
-        let openai_messages: Vec<_> = system_instructions.into_iter().chain(messages).collect();
+        let mut openai_messages = system_instructions;
+        openai_messages.extend(messages);
 
         let openai_settings = match settings {
             ModelSettings::OpenAIChat(s) => Some(s),

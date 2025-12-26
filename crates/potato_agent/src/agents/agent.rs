@@ -121,12 +121,11 @@ impl Agent {
                     }
                 }
 
-                // Insert all dependency messages before the first user message
-                // This preserves conversation order from dependencies
-                for (offset, message) in dependency_messages.into_iter().enumerate() {
+                // Always insert at same index to keep pushing user message forward
+                for message in dependency_messages.into_iter() {
                     task.prompt
                         .request
-                        .insert_message(message, Some(insert_idx + offset))
+                        .insert_message(message, Some(insert_idx))
                 }
 
                 debug!(
@@ -243,9 +242,11 @@ impl Agent {
         // Prepare prompt and context before await
         let (prompt, task_id) = {
             let mut task = task.write().unwrap();
+            // 1. Add dependency context (should come after system instructions, before user message)
             self.append_task_with_message_dependency_context(&mut task, &context_messages);
+            // 2. Bind parameters
             self.bind_context(&mut task.prompt, &parameter_context, &global_context)?;
-
+            // 3. Prepend agent system instructions (add to front)
             self.prepend_system_instructions(&mut task.prompt);
             (task.prompt.clone(), task.id.clone())
         };

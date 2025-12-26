@@ -477,6 +477,7 @@ mod tests {
         Base64ImageSource, Base64PDFSource, ContentBlockParam, DocumentBlockParam, ImageBlockParam,
         MessageParam, PlainTextSource, TextBlockParam, UrlImageSource, UrlPDFSource,
     };
+    use crate::google::{DataNum, GeminiContent, Part};
     use crate::openai::v1::chat::request::{
         ChatMessage as OpenAIChatMessage, ContentPart, FileContentPart, ImageContentPart,
         TextContentPart,
@@ -716,7 +717,7 @@ mod tests {
         .unwrap();
 
         // Check the first user message
-        if let MessageNum::OpenAIMessageV1(msg) = &prompt.request.messages()[0] {
+        if let MessageNum::OpenAIMessageV1(msg) = &prompt.request.messages()[1] {
             if let ContentPart::Text(text_part) = &msg.content[0] {
                 assert_eq!(text_part.text, "What company is this logo from?");
             } else {
@@ -727,7 +728,7 @@ mod tests {
         }
 
         // Check the second user message (ImageUrl)
-        if let MessageNum::OpenAIMessageV1(msg) = &prompt.request.messages()[1] {
+        if let MessageNum::OpenAIMessageV1(msg) = &prompt.request.messages()[2] {
             if let ContentPart::ImageUrl(image_url) = &msg.content[0] {
                 assert_eq!(image_url.image_url.url, "https://iili.io/3Hs4FMg.png");
                 assert_eq!(image_url.r#type, "image_url");
@@ -760,7 +761,7 @@ mod tests {
         .unwrap();
 
         // Check the 2nd user message (file)
-        if let MessageNum::OpenAIMessageV1(msg) = &prompt.request.messages()[1] {
+        if let MessageNum::OpenAIMessageV1(msg) = &prompt.request.messages()[2] {
             if let ContentPart::FileContent(file_content) = &msg.content[0] {
                 assert_eq!(file_content.file.file_id.as_ref().unwrap(), "fileid");
                 assert_eq!(file_content.file.filename.as_ref().unwrap(), "filename");
@@ -1090,5 +1091,51 @@ mod tests {
         assert_eq!(prompt.request.system_instructions().len(), 1);
         assert_eq!(prompt.provider, Provider::Anthropic);
         assert_eq!(prompt.model, "claude-3-5-sonnet-20241022");
+    }
+
+    // gemini test
+    #[test]
+    fn test_gemini_chat_message() {
+        let text = Part::from_text("Test prompt. ${param1} ${param2}".to_string());
+        let message = GeminiContent {
+            role: "user".to_string(),
+            parts: vec![text],
+        };
+
+        let prompt = Prompt::new_rs(
+            vec![MessageNum::GeminiContentV1(message)],
+            "gemini-1.5-pro",
+            Provider::Google,
+            vec![],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap();
+
+        assert_eq!(prompt.request.messages().len(), 1);
+        assert_eq!(prompt.parameters.len(), 2);
+
+        let mut parameters = prompt.parameters.clone();
+        parameters.sort();
+        assert_eq!(parameters[0], "param1");
+        assert_eq!(parameters[1], "param2");
+
+        // Test parameter binding
+        let bound_msg = prompt.request.messages()[0]
+            .bind("param1", "Value1")
+            .unwrap();
+        let bound_msg = bound_msg.bind("param2", "Value2").unwrap();
+
+        match bound_msg {
+            MessageNum::GeminiContentV1(msg) => {
+                if let DataNum::Text(text_part) = &msg.parts[0].data {
+                    assert_eq!(text_part, "Test prompt. Value1 Value2");
+                } else {
+                    panic!("Expected Text Part");
+                }
+            }
+            _ => panic!("Expected GeminiContentV1"),
+        }
     }
 }
