@@ -2,12 +2,14 @@ use std::vec;
 
 use baked_potato::LLMTestServer;
 use potato_agent::{Agent, Task};
+use potato_type::anthropic::MessageParam;
 use potato_type::google::v1::generate::request::{DataNum, GeminiContent, Part};
 use potato_type::openai::v1::chat::request::{
     ChatMessage as OpenAIChatMessage, ContentPart, TextContentPart,
 };
 use potato_type::prompt::Prompt;
 use potato_type::prompt::{MessageNum, ResponseType, Score};
+use potato_type::traits::MessageFactory;
 use potato_type::Provider;
 use potato_type::StructuredOutput;
 
@@ -179,6 +181,47 @@ fn test_gemini_score_agent_integration() {
 
     let content = response.response_text().unwrap();
     let _score: Score = Score::model_validate_json_str(&content).unwrap();
+
+    mock.stop_server().unwrap();
+}
+
+#[test]
+fn test_anthropic_agent() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let mut mock = LLMTestServer::new();
+    mock.start_server().unwrap();
+
+    let prompt_content = "Test prompt. ${param1} ${param2}".to_string();
+
+    // this is doing py stuff
+    let prompt_msg = MessageParam::from_text(prompt_content, "user").unwrap();
+    let prompt = Prompt::new_rs(
+        vec![MessageNum::AnthropicMessageV1(prompt_msg)],
+        "claude-sonnet-4.5",
+        Provider::Anthropic,
+        vec![],
+        None,
+        None,
+        ResponseType::Null,
+    )
+    .unwrap();
+
+    let agent = runtime
+        .block_on(async { Agent::new(Provider::Anthropic, None).await })
+        .unwrap();
+    let task = Task::new(&agent.id, prompt, "task1", None, None);
+
+    runtime.block_on(async {
+        agent.execute_task(&task).await.unwrap();
+    });
+
+    let agent_response =
+        runtime.block_on(async { agent.execute_prompt(&task.prompt).await.unwrap() });
+
+    let text = agent_response.response_text().unwrap();
+
+    println!("Anthropic Agent Response Text: {}", text);
+    assert!(text.contains("This is a response from the Anthropic mock server"));
 
     mock.stop_server().unwrap();
 }

@@ -443,7 +443,8 @@ pub struct CitationMetadata {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Candidate {
-    pub index: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index: Option<i32>,
     pub content: GeminiContent,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avg_logprobs: Option<f64>,

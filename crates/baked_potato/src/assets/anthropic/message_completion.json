@@ -6,7 +6,7 @@
     "content": [
         {
             "type": "text",
-            "text": "Hello! How can I help you today?"
+            "text": "This is a response from the Anthropic mock server"
         }
     ],
     "stop_reason": "end_turn",

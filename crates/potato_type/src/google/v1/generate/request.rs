@@ -1108,14 +1108,27 @@ impl PartMetadata {
 #[pyclass]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(untagged)]
+#[serde(rename_all = "camelCase")]
 pub enum DataNum {
+    #[serde(rename = "inlineData")]
     InlineData(Blob),
+
+    #[serde(rename = "fileData")]
     FileData(FileData),
+
+    #[serde(rename = "functionCall")]
     FunctionCall(FunctionCall),
+
+    #[serde(rename = "functionResponse")]
     FunctionResponse(FunctionResponse),
+
+    #[serde(rename = "executableCode")]
     ExecutableCode(ExecutableCode),
+
+    #[serde(rename = "codeExecutionResult")]
     CodeExecutionResult(CodeExecutionResult),
+
+    #[serde(rename = "text")]
     Text(String),
 }
 

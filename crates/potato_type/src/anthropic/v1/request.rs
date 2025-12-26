@@ -1265,7 +1265,7 @@ impl MessageParam {
 
 impl MessageFactory for MessageParam {
     fn from_text(content: String, role: &str) -> Result<Self, TypeError> {
-        let text_block = TextBlockParam::new(content, None, None)?;
+        let text_block = TextBlockParam::new_rs(content, None, None);
         let content_block = ContentBlockParam {
             inner: ContentBlock::Text(text_block),
         };
