@@ -905,9 +905,7 @@ class FunctionCallingConfig:
     def mode(self) -> Optional[Mode]: ...
     @property
     def allowed_function_names(self) -> Optional[list[str]]: ...
-    def __init__(
-        self, mode: Optional[Mode], allowed_function_names: Optional[list[str]]
-    ) -> None: ...
+    def __init__(self, mode: Optional[Mode], allowed_function_names: Optional[list[str]]) -> None: ...
 
 class LatLng:
     @property
@@ -1048,9 +1046,7 @@ class PredictResponse:
     def __str__(self): ...
 
 class PredictRequest:
-    def __init__(
-        self, instances: List[dict], parameters: Optional[dict] = None
-    ) -> None:
+    def __init__(self, instances: List[dict], parameters: Optional[dict] = None) -> None:
         """Request to pass to the Vertex Predict API when creating a request
 
         Args:
@@ -1252,9 +1248,7 @@ class DocumentUrl:
         """The format of the document URL."""
 
 class Message:
-    def __init__(
-        self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl
-    ) -> None:
+    def __init__(self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl) -> None:
         """Create a Message object.
 
         Args:
@@ -1368,9 +1362,7 @@ class Prompt:
         model: str,
         provider: Provider | str,
         system_instruction: Optional[str | List[str]] = None,
-        model_settings: Optional[
-            ModelSettings | OpenAIChatSettings | GeminiSettings
-        ] = None,
+        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings] = None,
         response_format: Optional[Any] = None,
     ) -> None:
         """Prompt for interacting with an LLM API.
@@ -1874,9 +1866,7 @@ class Workflow:
         """
 
     @staticmethod
-    def model_validate_json(
-        json_string: str, output_types: Optional[Dict[str, Any]]
-    ) -> "Workflow":
+    def model_validate_json(json_string: str, output_types: Optional[Dict[str, Any]]) -> "Workflow":
         """Load a workflow from a JSON string.
 
         Args:
