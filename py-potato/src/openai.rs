@@ -54,5 +54,12 @@ pub fn add_openai_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PromptTokenDetails>()?;
     m.add_class::<Usage>()?;
     m.add_class::<OpenAIChatResponse>()?;
+
+    // embedding types
+    m.add_class::<OpenAIEmbeddingConfig>()?;
+    m.add_class::<EmbeddingObject>()?;
+    m.add_class::<UsageObject>()?;
+    m.add_class::<OpenAIEmbeddingResponse>()?;
+
     Ok(())
 }
