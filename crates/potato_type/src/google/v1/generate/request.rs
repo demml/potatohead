@@ -1105,8 +1105,6 @@ impl PartMetadata {
     }
 }
 
-#[pyclass]
-#[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum DataNum {
@@ -1130,6 +1128,20 @@ pub enum DataNum {
 
     #[serde(rename = "text")]
     Text(String),
+}
+
+impl DataNum {
+    pub fn to_bound_py_object<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        match self {
+            DataNum::InlineData(data) => Ok(data.clone().into_bound_py_any(py)?),
+            DataNum::FileData(data) => Ok(data.clone().into_bound_py_any(py)?),
+            DataNum::FunctionCall(data) => Ok(data.clone().into_bound_py_any(py)?),
+            DataNum::FunctionResponse(data) => Ok(data.clone().into_bound_py_any(py)?),
+            DataNum::ExecutableCode(data) => Ok(data.clone().into_bound_py_any(py)?),
+            DataNum::CodeExecutionResult(data) => Ok(data.clone().into_bound_py_any(py)?),
+            DataNum::Text(text) => Ok(text.clone().into_bound_py_any(py)?),
+        }
+    }
 }
 
 // helper for extracting data from PyAny to DataNum
@@ -1157,25 +1169,29 @@ fn extract_data_from_py_object(data: &Bound<'_, PyAny>) -> Result<DataNum, TypeE
 }
 
 #[pyclass]
-#[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Part {
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thought: Option<bool>,
 
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thought_signature: Option<String>,
 
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub part_metadata: Option<PartMetadata>,
 
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub media_resolution: Option<MediaResolution>,
 
     #[serde(flatten)]
     pub data: DataNum,
 
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub video_metadata: Option<VideoMetadata>,
 }
@@ -1203,6 +1219,11 @@ impl Part {
             data: data_enum,
             video_metadata,
         })
+    }
+
+    #[getter]
+    pub fn data<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        self.data.to_bound_py_object(py)
     }
 }
 
@@ -2387,6 +2408,7 @@ impl FileSearch {
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 #[pyclass]
+#[pyo3(get_all)]
 pub struct Tool {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub function_declarations: Option<Vec<FunctionDeclaration>>,
