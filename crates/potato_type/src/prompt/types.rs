@@ -1,12 +1,6 @@
-use crate::anthropic::v1::request::MessageParam;
 use crate::anthropic::v1::request::MessageParam as AnthropicMessage;
 use crate::anthropic::v1::request::TextBlockParam;
 use crate::anthropic::v1::response::ResponseContentBlock;
-use crate::common::document_format;
-use crate::common::get_audio_media_types;
-use crate::common::get_document_media_types;
-use crate::common::get_image_media_types;
-use crate::common::image_format;
 use crate::google::v1::generate::Candidate;
 use crate::google::v1::generate::GeminiContent;
 use crate::google::PredictResponse;
@@ -16,17 +10,15 @@ use crate::traits::MessageConversion;
 use crate::traits::PromptMessageExt;
 use crate::Provider;
 use crate::{StructuredOutput, TypeError};
-use mime_guess;
 use potato_util::PyHelperFuncs;
 use potato_util::{json_to_pyobject, pyobject_to_json};
 use pyo3::types::PyAnyMethods;
-use pyo3::types::PyString;
 use pyo3::{prelude::*, IntoPyObjectExt};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Display;
-use tracing::{debug, error};
+use tracing::error;
 
 pub enum Role {
     User,
@@ -76,14 +68,6 @@ impl From<Role> for &str {
         }
     }
 }
-fn guess_type(url: &str) -> Result<String, TypeError> {
-    // fail if mime type is not found
-    let mime_type = mime_guess::from_path(url)
-        .first()
-        .ok_or_else(|| TypeError::Error(format!("Failed to guess mime type for {url}")))?;
-
-    Ok(mime_type.to_string())
-}
 
 pub trait DeserializePromptValExt: for<'de> serde::Deserialize<'de> {
     /// Validates and deserializes a JSON value into its struct type.
@@ -95,293 +79,6 @@ pub trait DeserializePromptValExt: for<'de> serde::Deserialize<'de> {
     /// * `Result<Self, serde_json::Error>` - The deserialized value or error
     fn model_validate_json(value: &Value) -> Result<Self, serde_json::Error> {
         serde_json::from_value(value.clone())
-    }
-}
-
-#[pyclass]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct AudioUrl {
-    #[pyo3(get, set)]
-    pub url: String,
-    #[pyo3(get)]
-    pub kind: String,
-}
-
-#[pymethods]
-impl AudioUrl {
-    #[new]
-    fn new(url: String) -> PyResult<Self> {
-        if !url.ends_with(".mp3") && !url.ends_with(".wav") {
-            return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                "Unknown audio file extension: {url}",
-            )));
-        }
-        Ok(Self {
-            url,
-            kind: "audio-url".to_string(),
-        })
-    }
-
-    #[getter]
-    fn media_type(&self) -> String {
-        if self.url.ends_with(".mp3") {
-            "audio/mpeg".to_string()
-        } else {
-            "audio/wav".to_string()
-        }
-    }
-}
-
-#[pyclass]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ImageUrl {
-    #[pyo3(get, set)]
-    pub url: String,
-    #[pyo3(get)]
-    pub kind: String,
-}
-
-#[pymethods]
-impl ImageUrl {
-    #[new]
-    #[pyo3(signature = (url, kind="image-url"))]
-    fn new(url: &str, kind: &str) -> PyResult<Self> {
-        if !url.ends_with(".jpg")
-            && !url.ends_with(".jpeg")
-            && !url.ends_with(".png")
-            && !url.ends_with(".gif")
-            && !url.ends_with(".webp")
-        {
-            return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                "Unknown image file extension: {url}",
-            )));
-        }
-        Ok(Self {
-            url: url.to_string(),
-            kind: kind.to_string(),
-        })
-    }
-
-    #[getter]
-    fn media_type(&self) -> Result<String, TypeError> {
-        if self.url.ends_with(".jpg") || self.url.ends_with(".jpeg") {
-            Ok("image/jpeg".to_string())
-        } else if self.url.ends_with(".png") {
-            Ok("image/png".to_string())
-        } else if self.url.ends_with(".gif") {
-            Ok("image/gif".to_string())
-        } else if self.url.ends_with(".webp") {
-            Ok("image/webp".to_string())
-        } else {
-            Err(TypeError::Error(format!(
-                "Unknown image file extension: {}",
-                self.url
-            )))
-        }
-    }
-
-    #[getter]
-    fn format(&self) -> Result<String, TypeError> {
-        let media_type = self.media_type()?;
-        image_format(&media_type)
-    }
-}
-
-#[pyclass]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct DocumentUrl {
-    #[pyo3(get, set)]
-    pub url: String,
-    #[pyo3(get)]
-    pub kind: String,
-}
-
-#[pymethods]
-impl DocumentUrl {
-    #[new]
-    #[pyo3(signature = (url, kind="document-url"))]
-    fn new(url: &str, kind: &str) -> Result<Self, TypeError> {
-        Ok(Self {
-            url: url.to_string(),
-            kind: kind.to_string(),
-        })
-    }
-
-    #[getter]
-    pub fn media_type(&self) -> Result<String, TypeError> {
-        guess_type(&self.url)
-    }
-
-    #[getter]
-    fn format(&self) -> Result<String, TypeError> {
-        let media_type = self.media_type()?;
-        document_format(&media_type)
-    }
-}
-
-#[pyclass]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct BinaryContent {
-    #[pyo3(get, set)]
-    pub data: Vec<u8>,
-    #[pyo3(get, set)]
-    pub media_type: String,
-    #[pyo3(get)]
-    pub kind: String,
-}
-
-#[pymethods]
-impl BinaryContent {
-    #[new]
-    #[pyo3(signature = (data, media_type, kind="binary"))]
-    fn new(data: Vec<u8>, media_type: &str, kind: &str) -> Result<Self, TypeError> {
-        // assert that media type is valid, must be audio, image, or document
-        let is_audio = get_audio_media_types().contains(media_type);
-        let is_image = get_image_media_types().contains(media_type);
-        let is_document = get_document_media_types().contains(media_type);
-
-        debug!("Creating BinaryContent with media_type: {media_type}, is_audio: {is_audio}, is_image: {is_image}, is_document: {is_document}");
-
-        if !is_audio && !is_image && !is_document {
-            return Err(TypeError::Error(format!(
-                "Unknown media type: {media_type}",
-            )));
-        }
-
-        Ok(Self {
-            data,
-            media_type: media_type.to_string(),
-            kind: kind.to_string(),
-        })
-    }
-
-    #[getter]
-    fn is_audio(&self) -> bool {
-        get_audio_media_types().contains(self.media_type.as_str())
-    }
-
-    #[getter]
-    fn is_image(&self) -> bool {
-        get_image_media_types().contains(self.media_type.as_str())
-    }
-
-    #[getter]
-    fn is_document(&self) -> bool {
-        get_document_media_types().contains(self.media_type.as_str())
-    }
-
-    #[getter]
-    fn format(&self) -> Result<String, TypeError> {
-        if self.is_audio() {
-            if self.media_type == "audio/mpeg" {
-                Ok("mp3".to_string())
-            } else if self.media_type == "audio/wav" {
-                Ok("wav".to_string())
-            } else {
-                Err(TypeError::Error(format!(
-                    "Unknown media type: {}",
-                    self.media_type
-                )))
-            }
-        } else if self.is_image() {
-            image_format(&self.media_type)
-        } else if self.is_document() {
-            document_format(&self.media_type)
-        } else {
-            Err(TypeError::Error(format!(
-                "Unknown media type: {}",
-                self.media_type
-            )))
-        }
-    }
-}
-
-impl DeserializePromptValExt for AudioUrl {}
-impl DeserializePromptValExt for ImageUrl {}
-impl DeserializePromptValExt for DocumentUrl {}
-impl DeserializePromptValExt for BinaryContent {}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum PromptContent {
-    Str(String),
-    Audio(AudioUrl),
-    Image(ImageUrl),
-    Document(DocumentUrl),
-    Binary(BinaryContent),
-    AnthropicMessageContentV1(MessageParam),
-}
-
-impl PromptContent {
-    pub fn new(prompt: &Bound<'_, PyAny>) -> Result<Self, TypeError> {
-        if prompt.is_instance_of::<AudioUrl>() {
-            let audio_url = prompt.extract::<AudioUrl>()?;
-            Ok(PromptContent::Audio(audio_url))
-        } else if prompt.is_instance_of::<ImageUrl>() {
-            let image_url = prompt.extract::<ImageUrl>()?;
-            Ok(PromptContent::Image(image_url))
-        } else if prompt.is_instance_of::<DocumentUrl>() {
-            let document_url = prompt.extract::<DocumentUrl>()?;
-            Ok(PromptContent::Document(document_url))
-        } else if prompt.is_instance_of::<BinaryContent>() {
-            let binary_content = prompt.extract::<BinaryContent>()?;
-            Ok(PromptContent::Binary(binary_content))
-        } else if prompt.is_instance_of::<PyString>() {
-            let user_content = prompt.extract::<String>()?;
-            Ok(PromptContent::Str(user_content))
-        } else if prompt.is_instance_of::<MessageParam>() {
-            let message_content = prompt.extract::<MessageParam>()?;
-            Ok(PromptContent::AnthropicMessageContentV1(message_content))
-        } else {
-            Err(TypeError::UnsupportedTypeError)
-        }
-    }
-
-    pub fn to_pyobject<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        match self {
-            PromptContent::Str(s) => s.into_bound_py_any(py),
-            PromptContent::Audio(audio_url) => {
-                // test pydantic module
-                match get_pydantic_module(py, "AudioUrl") {
-                    Ok(model_class) => {
-                        model_class.call1((audio_url.url.clone(), audio_url.kind.clone()))
-                    }
-                    Err(_) => audio_url.clone().into_bound_py_any(py),
-                }
-            }
-            PromptContent::Image(image_url) => {
-                // test pydantic module
-                match get_pydantic_module(py, "ImageUrl") {
-                    Ok(model_class) => {
-                        model_class.call1((image_url.url.clone(), image_url.kind.clone()))
-                    }
-                    Err(_) => image_url.clone().into_bound_py_any(py),
-                }
-            }
-            PromptContent::Document(document_url) => {
-                // test pydantic module
-                match get_pydantic_module(py, "DocumentUrl") {
-                    Ok(model_class) => {
-                        model_class.call1((document_url.url.clone(), document_url.kind.clone()))
-                    }
-                    Err(_) => document_url.clone().into_bound_py_any(py),
-                }
-            }
-            PromptContent::Binary(binary_content) => {
-                // test pydantic module
-                match get_pydantic_module(py, "BinaryContent") {
-                    Ok(model_class) => model_class.call1((
-                        binary_content.data.clone(),
-                        binary_content.media_type.clone(),
-                        binary_content.kind.clone(),
-                    )),
-                    Err(_) => binary_content.clone().into_bound_py_any(py),
-                }
-            }
-
-            PromptContent::AnthropicMessageContentV1(message_content) => {
-                message_content.clone().into_bound_py_any(py)
-            }
-        }
     }
 }
 

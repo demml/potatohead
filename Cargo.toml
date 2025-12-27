@@ -33,7 +33,6 @@ colored_json = "5.*"
 http = "1.*"
 gcloud-auth = { version = "1.*" }
 mockito = "1.*"
-mime_guess = "2.*"
 pyo3 = { version = "0.*", features = ["abi3-py310", "extension-module", "anyhow", "serde", "chrono"] }
 rand = "0.9.*"
 regex = "1.*"

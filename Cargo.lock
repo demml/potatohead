@@ -1218,7 +1218,6 @@ dependencies = [
 name = "potato-type"
 version = "0.10.0"
 dependencies = [
- "mime_guess",
  "potato-macro",
  "potato-util",
  "pyo3",
