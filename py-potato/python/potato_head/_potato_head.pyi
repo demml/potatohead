@@ -1891,7 +1891,7 @@ class Workflow:
                 The workflow object.
         """
 
-class PyTask:
+class WorkflowTask:
     """Python-specific task interface for Task objects and results"""
 
     @property
@@ -1983,7 +1983,7 @@ class TaskEvent:
 
 class WorkflowResult:
     @property
-    def tasks(self) -> Dict[str, PyTask]:
+    def tasks(self) -> Dict[str, WorkflowTask]:
         """The tasks in the workflow result."""
 
     @property
@@ -2221,7 +2221,7 @@ __all__ = [
     "TaskList",
     "Agent",
     "Workflow",
-    "PyTask",
+    "WorkflowTask",
     "ChatResponse",
     "EventDetails",
     "TaskEvent",

@@ -16,7 +16,7 @@ pub enum TaskStatus {
 
 #[pyclass]
 #[derive(Debug, Serialize)]
-pub struct PyTask {
+pub struct WorkflowTask {
     #[pyo3(get)]
     pub id: String,
     #[pyo3(get, set)]
@@ -34,7 +34,7 @@ pub struct PyTask {
 }
 
 #[pymethods]
-impl PyTask {
+impl WorkflowTask {
     #[getter]
     pub fn result<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         if let Some(resp) = &self.result {

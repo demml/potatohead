@@ -13,6 +13,7 @@ doctest = false
 potato-type = { workspace = true }
 potato-provider = { workspace = true }
 potato-agent = { workspace = true }
+potato-state = { workspace = true }
 potato-util = { workspace = true }
 
 chrono = { workspace = true }

@@ -1,8 +1,8 @@
 use ::potato_head::prompt_types::*;
 use ::potato_head::PyEmbedder;
 use potato_head::{
-    EventDetails, Provider, PyAgent, PyAgentResponse, PyTask, PyWorkflow, Task, TaskEvent,
-    TaskList, TaskStatus, WorkflowResult,
+    EventDetails, Provider, PyAgent, PyAgentResponse, PyWorkflow, Task, TaskEvent, TaskList,
+    TaskStatus, WorkflowResult, WorkflowTask,
 };
 pub mod anthropic;
 pub mod google;
@@ -30,7 +30,7 @@ pub fn _potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // agents
     m.add_class::<PyAgent>()?;
     m.add_class::<Task>()?;
-    m.add_class::<PyTask>()?;
+    m.add_class::<WorkflowTask>()?;
     m.add_class::<TaskStatus>()?;
     m.add_class::<PyAgentResponse>()?;
     m.add_class::<PyEmbedder>()?;

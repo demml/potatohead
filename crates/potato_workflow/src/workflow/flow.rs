@@ -6,9 +6,10 @@ use crate::{
 };
 pub use potato_agent::agents::{
     agent::{Agent, PyAgent},
-    task::{PyTask, Task, TaskStatus},
+    task::{WorkflowTask, Task, TaskStatus},
 };
 use potato_agent::PyAgentResponse;
+use potato_state::block_on;
 use potato_type::prompt::{parse_response_to_json, MessageNum};
 use potato_type::Provider;
 use potato_util::{create_uuid7, utils::update_serde_map_with, PyHelperFuncs};
@@ -37,7 +38,7 @@ pub type Context = (HashMap<String, Vec<MessageNum>>, Value, Option<Value>);
 #[pyclass]
 pub struct WorkflowResult {
     #[pyo3(get)]
-    pub tasks: HashMap<String, Py<PyTask>>,
+    pub tasks: HashMap<String, Py<WorkflowTask>>,
 
     #[pyo3(get)]
     pub events: Vec<TaskEvent>,
@@ -59,7 +60,7 @@ impl WorkflowResult {
                 } else {
                     None
                 };
-                let py_task = PyTask {
+                let py_task = WorkflowTask {
                     id: task.id.clone(),
                     prompt: task.prompt,
                     dependencies: task.dependencies,
@@ -729,9 +730,6 @@ pub struct PyWorkflow {
     // these are provided at runtime by the user and must match the response
     // format of the prompt the task is associated with
     output_types: HashMap<String, Arc<Py<PyAny>>>,
-
-    // potatohead version holds a reference to the runtime
-    runtime: Arc<tokio::runtime::Runtime>,
 }
 
 #[pymethods]
@@ -743,10 +741,6 @@ impl PyWorkflow {
         Ok(Self {
             workflow: Workflow::new(name),
             output_types: HashMap::new(),
-            runtime: Arc::new(
-                tokio::runtime::Runtime::new()
-                    .map_err(|e| WorkflowError::RuntimeError(e.to_string()))?,
-            ),
         })
     }
 
@@ -892,9 +886,8 @@ impl PyWorkflow {
             None
         };
 
-        let workflow: Arc<RwLock<Workflow>> = self
-            .runtime
-            .block_on(async { self.workflow.run(global_context).await })?;
+        let workflow: Arc<RwLock<Workflow>> =
+            block_on(async { self.workflow.run(global_context).await })?;
 
         // Try to get exclusive ownership of the workflow by unwrapping the Arc if there's only one reference
         let workflow_result = match Arc::try_unwrap(workflow) {
@@ -954,16 +947,11 @@ impl PyWorkflow {
         json_string: String,
         output_types: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, WorkflowError> {
-        let runtime = Arc::new(
-            tokio::runtime::Runtime::new()
-                .map_err(|e| WorkflowError::RuntimeError(e.to_string()))?,
-        );
         let mut workflow: Workflow = Workflow::from_json(&json_string)?;
 
         // reload agents to ensure clients are rebuilt
         // This is necessary because during deserialization the GenAIClient
-        runtime.block_on(async { workflow.reset_agents().await })?;
-
+        block_on(async { workflow.reset_agents().await })?;
         let output_types = match output_types {
             Some(output_types) => output_types
                 .iter()
@@ -979,7 +967,6 @@ impl PyWorkflow {
         let py_workflow = PyWorkflow {
             workflow,
             output_types,
-            runtime,
         };
 
         Ok(py_workflow)
