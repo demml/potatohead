@@ -13,94 +13,138 @@ use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
+#[pyclass]
 pub struct Function {
+    #[pyo3(get)]
     pub arguments: String,
+    #[pyo3(get)]
     pub name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
+#[pyclass]
 pub struct ToolCall {
+    #[pyo3(get)]
     pub id: String,
+    #[pyo3(get)]
     #[serde(rename = "type")]
     pub r#type: String,
+    #[pyo3(get)]
     pub function: Function,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
+#[pyclass]
 pub struct UrlCitation {
+    #[pyo3(get)]
     pub end_index: u64,
+    #[pyo3(get)]
     pub start_index: u64,
+    #[pyo3(get)]
     pub title: String,
+    #[pyo3(get)]
     pub url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
+#[pyclass]
 pub struct Annotations {
+    #[pyo3(get)]
     pub r#type: String,
+    #[pyo3(get)]
     pub url_citations: Vec<UrlCitation>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
+#[pyclass]
 pub struct Audio {
+    #[pyo3(get)]
     pub data: String,
+    #[pyo3(get)]
     pub expires_at: u64, // Unix timestamp
+    #[pyo3(get)]
     pub id: String,
+    #[pyo3(get)]
     pub transcript: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
+#[pyclass]
 pub struct ChatCompletionMessage {
+    #[pyo3(get)]
     pub content: Option<String>,
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refusal: Option<String>,
+    #[pyo3(get)]
     pub role: String,
+    #[pyo3(get)]
     pub annotations: Vec<Annotations>,
+    #[pyo3(get)]
     pub tool_calls: Vec<ToolCall>,
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub audio: Option<Audio>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
+#[pyclass]
 pub struct TopLogProbs {
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bytes: Option<Vec<u8>>,
+    #[pyo3(get)]
     pub logprob: f64,
+    #[pyo3(get)]
     pub token: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
+#[pyclass]
 pub struct LogContent {
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bytes: Option<Vec<u8>>,
+    #[pyo3(get)]
     pub logprob: f64,
+    #[pyo3(get)]
     pub token: String,
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_logprobs: Option<Vec<TopLogProbs>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
+#[pyclass]
 pub struct LogProbs {
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<Vec<LogContent>>,
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refusal: Option<Vec<LogContent>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
+#[pyclass]
 pub struct Choice {
+    #[pyo3(get)]
     pub message: ChatCompletionMessage,
+    #[pyo3(get)]
     pub finish_reason: String,
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logprobs: Option<LogProbs>,
 }
@@ -122,9 +166,13 @@ impl MessageResponseExt for Choice {
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct CompletionTokenDetails {
+    #[pyo3(get)]
     pub accepted_prediction_tokens: u64,
+    #[pyo3(get)]
     pub audio_tokens: u64,
+    #[pyo3(get)]
     pub reasoning_tokens: u64,
+    #[pyo3(get)]
     pub rejected_prediction_tokens: u64,
 }
 
@@ -132,7 +180,9 @@ pub struct CompletionTokenDetails {
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct PromptTokenDetails {
+    #[pyo3(get)]
     pub audio_tokens: u64,
+    #[pyo3(get)]
     pub cached_tokens: u64,
 }
 
@@ -140,11 +190,17 @@ pub struct PromptTokenDetails {
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Usage {
+    #[pyo3(get)]
     pub completion_tokens: u64,
+    #[pyo3(get)]
     pub prompt_tokens: u64,
+    #[pyo3(get)]
     pub total_tokens: u64,
+    #[pyo3(get)]
     pub completion_tokens_details: CompletionTokenDetails,
+    #[pyo3(get)]
     pub prompt_tokens_details: PromptTokenDetails,
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<String>,
 }
@@ -153,14 +209,22 @@ pub struct Usage {
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct OpenAIChatResponse {
+    #[pyo3(get)]
     pub id: String,
+    #[pyo3(get)]
     pub object: String,
+    #[pyo3(get)]
     pub created: u64,
+    #[pyo3(get)]
     pub model: String,
+    #[pyo3(get)]
     pub choices: Vec<Choice>,
+    #[pyo3(get)]
     pub usage: Usage,
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub service_tier: Option<String>,
+    #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_fingerprint: Option<String>,
 }
