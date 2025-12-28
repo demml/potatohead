@@ -7,7 +7,7 @@ use crate::{
     TypeError,
 };
 
-use potato_util::utils::{construct_structured_response, ResponseLogProbs};
+use potato_util::utils::{construct_structured_response, TokenLogProbs};
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
@@ -319,7 +319,7 @@ impl ResponseAdapter for OpenAIChatResponse {
         Ok(PyHelperFuncs::to_bound_py_object(py, &self.usage)?)
     }
 
-    fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
+    fn get_log_probs(&self) -> Vec<TokenLogProbs> {
         let mut probabilities = Vec::new();
         if let Some(choice) = self.choices.first() {
             if let Some(logprobs) = &choice.logprobs {
@@ -329,7 +329,7 @@ impl ResponseAdapter for OpenAIChatResponse {
                         if log_content.token.len() == 1
                             && log_content.token.chars().next().unwrap().is_ascii_digit()
                         {
-                            probabilities.push(ResponseLogProbs {
+                            probabilities.push(TokenLogProbs {
                                 token: log_content.token.clone(),
                                 logprob: log_content.logprob,
                             });

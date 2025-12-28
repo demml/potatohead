@@ -64,6 +64,17 @@ impl EventDetails {
     pub fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
     }
+
+    #[getter]
+    pub fn response<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        match &self.response {
+            Some(resp) => {
+                let response = resp.to_bound_py_object(py)?;
+                Ok(Some(response))
+            }
+            None => Ok(None),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]

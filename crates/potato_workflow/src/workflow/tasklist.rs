@@ -30,6 +30,10 @@ impl PartialEq for TaskList {
 
 #[pymethods]
 impl TaskList {
+    #[getter]
+    pub fn items(&self) -> HashMap<String, Task> {
+        self.tasks()
+    }
     /// This is mainly a utility function to help with python interoperability.
     pub fn tasks(&self) -> HashMap<String, Task> {
         self.tasks
@@ -214,5 +218,9 @@ impl TaskList {
             }
         }
         Ok(())
+    }
+
+    pub fn get_last_task_id(&self) -> Option<String> {
+        self.execution_order.last().cloned()
     }
 }

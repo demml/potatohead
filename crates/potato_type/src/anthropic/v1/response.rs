@@ -3,8 +3,7 @@ use crate::prompt::Role;
 use crate::prompt::{MessageNum, ResponseContent};
 use crate::traits::{MessageResponseExt, ResponseAdapter};
 use crate::TypeError;
-use potato_util::utils::construct_structured_response;
-use potato_util::utils::ResponseLogProbs;
+use potato_util::utils::{construct_structured_response, TokenLogProbs};
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
@@ -456,7 +455,7 @@ impl ResponseAdapter for AnthropicMessageResponse {
         Ok(PyHelperFuncs::to_bound_py_object(py, &self.usage)?)
     }
 
-    fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
+    fn get_log_probs(&self) -> Vec<TokenLogProbs> {
         // Anthropic responses do not include log probabilities
         Vec::new()
     }

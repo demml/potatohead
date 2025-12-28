@@ -6,9 +6,9 @@ use crate::{
 };
 pub use potato_agent::agents::{
     agent::{Agent, PyAgent},
-    task::{WorkflowTask, Task, TaskStatus},
+    task::{Task, TaskStatus, WorkflowTask},
 };
-use potato_agent::PyAgentResponse;
+use potato_agent::{AgentError, PyAgentResponse};
 use potato_state::block_on;
 use potato_type::prompt::{parse_response_to_json, MessageNum};
 use potato_type::Provider;
@@ -42,6 +42,8 @@ pub struct WorkflowResult {
 
     #[pyo3(get)]
     pub events: Vec<TaskEvent>,
+
+    last_task_id: Option<String>,
 }
 
 impl WorkflowResult {
@@ -50,6 +52,7 @@ impl WorkflowResult {
         tasks: HashMap<String, Task>,
         output_types: &HashMap<String, Arc<Py<PyAny>>>,
         events: Vec<TaskEvent>,
+        last_task_id: Option<String>,
     ) -> Self {
         let py_tasks = tasks
             .into_iter()
@@ -77,6 +80,7 @@ impl WorkflowResult {
         Self {
             tasks: py_tasks,
             events,
+            last_task_id,
         }
     }
 }
@@ -91,6 +95,18 @@ impl WorkflowResult {
         });
 
         PyHelperFuncs::__str__(&json)
+    }
+
+    /// Get last task result
+    #[getter]
+    pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+        if let Some(last_task_id) = &self.last_task_id {
+            if let Some(task) = self.tasks.get(last_task_id) {
+                let result = task.bind(py).call_method0("result")?;
+                return Ok(result);
+            }
+        }
+        Ok(py.None().bind(py).clone())
     }
 }
 
@@ -295,6 +311,10 @@ impl Workflow {
             .keys()
             .cloned()
             .collect::<Vec<String>>()
+    }
+
+    pub fn last_task_id(&self) -> Option<String> {
+        self.task_list.get_last_task_id()
     }
 }
 
@@ -909,7 +929,13 @@ impl PyWorkflow {
                     .clone();
 
                 // Move the tasks out of the workflow
-                WorkflowResult::new(py, workflow.task_list.tasks(), &self.output_types, events)
+                WorkflowResult::new(
+                    py,
+                    workflow.task_list.tasks(),
+                    &self.output_types,
+                    events,
+                    workflow.task_list.get_last_task_id(),
+                )
             }
             // If there are other references, we need to clone
             Err(arc) => {
@@ -929,7 +955,13 @@ impl PyWorkflow {
                     .unwrap()
                     .clone();
 
-                WorkflowResult::new(py, workflow.task_list.tasks(), &self.output_types, events)
+                WorkflowResult::new(
+                    py,
+                    workflow.task_list.tasks(),
+                    &self.output_types,
+                    events,
+                    workflow.task_list.get_last_task_id(),
+                )
             }
         };
 

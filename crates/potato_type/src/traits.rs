@@ -3,7 +3,7 @@ use crate::{
     prompt::{MessageNum, ModelSettings, ResponseContent},
     Provider,
 };
-use potato_util::utils::ResponseLogProbs;
+use potato_util::utils::TokenLogProbs;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use regex::Regex;
@@ -105,7 +105,7 @@ pub trait ResponseAdapter {
     fn get_content(&self) -> ResponseContent;
 
     /// Retrieves the log probabilities from the response
-    fn get_log_probs(&self) -> Vec<ResponseLogProbs>;
+    fn get_log_probs(&self) -> Vec<TokenLogProbs>;
 
     /// Returns the structured output of the response
     /// For all response types the flow is as follows:

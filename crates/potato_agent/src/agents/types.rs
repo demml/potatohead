@@ -1,6 +1,7 @@
 use crate::agents::error::AgentError;
 use potato_provider::ChatResponse;
-use potato_util::utils::{LogProbs, ResponseLogProbs};
+use potato_util::utils::ResponseLogProbs;
+use potato_util::utils::TokenLogProbs;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -30,7 +31,7 @@ impl AgentResponse {
         Self { id, response }
     }
 
-    pub fn log_probs(&self) -> Vec<ResponseLogProbs> {
+    pub fn log_probs(&self) -> Vec<TokenLogProbs> {
         self.response.get_log_probs()
     }
 
@@ -79,8 +80,8 @@ impl PyAgentResponse {
     }
 
     #[getter]
-    pub fn log_probs(&self) -> LogProbs {
-        LogProbs {
+    pub fn log_probs(&self) -> ResponseLogProbs {
+        ResponseLogProbs {
             tokens: self.inner.log_probs(),
         }
     }

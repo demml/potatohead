@@ -7,9 +7,8 @@ from typing import (
     Dict,
     Generic,
     List,
-    Literal,
     Optional,
-    Sequence,
+    TypeAlias,
     TypeVar,
     Union,
     overload,
@@ -135,16 +134,31 @@ class ModelSettings(Generic[T]):
     """
 
     @overload
-    def __init__(self, settings: OpenAIChatSettings) -> None: ...
-    @overload
-    def __init__(self, settings: GeminiSettings) -> None: ...
-    @overload
-    def __init__(self, settings: AnthropicSettings) -> None: ...
-    def __init__(
-        self, settings: Union[OpenAIChatSettings, GeminiSettings, AnthropicSettings]
-    ) -> None:
-        """Initialize model settings."""
+    def __init__(self, settings: OpenAIChatSettings) -> None:
+        """Initialize with OpenAI settings.
 
+        Args:
+            settings: OpenAI chat completion settings
+        """
+        ...
+
+    @overload
+    def __init__(self, settings: GeminiSettings) -> None:
+        """Initialize with Gemini settings.
+
+        Args:
+            settings: Gemini/Google AI settings
+        """
+        ...
+
+    @overload
+    def __init__(self, settings: AnthropicSettings) -> None:
+        """Initialize with Anthropic settings.
+
+        Args:
+            settings: Anthropic Claude settings
+        """
+        ...
     @property
     def settings(self) -> T:
         """Provider-specific settings object."""
@@ -160,6 +174,815 @@ class ModelSettings(Generic[T]):
 
     def __str__(self) -> str:
         """String representation."""
+
+class Score:
+    """A class representing a score with a score value and a reason. This is typically used
+    as a response type for tasks/prompts that require scoring or evaluation of results.
+
+    Example:
+    ```python
+        Prompt(
+            model="openai:gpt-4o",
+            message="What is the score of this response?",
+            system_instruction="system_prompt",
+            response_format=Score,
+        )
+    ```
+    """
+
+    @property
+    def score(self) -> int:
+        """The score value."""
+
+    @property
+    def reason(self) -> str:
+        """The reason for the score."""
+
+    @staticmethod
+    def model_validate_json(json_string: str) -> "Score":
+        """Validate the score JSON.
+
+        Args:
+            json_string (str):
+                The JSON string to validate.
+
+        Returns:
+            Score:
+                The score object.
+        """
+
+    def __str__(self): ...
+
+PromptMessage: TypeAlias = Union[
+    str,
+    ChatMessage,
+    MessageParam,
+    GeminiContent,
+    List[Union[str, ChatMessage, MessageParam, GeminiContent]],
+]
+
+class Prompt:
+    """Prompt for interacting with an LLM API.
+
+    The Prompt class handles message parsing, provider-specific formatting, and
+    structured output configuration for LLM interactions.
+    """
+
+    def __init__(
+        self,
+        message: PromptMessage,
+        model: str,
+        provider: Provider | str,
+        system_instruction: Optional[PromptMessage] = None,
+        model_settings: Optional[
+            ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings
+        ] = None,
+        output_type: Optional[Any] = None,
+    ) -> None:
+        """Initialize a Prompt object.
+
+        Main parsing logic:
+        1. Extract model settings if provided, otherwise use provider default settings
+        2. Messages and system instructions are parsed into provider-specific formats
+           (OpenAIChatMessage, AnthropicMessage, or GeminiContent)
+        3. String messages are automatically converted to appropriate message types based on provider
+        4. Lists of messages are parsed with each item checked and converted accordingly
+        5. After parsing, a complete provider request structure is built
+
+        Args:
+            message (PromptMessage):
+                The user message(s) to use in the prompt
+            model (str):
+                The model identifier to use (e.g., "gpt-4o", "claude-3-5-sonnet-20241022")
+            provider (Provider | str):
+                The provider to use for the prompt (e.g., "openai", "anthropic", "google")
+            system_instruction (Optional[PromptMessage]):
+                Optional system instruction(s). Can be:
+            model_settings (Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings]):
+                Optional model-specific settings (temperature, max_tokens, etc.)
+                If None, provider default settings will be used
+            output_type (Optional[Pydantic BaseModel | Score]):
+                Optional structured output format.The provided format will be parsed into a JSON schema for structured outputs
+
+        Raises:
+            TypeError: If message types are invalid or incompatible with the provider
+        """
+
+    @property
+    def model(self) -> str:
+        """The model identifier to use for the prompt (e.g., "gpt-4o")."""
+
+    @property
+    def provider(self) -> Provider:
+        """The provider to use for the prompt (e.g., Provider.OpenAI)."""
+
+    @property
+    def model_identifier(self) -> str:
+        """Concatenation of provider and model for identifying the model.
+
+        This is commonly used with frameworks like pydantic_ai to identify
+        which model to use for an agent.
+
+        Returns:
+            str: Format is "{provider}:{model}" (e.g., "openai:gpt-4o")
+
+        Example:
+            ```python
+            prompt = Prompt(
+                model="gpt-4o",
+                message="My prompt variable is ${variable}",
+                system_instruction="You are a helpful assistant",
+                provider="openai",
+            )
+
+            # Use with pydantic_ai
+            agent = Agent(
+                prompt.model_identifier,  # "openai:gpt-4o"
+                system_prompt=prompt.system_instructions[0].content,
+            )
+            ```
+        """
+
+    @property
+    def model_settings(self) -> ModelSettings:
+        """The model settings used for the prompt.
+
+        Returns the provider-specific settings (OpenAIChatSettings, GeminiSettings,
+        or AnthropicSettings) wrapped in a ModelSettings union type.
+        """
+
+    @property
+    def messages(self) -> List[Any]:
+        """The user message(s) in the prompt.
+
+        Returns a list of provider-specific message objects that were parsed
+        from the input during initialization.
+        """
+
+    @property
+    def system_instructions(self) -> List[Any]:
+        """The system instruction message(s) in the prompt.
+
+        Returns a list of provider-specific message objects for system instructions.
+        Returns an empty list if no system instructions were provided.
+        """
+
+    @property
+    def parameters(self) -> List[str]:
+        """Extracted named parameters from the prompt messages.
+
+        Returns a list of all variable placeholders found in the prompt using
+        the ${variable_name} syntax. These can be bound to values using the
+        bind() or bind_mut() methods.
+
+        Example:
+            ```python
+            prompt = Prompt(
+                message="Hello ${name}, your score is ${score}",
+                model="gpt-4o",
+                provider="openai",
+            )
+            print(prompt.parameters)  # ["name", "score"]
+            ```
+        """
+
+    def save_prompt(self, path: Optional[Path] = None) -> Path:
+        """Save the prompt to a JSON file.
+
+        Args:
+            path (Optional[Path]):
+                The path to save the prompt to. If None, saves to the current
+                working directory with default filename "prompt.json".
+
+        Returns:
+            Path: The path where the prompt was saved.
+
+        Example:
+            ```python
+            prompt = Prompt(message="Hello!", model="gpt-4o", provider="openai")
+            saved_path = prompt.save_prompt(Path("my_prompt.json"))
+            ```
+        """
+
+    @staticmethod
+    def from_path(path: Path) -> "Prompt":
+        """Load a prompt from a JSON file.
+
+        Args:
+            path (Path):
+                The path to the prompt JSON file.
+
+        Returns:
+            Prompt: The loaded prompt object.
+
+        Raises:
+            IOError: If the file cannot be read
+            ValueError: If the JSON is invalid or cannot be parsed into a Prompt
+
+        Example:
+            ```python
+            prompt = Prompt.from_path(Path("my_prompt.json"))
+            ```
+        """
+
+    @staticmethod
+    def model_validate_json(json_string: str) -> "Prompt":
+        """Validate and parse a Prompt from a JSON string.
+
+        Args:
+            json_string (str):
+                A JSON string representation of a Prompt object.
+
+        Returns:
+            Prompt:
+                The parsed Prompt object.
+
+        Raises:
+            ValueError: If the JSON is invalid or cannot be parsed into a Prompt
+
+        Example:
+            ```python
+            json_str = '{"model": "gpt-4o", "provider": "openai", ...}'
+            prompt = Prompt.model_validate_json(json_str)
+            ```
+        """
+
+    def model_dump_json(self) -> str:
+        """Serialize the Prompt to a JSON string.
+
+        Returns:
+            str: JSON string representation of the Prompt.
+
+        Example:
+            ```python
+            prompt = Prompt(message="Hello!", model="gpt-4o", provider="openai")
+            json_str = prompt.model_dump_json()
+            ```
+        """
+
+    def bind(
+        self,
+        name: Optional[str] = None,
+        value: Optional[str | int | float | bool | list] = None,
+        **kwargs: Any,
+    ) -> "Prompt":
+        """Bind variables in the prompt (immutable operation).
+
+        Creates a new Prompt object with variables bound to values. This iterates
+        over all user messages and replaces ${variable_name} placeholders with
+        the provided values.
+
+        Args:
+            name (Optional[str]):
+                The name of a single variable to bind (without ${} syntax)
+            value (Optional[str | int | float | bool | list]):
+                The value to bind the variable to. Must be JSON serializable.
+            **kwargs:
+                Additional variables to bind. Keys are variable names,
+                values are the values to bind.
+
+        Returns:
+            Prompt: A new Prompt object with variables bound.
+
+        Raises:
+            TypeError: If no binding arguments are provided or if values are not
+                JSON serializable.
+
+        Example:
+            ```python
+            prompt = Prompt(
+                message="Hello ${name}, you scored ${score}/100",
+                model="gpt-4o",
+                provider="openai",
+            )
+
+            # Single variable binding
+            bound = prompt.bind("name", "Alice")
+
+            # Multiple variable binding
+            bound = prompt.bind(name="Alice", score=95)
+
+            # Original prompt is unchanged
+            print(prompt.parameters)  # ["name", "score"]
+            print(bound.parameters)   # []
+            ```
+        """
+
+    def bind_mut(
+        self,
+        name: Optional[str] = None,
+        value: Optional[str | int | float | bool | list] = None,
+        **kwargs: Any,
+    ) -> None:
+        """Bind variables in the prompt (mutable operation).
+
+        Modifies the current Prompt object by binding variables to values. This
+        iterates over all user messages and replaces ${variable_name} placeholders
+        with the provided values.
+
+        Args:
+            name (Optional[str]):
+                The name of a single variable to bind (without ${} syntax)
+            value (Optional[str | int | float | bool | list]):
+                The value to bind the variable to. Must be JSON serializable.
+            **kwargs:
+                Additional variables to bind. Keys are variable names,
+                values are the values to bind.
+
+        Raises:
+            TypeError: If no binding arguments are provided or if values are not
+                JSON serializable.
+
+        Example:
+            ```python
+            prompt = Prompt(
+                message="Hello ${name}, you scored ${score}/100",
+                model="gpt-4o",
+                provider="openai",
+            )
+
+            # Mutate in place
+            prompt.bind_mut(name="Bob", score=87)
+
+            # Prompt is now modified
+            print(prompt.parameters)  # []
+            ```
+        """
+
+    @property
+    def response_json_schema(self) -> Optional[str]:
+        """The JSON schema for structured output responses if provided.
+
+        Returns the JSON schema string that was generated from the response_format
+        parameter during initialization. Returns None if no response format was specified.
+        """
+
+    def __str__(self) -> str:
+        """Return a string representation of the Prompt."""
+
+class EventDetails:
+    @property
+    def prompt(self) -> Optional[Prompt]:
+        """The prompt used for the task."""
+
+    @property
+    def response(self) -> Optional[Any]:
+        """The response from the agent after executing the task."""
+
+    @property
+    def duration(self) -> Optional[datetime.timedelta]:
+        """The duration of the task execution."""
+
+    @property
+    def start_time(self) -> Optional[datetime.datetime]:
+        """The start time of the task execution."""
+
+    @property
+    def end_time(self) -> Optional[datetime.datetime]:
+        """The end time of the task execution."""
+
+    @property
+    def error(self) -> Optional[str]:
+        """The error message if the task failed, otherwise None."""
+
+class TaskEvent:
+    """A class representing an event that occurs during the execution of a task in a workflow."""
+    @property
+    def id(self) -> str:
+        """The ID of the event"""
+
+    @property
+    def workflow_id(self) -> str:
+        """The ID of the workflow that the task is part of."""
+
+    @property
+    def task_id(self) -> str:
+        """The ID of the task that the event is associated with."""
+
+    @property
+    def status(self) -> TaskStatus:
+        """The status of the task at the time of the event."""
+
+    @property
+    def timestamp(self) -> datetime.datetime:
+        """The timestamp of the event. This is the time when the event occurred."""
+
+    @property
+    def updated_at(self) -> datetime.datetime:
+        """The timestamp of when the event was last updated. This is useful for tracking changes to the event."""
+
+    @property
+    def details(self) -> EventDetails:
+        """Additional details about the event. This can include information such as error messages or other relevant data."""
+
+class WorkflowTask:
+    """Python-specific task interface for Task objects and results"""
+
+    @property
+    def prompt(self) -> Prompt:
+        """The prompt to use for the task."""
+
+    @property
+    def dependencies(self) -> List[str]:
+        """The dependencies of the task."""
+
+    @property
+    def id(self) -> str:
+        """The ID of the task."""
+
+    @property
+    def agent_id(self) -> str:
+        """The ID of the agent that will execute the task."""
+
+    @property
+    def status(self) -> TaskStatus:
+        """The status of the task."""
+
+    @property
+    def result(self) -> Optional[Any]:
+        """The result of the task if it has been executed, otherwise None."""
+
+    def __str__(self) -> str: ...
+
+class WorkflowResult:
+    @property
+    def tasks(self) -> Dict[str, WorkflowTask]:
+        """The tasks in the workflow result."""
+
+    @property
+    def events(self) -> List[TaskEvent]:
+        """The events that occurred during the workflow execution. This is a list of dictionaries
+        where each dictionary contains information about the event such as the task ID, status, and timestamp.
+        """
+
+    @property
+    def result(self) -> Optional[Any]:
+        """The result from the last task of the workflow if it has been executed, otherwise None."""
+
+class TokenLogProbs:
+    @property
+    def token(self) -> str:
+        """The token for which the log probabilities are calculated."""
+
+    @property
+    def logprob(self) -> float:
+        """The log probability of the token."""
+
+class ResponseLogProbs:
+    @property
+    def tokens(self) -> List[TokenLogProbs]:
+        """The log probabilities of the tokens in the response.
+        This is primarily used for debugging and analysis purposes.
+        """
+
+    def __str__(self) -> str:
+        """String representation of the log probabilities."""
+
+class AgentResponse:
+    @property
+    def id(self) -> str:
+        """The ID of the agent response."""
+
+    @property
+    def result(self) -> Any:
+        """The result of the agent response. This can be a Pydantic BaseModel class or a supported
+        potato_head response type such as `Score`. If neither is provided, the response json
+        will be returned as a dictionary.
+        """
+
+    @property
+    def token_usage(self) -> Usage:
+        """Returns the token usage of the agent response if supported"""
+
+    @property
+    def log_probs(self) -> ResponseLogProbs:
+        """Returns the log probabilities of the agent response if supported.
+        This is primarily used for debugging and analysis purposes.
+        """
+
+    @property
+    def structured_output(self) -> Any:
+        """Returns the structured output of the agent response if supported."""
+
+class Task:
+    def __init__(
+        self,
+        agent_id: str,
+        prompt: Prompt,
+        id: Optional[str] = None,
+        dependencies: List[str] = [],
+        max_retries: int = 3,
+    ) -> None:
+        """Create a Task object.
+
+        Args:
+            agent_id (str):
+                The ID of the agent that will execute the task.
+            prompt (Prompt):
+                The prompt to use for the task.
+            id (Optional[str]):
+                The ID of the task. If None, a random uuid7 will be generated.
+            dependencies (List[str]):
+                The dependencies of the task.
+            max_retries (int):
+                The maximum number of retries for the task if it fails. Defaults to 3.
+        """
+
+    def add_dependency(self, task_id: str) -> None:
+        """Add a dependency to the task."""
+
+    def set_status(self, status: TaskStatus) -> None:
+        """Set the status of the task."""
+
+    def set_result(self, result: Any) -> None:
+        """Set the result of the task."""
+
+    @property
+    def prompt(self) -> Prompt:
+        """The prompt to use for the task."""
+
+    @property
+    def dependencies(self) -> List[str]:
+        """The dependencies of the task."""
+
+    @property
+    def result(self) -> Optional[Any]:
+        """The result of the task if it has been executed, otherwise None."""
+
+    @property
+    def id(self) -> str:
+        """The ID of the task."""
+
+    @property
+    def status(self) -> TaskStatus:
+        """The status of the task."""
+
+class TaskList:
+    """TaskList is a collection of Task objects used in a Workflow."""
+    @property
+    def items(self) -> Dict[str, Task]:
+        """Dictionary of tasks in the TaskList where keys are task IDs and values are Task objects."""
+
+class Agent:
+    def __init__(
+        self,
+        provider: Provider | str,
+        system_instruction: Optional[PromptMessage] = None,
+    ) -> None:
+        """Create an Agent object.
+
+        Args:
+            provider (Provider | str):
+                The provider to use for the agent. This can be a Provider enum or a string
+                representing the provider.
+            system_instruction (Optional[PromptMessage]):
+                The system message to use for the agent. This can be a string, a list of strings,
+                a Message object, or a list of Message objects. If None, no system message will be used.
+                This is added to all tasks that the agent executes. If a given task contains it's own
+                system message, the agent's system message will be prepended to the task's system message.
+
+        Example:
+        ```python
+            agent = Agent(
+                provider=Provider.OpenAI,
+                system_instruction="You are a helpful assistant.",
+            )
+        ```
+        """
+
+    @property
+    def system_instruction(self) -> List[Any]:
+        """The system message to use for the agent. This is a list of Message objects."""
+
+    def execute_task(
+        self,
+        task: Task,
+        output_type: Optional[Any] = None,
+    ) -> AgentResponse:
+        """Execute a task.
+
+        Args:
+            task (Task):
+                The task to execute.
+            output_type (Optional[Any]):
+                The output type to use for the task. This can either be a Pydantic `BaseModel` class
+                or a supported PotatoHead response type such as `Score`.
+        Returns:
+            AgentResponse:
+                The response from the agent after executing the task.
+        """
+
+    def execute_prompt(
+        self,
+        prompt: Prompt,
+        output_type: Optional[Any] = None,
+    ) -> AgentResponse:
+        """Execute a prompt.
+
+        Args:
+            prompt (Prompt):
+                The prompt to execute.
+            output_type (Optional[Any]):
+                The output type to use for the task. This can either be a Pydantic `BaseModel` class
+                or a supported potato_head response type such as `Score`.
+
+        Returns:
+            AgentResponse:
+                The response from the agent after executing the task.
+        """
+
+    @property
+    def id(self) -> str:
+        """The ID of the agent. This is a random uuid7 that is generated when the agent is created."""
+
+class Workflow:
+    def __init__(self, name: str) -> None:
+        """Create a Workflow object.
+
+        Args:
+            name (str):
+                The name of the workflow.
+        """
+
+    @property
+    def name(self) -> str:
+        """The name of the workflow."""
+
+    @property
+    def task_list(self) -> TaskList:
+        """The tasks in the workflow."""
+
+    @property
+    def agents(self) -> Dict[str, Agent]:
+        """The agents in the workflow."""
+
+    @property
+    def is_workflow(self) -> bool:
+        """Returns True if the workflow is a valid workflow, otherwise False.
+        This is used to determine if the workflow can be executed.
+        """
+
+    def __workflow__(self) -> str:
+        """Returns a string representation of the workflow."""
+
+    def add_task_output_types(self, task_output_types: Dict[str, Any]) -> None:
+        """Add output types for tasks in the workflow. This is primarily used for
+        rehydrating the task output types when loading a workflow from JSON,
+        as python objects are not serializable.
+
+        Args:
+            task_output_types (Dict[str, Any]):
+                A dictionary mapping task IDs to their output types.
+                This can either be a Pydantic `BaseModel` class or a supported potato_head response type such as `Score`.
+        """
+
+    def add_task(self, task: Task, output_type: Optional[Any]) -> None:
+        """Add a task to the workflow.
+
+        Args:
+            task (Task):
+                The task to add to the workflow.
+            output_type (Optional[Any]):
+                The output type to use for the task. This can either be a Pydantic `BaseModel` class
+                or a supported potato_head response type such as `Score`.
+        """
+
+    def add_tasks(self, tasks: List[Task]) -> None:
+        """Add multiple tasks to the workflow.
+
+        Args:
+            tasks (List[Task]):
+                The tasks to add to the workflow.
+        """
+
+    def add_agent(self, agent: Agent) -> None:
+        """Add an agent to the workflow.
+
+        Args:
+            agent (Agent):
+                The agent to add to the workflow.
+        """
+
+    def add_agents(self, agents: List[Agent]) -> None:
+        """Add multiple agents to the workflow."""
+
+    def is_complete(self) -> bool:
+        """Check if the workflow is complete.
+
+        Returns:
+            bool:
+                True if the workflow is complete, False otherwise.
+        """
+
+    def pending_count(self) -> int:
+        """Get the number of pending tasks in the workflow.
+
+        Returns:
+            int:
+                The number of pending tasks in the workflow.
+        """
+
+    def execution_plan(self) -> Dict[str, List[str]]:
+        """Get the execution plan for the workflow.
+
+        Returns:
+            Dict[str, List[str]]:
+                A dictionary where the keys are task IDs and the values are lists of task IDs
+                that the task depends on.
+        """
+
+    def run(
+        self,
+        global_context: Optional[Dict[str, Any]] = None,
+    ) -> "WorkflowResult":
+        """Run the workflow. This will execute all tasks in the workflow and return when all tasks are complete.
+
+        Args:
+            global_context (Optional[Dict[str, Any]]):
+                A dictionary of global context to bind to the workflow.
+                All tasks in the workflow will have this context bound to them.
+        """
+
+    def model_dump_json(self) -> str:
+        """Dump the workflow to a JSON string.
+
+        Returns:
+            str:
+                The JSON string.
+        """
+
+    @staticmethod
+    def model_validate_json(
+        json_string: str,
+        output_types: Optional[Dict[str, Any]] = None,
+    ) -> "Workflow":
+        """Load a workflow from a JSON string.
+
+        Args:
+            json_string (str):
+                The JSON string to validate.
+            output_types (Optional[Dict[str, Any]]):
+                A dictionary mapping task IDs to their output types.
+                This can either be a Pydantic `BaseModel` class or a supported potato_head response type such as `Score`.
+
+        Returns:
+            Workflow:
+                The workflow object.
+        """
+
+class Embedder:
+    """Class for creating embeddings."""
+
+    def __init__(  # type: ignore
+        self,
+        provider: Provider | str,
+        config: Optional[OpenAIEmbeddingConfig | GeminiEmbeddingConfig] = None,
+    ) -> None:
+        """Create an Embedder object.
+
+        Args:
+            provider (Provider | str):
+                The provider to use for the embedder. This can be a Provider enum or a string
+                representing the provider.
+            config (Optional[OpenAIEmbeddingConfig | GeminiEmbeddingConfig]):
+                The configuration to use for the embedder. This can be a Pydantic BaseModel class
+                representing the configuration for the provider. If no config is provided,
+                defaults to OpenAI provider configuration.
+        """
+
+    def embed(
+        self,
+        input: str | List[str] | PredictRequest,
+    ) -> OpenAIEmbeddingResponse | GeminiEmbeddingResponse | PredictResponse:
+        """Create embeddings for input.
+
+        Args:
+            input: The input to embed. Type depends on provider:
+                - OpenAI/Gemini: str | List[str]
+                - Vertex: PredictRequest
+
+        Returns:
+            Provider-specific response type.
+            OpenAIEmbeddingResponse for OpenAI,
+            GeminiEmbeddingResponse for Gemini,
+            PredictResponse for Vertex.
+
+        Examples:
+            ```python
+            ## OpenAI
+            embedder = Embedder(Provider.OpenAI)
+            response = embedder.embed(input="Test input")
+
+            ## Gemini
+            embedder = Embedder(Provider.Gemini, config=GeminiEmbeddingConfig(model="gemini-embedding-001"))
+            response = embedder.embed(input="Test input")
+
+            ## Vertex
+            from potato_head.google import PredictRequest
+            embedder = Embedder(Provider.Vertex)
+            response = embedder.embed(input=PredictRequest(text="Test input"))
+            ```
+        """
 
 ###### __potatohead__.openai module ######
 

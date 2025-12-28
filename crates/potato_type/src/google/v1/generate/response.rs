@@ -4,8 +4,7 @@ use crate::google::v1::generate::DataNum;
 use crate::prompt::{MessageNum, ResponseContent};
 use crate::traits::{MessageResponseExt, ResponseAdapter};
 use crate::TypeError;
-use potato_util::utils::construct_structured_response;
-use potato_util::utils::ResponseLogProbs;
+use potato_util::utils::{construct_structured_response, TokenLogProbs};
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
@@ -585,7 +584,7 @@ impl ResponseAdapter for GenerateContentResponse {
         Ok(PyHelperFuncs::to_bound_py_object(py, &self.usage_metadata)?)
     }
 
-    fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
+    fn get_log_probs(&self) -> Vec<TokenLogProbs> {
         let mut probabilities = Vec::new();
         if let Some(choice) = self.candidates.first() {
             if let Some(logprobs_result) = &choice.logprobs_result {
@@ -594,7 +593,7 @@ impl ResponseAdapter for GenerateContentResponse {
                         // Look for single digit tokens (1, 2, 3, 4, 5)
                         if let Some(token) = &log_content.token {
                             if token.len() == 1 && token.chars().next().unwrap().is_ascii_digit() {
-                                probabilities.push(ResponseLogProbs {
+                                probabilities.push(TokenLogProbs {
                                     token: token.clone(),
                                     logprob: log_content.log_probability.unwrap_or(0.0),
                                 });

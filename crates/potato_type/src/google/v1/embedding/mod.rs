@@ -4,7 +4,7 @@ use crate::prompt::ResponseContent;
 use crate::prompt::Role;
 use crate::traits::ResponseAdapter;
 use crate::TypeError;
-use potato_util::utils::ResponseLogProbs;
+use potato_util::utils::TokenLogProbs;
 use potato_util::PyHelperFuncs;
 use potato_util::{json_to_pyobject, pyobject_to_json};
 use pyo3::prelude::*;
@@ -142,7 +142,7 @@ impl ResponseAdapter for PredictResponse {
         Ok(py.None().into_bound_py_any(py)?)
     }
 
-    fn get_log_probs(&self) -> Vec<ResponseLogProbs> {
+    fn get_log_probs(&self) -> Vec<TokenLogProbs> {
         vec![]
     }
 

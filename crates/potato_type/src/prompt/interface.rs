@@ -187,9 +187,9 @@ impl Prompt {
     /// * `provider`: The provider to use for the prompt.
     /// * `system_instruction`: Optional system instruction message or list of messages.
     /// * `model_settings`: Optional model settings to use for the prompt.
-    /// * `response_format`: Optional response format to enforce structured output.
+    /// * `output_type`: Optional output type to enforce structured output.
     #[new]
-    #[pyo3(signature = (message, model, provider, system_instruction=None, model_settings=None, response_format=None))]
+    #[pyo3(signature = (message, model, provider, system_instruction=None, model_settings=None, output_type=None))]
     pub fn new(
         py: Python<'_>,
         message: &Bound<'_, PyAny>,
@@ -197,7 +197,7 @@ impl Prompt {
         provider: &Bound<'_, PyAny>,
         system_instruction: Option<&Bound<'_, PyAny>>,
         model_settings: Option<&Bound<'_, PyAny>>,
-        response_format: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
+        output_type: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
     ) -> Result<Self, TypeError> {
         // 1. get model settings if provided
         let model_settings = model_settings
@@ -218,10 +218,10 @@ impl Prompt {
         };
 
         // 4.  validate response_json_schema
-        let (response_type, response_json_schema) = match response_format {
-            Some(response_format) => {
-                // check if response_format is a pydantic model and extract the model json schema
-                parse_response_to_json(py, response_format)?
+        let (response_type, response_json_schema) = match output_type {
+            Some(output_type) => {
+                // check if output_type is a pydantic model and extract the model json schema
+                parse_response_to_json(py, output_type)?
             }
             None => (ResponseType::Null, None),
         };

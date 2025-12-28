@@ -337,7 +337,7 @@ pub fn extract_string_value(py_value: &Bound<'_, PyAny>) -> Result<String, UtilE
 
 #[pyclass]
 #[derive(Debug, Serialize, Clone)]
-pub struct ResponseLogProbs {
+pub struct TokenLogProbs {
     #[pyo3(get)]
     pub token: String,
 
@@ -347,20 +347,20 @@ pub struct ResponseLogProbs {
 
 #[pyclass]
 #[derive(Debug, Serialize, Clone)]
-pub struct LogProbs {
+pub struct ResponseLogProbs {
     #[pyo3(get)]
-    pub tokens: Vec<ResponseLogProbs>,
+    pub tokens: Vec<TokenLogProbs>,
 }
 
 #[pymethods]
-impl LogProbs {
+impl ResponseLogProbs {
     pub fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
     }
 }
 
 /// Calculate a weighted score base on the log probabilities of tokens 1-5.
-pub fn calculate_weighted_score(log_probs: &[ResponseLogProbs]) -> Result<Option<f64>, UtilError> {
+pub fn calculate_weighted_score(log_probs: &[TokenLogProbs]) -> Result<Option<f64>, UtilError> {
     let score_range = RangeInclusive::new(1, 5);
     let mut score_probs = Vec::new();
     let mut weighted_sum = 0.0;
@@ -456,15 +456,15 @@ mod tests {
     #[test]
     fn test_calculate_weighted_score() {
         let log_probs = vec![
-            ResponseLogProbs {
+            TokenLogProbs {
                 token: "1".into(),
                 logprob: 0.9,
             },
-            ResponseLogProbs {
+            TokenLogProbs {
                 token: "2".into(),
                 logprob: 0.8,
             },
-            ResponseLogProbs {
+            TokenLogProbs {
                 token: "3".into(),
                 logprob: 0.7,
             },
@@ -479,7 +479,7 @@ mod tests {
     }
     #[test]
     fn test_calculate_weighted_score_empty() {
-        let log_probs: Vec<ResponseLogProbs> = vec![];
+        let log_probs: Vec<TokenLogProbs> = vec![];
         let result = calculate_weighted_score(&log_probs);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), None);

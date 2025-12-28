@@ -1,3 +1,4 @@
+use crate::AgentError;
 use crate::{AgentResponse, PyAgentResponse};
 use potato_type::prompt::Prompt;
 use potato_util::PyHelperFuncs;
@@ -36,7 +37,7 @@ pub struct WorkflowTask {
 #[pymethods]
 impl WorkflowTask {
     #[getter]
-    pub fn result<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+    pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
         if let Some(resp) = &self.result {
             let output = resp.structured_output(py)?;
             Ok(output)
@@ -101,7 +102,7 @@ impl Task {
     }
 
     #[getter]
-    pub fn result<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+    pub fn result<'py>(&self, py: Python<'py>) -> Result<Option<Bound<'py, PyAny>>, AgentError> {
         match &self.result {
             Some(resp) => Ok(resp.clone().into_bound_py_any(py).map(Some)?),
             None => Ok(None),
