@@ -2456,6 +2456,36 @@ class ChatMessage:
     def name(self) -> Optional[str]:
         """The message name."""
 
+    def bind(
+        self,
+        name: Optional[str] = None,
+        value: Optional[str | int | float | bool | list] = None,
+    ) -> "ChatMessage":
+        """Bind variables to the message content.
+        Args:
+            name (Optional[str]):
+                The variable name to bind.
+            value (Optional[Union[str, int, float, bool, list]]):
+                The variable value to bind.
+        Returns:
+            ChatMessage: A new ChatMessage instance with bound variables.
+        """
+
+    def bind_mut(
+        self,
+        name: Optional[str] = None,
+        value: Optional[str | int | float | bool | list] = None,
+    ) -> None:
+        """Bind variables to the message content in place.
+        Args:
+            name (Optional[str]):
+                The variable name to bind.
+            value (Optional[Union[str, int, float, bool, list]]):
+                The variable value to bind.
+        Returns:
+            None
+        """
+
 # ============================================================================
 # Response Types
 # ============================================================================
@@ -5191,6 +5221,37 @@ class GeminiContent:
     @property
     def parts(self) -> List[Part]:
         """The message parts."""
+
+    def bind(
+        self,
+        name: Optional[str] = None,
+        value: Optional[str | int | float | bool | list] = None,
+    ) -> "GeminiContent":
+        """Bind variables to the message content.
+        Args:
+            name (Optional[str]):
+                The variable name to bind.
+            value (Optional[Union[str, int, float, bool, list]]):
+                The variable value to bind.
+        Returns:
+            GeminiContent:
+                New content with variables bound.
+        """
+
+    def bind_mut(
+        self,
+        name: Optional[str] = None,
+        value: Optional[str | int | float | bool | list] = None,
+    ) -> None:
+        """Bind variables to the message content in place.
+        Args:
+            name (Optional[str]):
+                The variable name to bind.
+            value (Optional[Union[str, int, float, bool, list]]):
+                The variable value to bind.
+        Returns:
+            None
+        """
 
 class FunctionDeclaration:
     """Function declaration for tool use.
@@ -8461,6 +8522,36 @@ class MessageParam:
     @property
     def role(self) -> str:
         """Message role."""
+
+    def bind(
+        self,
+        name: Optional[str] = None,
+        value: Optional[str | int | float | bool | list] = None,
+    ) -> "MessageParam":
+        """Bind variables to the message content.
+        Args:
+            name (Optional[str]):
+                The variable name to bind.
+            value (Optional[Union[str, int, float, bool, list]]):
+                The variable value to bind.
+        Returns:
+            MessageParam: A new MessageParam instance with bound variables.
+        """
+
+    def bind_mut(
+        self,
+        name: Optional[str] = None,
+        value: Optional[str | int | float | bool | list] = None,
+    ) -> None:
+        """Bind variables to the message content in place.
+        Args:
+            name (Optional[str]):
+                The variable name to bind.
+            value (Optional[Union[str, int, float, bool, list]]):
+                The variable value to bind.
+        Returns:
+            None
+        """
 
 class Metadata:
     """Request metadata.
