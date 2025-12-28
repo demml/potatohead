@@ -946,7 +946,6 @@ macro_rules! try_extract_content_block {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
 pub struct ContentBlockParam {
     #[serde(flatten)]
     pub(crate) inner: ContentBlock,
@@ -1143,7 +1142,6 @@ impl ContentBlockParam {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass]
 pub struct MessageParam {
-    #[pyo3(get)]
     pub content: Vec<ContentBlockParam>,
     #[pyo3(get)]
     pub role: String,

@@ -2,7 +2,164 @@
 
 import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Sequence, TypeVar, Union
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    TypeVar,
+    Union,
+    overload,
+)
+
+###### __potatohead__.main module ######
+
+class Provider:
+    """Provider enumeration for LLM services.
+
+    Specifies which LLM provider to use for prompts, agents, and workflows.
+
+    Examples:
+        >>> provider = Provider.OpenAI
+        >>> agent = Agent(provider=provider)
+    """
+
+    OpenAI: "Provider"
+    """OpenAI provider"""
+
+    Gemini: "Provider"
+    """Google Gemini provider"""
+
+    Vertex: "Provider"
+    """Google Vertex AI provider"""
+
+    Google: "Provider"
+    """Google provider (alias for Gemini)"""
+
+    Anthropic: "Provider"
+    """Anthropic provider"""
+
+    Undefined: "Provider"
+    """Undefined provider"""
+
+class Role:
+    """Message role in conversation.
+
+    Indicates the role of a message sender in a conversation.
+
+    Examples:
+        >>> role = Role.User
+        >>> role.as_str()
+        'user'
+    """
+
+    User: "Role"
+    """User role"""
+
+    Assistant: "Role"
+    """Assistant role"""
+
+    Developer: "Role"
+    """Developer/system role"""
+
+    Tool: "Role"
+    """Tool role"""
+
+    Model: "Role"
+    """Model role"""
+
+    System: "Role"
+    """System role"""
+
+    def as_str(self) -> str:
+        """Return string representation of role."""
+
+class ResponseType:
+    """Type of structured response.
+
+    Indicates the expected response format for structured outputs.
+
+    Examples:
+        >>> response_type = ResponseType.Score
+        >>> response_type = ResponseType.Pydantic
+    """
+
+    Score: "ResponseType"
+    """Score response type"""
+
+    Pydantic: "ResponseType"
+    """Pydantic BaseModel response type"""
+
+    Null: "ResponseType"
+    """No structured response type"""
+
+class TaskStatus:
+    """Status of a task in a workflow.
+
+    Indicates the current state of task execution.
+
+    Examples:
+        >>> status = TaskStatus.Pending
+        >>> status = TaskStatus.Completed
+    """
+
+    Pending: "TaskStatus"
+    """Task is pending execution"""
+
+    Running: "TaskStatus"
+    """Task is currently running"""
+
+    Completed: "TaskStatus"
+    """Task has completed successfully"""
+
+    Failed: "TaskStatus"
+    """Task has failed"""
+
+T = TypeVar("T", OpenAIChatSettings, GeminiSettings, AnthropicSettings)
+
+class ModelSettings(Generic[T]):
+    """Configuration settings for LLM models.
+
+    Unified interface for provider-specific model settings.
+
+    Examples:
+        >>> from potato_head.openai import OpenAIChatSettings
+        >>> settings = OpenAIChatSettings(temperature=0.7, max_tokens=1000)
+        >>> model_settings = ModelSettings(settings)
+        >>>
+        >>> # Or extract from existing settings
+        >>> openai_settings = model_settings.settings
+    """
+
+    @overload
+    def __init__(self, settings: OpenAIChatSettings) -> None: ...
+    @overload
+    def __init__(self, settings: GeminiSettings) -> None: ...
+    @overload
+    def __init__(self, settings: AnthropicSettings) -> None: ...
+    def __init__(
+        self, settings: Union[OpenAIChatSettings, GeminiSettings, AnthropicSettings]
+    ) -> None:
+        """Initialize model settings."""
+
+    @property
+    def settings(self) -> T:
+        """Provider-specific settings object."""
+
+    def model_dump_json(self) -> str:
+        """Serialize settings to JSON string."""
+
+    def model_dump(self) -> Dict[str, Any]:
+        """Serialize settings to dictionary."""
+
+    def settings_type(self) -> Any:
+        """Return the settings type."""
+
+    def __str__(self) -> str:
+        """String representation."""
 
 ###### __potatohead__.openai module ######
 
@@ -6437,78 +6594,1103 @@ class GeminiEmbeddingResponse:
         """The generated embedding."""
 
 ###### __potatohead__.anthropic module ######
-class Metadata:
-    """Metadata for Anthropic API requests.
 
-    This class provides metadata configuration for Anthropic chat completions,
-    including user identification for tracking and analytics.
+class CitationCharLocationParam:
+    """Citation with character-level location in document.
+
+    Specifies a citation reference using character indices within a document.
+
+    Examples:
+        >>> citation = CitationCharLocationParam(
+        ...     cited_text="Example text",
+        ...     document_index=0,
+        ...     document_title="Document Title",
+        ...     end_char_index=100,
+        ...     start_char_index=50
+        ... )
+    """
+
+    def __init__(
+        self,
+        cited_text: str,
+        document_index: int,
+        document_title: str,
+        end_char_index: int,
+        start_char_index: int,
+    ) -> None:
+        """Initialize character location citation.
+
+        Args:
+            cited_text (str):
+                The text being cited
+            document_index (int):
+                Index of the document in the input
+            document_title (str):
+                Title of the document
+            end_char_index (int):
+                Ending character position
+            start_char_index (int):
+                Starting character position
+        """
+
+    @property
+    def cited_text(self) -> str:
+        """The cited text."""
+
+    @property
+    def document_index(self) -> int:
+        """Document index."""
+
+    @property
+    def document_title(self) -> str:
+        """Document title."""
+
+    @property
+    def end_char_index(self) -> int:
+        """End character index."""
+
+    @property
+    def start_char_index(self) -> int:
+        """Start character index."""
+
+    @property
+    def type(self) -> str:
+        """Citation type (always 'char_location')."""
+
+class CitationPageLocationParam:
+    """Citation with page-level location in document.
+
+    Specifies a citation reference using page numbers within a document.
+
+    Examples:
+        >>> citation = CitationPageLocationParam(
+        ...     cited_text="Example text",
+        ...     document_index=0,
+        ...     document_title="Document Title",
+        ...     end_page_number=10,
+        ...     start_page_number=5
+        ... )
+    """
+
+    def __init__(
+        self,
+        cited_text: str,
+        document_index: int,
+        document_title: str,
+        end_page_number: int,
+        start_page_number: int,
+    ) -> None:
+        """Initialize page location citation.
+
+        Args:
+            cited_text (str):
+                The text being cited
+            document_index (int):
+                Index of the document in the input
+            document_title (str):
+                Title of the document
+            end_page_number (int):
+                Ending page number
+            start_page_number (int):
+                Starting page number
+        """
+
+    @property
+    def cited_text(self) -> str:
+        """The cited text."""
+
+    @property
+    def document_index(self) -> int:
+        """Document index."""
+
+    @property
+    def document_title(self) -> str:
+        """Document title."""
+
+    @property
+    def end_page_number(self) -> int:
+        """End page number."""
+
+    @property
+    def start_page_number(self) -> int:
+        """Start page number."""
+
+    @property
+    def type(self) -> str:
+        """Citation type (always 'page_location')."""
+
+class CitationContentBlockLocationParam:
+    """Citation with content block location in document.
+
+    Specifies a citation reference using content block indices within a document.
+
+    Examples:
+        >>> citation = CitationContentBlockLocationParam(
+        ...     cited_text="Example text",
+        ...     document_index=0,
+        ...     document_title="Document Title",
+        ...     end_block_index=5,
+        ...     start_block_index=2
+        ... )
+    """
+
+    def __init__(
+        self,
+        cited_text: str,
+        document_index: int,
+        document_title: str,
+        end_block_index: int,
+        start_block_index: int,
+    ) -> None:
+        """Initialize content block location citation.
+
+        Args:
+            cited_text (str):
+                The text being cited
+            document_index (int):
+                Index of the document in the input
+            document_title (str):
+                Title of the document
+            end_block_index (int):
+                Ending content block index
+            start_block_index (int):
+                Starting content block index
+        """
+
+    @property
+    def cited_text(self) -> str:
+        """The cited text."""
+
+    @property
+    def document_index(self) -> int:
+        """Document index."""
+
+    @property
+    def document_title(self) -> str:
+        """Document title."""
+
+    @property
+    def end_block_index(self) -> int:
+        """End block index."""
+
+    @property
+    def start_block_index(self) -> int:
+        """Start block index."""
+
+    @property
+    def type(self) -> str:
+        """Citation type (always 'content_block_location')."""
+
+class CitationWebSearchResultLocationParam:
+    """Citation from web search result.
+
+    Specifies a citation reference from a web search result.
+
+    Examples:
+        >>> citation = CitationWebSearchResultLocationParam(
+        ...     cited_text="Example text",
+        ...     encrypted_index="abc123",
+        ...     title="Search Result",
+        ...     url="https://example.com"
+        ... )
+    """
+
+    def __init__(
+        self,
+        cited_text: str,
+        encrypted_index: str,
+        title: str,
+        url: str,
+    ) -> None:
+        """Initialize web search result citation.
+
+        Args:
+            cited_text (str):
+                The text being cited
+            encrypted_index (str):
+                Encrypted search result index
+            title (str):
+                Title of the search result
+            url (str):
+                URL of the search result
+        """
+
+    @property
+    def cited_text(self) -> str:
+        """The cited text."""
+
+    @property
+    def encrypted_index(self) -> str:
+        """Encrypted index."""
+
+    @property
+    def title(self) -> str:
+        """Result title."""
+
+    @property
+    def type(self) -> str:
+        """Citation type (always 'web_search_result_location')."""
+
+    @property
+    def url(self) -> str:
+        """Result URL."""
+
+class CitationSearchResultLocationParam:
+    """Citation from search result.
+
+    Specifies a citation reference from a search result with block-level location.
+
+    Examples:
+        >>> citation = CitationSearchResultLocationParam(
+        ...     cited_text="Example text",
+        ...     end_block_index=5,
+        ...     search_result_index=0,
+        ...     source="https://example.com",
+        ...     start_block_index=2,
+        ...     title="Search Result"
+        ... )
+    """
+
+    def __init__(
+        self,
+        cited_text: str,
+        end_block_index: int,
+        search_result_index: int,
+        source: str,
+        start_block_index: int,
+        title: str,
+    ) -> None:
+        """Initialize search result citation.
+
+        Args:
+            cited_text (str):
+                The text being cited
+            end_block_index (int):
+                Ending content block index
+            search_result_index (int):
+                Index of the search result
+            source (str):
+                Source URL or identifier
+            start_block_index (int):
+                Starting content block index
+            title (str):
+                Title of the search result
+        """
+
+    @property
+    def cited_text(self) -> str:
+        """The cited text."""
+
+    @property
+    def end_block_index(self) -> int:
+        """End block index."""
+
+    @property
+    def search_result_index(self) -> int:
+        """Search result index."""
+
+    @property
+    def source(self) -> str:
+        """Result source."""
+
+    @property
+    def start_block_index(self) -> int:
+        """Start block index."""
+
+    @property
+    def title(self) -> str:
+        """Result title."""
+
+    @property
+    def type(self) -> str:
+        """Citation type (always 'search_result_location')."""
+
+class TextBlockParam:
+    """Text content block parameter.
+
+    Regular text content with optional cache control and citations.
+
+    Examples:
+        >>> # Simple text block
+        >>> block = TextBlockParam(text="Hello, world!", cache_control=None, citations=None)
+        >>>
+        >>> # With cache control
+        >>> cache = CacheControl(cache_type="ephemeral", ttl="5m")
+        >>> block = TextBlockParam(text="Hello", cache_control=cache, citations=None)
+    """
+
+    def __init__(
+        self,
+        text: str,
+        cache_control: Optional["CacheControl"] = None,
+        citations: Optional[Any] = None,
+    ) -> None:
+        """Initialize text block parameter.
+
+        Args:
+            text (str):
+                Text content
+            cache_control (Optional[CacheControl]):
+                Cache control settings
+            citations (Optional[Any]):
+                Citation information
+        """
+
+    @property
+    def text(self) -> str:
+        """The text content."""
+
+    @property
+    def cache_control(self) -> Optional["CacheControl"]:
+        """Cache control settings."""
+
+    @property
+    def type(self) -> str:
+        """Content type (always 'text')."""
+
+class Base64ImageSource:
+    """Base64-encoded image source.
+
+    Image data encoded in base64 format with media type.
+
+    Examples:
+        >>> source = Base64ImageSource(
+        ...     media_type="image/jpeg",
+        ...     data="base64_encoded_data_here"
+        ... )
+    """
+
+    def __init__(self, media_type: str, data: str) -> None:
+        """Initialize base64 image source.
+
+        Args:
+            media_type (str):
+                Image media type (e.g., "image/jpeg", "image/png")
+            data (str):
+                Base64-encoded image data
+        """
+
+    @property
+    def media_type(self) -> str:
+        """Image media type."""
+
+    @property
+    def data(self) -> str:
+        """Base64-encoded image data."""
+
+    @property
+    def type(self) -> str:
+        """Source type (always 'base64')."""
+
+class UrlImageSource:
+    """URL-based image source.
+
+    Image referenced by URL.
+
+    Examples:
+        >>> source = UrlImageSource(url="https://example.com/image.jpg")
+    """
+
+    def __init__(self, url: str) -> None:
+        """Initialize URL image source.
+
+        Args:
+            url (str):
+                Image URL
+        """
+
+    @property
+    def url(self) -> str:
+        """Image URL."""
+
+    @property
+    def type(self) -> str:
+        """Source type (always 'url')."""
+
+class ImageBlockParam:
+    """Image content block parameter.
+
+    Image content with source and optional cache control.
+
+    Examples:
+        >>> # Base64 image
+        >>> source = Base64ImageSource(media_type="image/jpeg", data="...")
+        >>> block = ImageBlockParam(source=source, cache_control=None)
+        >>>
+        >>> # URL image
+        >>> source = UrlImageSource(url="https://example.com/image.jpg")
+        >>> block = ImageBlockParam(source=source, cache_control=None)
+    """
+
+    def __init__(
+        self,
+        source: Any,
+        cache_control: Optional["CacheControl"] = None,
+    ) -> None:
+        """Initialize image block parameter.
+
+        Args:
+            source (Any):
+                Image source (Base64ImageSource or UrlImageSource)
+            cache_control (Optional[CacheControl]):
+                Cache control settings
+        """
+
+    @property
+    def source(self) -> Any:
+        """Image source."""
+
+    @property
+    def cache_control(self) -> Optional["CacheControl"]:
+        """Cache control settings."""
+
+    @property
+    def type(self) -> str:
+        """Content type (always 'image')."""
+
+class Base64PDFSource:
+    """Base64-encoded PDF source.
+
+    PDF document data encoded in base64 format.
+
+    Examples:
+        >>> source = Base64PDFSource(data="base64_encoded_pdf_data")
+    """
+
+    def __init__(self, data: str) -> None:
+        """Initialize base64 PDF source.
+
+        Args:
+            data (str):
+                Base64-encoded PDF data
+        """
+
+    @property
+    def media_type(self) -> str:
+        """Media type (always 'application/pdf')."""
+
+    @property
+    def data(self) -> str:
+        """Base64-encoded PDF data."""
+
+    @property
+    def type(self) -> str:
+        """Source type (always 'base64')."""
+
+class UrlPDFSource:
+    """URL-based PDF source.
+
+    PDF document referenced by URL.
+
+    Examples:
+        >>> source = UrlPDFSource(url="https://example.com/document.pdf")
+    """
+
+    def __init__(self, url: str) -> None:
+        """Initialize URL PDF source.
+
+        Args:
+            url (str):
+                PDF document URL
+        """
+
+    @property
+    def url(self) -> str:
+        """PDF URL."""
+
+    @property
+    def type(self) -> str:
+        """Source type (always 'url')."""
+
+class PlainTextSource:
+    """Plain text document source.
+
+    Plain text document data.
+
+    Examples:
+        >>> source = PlainTextSource(data="Plain text content")
+    """
+
+    def __init__(self, data: str) -> None:
+        """Initialize plain text source.
+
+        Args:
+            data (str):
+                Plain text content
+        """
+
+    @property
+    def media_type(self) -> str:
+        """Media type (always 'text/plain')."""
+
+    @property
+    def data(self) -> str:
+        """Text content."""
+
+    @property
+    def type(self) -> str:
+        """Source type (always 'text')."""
+
+class CitationsConfigParams:
+    """Configuration for citations.
+
+    Controls whether citations are enabled for document content.
+
+    Examples:
+        >>> config = CitationsConfigParams()
+        >>> config.enabled = True
+    """
+
+    @property
+    def enabled(self) -> Optional[bool]:
+        """Whether citations are enabled."""
+
+class DocumentBlockParam:
+    """Document content block parameter.
+
+    Document content with source, optional cache control, title, context, and citations.
+
+    Examples:
+        >>> # PDF document
+        >>> source = Base64PDFSource(data="...")
+        >>> block = DocumentBlockParam(
+        ...     source=source,
+        ...     title="Document Title",
+        ...     context="Additional context",
+        ...     citations=CitationsConfigParams()
+        ... )
+    """
+
+    def __init__(
+        self,
+        source: Any,
+        cache_control: Optional["CacheControl"] = None,
+        title: Optional[str] = None,
+        context: Optional[str] = None,
+        citations: Optional[CitationsConfigParams] = None,
+    ) -> None:
+        """Initialize document block parameter.
+
+        Args:
+            source (Any):
+                Document source (Base64PDFSource, UrlPDFSource, or PlainTextSource)
+            cache_control (Optional[CacheControl]):
+                Cache control settings
+            title (Optional[str]):
+                Document title
+            context (Optional[str]):
+                Additional context about the document
+            citations (Optional[CitationsConfigParams]):
+                Citations configuration
+        """
+
+    @property
+    def cache_control(self) -> Optional["CacheControl"]:
+        """Cache control settings."""
+
+    @property
+    def title(self) -> Optional[str]:
+        """Document title."""
+
+    @property
+    def context(self) -> Optional[str]:
+        """Document context."""
+
+    @property
+    def type(self) -> str:
+        """Content type (always 'document')."""
+
+    @property
+    def citations(self) -> Optional[CitationsConfigParams]:
+        """Citations configuration."""
+
+class SearchResultBlockParam:
+    """Search result content block parameter.
+
+    Search result content with text blocks, source, and title.
+
+    Examples:
+        >>> content = [TextBlockParam(text="Result content", cache_control=None, citations=None)]
+        >>> block = SearchResultBlockParam(
+        ...     content=content,
+        ...     source="https://example.com",
+        ...     title="Search Result",
+        ...     cache_control=None,
+        ...     citations=None
+        ... )
+    """
+
+    def __init__(
+        self,
+        content: List[TextBlockParam],
+        source: str,
+        title: str,
+        cache_control: Optional["CacheControl"] = None,
+        citations: Optional[CitationsConfigParams] = None,
+    ) -> None:
+        """Initialize search result block parameter.
+
+        Args:
+            content (List[TextBlockParam]):
+                List of text content blocks
+            source (str):
+                Source URL or identifier
+            title (str):
+                Result title
+            cache_control (Optional[CacheControl]):
+                Cache control settings
+            citations (Optional[CitationsConfigParams]):
+                Citations configuration
+        """
+
+    @property
+    def content(self) -> List[TextBlockParam]:
+        """Content blocks."""
+
+    @property
+    def source(self) -> str:
+        """Result source."""
+
+    @property
+    def title(self) -> str:
+        """Result title."""
+
+    @property
+    def type(self) -> str:
+        """Content type (always 'search_result')."""
+
+    @property
+    def cache_control(self) -> Optional["CacheControl"]:
+        """Cache control settings."""
+
+    @property
+    def citations(self) -> Optional[CitationsConfigParams]:
+        """Citations configuration."""
+
+class ThinkingBlockParam:
+    """Thinking content block parameter.
+
+    Claude's internal thinking/reasoning process.
+
+    Examples:
+        >>> block = ThinkingBlockParam(
+        ...     thinking="Let me think about this...",
+        ...     signature="signature_string"
+        ... )
+    """
+
+    def __init__(
+        self,
+        thinking: str,
+        signature: Optional[str] = None,
+    ) -> None:
+        """Initialize thinking block parameter.
+
+        Args:
+            thinking (str):
+                The thinking content
+            signature (Optional[str]):
+                Cryptographic signature
+        """
+
+    @property
+    def thinking(self) -> str:
+        """Thinking content."""
+
+    @property
+    def signature(self) -> Optional[str]:
+        """Cryptographic signature."""
+
+    @property
+    def type(self) -> str:
+        """Content type (always 'thinking')."""
+
+class RedactedThinkingBlockParam:
+    """Redacted thinking content block parameter.
+
+    Redacted version of Claude's thinking process.
+
+    Examples:
+        >>> block = RedactedThinkingBlockParam(data="[REDACTED]")
+    """
+
+    def __init__(self, data: str) -> None:
+        """Initialize redacted thinking block parameter.
+
+        Args:
+            data (str):
+                Redacted thinking data
+        """
+
+    @property
+    def data(self) -> str:
+        """Redacted data."""
+
+    @property
+    def type(self) -> str:
+        """Content type (always 'redacted_thinking')."""
+
+class ToolUseBlockParam:
+    """Tool use content block parameter.
+
+    Represents a tool call made by the model.
+
+    Examples:
+        >>> block = ToolUseBlockParam(
+        ...     id="tool_call_123",
+        ...     name="get_weather",
+        ...     input={"location": "San Francisco"},
+        ...     cache_control=None
+        ... )
+    """
+
+    def __init__(
+        self,
+        id: str,
+        name: str,
+        input: Any,
+        cache_control: Optional["CacheControl"] = None,
+    ) -> None:
+        """Initialize tool use block parameter.
+
+        Args:
+            id (str):
+                Tool call ID
+            name (str):
+                Tool name
+            input (Any):
+                Tool input parameters
+            cache_control (Optional[CacheControl]):
+                Cache control settings
+        """
+
+    @property
+    def id(self) -> str:
+        """Tool call ID."""
+
+    @property
+    def name(self) -> str:
+        """Tool name."""
+
+    @property
+    def input(self) -> Any:
+        """Tool input parameters."""
+
+    @property
+    def cache_control(self) -> Optional["CacheControl"]:
+        """Cache control settings."""
+
+    @property
+    def type(self) -> str:
+        """Content type (always 'tool_use')."""
+
+class ToolResultBlockParam:
+    """Tool result content block parameter.
+
+    Contains the result from executing a tool.
+
+    Examples:
+        >>> # Success result
+        >>> content = [TextBlockParam(text="Result data", cache_control=None, citations=None)]
+        >>> block = ToolResultBlockParam(
+        ...     tool_use_id="tool_call_123",
+        ...     is_error=False,
+        ...     cache_control=None,
+        ...     content=content
+        ... )
+        >>>
+        >>> # Error result
+        >>> block = ToolResultBlockParam(
+        ...     tool_use_id="tool_call_123",
+        ...     is_error=True,
+        ...     cache_control=None,
+        ...     content=None
+        ... )
+    """
+
+    def __init__(
+        self,
+        tool_use_id: str,
+        is_error: Optional[bool] = None,
+        cache_control: Optional["CacheControl"] = None,
+        content: Optional[List[Any]] = None,
+    ) -> None:
+        """Initialize tool result block parameter.
+
+        Args:
+            tool_use_id (str):
+                ID of the tool call this is a result for
+            is_error (Optional[bool]):
+                Whether this is an error result
+            cache_control (Optional[CacheControl]):
+                Cache control settings
+            content (Optional[List[Any]]):
+                Result content blocks
+        """
+
+    @property
+    def tool_use_id(self) -> str:
+        """Tool use ID."""
+
+    @property
+    def cache_control(self) -> Optional["CacheControl"]:
+        """Cache control settings."""
+
+    @property
+    def type(self) -> str:
+        """Content type (always 'tool_result')."""
+
+    @property
+    def content(self) -> Optional[Any]:
+        """Result content."""
+
+class ServerToolUseBlockParam:
+    """Server tool use content block parameter.
+
+    Represents a server-side tool call made by the model.
+
+    Examples:
+        >>> block = ServerToolUseBlockParam(
+        ...     id="server_tool_123",
+        ...     name="web_search",
+        ...     input={"query": "latest news"},
+        ...     cache_control=None
+        ... )
+    """
+
+    def __init__(
+        self,
+        id: str,
+        name: str,
+        input: Any,
+        cache_control: Optional["CacheControl"] = None,
+    ) -> None:
+        """Initialize server tool use block parameter.
+
+        Args:
+            id (str):
+                Tool call ID
+            name (str):
+                Tool name
+            input (Any):
+                Tool input parameters
+            cache_control (Optional[CacheControl]):
+                Cache control settings
+        """
+
+    @property
+    def id(self) -> str:
+        """Tool call ID."""
+
+    @property
+    def name(self) -> str:
+        """Tool name."""
+
+    @property
+    def input(self) -> Any:
+        """Tool input parameters."""
+
+    @property
+    def cache_control(self) -> Optional["CacheControl"]:
+        """Cache control settings."""
+
+    @property
+    def type(self) -> str:
+        """Content type (always 'server_tool_use')."""
+
+class WebSearchResultBlockParam:
+    """Web search result block parameter.
+
+    Contains a single web search result.
+
+    Examples:
+        >>> block = WebSearchResultBlockParam(
+        ...     encrypted_content="encrypted_data",
+        ...     title="Search Result",
+        ...     url="https://example.com",
+        ...     page_agent="5 hours ago"
+        ... )
+    """
+
+    def __init__(
+        self,
+        encrypted_content: str,
+        title: str,
+        url: str,
+        page_agent: Optional[str] = None,
+    ) -> None:
+        """Initialize web search result block parameter.
+
+        Args:
+            encrypted_content (str):
+                Encrypted content data
+            title (str):
+                Result title
+            url (str):
+                Result URL
+            page_agent (Optional[str]):
+                Page age information
+        """
+
+    @property
+    def encrypted_content(self) -> str:
+        """Encrypted content."""
+
+    @property
+    def title(self) -> str:
+        """Result title."""
+
+    @property
+    def url(self) -> str:
+        """Result URL."""
+
+    @property
+    def page_agent(self) -> Optional[str]:
+        """Page age information."""
+
+    @property
+    def type(self) -> str:
+        """Content type (always 'web_search_result')."""
+
+class WebSearchToolResultBlockParam:
+    """Web search tool result block parameter.
+
+    Contains multiple web search results from a tool call.
+
+    Examples:
+        >>> results = [WebSearchResultBlockParam(...), WebSearchResultBlockParam(...)]
+        >>> block = WebSearchToolResultBlockParam(
+        ...     tool_use_id="search_123",
+        ...     content=results,
+        ...     cache_control=None
+        ... )
+    """
+
+    def __init__(
+        self,
+        tool_use_id: str,
+        content: List[WebSearchResultBlockParam],
+        cache_control: Optional["CacheControl"] = None,
+    ) -> None:
+        """Initialize web search tool result block parameter.
+
+        Args:
+            tool_use_id (str):
+                ID of the web search tool call
+            content (List[WebSearchResultBlockParam]):
+                List of search results
+            cache_control (Optional[CacheControl]):
+                Cache control settings
+        """
+
+    @property
+    def tool_use_id(self) -> str:
+        """Tool use ID."""
+
+    @property
+    def content(self) -> List[WebSearchResultBlockParam]:
+        """Search results."""
+
+    @property
+    def cache_control(self) -> Optional["CacheControl"]:
+        """Cache control settings."""
+
+    @property
+    def type(self) -> str:
+        """Content type (always 'web_search_tool_result')."""
+
+class MessageParam:
+    """Message parameter for chat completion requests.
+
+    Input message with role and content.
+
+    Examples:
+        >>> # Simple text message
+        >>> msg = MessageParam(content="Hello, Claude!", role="user")
+        >>>
+        >>> # Message with mixed content
+        >>> text_block = TextBlockParam(text="Describe this:", cache_control=None, citations=None)
+        >>> image_source = UrlImageSource(url="https://example.com/image.jpg")
+        >>> image_block = ImageBlockParam(source=image_source, cache_control=None)
+        >>> msg = MessageParam(content=[text_block, image_block], role="user")
+    """
+
+    def __init__(self, content: Any, role: str) -> None:
+        """Initialize message parameter.
+
+        Args:
+            content (Any):
+                Message content (string or list of content blocks)
+            role (str):
+                Message role ("user" or "assistant")
+        """
+
+    @property
+    def content(self) -> List[Any]:
+        """Message content blocks."""
+
+    @property
+    def role(self) -> str:
+        """Message role."""
+
+class Metadata:
+    """Request metadata.
+
+    Metadata associated with the API request.
 
     Examples:
         >>> metadata = Metadata(user_id="user_123")
-        >>> metadata.user_id
-        'user_123'
     """
 
-    def __init__(
-        self,
-        user_id: Optional[str] = None,
-    ) -> None:
-        """Initialize Anthropic metadata.
+    def __init__(self, user_id: Optional[str] = None) -> None:
+        """Initialize metadata.
 
         Args:
             user_id (Optional[str]):
-                User identifier for request tracking and analytics
+                External user identifier
         """
 
-    @property
-    def user_id(self) -> Optional[str]:
-        """The user identifier for the request."""
-
 class CacheControl:
-    """Cache control configuration for Anthropic prompt caching.
+    """Cache control configuration.
 
-    This class provides configuration for controlling prompt caching behavior,
-    including cache type and time-to-live (TTL) settings.
+    Controls prompt caching behavior.
 
     Examples:
+        >>> # 5 minute cache
         >>> cache = CacheControl(cache_type="ephemeral", ttl="5m")
-        >>> cache.cache_type
-        'ephemeral'
+        >>>
+        >>> # 1 hour cache
+        >>> cache = CacheControl(cache_type="ephemeral", ttl="1h")
     """
 
-    def __init__(
-        self,
-        cache_type: str,
-        ttl: Optional[str] = None,
-    ) -> None:
-        """Initialize cache control configuration.
+    def __init__(self, cache_type: str, ttl: Optional[str] = None) -> None:
+        """Initialize cache control.
 
         Args:
             cache_type (str):
-                The type of cache to use (e.g., "ephemeral")
+                Cache type (typically "ephemeral")
             ttl (Optional[str]):
-                Time-to-live for cached content (e.g., "5m", "1h")
+                Time-to-live ("5m" or "1h")
         """
 
-    @property
-    def cache_type(self) -> str:
-        """The cache type."""
-
-    @property
-    def ttl(self) -> Optional[str]:
-        """The time-to-live for cached content."""
-
 class AnthropicTool:
-    """Tool definition for Anthropic function calling.
+    """Tool definition for Anthropic API.
 
-    This class defines a tool that can be called by the model during generation,
-    including its schema and optional cache control settings.
+    Defines a tool that Claude can use.
 
     Examples:
-        >>> tool = Tool(
+        >>> schema = {
+        ...     "type": "object",
+        ...     "properties": {
+        ...         "location": {"type": "string"}
+        ...     },
+        ...     "required": ["location"]
+        ... }
+        >>> tool = AnthropicTool(
         ...     name="get_weather",
-        ...     description="Get current weather",
-        ...     input_schema={"type": "object", "properties": {"location": {"type": "string"}}}
+        ...     description="Get weather for a location",
+        ...     input_schema=schema,
+        ...     cache_control=None
         ... )
     """
 
@@ -6519,45 +7701,30 @@ class AnthropicTool:
         input_schema: Any = None,
         cache_control: Optional[CacheControl] = None,
     ) -> None:
-        """Initialize a tool definition.
+        """Initialize tool definition.
 
         Args:
             name (str):
-                The name of the tool
+                Tool name
             description (Optional[str]):
-                Human-readable description of what the tool does
+                Tool description
             input_schema (Any):
-                JSON schema defining the tool's input parameters
+                JSON schema for tool input
             cache_control (Optional[CacheControl]):
-                Cache control configuration for the tool definition
+                Cache control settings
         """
 
-    @property
-    def name(self) -> str:
-        """The name of the tool."""
-
-    @property
-    def description(self) -> Optional[str]:
-        """The description of the tool."""
-
-    @property
-    def input_schema(self) -> Any:
-        """The JSON schema for the tool's input."""
-
-    @property
-    def cache_control(self) -> Optional[CacheControl]:
-        """The cache control configuration."""
-
 class AnthropicThinkingConfig:
-    """Configuration for Anthropic's extended thinking mode.
+    """Configuration for extended thinking.
 
-    This class provides configuration for enabling and controlling the model's
-    reasoning capabilities, including budget allocation for thinking tokens.
+    Controls Claude's extended thinking feature.
 
     Examples:
-        >>> config = ThinkingConfig(type="enabled", budget_tokens=1000)
-        >>> config.budget_tokens
-        1000
+        >>> # Enable thinking with budget
+        >>> config = AnthropicThinkingConfig(type="enabled", budget_tokens=2000)
+        >>>
+        >>> # Disable thinking
+        >>> config = AnthropicThinkingConfig(type="disabled", budget_tokens=None)
     """
 
     def __init__(
@@ -6569,34 +7736,45 @@ class AnthropicThinkingConfig:
 
         Args:
             type (str):
-                The type of thinking mode (e.g., "enabled", "disabled")
+                Configuration type ("enabled" or "disabled")
             budget_tokens (Optional[int]):
-                Maximum number of tokens to allocate for thinking/reasoning
+                Token budget for thinking
         """
 
     @property
     def type(self) -> str:
-        """The thinking mode type."""
+        """Configuration type."""
 
     @property
     def budget_tokens(self) -> Optional[int]:
-        """The token budget for thinking."""
+        """Token budget."""
 
 class AnthropicToolChoice:
-    """Tool choice configuration for Anthropic function calling.
+    """Tool choice configuration.
 
-    This class controls how the model selects and uses tools during generation,
-    including automatic selection, forced usage, or specific tool targeting.
+    Controls how Claude uses tools.
 
     Examples:
-        >>> # Auto tool selection
-        >>> choice = ToolChoice(type="auto")
+        >>> # Automatic tool choice
+        >>> choice = AnthropicToolChoice(
+        ...     type="auto",
+        ...     disable_parallel_tool_use=False,
+        ...     name=None
+        ... )
         >>>
-        >>> # Force specific tool
-        >>> choice = ToolChoice(type="tool", name="get_weather")
+        >>> # Specific tool
+        >>> choice = AnthropicToolChoice(
+        ...     type="tool",
+        ...     disable_parallel_tool_use=False,
+        ...     name="get_weather"
+        ... )
         >>>
-        >>> # Disable parallel tool calls
-        >>> choice = ToolChoice(type="any", disable_parallel_tool_use=True)
+        >>> # No tools
+        >>> choice = AnthropicToolChoice(
+        ...     type="none",
+        ...     disable_parallel_tool_use=None,
+        ...     name=None
+        ... )
     """
 
     def __init__(
@@ -6609,59 +7787,50 @@ class AnthropicToolChoice:
 
         Args:
             type (str):
-                The tool choice mode: "auto", "any", "tool", or "none"
+                Choice type ("auto", "any", "tool", "none")
             disable_parallel_tool_use (Optional[bool]):
-                Whether to disable parallel tool execution
+                Whether to disable parallel tool use
             name (Optional[str]):
-                Specific tool name to use (required when type is "tool")
-
-        Raises:
-            ValueError: If name is provided when type is not "tool"
-            ValueError: If type is "tool" but name is not provided
+                Specific tool name (required if type is "tool")
         """
 
     @property
     def type(self) -> str:
-        """The tool choice mode."""
+        """Choice type."""
 
     @property
     def disable_parallel_tool_use(self) -> Optional[bool]:
-        """Whether parallel tool use is disabled."""
+        """Disable parallel tool use."""
 
     @property
     def name(self) -> Optional[str]:
-        """The specific tool name to use."""
+        """Tool name."""
 
 class AnthropicSettings:
-    """Anthropic chat completion settings configuration.
+    """Settings for Anthropic chat completion requests.
 
-    This class provides comprehensive configuration options for Anthropic chat completions,
-    including model parameters, tool usage, thinking modes, and request options.
+    Comprehensive configuration for chat completion behavior.
 
     Examples:
+        >>> # Basic settings
+        >>> settings = AnthropicSettings(
+        ...     max_tokens=1024,
+        ...     temperature=0.7
+        ... )
+        >>>
+        >>> # Advanced settings with tools
+        >>> tool = AnthropicTool(name="get_weather", ...)
+        >>> choice = AnthropicToolChoice(type="auto")
         >>> settings = AnthropicSettings(
         ...     max_tokens=2048,
-        ...     temperature=0.7,
-        ...     top_p=0.9
-        ... )
-        >>>
-        >>> # With tools
-        >>> settings = AnthropicSettings(
-        ...     max_tokens=4096,
-        ...     tools=[tool1, tool2],
-        ...     tool_choice=ToolChoice(type="auto")
-        ... )
-        >>>
-        >>> # With thinking mode
-        >>> settings = AnthropicSettings(
-        ...     max_tokens=4096,
-        ...     thinking=ThinkingConfig(type="enabled", budget_tokens=1000)
+        ...     temperature=0.5,
+        ...     tools=[tool],
+        ...     tool_choice=choice
         ... )
     """
 
     def __init__(
         self,
-        *,
         max_tokens: int = 4096,
         metadata: Optional[Metadata] = None,
         service_tier: Optional[str] = None,
@@ -6676,40 +7845,40 @@ class AnthropicSettings:
         tool_choice: Optional[AnthropicToolChoice] = None,
         extra_body: Optional[Any] = None,
     ) -> None:
-        """Initialize Anthropic chat settings.
+        """Initialize Anthropic settings.
 
         Args:
             max_tokens (int):
-                Maximum number of tokens to generate (default: 4096)
+                Maximum tokens to generate
             metadata (Optional[Metadata]):
-                Request metadata for tracking and analytics
+                Request metadata
             service_tier (Optional[str]):
-                Service tier to use for the request
+                Service tier ("auto" or "standard_only")
             stop_sequences (Optional[List[str]]):
-                Sequences where generation should stop
+                Stop sequences
             stream (Optional[bool]):
-                Whether to stream the response
+                Enable streaming
             system (Optional[str]):
-                System prompt to guide model behavior
+                System prompt
             temperature (Optional[float]):
-                Sampling temperature (0.0 to 1.0)
-            thinking (Optional[ThinkingConfig]):
-                Configuration for extended thinking mode
+                Sampling temperature (0.0-1.0)
+            thinking (Optional[AnthropicThinkingConfig]):
+                Thinking configuration
             top_k (Optional[int]):
                 Top-k sampling parameter
             top_p (Optional[float]):
-                Nucleus sampling parameter (0.0 to 1.0)
-            tools (Optional[List[Tool]]):
-                Available tools for the model to use
-            tool_choice (Optional[ToolChoice]):
-                Tool selection configuration
+                Nucleus sampling parameter
+            tools (Optional[List[AnthropicTool]]):
+                Available tools
+            tool_choice (Optional[AnthropicToolChoice]):
+                Tool choice configuration
             extra_body (Optional[Any]):
-                Additional request body parameters
+                Additional request parameters
         """
 
     @property
     def max_tokens(self) -> int:
-        """Maximum number of tokens to generate."""
+        """Maximum tokens."""
 
     @property
     def metadata(self) -> Optional[Metadata]:
@@ -6725,7 +7894,7 @@ class AnthropicSettings:
 
     @property
     def stream(self) -> Optional[bool]:
-        """Whether to stream the response."""
+        """Streaming enabled."""
 
     @property
     def system(self) -> Optional[str]:
@@ -6737,15 +7906,15 @@ class AnthropicSettings:
 
     @property
     def thinking(self) -> Optional[AnthropicThinkingConfig]:
-        """Thinking mode configuration."""
+        """Thinking configuration."""
 
     @property
     def top_k(self) -> Optional[int]:
-        """Top-k sampling parameter."""
+        """Top-k parameter."""
 
     @property
     def top_p(self) -> Optional[float]:
-        """Nucleus sampling parameter."""
+        """Top-p parameter."""
 
     @property
     def tools(self) -> Optional[List[AnthropicTool]]:
@@ -6757,1360 +7926,518 @@ class AnthropicSettings:
 
     @property
     def extra_body(self) -> Optional[Any]:
-        """Additional request parameters."""
+        """Extra request parameters."""
 
     def __str__(self) -> str:
-        """Return string representation of the settings."""
+        """String representation."""
 
     def model_dump(self) -> Dict[str, Any]:
-        """Serialize the settings to a dictionary.
+        """Convert settings to dictionary."""
 
-        Returns:
-            Dict[str, Any]:
-                Dictionary representation of the settings
-        """
+class SystemPrompt:
+    """System prompt for Anthropic messages.
 
-###### __potatohead__.gemini module ######
-
-class Modality:
-    """Represents different modalities for content generation."""
-
-    ModalityUnspecified: "Modality"
-    Text: "Modality"
-    Image: "Modality"
-    Audio: "Modality"
-
-class GeminiThinkingConfig:
-    """Configuration for thinking/reasoning capabilities."""
-
-    def __init__(
-        self,
-        include_thoughts: Optional[bool] = None,
-        thinking_budget: Optional[int] = None,
-    ) -> None: ...
-
-class MediaResolution:
-    """Media resolution settings for content generation."""
-
-    MediaResolutionUnspecified: "MediaResolution"
-    MediaResolutionLow: "MediaResolution"
-    MediaResolutionMedium: "MediaResolution"
-    MediaResolutionHigh: "MediaResolution"
-
-class SpeechConfig:
-    """Configuration for speech generation."""
-
-    def __init__(
-        self,
-        voice_config: Optional["VoiceConfig"] = None,
-        language_code: Optional[str] = None,
-    ) -> None: ...
-
-class PrebuiltVoiceConfig:
-    """Configuration for prebuilt voice models."""
-
-    def __init__(
-        self,
-        voice_name: str,
-    ) -> None: ...
-
-class GenerationConfig:
-    """Configuration for content generation with comprehensive parameter control.
-
-    This class provides fine-grained control over the generation process including
-    sampling parameters, output format, modalities, and various specialized features.
+    System-level instructions for Claude.
 
     Examples:
-        Basic usage with temperature control:
-
-        ```python
-        GenerationConfig(temperature=0.7, max_output_tokens=1000)
-        ```
-
-        Multi-modal configuration:
-        ```python
-        config = GenerationConfig(
-            response_modalities=[Modality.TEXT, Modality.AUDIO],
-            speech_config=SpeechConfig(language_code="en-US")
-        )
-        ```
-
-        Advanced sampling with penalties:
-        ```python
-        config = GenerationConfig(
-            temperature=0.8,
-            top_p=0.9,
-            top_k=40,
-            presence_penalty=0.1,
-            frequency_penalty=0.2
-        )
-        ```
+        >>> # Simple system prompt
+        >>> prompt = SystemPrompt(content="You are a helpful assistant.")
+        >>>
+        >>> # System prompt with multiple blocks
+        >>> blocks = [
+        ...     TextBlockParam(text="You are helpful.", cache_control=None, citations=None),
+        ...     TextBlockParam(text="Be concise.", cache_control=None, citations=None)
+        ... ]
+        >>> prompt = SystemPrompt(content=blocks)
     """
 
-    def __init__(
-        self,
-        stop_sequences: Optional[List[str]] = None,
-        response_mime_type: Optional[str] = None,
-        response_modalities: Optional[List[Modality]] = None,
-        thinking_config: Optional[GeminiThinkingConfig] = None,
-        temperature: Optional[float] = None,
-        top_p: Optional[float] = None,
-        top_k: Optional[int] = None,
-        candidate_count: Optional[int] = None,
-        max_output_tokens: Optional[int] = None,
-        response_logprobs: Optional[bool] = None,
-        logprobs: Optional[int] = None,
-        presence_penalty: Optional[float] = None,
-        frequency_penalty: Optional[float] = None,
-        seed: Optional[int] = None,
-        audio_timestamp: Optional[bool] = None,
-        media_resolution: Optional[MediaResolution] = None,
-        speech_config: Optional[SpeechConfig] = None,
-        enable_affective_dialog: Optional[bool] = None,
-    ) -> None:
-        """Initialize GenerationConfig with optional parameters.
+    def __init__(self, content: Any) -> None:
+        """Initialize system prompt.
 
         Args:
-            stop_sequences (Optional[List[str]]):
-                List of strings that will stop generation when encountered
-            response_mime_type (Optional[str]):
-                MIME type for the response format
-            response_modalities (Optional[List[Modality]]):
-                List of modalities to include in the response
-            thinking_config (Optional[ThinkingConfig]):
-                Configuration for reasoning/thinking capabilities
-            temperature (Optional[float]):
-                Controls randomness in generation (0.0-1.0)
-            top_p (Optional[float]):
-                Nucleus sampling parameter (0.0-1.0)
-            top_k (Optional[int]):
-                Top-k sampling parameter
-            candidate_count (Optional[int]):
-                Number of response candidates to generate
-            max_output_tokens (Optional[int]):
-                Maximum number of tokens to generate
-            response_logprobs (Optional[bool]):
-                Whether to return log probabilities
-            logprobs (Optional[int]):
-                Number of log probabilities to return per token
-            presence_penalty (Optional[float]):
-                Penalty for token presence (-2.0 to 2.0)
-            frequency_penalty (Optional[float]):
-                Penalty for token frequency (-2.0 to 2.0)
-            seed (Optional[int]):
-                Random seed for deterministic generation
-            audio_timestamp (Optional[bool]):
-                Whether to include timestamps in audio responses
-            media_resolution (Optional[MediaResolution]):
-                Resolution setting for media content
-            speech_config (Optional[SpeechConfig]):
-                Configuration for speech synthesis
-            enable_affective_dialog (Optional[bool]):
-                Whether to enable emotional dialog features
-        """
-
-    def __str__(self) -> str: ...
-
-class HarmCategory:
-    HarmCategoryUnspecified: "HarmCategory"
-    HarmCategoryHateSpeech: "HarmCategory"
-    HarmCategoryDangerousContent: "HarmCategory"
-    HarmCategoryHarassment: "HarmCategory"
-    HarmCategorySexuallyExplicit: "HarmCategory"
-    HarmCategoryImageHate: "HarmCategory"
-    HarmCategoryImageDangerousContent: "HarmCategory"
-    HarmCategoryImageHarassment: "HarmCategory"
-    HarmCategoryImageSexuallyExplicit: "HarmCategory"
-
-class HarmBlockThreshold:
-    HarmBlockThresholdUnspecified: "HarmBlockThreshold"
-    BlockLowAndAbove: "HarmBlockThreshold"
-    BlockMediumAndAbove: "HarmBlockThreshold"
-    BlockOnlyHigh: "HarmBlockThreshold"
-    BlockNone: "HarmBlockThreshold"
-    Off: "HarmBlockThreshold"
-
-class HarmBlockMethod:
-    HarmBlockMethodUnspecified: "HarmBlockMethod"
-    Severity: "HarmBlockMethod"
-    Probability: "HarmBlockMethod"
-
-class ModelArmorConfig:
-    def __init__(
-        self,
-        prompt_template_name: Optional[str],
-        response_template_name: Optional[str],
-    ) -> None:
-        """
-        Args:
-            prompt_template_name (Optional[str]):
-                The name of the prompt template to use.
-            response_template_name (Optional[str]):
-                The name of the response template to use.
+            content (Any):
+                System prompt content (string or list of TextBlockParam)
         """
 
     @property
-    def prompt_template_name(self) -> Optional[str]: ...
-    @property
-    def response_template_name(self) -> Optional[str]: ...
+    def content(self) -> List[TextBlockParam]:
+        """System prompt content blocks."""
 
-class SafetySetting:
-    category: HarmCategory
-    threshold: HarmBlockThreshold
-    method: Optional[HarmBlockMethod]
+# ============================================================================
+# Response Types
+# ============================================================================
 
-    def __init__(
-        self,
-        category: HarmCategory,
-        threshold: HarmBlockThreshold,
-        method: Optional[HarmBlockMethod] = None,
-    ) -> None:
-        """Initialize SafetySetting with required and optional parameters.
+class CitationCharLocation:
+    """Character-level citation location in response.
 
-        Args:
-            category (HarmCategory):
-                The category of harm to protect against.
-            threshold (HarmBlockThreshold):
-                The threshold for blocking content.
-            method (Optional[HarmBlockMethod]):
-                The method used for blocking (if any).
-        """
+    Citation with character-level location information.
 
-class Mode:
-    ModeUnspecified: "Mode"
-    Any: "Mode"
-    Auto: "Mode"
-    None_Mode: "Mode"  # type: ignore
-
-class FunctionCallingConfig:
-    @property
-    def mode(self) -> Optional[Mode]: ...
-    @property
-    def allowed_function_names(self) -> Optional[list[str]]: ...
-    def __init__(
-        self, mode: Optional[Mode], allowed_function_names: Optional[list[str]]
-    ) -> None: ...
-
-class LatLng:
-    @property
-    def latitude(self) -> float: ...
-    @property
-    def longitude(self) -> float: ...
-    def __init__(self, latitude: float, longitude: float) -> None:
-        """Initialize LatLng with latitude and longitude.
-
-        Args:
-            latitude (float):
-                The latitude value.
-            longitude (float):
-                The longitude value.
-        """
-
-class RetrievalConfig:
-    @property
-    def lat_lng(self) -> LatLng: ...
-    @property
-    def language_code(self) -> str: ...
-    def __init__(self, lat_lng: LatLng, language_code: str) -> None:
-        """Initialize RetrievalConfig with latitude/longitude and language code.
-
-        Args:
-            lat_lng (LatLng):
-                The latitude and longitude configuration.
-            language_code (str):
-                The language code for the retrieval.
-        """
-
-class ToolConfig:
-    @property
-    def function_calling_config(self) -> Optional[FunctionCallingConfig]: ...
-    @property
-    def retrieval_config(self) -> Optional[RetrievalConfig]: ...
-    def __init__(
-        self,
-        function_calling_config: Optional[FunctionCallingConfig],
-        retrieval_config: Optional[RetrievalConfig],
-    ) -> None: ...
-
-class GeminiSettings:
-    def __init__(
-        self,
-        labels: Optional[dict[str, str]] = None,
-        tool_config: Optional[ToolConfig] = None,
-        generation_config: Optional[GenerationConfig] = None,
-        safety_settings: Optional[list[SafetySetting]] = None,
-        model_armor_config: Optional[ModelArmorConfig] = None,
-        extra_body: Optional[dict] = None,
-    ) -> None:
-        """Settings to pass to the Gemini API when creating a request
-
-        Reference:
-            https://cloud.google.com/vertex-ai/generative-ai/docs/reference/rest/v1beta1/projects.locations.endpoints/generateContent
-
-        Args:
-            labels (Optional[dict[str, str]]):
-                An optional dictionary of labels for the settings.
-            tool_config (Optional[ToolConfig]):
-                Configuration for tools like function calling and retrieval.
-            generation_config (Optional[GenerationConfig]):
-                Configuration for content generation parameters.
-            safety_settings (Optional[list[SafetySetting]]):
-                List of safety settings to apply.
-            model_armor_config (Optional[ModelArmorConfig]):
-                Configuration for model armor templates.
-            extra_body (Optional[dict]):
-                Additional configuration as a dictionary.
-        """
+    Examples:
+        >>> citation = CitationCharLocation(...)
+        >>> print(citation.cited_text)
+        >>> print(f"Characters {citation.start_char_index}-{citation.end_char_index}")
+    """
 
     @property
-    def labels(self) -> Optional[dict[str, str]]: ...
-    @property
-    def tool_config(self) -> Optional[ToolConfig]: ...
-    @property
-    def generation_config(self) -> Optional[GenerationConfig]: ...
-    @property
-    def safety_settings(self) -> Optional[list[SafetySetting]]: ...
-    @property
-    def model_armor_config(self) -> Optional[ModelArmorConfig]: ...
-    @property
-    def extra_body(self) -> Optional[dict]: ...
-    def __str__(self) -> str: ...
-
-class EmbeddingTaskType:
-    TaskTypeUnspecified = "EmbeddingTaskType"
-    RetrievalQuery = "EmbeddingTaskType"
-    RetrievalDocument = "EmbeddingTaskType"
-    SemanticSimilarity = "EmbeddingTaskType"
-    Classification = "EmbeddingTaskType"
-    Clustering = "EmbeddingTaskType"
-    QuestionAnswering = "EmbeddingTaskType"
-    FactVerification = "EmbeddingTaskType"
-    CodeRetrievalQuery = "EmbeddingTaskType"
-
-class GeminiEmbeddingConfig:
-    def __init__(
-        self,
-        model: Optional[str] = None,
-        output_dimensionality: Optional[int] = None,
-        task_type: Optional[EmbeddingTaskType | str] = None,
-    ) -> None:
-        """Configuration to pass to the Gemini Embedding API when creating a request
-
-
-        Args:
-            model (Optional[str]):
-                The embedding model to use. If not specified, the default gemini model will be used.
-            output_dimensionality (Optional[int]):
-                The output dimensionality of the embeddings. If not specified, a default value will be used.
-            task_type (Optional[EmbeddingTaskType]):
-                The type of embedding task to perform. If not specified, the default gemini task type will be used.
-        """
-
-class ContentEmbedding:
-    @property
-    def values(self) -> List[float]: ...
-
-class GeminiEmbeddingResponse:
-    @property
-    def embedding(self) -> ContentEmbedding: ...
-
-class PredictResponse:
-    @property
-    def predictions(self) -> List[dict]: ...
-    @property
-    def metadata(self) -> Any: ...
-    @property
-    def deployed_model_id(self) -> str: ...
-    @property
-    def model(self) -> str: ...
-    @property
-    def model_version_id(self) -> str: ...
-    @property
-    def model_display_name(self) -> str: ...
-    def __str__(self): ...
-
-class PredictRequest:
-    def __init__(
-        self, instances: List[dict], parameters: Optional[dict] = None
-    ) -> None:
-        """Request to pass to the Vertex Predict API when creating a request
-
-        Args:
-            instances (List[dict]):
-                A list of instances to be sent in the request.
-            parameters (Optional[dict]):
-                Optional parameters for the request.
-        """
+    def cited_text(self) -> str:
+        """Cited text."""
 
     @property
-    def instances(self) -> List[dict]: ...
-    @property
-    def parameters(self) -> dict: ...
-    def __str__(self): ...
-
-###### __potatohead__.base module ######
-class PromptTokenDetails:
-    """Details about the prompt tokens used in a request."""
+    def document_index(self) -> int:
+        """Document index."""
 
     @property
-    def audio_tokens(self) -> int:
-        """The number of audio tokens used in the request."""
+    def document_title(self) -> str:
+        """Document title."""
 
     @property
-    def cached_tokens(self) -> int:
-        """The number of cached tokens used in the request."""
-
-class CompletionTokenDetails:
-    """Details about the completion tokens used in a model response."""
+    def end_char_index(self) -> int:
+        """End character index."""
 
     @property
-    def accepted_prediction_tokens(self) -> int:
-        """The number of accepted prediction tokens used in the response."""
+    def file_id(self) -> str:
+        """File ID."""
 
     @property
-    def audio_tokens(self) -> int:
-        """The number of audio tokens used in the response."""
+    def start_char_index(self) -> int:
+        """Start character index."""
 
     @property
-    def reasoning_tokens(self) -> int:
-        """The number of reasoning tokens used in the response."""
+    def type(self) -> str:
+        """Citation type."""
+
+class CitationPageLocation:
+    """Page-level citation location in response.
+
+    Citation with page-level location information.
+
+    Examples:
+        >>> citation = CitationPageLocation(...)
+        >>> print(f"Pages {citation.start_page_number}-{citation.end_page_number}")
+    """
 
     @property
-    def rejected_prediction_tokens(self) -> int:
-        """The number of rejected prediction tokens used in the response."""
-
-class Usage:
-    """Usage statistics for a model response."""
+    def cited_text(self) -> str:
+        """Cited text."""
 
     @property
-    def completion_tokens(self) -> int:
-        """The number of completion tokens used in the response."""
+    def document_index(self) -> int:
+        """Document index."""
 
     @property
-    def prompt_tokens(self) -> int:
-        """The number of prompt tokens used in the request."""
+    def document_title(self) -> str:
+        """Document title."""
 
     @property
-    def total_tokens(self) -> int:
-        """The total number of tokens used in the request and response."""
+    def end_page_number(self) -> int:
+        """End page number."""
 
     @property
-    def completion_tokens_details(self) -> CompletionTokenDetails:
-        """Details about the completion tokens used in the response."""
+    def file_id(self) -> str:
+        """File ID."""
 
     @property
-    def prompt_tokens_details(self) -> "PromptTokenDetails":
-        """Details about the prompt tokens used in the request."""
+    def start_page_number(self) -> int:
+        """Start page number."""
 
     @property
-    def finish_reason(self) -> str:
-        """The reason why the model stopped generating tokens"""
+    def type(self) -> str:
+        """Citation type."""
 
-class ImageUrl:
-    def __init__(
-        self,
-        url: str,
-        kind: Literal["image-url"] = "image-url",
-    ) -> None:
-        """Create an ImageUrl object.
+class CitationContentBlockLocation:
+    """Content block citation location in response.
 
-        Args:
-            url (str):
-                The URL of the image.
-            kind (Literal["image-url"]):
-                The kind of the content.
-        """
+    Citation with content block-level location information.
+
+    Examples:
+        >>> citation = CitationContentBlockLocation(...)
+        >>> print(f"Blocks {citation.start_block_index}-{citation.end_block_index}")
+    """
+
+    @property
+    def cited_text(self) -> str:
+        """Cited text."""
+
+    @property
+    def document_index(self) -> int:
+        """Document index."""
+
+    @property
+    def document_title(self) -> str:
+        """Document title."""
+
+    @property
+    def end_block_index(self) -> int:
+        """End block index."""
+
+    @property
+    def file_id(self) -> str:
+        """File ID."""
+
+    @property
+    def start_block_index(self) -> int:
+        """Start block index."""
+
+    @property
+    def type(self) -> str:
+        """Citation type."""
+
+class CitationsWebSearchResultLocation:
+    """Web search result citation location in response.
+
+    Citation from a web search result.
+
+    Examples:
+        >>> citation = CitationsWebSearchResultLocation(...)
+        >>> print(f"{citation.title}: {citation.url}")
+    """
+
+    @property
+    def cited_text(self) -> str:
+        """Cited text."""
+
+    @property
+    def encrypted_index(self) -> str:
+        """Encrypted index."""
+
+    @property
+    def title(self) -> str:
+        """Result title."""
+
+    @property
+    def type(self) -> str:
+        """Citation type."""
 
     @property
     def url(self) -> str:
-        """The URL of the image."""
+        """Result URL."""
+
+class CitationsSearchResultLocation:
+    """Search result citation location in response.
+
+    Citation from a search result with block-level information.
+
+    Examples:
+        >>> citation = CitationsSearchResultLocation(...)
+        >>> print(f"{citation.title} from {citation.source}")
+    """
 
     @property
-    def kind(self) -> str:
-        """The kind of the content."""
+    def cited_text(self) -> str:
+        """Cited text."""
 
     @property
-    def media_type(self) -> str:
-        """The media type of the image URL."""
+    def end_block_index(self) -> int:
+        """End block index."""
 
     @property
-    def format(self) -> str:
-        """The format of the image URL."""
-
-class AudioUrl:
-    def __init__(
-        self,
-        url: str,
-        kind: Literal["audio-url"] = "audio-url",
-    ) -> None:
-        """Create an AudioUrl object.
-
-        Args:
-            url (str):
-                The URL of the audio.
-            kind (Literal["audio-url"]):
-                The kind of the content.
-        """
+    def search_result_index(self) -> int:
+        """Search result index."""
 
     @property
-    def url(self) -> str:
-        """The URL of the audio."""
+    def source(self) -> str:
+        """Result source."""
 
     @property
-    def kind(self) -> str:
-        """The kind of the content."""
+    def start_block_index(self) -> int:
+        """Start block index."""
 
     @property
-    def media_type(self) -> str:
-        """The media type of the audio URL."""
+    def title(self) -> str:
+        """Result title."""
 
     @property
-    def format(self) -> str:
-        """The format of the audio URL."""
+    def type(self) -> str:
+        """Citation type."""
 
-class BinaryContent:
-    def __init__(
-        self,
-        data: bytes,
-        media_type: str,
-        kind: str = "binary",
-    ) -> None:
-        """Create a BinaryContent object.
+class TextBlock:
+    """Text content block in response.
 
-        Args:
-            data (bytes):
-                The binary data.
-            media_type (str):
-                The media type of the binary data.
-            kind (str):
-                The kind of the content
-        """
+    Text content with optional citations.
+
+    Examples:
+        >>> block = response.content[0]
+        >>> print(block.text)
+        >>> if block.citations:
+        ...     for citation in block.citations:
+        ...         print(citation)
+    """
 
     @property
-    def media_type(self) -> str:
-        """The media type of the binary content."""
+    def text(self) -> str:
+        """Text content."""
 
     @property
-    def format(self) -> str:
-        """The format of the binary content."""
+    def citations(self) -> Optional[List[Any]]:
+        """Citations."""
 
     @property
-    def data(self) -> bytes:
-        """The binary data."""
+    def type(self) -> str:
+        """Block type."""
+
+class ThinkingBlock:
+    """Thinking content block in response.
+
+    Claude's internal thinking process.
+
+    Examples:
+        >>> block = response.content[0]
+        >>> print(block.thinking)
+        >>> if block.signature:
+        ...     print(f"Signature: {block.signature}")
+    """
 
     @property
-    def kind(self) -> str:
-        """The kind of the content."""
-
-class DocumentUrl:
-    def __init__(
-        self,
-        url: str,
-        kind: Literal["document-url"] = "document-url",
-    ) -> None:
-        """Create a DocumentUrl object.
-
-        Args:
-            url (str):
-                The URL of the document.
-            kind (Literal["document-url"]):
-                The kind of the content.
-        """
+    def thinking(self) -> str:
+        """Thinking content."""
 
     @property
-    def url(self) -> str:
-        """The URL of the document."""
+    def signature(self) -> Optional[str]:
+        """Cryptographic signature."""
 
     @property
-    def kind(self) -> str:
-        """The kind of the content."""
+    def type(self) -> str:
+        """Block type."""
+
+class RedactedThinkingBlock:
+    """Redacted thinking content block in response.
+
+    Redacted version of thinking content.
+
+    Examples:
+        >>> block = response.content[0]
+        >>> print(block.data)
+    """
 
     @property
-    def media_type(self) -> str:
-        """The media type of the document URL."""
+    def data(self) -> str:
+        """Redacted data."""
 
     @property
-    def format(self) -> str:
-        """The format of the document URL."""
+    def type(self) -> str:
+        """Block type."""
 
-class Message:
-    def __init__(
-        self, content: str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl
-    ) -> None:
-        """Create a Message object.
+class ToolUseBlock:
+    """Tool use content block in response.
 
-        Args:
-            content (str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl):
-                The content of the message.
-        """
+    Represents a tool call from Claude.
 
-    @property
-    def content(self) -> str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl:
-        """The content of the message"""
-
-    def bind(self, name: str, value: str) -> "Message":
-        """Bind context to a specific variable in the prompt. This is an immutable operation meaning that it
-        will return a new Message object with the context bound.
-
-            Example with Prompt that contains two messages
-
-            ```python
-                prompt = Prompt(
-                    model="openai:gpt-4o",
-                    message=[
-                        "My prompt variable is ${variable}",
-                        "This is another message",
-                    ],
-                    system_instruction="system_prompt",
-                )
-                bounded_prompt = prompt.message[0].bind("variable", "hello world").unwrap() # we bind "hello world" to "variable"
-            ```
-
-        Args:
-            name (str):
-                The name of the variable to bind.
-            value (str):
-                The value to bind the variable to.
-
-        Returns:
-            Message:
-                The message with the context bound.
-        """
-
-    def bind_mut(self, name: str, value: str) -> "Message":
-        """Bind context to a specific variable in the prompt. This is a mutable operation meaning that it
-        will modify the current Message object.
-
-            Example with Prompt that contains two messages
-
-            ```python
-                prompt = Prompt(
-                    model="openai:gpt-4o",
-                    message=[
-                        "My prompt variable is ${variable}",
-                        "This is another message",
-                    ],
-                    system_instruction="system_prompt",
-                )
-                prompt.message[0].bind_mut("variable", "hello world") # we bind "hello world" to "variable"
-            ```
-
-        Args:
-            name (str):
-                The name of the variable to bind.
-            value (str):
-                The value to bind the variable to.
-
-        Returns:
-            Message:
-                The message with the context bound.
-        """
-
-    def unwrap(self) -> Any:
-        """Unwrap the message content.
-
-        Returns:
-            A serializable representation of the message content, which can be a string, list, or dict.
-        """
-
-    def model_dump(self) -> Dict[str, Any]:
-        """Unwrap the message content and serialize it to a dictionary.
-
-        Returns:
-            Dict[str, Any]:
-                The message dictionary with keys "content" and "role".
-        """
-
-class ModelSettings:
-    def __init__(self, settings: OpenAIChatSettings | GeminiSettings) -> None:
-        """ModelSettings for configuring the model.
-
-        Args:
-            settings (OpenAIChatSettings | GeminiSettings):
-                The settings to use for the model. Currently supports OpenAI and Gemini settings.
-        """
-
-    @property
-    def settings(self) -> OpenAIChatSettings | GeminiSettings:
-        """The settings to use for the model."""
-
-    def model_dump_json(self) -> str:
-        """The JSON representation of the model settings."""
-
-class Prompt:
-    def __init__(
-        self,
-        message: (
-            str
-            | Sequence[str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl]
-            | Message
-            | List[Message]
-            | List[Dict[str, Any]]
-        ),
-        model: str,
-        provider: Provider | str,
-        system_instruction: Optional[str | List[str]] = None,
-        model_settings: Optional[
-            ModelSettings | OpenAIChatSettings | GeminiSettings
-        ] = None,
-        response_format: Optional[Any] = None,
-    ) -> None:
-        """Prompt for interacting with an LLM API.
-
-        Args:
-            message (str | Sequence[str | ImageUrl | AudioUrl | BinaryContent | DocumentUrl] | Message | List[Message]):
-                The prompt to use.
-            model (str):
-                The model to use for the prompt
-            provider (Provider | str):
-                The provider to use for the prompt.
-            system_instruction (Optional[str | List[str]]):
-                The system prompt to use in the prompt.
-            model_settings (None):
-                The model settings to use for the prompt.
-                Defaults to None which means no model settings will be used
-            response_format (Optional[BaseModel | Score]):
-                The response format to use for the prompt. This is used for Structured Outputs
-                (https://platform.openai.com/docs/guides/structured-outputs?api-mode=chat).
-                Currently, response_format only support Pydantic BaseModel classes and the PotatoHead Score class.
-                The provided response_format will be parsed into a JSON schema.
-
-        """
-
-    @property
-    def model(self) -> str:
-        """The model to use for the prompt."""
-
-    @property
-    def provider(self) -> str:
-        """The provider to use for the prompt."""
-
-    @property
-    def model_identifier(self) -> Any:
-        """Concatenation of provider and model, used for identifying the model in the prompt. This
-        is commonly used with pydantic_ai to identify the model to use for the agent.
-
-        Example:
-            ```python
-                prompt = Prompt(
-                    model="gpt-4o",
-                    message="My prompt variable is ${variable}",
-                    system_instruction="system_instruction",
-                    provider="openai",
-                )
-                agent = Agent(
-                    prompt.model_identifier, # "openai:gpt-4o"
-                    system_instructions=prompt.system_instruction[0].unwrap(),
-                )
-            ```
-        """
-
-    @property
-    def model_settings(self) -> ModelSettings:
-        """The model settings to use for the prompt."""
-
-    @property
-    def message(
-        self,
-    ) -> List[Message]:
-        """The user message to use in the prompt."""
-
-    @property
-    def system_instruction(self) -> List[Message]:
-        """The system message to use in the prompt."""
-
-    def save_prompt(self, path: Optional[Path] = None) -> None:
-        """Save the prompt to a file.
-
-        Args:
-            path (Optional[Path]):
-                The path to save the prompt to. If None, the prompt will be saved to
-                the current working directory.
-        """
-
-    @staticmethod
-    def from_path(path: Path) -> "Prompt":
-        """Load a prompt from a file.
-
-        Args:
-            path (Path):
-                The path to the prompt file.
-
-        Returns:
-            Prompt:
-                The loaded prompt.
-        """
-
-    @staticmethod
-    def model_validate_json(json_string: str) -> "Prompt":
-        """Validate the model JSON.
-
-        Args:
-            json_string (str):
-                The JSON string to validate.
-        Returns:
-            Prompt:
-                The prompt object.
-        """
-
-    def model_dump_json(self) -> str:
-        """Dump the model to a JSON string.
-
-        Returns:
-            str:
-                The JSON string.
-        """
-
-    def bind(
-        self,
-        name: Optional[str] = None,
-        value: Optional[str | int | float | bool | list] = None,
-        **kwargs: Any,
-    ) -> "Prompt":
-        """Bind context to a specific variable in the prompt. This is an immutable operation meaning that it
-        will return a new Prompt object with the context bound. This will iterate over all user messages.
-
-        Args:
-            name (str):
-                The name of the variable to bind.
-            value (str | int | float | bool | list):
-                The value to bind the variable to. Must be a JSON serializable type.
-            **kwargs (Any):
-                Additional keyword arguments to bind to the prompt. This can be used to bind multiple variables at once.
-
-        Returns:
-            Prompt:
-                The prompt with the context bound.
-        """
-
-    def bind_mut(
-        self,
-        name: Optional[str] = None,
-        value: Optional[str | int | float | bool | list] = None,
-        **kwargs: Any,
-    ) -> "Prompt":
-        """Bind context to a specific variable in the prompt. This is a mutable operation meaning that it
-        will modify the current Prompt object. This will iterate over all user messages.
-
-        Args:
-            name (str):
-                The name of the variable to bind.
-            value (str | int | float | bool | list):
-                The value to bind the variable to. Must be a JSON serializable type.
-            **kwargs (Any):
-                Additional keyword arguments to bind to the prompt. This can be used to bind multiple variables at once.
-
-        Returns:
-            Prompt:
-                The prompt with the context bound.
-        """
-
-    @property
-    def response_json_schema(self) -> Optional[str]:
-        """The JSON schema for the response if provided."""
-
-    def __str__(self): ...
-
-class Provider:
-    OpenAI: "Provider"
-    Gemini: "Provider"
-    Vertex: "Provider"
-    Google: "Provider"
-    Anthropic: "Provider"
-
-class TaskStatus:
-    Pending: "TaskStatus"
-    Running: "TaskStatus"
-    Completed: "TaskStatus"
-    Failed: "TaskStatus"
-
-class ResponseLogProbs:
-    @property
-    def token(self) -> str:
-        """The token for which the log probabilities are calculated."""
-
-    @property
-    def logprob(self) -> float:
-        """The log probability of the token."""
-
-class LogProbs:
-    @property
-    def tokens(self) -> List[ResponseLogProbs]:
-        """The log probabilities of the tokens in the response.
-        This is primarily used for debugging and analysis purposes.
-        """
-
-    def __str__(self) -> str:
-        """String representation of the log probabilities."""
-
-class AgentResponse:
-    @property
-    def id(self) -> str:
-        """The ID of the agent response."""
-
-    @property
-    def result(self) -> Any:
-        """The result of the agent response. This can be a Pydantic BaseModel class or a supported
-        potato_head response type such as `Score`. If neither is provided, the response json
-        will be returned as a dictionary.
-        """
-
-    @property
-    def token_usage(self) -> Usage:
-        """Returns the token usage of the agent response if supported"""
-
-    @property
-    def log_probs(self) -> List["ResponseLogProbs"]:
-        """Returns the log probabilities of the agent response if supported.
-        This is primarily used for debugging and analysis purposes.
-        """
-
-class Task:
-    def __init__(
-        self,
-        agent_id: str,
-        prompt: Prompt,
-        dependencies: List[str] = [],
-        id: Optional[str] = None,
-    ) -> None:
-        """Create a Task object.
-
-        Args:
-            agent_id (str):
-                The ID of the agent that will execute the task.
-            prompt (Prompt):
-                The prompt to use for the task.
-            dependencies (List[str]):
-                The dependencies of the task.
-            id (Optional[str]):
-                The ID of the task. If None, a random uuid7 will be generated.
-        """
-
-    @property
-    def prompt(self) -> Prompt:
-        """The prompt to use for the task."""
-
-    @property
-    def dependencies(self) -> List[str]:
-        """The dependencies of the task."""
+    Examples:
+        >>> block = response.content[0]
+        >>> print(f"Tool: {block.name}")
+        >>> print(f"ID: {block.id}")
+        >>> print(f"Input: {block.input}")
+    """
 
     @property
     def id(self) -> str:
-        """The ID of the task."""
-
-    @property
-    def status(self) -> TaskStatus:
-        """The status of the task."""
-
-class TaskList:
-    def __init__(self) -> None:
-        """Create a TaskList object."""
-
-class Agent:
-    def __init__(
-        self,
-        provider: Provider | str,
-        system_instruction: Optional[str | List[str] | Message | List[Message]] = None,
-    ) -> None:
-        """Create an Agent object.
-
-        Args:
-            provider (Provider | str):
-                The provider to use for the agent. This can be a Provider enum or a string
-                representing the provider.
-            system_instruction (Optional[str | List[str] | Message | List[Message]]):
-                The system message to use for the agent. This can be a string, a list of strings,
-                a Message object, or a list of Message objects. If None, no system message will be used.
-                This is added to all tasks that the agent executes. If a given task contains it's own
-                system message, the agent's system message will be prepended to the task's system message.
-
-        Example:
-        ```python
-            agent = Agent(
-                provider=Provider.OpenAI,
-                system_instruction="You are a helpful assistant.",
-            )
-        ```
-        """
-
-    @property
-    def system_instruction(self) -> List[Message]:
-        """The system message to use for the agent. This is a list of Message objects."""
-
-    def execute_task(
-        self,
-        task: Task,
-        output_type: Optional[Any] = None,
-        model: Optional[str] = None,
-    ) -> AgentResponse:
-        """Execute a task.
-
-        Args:
-            task (Task):
-                The task to execute.
-            output_type (Optional[Any]):
-                The output type to use for the task. This can either be a Pydantic `BaseModel` class
-                or a supported PotatoHead response type such as `Score`.
-            model (Optional[str]):
-                The model to use for the task. If not provided, defaults to the `model` provided within
-                the Task's prompt. If the Task's prompt does not have a model, an error will be raised.
-
-        Returns:
-            AgentResponse:
-                The response from the agent after executing the task.
-        """
-
-    def execute_prompt(
-        self,
-        prompt: Prompt,
-        output_type: Optional[Any] = None,
-        model: Optional[str] = None,
-    ) -> AgentResponse:
-        """Execute a prompt.
-
-        Args:
-            prompt (Prompt):`
-                The prompt to execute.
-            output_type (Optional[Any]):
-                The output type to use for the task. This can either be a Pydantic `BaseModel` class
-                or a supported potato_head response type such as `Score`.
-            model (Optional[str]):
-                The model to use for the task. If not provided, defaults to the `model` provided within
-                the Prompt. If the Prompt does not have a model, an error will be raised.
-
-        Returns:
-            AgentResponse:
-                The response from the agent after executing the task.
-        """
-
-    @property
-    def id(self) -> str:
-        """The ID of the agent. This is a random uuid7 that is generated when the agent is created."""
-
-ConfigT = TypeVar("ConfigT", OpenAIEmbeddingConfig, GeminiEmbeddingConfig, None)
-
-class Embedder:
-    """Class for creating embeddings."""
-
-    def __init__(  # type: ignore
-        self,
-        provider: Provider | str,
-        config: Optional[OpenAIEmbeddingConfig | GeminiEmbeddingConfig] = None,
-    ) -> None:
-        """Create an Embedder object.
-
-        Args:
-            provider (Provider | str):
-                The provider to use for the embedder. This can be a Provider enum or a string
-                representing the provider.
-            config (Optional[OpenAIEmbeddingConfig | GeminiEmbeddingConfig]):
-                The configuration to use for the embedder. This can be a Pydantic BaseModel class
-                representing the configuration for the provider. If no config is provided,
-                defaults to OpenAI provider configuration.
-        """
-
-    def embed(
-        self,
-        input: str | List[str] | PredictRequest,
-    ) -> OpenAIEmbeddingResponse | GeminiEmbeddingResponse | PredictResponse:
-        """Create embeddings for input.
-
-        Args:
-            input: The input to embed. Type depends on provider:
-                - OpenAI/Gemini: str | List[str]
-                - Vertex: PredictRequest
-
-        Returns:
-            Provider-specific response type.
-            OpenAIEmbeddingResponse for OpenAI,
-            GeminiEmbeddingResponse for Gemini,
-            PredictResponse for Vertex.
-
-        Examples:
-            ```python
-            ## OpenAI
-            embedder = Embedder(Provider.OpenAI)
-            response = embedder.embed(input="Test input")
-
-            ## Gemini
-            embedder = Embedder(Provider.Gemini, config=GeminiEmbeddingConfig(model="gemini-embedding-001"))
-            response = embedder.embed(input="Test input")
-
-            ## Vertex
-            from potato_head.google import PredictRequest
-            embedder = Embedder(Provider.Vertex)
-            response = embedder.embed(input=PredictRequest(text="Test input"))
-            ```
-        """
-
-class Workflow:
-    def __init__(self, name: str) -> None:
-        """Create a Workflow object.
-
-        Args:
-            name (str):
-                The name of the workflow.
-        """
+        """Tool call ID."""
 
     @property
     def name(self) -> str:
-        """The name of the workflow."""
+        """Tool name."""
 
     @property
-    def task_list(self) -> TaskList:
-        """The tasks in the workflow."""
+    def type(self) -> str:
+        """Block type."""
 
-    @property
-    def agents(self) -> Dict[str, Agent]:
-        """The agents in the workflow."""
+class ServerToolUseBlock:
+    """Server tool use content block in response.
 
-    @property
-    def is_workflow(self) -> bool:
-        """Returns True if the workflow is a valid workflow, otherwise False.
-        This is used to determine if the workflow can be executed.
-        """
+    Represents a server-side tool call from Claude.
 
-    def __workflow__(self) -> str:
-        """Returns a string representation of the workflow."""
-
-    def add_task_output_types(self, task_output_types: Dict[str, Any]) -> None:
-        """Add output types for tasks in the workflow. This is primarily used for
-        when loading a workflow as python objects are not serializable.
-
-        Args:
-            task_output_types (Dict[str, Any]):
-                A dictionary mapping task IDs to their output types.
-                This can either be a Pydantic `BaseModel` class or a supported potato_head response type such as `Score`.
-        """
-
-    def add_task(self, task: Task, output_type: Optional[Any]) -> None:
-        """Add a task to the workflow.
-
-        Args:
-            task (Task):
-                The task to add to the workflow.
-            output_type (Optional[Any]):
-                The output type to use for the task. This can either be a Pydantic `BaseModel` class
-                or a supported potato_head response type such as `Score`.
-        """
-
-    def add_tasks(self, tasks: List[Task]) -> None:
-        """Add multiple tasks to the workflow.
-
-        Args:
-            tasks (List[Task]):
-                The tasks to add to the workflow.
-        """
-
-    def add_agent(self, agent: Agent) -> None:
-        """Add an agent to the workflow.
-
-        Args:
-            agent (Agent):
-                The agent to add to the workflow.
-        """
-
-    def is_complete(self) -> bool:
-        """Check if the workflow is complete.
-
-        Returns:
-            bool:
-                True if the workflow is complete, False otherwise.
-        """
-
-    def pending_count(self) -> int:
-        """Get the number of pending tasks in the workflow.
-
-        Returns:
-            int:
-                The number of pending tasks in the workflow.
-        """
-
-    def execution_plan(self) -> Dict[str, List[str]]:
-        """Get the execution plan for the workflow.
-
-        Returns:
-            Dict[str, List[str]]:
-                A dictionary where the keys are task IDs and the values are lists of task IDs
-                that the task depends on.
-        """
-
-    def run(
-        self,
-        global_context: Optional[Dict[str, Any]] = None,
-    ) -> "WorkflowResult":
-        """Run the workflow. This will execute all tasks in the workflow and return when all tasks are complete.
-
-        Args:
-            global_context (Optional[Dict[str, Any]]):
-                A dictionary of global context to bind to the workflow.
-                All tasks in the workflow will have this context bound to them.
-        """
-
-    def model_dump_json(self) -> str:
-        """Dump the workflow to a JSON string.
-
-        Returns:
-            str:
-                The JSON string.
-        """
-
-    @staticmethod
-    def model_validate_json(
-        json_string: str, output_types: Optional[Dict[str, Any]]
-    ) -> "Workflow":
-        """Load a workflow from a JSON string.
-
-        Args:
-            json_string (str):
-                The JSON string to validate.
-            output_types (Optional[Dict[str, Any]]):
-                A dictionary mapping task IDs to their output types.
-                This can either be a Pydantic `BaseModel` class or a supported potato_head response type such as `Score`.
-
-        Returns:
-            Workflow:
-                The workflow object.
-        """
-
-class WorkflowTask:
-    """Python-specific task interface for Task objects and results"""
-
-    @property
-    def prompt(self) -> Prompt:
-        """The prompt to use for the task."""
-
-    @property
-    def dependencies(self) -> List[str]:
-        """The dependencies of the task."""
-
-    @property
-    def id(self) -> str:
-        """The ID of the task."""
-
-    @property
-    def agent_id(self) -> str:
-        """The ID of the agent that will execute the task."""
-
-    @property
-    def status(self) -> TaskStatus:
-        """The status of the task."""
-
-    @property
-    def result(self) -> Optional[AgentResponse]:
-        """The result of the task if it has been executed, otherwise None."""
-
-    def __str__(self) -> str: ...
-
-class ChatResponse:
-    def to_py(self) -> Any:
-        """Convert the ChatResponse to it's Python representation."""
-
-    def __str__(self) -> str:
-        """Return a string representation of the ChatResponse."""
-
-class EventDetails:
-    @property
-    def prompt(self) -> Optional[Prompt]:
-        """The prompt used for the task."""
-
-    @property
-    def response(self) -> Optional[ChatResponse]:
-        """The response from the agent after executing the task."""
-
-    @property
-    def duration(self) -> Optional[datetime.timedelta]:
-        """The duration of the task execution."""
-
-    @property
-    def start_time(self) -> Optional[datetime.datetime]:
-        """The start time of the task execution."""
-
-    @property
-    def end_time(self) -> Optional[datetime.datetime]:
-        """The end time of the task execution."""
-
-    @property
-    def error(self) -> Optional[str]:
-        """The error message if the task failed, otherwise None."""
-
-class TaskEvent:
-    @property
-    def id(self) -> str:
-        """The ID of the event"""
-
-    @property
-    def workflow_id(self) -> str:
-        """The ID of the workflow that the task is part of."""
-
-    @property
-    def task_id(self) -> str:
-        """The ID of the task that the event is associated with."""
-
-    @property
-    def status(self) -> TaskStatus:
-        """The status of the task at the time of the event."""
-
-    @property
-    def timestamp(self) -> datetime.datetime:
-        """The timestamp of the event. This is the time when the event occurred."""
-
-    @property
-    def updated_at(self) -> datetime.datetime:
-        """The timestamp of when the event was last updated. This is useful for tracking changes to the event."""
-
-    @property
-    def details(self) -> EventDetails:
-        """Additional details about the event. This can include information such as error messages or other relevant data."""
-
-class WorkflowResult:
-    @property
-    def tasks(self) -> Dict[str, WorkflowTask]:
-        """The tasks in the workflow result."""
-
-    @property
-    def events(self) -> List[TaskEvent]:
-        """The events that occurred during the workflow execution. This is a list of dictionaries
-        where each dictionary contains information about the event such as the task ID, status, and timestamp.
-        """
-
-class Score:
-    """A class representing a score with a score value and a reason. This is typically used
-    as a response type for tasks/prompts that require scoring or evaluation of results.
-
-    Example:
-    ```python
-        Prompt(
-            model="openai:gpt-4o",
-            message="What is the score of this response?",
-            system_instruction="system_prompt",
-            response_format=Score,
-        )
-    ```
+    Examples:
+        >>> block = response.content[0]
+        >>> print(f"Server tool: {block.name}")
     """
 
     @property
-    def score(self) -> int:
-        """The score value."""
+    def id(self) -> str:
+        """Tool call ID."""
 
     @property
-    def reason(self) -> str:
-        """The reason for the score."""
+    def name(self) -> str:
+        """Tool name."""
 
-    @staticmethod
-    def model_validate_json(json_string: str) -> "Score":
-        """Validate the score JSON.
+    @property
+    def type(self) -> str:
+        """Block type."""
 
-        Args:
-            json_string (str):
-                The JSON string to validate.
+class WebSearchResultBlock:
+    """Web search result block in response.
 
-        Returns:
-            Score:
-                The score object.
-        """
+    Single web search result.
 
-    def __str__(self): ...
+    Examples:
+        >>> result = block.content[0]
+        >>> print(f"{result.title}: {result.url}")
+        >>> if result.page_age:
+        ...     print(f"Age: {result.page_age}")
+    """
+
+    @property
+    def encrypted_content(self) -> str:
+        """Encrypted content."""
+
+    @property
+    def page_age(self) -> Optional[str]:
+        """Page age."""
+
+    @property
+    def title(self) -> str:
+        """Result title."""
+
+    @property
+    def type(self) -> str:
+        """Block type."""
+
+    @property
+    def url(self) -> str:
+        """Result URL."""
+
+class WebSearchToolResultError:
+    """Web search tool error result.
+
+    Error information from web search tool.
+
+    Examples:
+        >>> error = block.content
+        >>> print(f"Error: {error.error_code}")
+    """
+
+    @property
+    def error_code(self) -> str:
+        """Error code."""
+
+    @property
+    def type(self) -> str:
+        """Error type."""
+
+class WebSearchToolResultBlock:
+    """Web search tool result block in response.
+
+    Contains web search results or error.
+
+    Examples:
+        >>> block = response.content[0]
+        >>> print(f"Tool use ID: {block.tool_use_id}")
+        >>> if isinstance(block.content, list):
+        ...     for result in block.content:
+        ...         print(result.title)
+    """
+
+    @property
+    def content(self) -> Any:
+        """Search results or error."""
+
+    @property
+    def tool_use_id(self) -> str:
+        """Tool use ID."""
+
+    @property
+    def type(self) -> str:
+        """Block type."""
+
+class StopReason:
+    """Reason for generation stopping.
+
+    Indicates why Claude stopped generating.
+
+    Examples:
+        >>> reason = response.stop_reason
+        >>> if reason == StopReason.EndTurn:
+        ...     print("Natural stopping point")
+    """
+
+    EndTurn = "StopReason"
+    """Natural stopping point reached"""
+
+    MaxTokens = "StopReason"
+    """Maximum token limit reached"""
+
+    StopSequence = "StopReason"
+    """Stop sequence encountered"""
+
+    ToolUse = "StopReason"
+    """Tool was invoked"""
+
+class AnthropicUsage:
+    """Token usage statistics.
+
+    Token usage information for the request.
+
+    Examples:
+        >>> usage = response.usage
+        >>> print(f"Input tokens: {usage.input_tokens}")
+        >>> print(f"Output tokens: {usage.output_tokens}")
+        >>> print(f"Total: {usage.input_tokens + usage.output_tokens}")
+        >>> if usage.cache_read_input_tokens:
+        ...     print(f"Cache hits: {usage.cache_read_input_tokens}")
+    """
+
+    @property
+    def input_tokens(self) -> int:
+        """Input tokens used."""
+
+    @property
+    def output_tokens(self) -> int:
+        """Output tokens generated."""
+
+    @property
+    def cache_creation_input_tokens(self) -> Optional[int]:
+        """Tokens used to create cache."""
+
+    @property
+    def cache_read_input_tokens(self) -> Optional[int]:
+        """Tokens read from cache."""
+
+    @property
+    def service_tier(self) -> Optional[str]:
+        """Service tier used."""
+
+class AnthropicMessageResponse:
+    """Response from Anthropic chat completion API.
+
+    Complete response containing generated content and metadata.
+
+    Examples:
+        >>> response = AnthropicMessageResponse(...)
+        >>> print(response.content[0].text)
+        >>> print(f"Stop reason: {response.stop_reason}")
+        >>> print(f"Usage: {response.usage.total_tokens} tokens")
+    """
+
+    @property
+    def id(self) -> str:
+        """Response ID."""
+
+    @property
+    def model(self) -> str:
+        """Model used."""
+
+    @property
+    def role(self) -> str:
+        """Message role (always 'assistant')."""
+
+    @property
+    def stop_reason(self) -> Optional[StopReason]:
+        """Reason for stopping."""
+
+    @property
+    def stop_sequence(self) -> Optional[str]:
+        """Stop sequence matched."""
+
+    @property
+    def type(self) -> str:
+        """Response type."""
+
+    @property
+    def usage(self) -> AnthropicUsage:
+        """Token usage statistics."""
+
+    @property
+    def content(self) -> List[Any]:
+        """Generated content blocks."""
 
 ###### __potatohead__.mock module ######
 
@@ -8289,89 +8616,260 @@ class RustyLogger:
         """
 
 __all__ = [
+    #######_______________________ OpenAI _________________________######
+    "AllowedTools",
+    "AllowedToolsMode",
+    "AudioParam",
+    "Content",
+    "CustomChoice",
+    "CustomDefinition",
+    "CustomTool",
+    "CustomToolChoice",
+    "CustomToolFormat",
+    "FunctionChoice",
+    "FunctionDefinition",
+    "FunctionTool",
+    "FunctionToolChoice",
+    "Grammar",
+    "GrammarFormat",
+    "InnerAllowedTools",
+    "OpenAIChatSettings",
+    "Prediction",
+    "PredictionContentPart",
+    "StreamOptions",
+    "TextFormat",
+    "OpenAITool",
+    "ToolChoice",
+    "ToolChoiceMode",
+    "ToolDefinition",
+    # Request types
+    "ChatMessage",
+    "File",
+    "FileContentPart",
+    "ImageContentPart",
     "ImageUrl",
-    "AudioUrl",
-    "BinaryContent",
-    "DocumentUrl",
-    "Message",
-    "ModelSettings",
-    "Prompt",
-    "Provider",
-    "TaskStatus",
-    "AgentResponse",
-    "Task",
-    "TaskList",
-    "Agent",
-    "Workflow",
-    "WorkflowTask",
-    "ChatResponse",
-    "EventDetails",
-    "TaskEvent",
-    "WorkflowResult",
-    "Score",
-    "Embedder",
-    "LLMTestServer",
-    ### google
-    "Modality",
-    "GeminiThinkingConfig",
-    "MediaResolution",
-    "SpeechConfig",
-    "PrebuiltVoiceConfig",
-    "VoiceConfig",
-    "GenerationConfig",
-    "ToolConfig",
-    "FunctionCallingConfig",
-    "RetrievalConfig",
-    "LatLng",
-    "ModelArmorConfig",
-    "Mode",
-    "GeminiSettings",
+    "InputAudioContentPart",
+    "InputAudioData",
+    "TextContentPart",
+    # Response types
+    "Annotations",
+    "Audio",
+    "ChatCompletionMessage",
+    "Choice",
+    "CompletionTokenDetails",
+    "Function",
+    "LogContent",
+    "LogProbs",
+    "OpenAIChatResponse",
+    "PromptTokenDetails",
+    "ToolCall",
+    "TopLogProbs",
+    "Usage",
+    "UrlCitation",
+    # Embedding types
+    "EmbeddingObject",
+    "OpenAIEmbeddingConfig",
+    "OpenAIEmbeddingResponse",
+    "UsageObject",
+    #######_______________________ Gemini _________________________######
+    # Request - Schema and Safety
+    "SchemaType",
+    "Schema",
     "HarmCategory",
     "HarmBlockThreshold",
     "HarmBlockMethod",
     "SafetySetting",
-    "GeminiEmbeddingConfig",
-    "GeminiEmbeddingResponse",
+    # Request - Modality and Media
+    "Modality",
+    "MediaResolution",
+    "ModelRoutingPreference",
+    "ThinkingLevel",
+    "GeminiThinkingConfig",
+    "ImageConfig",
+    # Request - Routing
+    "AutoRoutingMode",
+    "ManualRoutingMode",
+    "RoutingConfigMode",
+    "RoutingConfig",
+    # Request - Speech/Voice
+    "PrebuiltVoiceConfig",
+    "VoiceConfig",
+    "SpeakerVoiceConfig",
+    "MultiSpeakerVoiceConfig",
+    "SpeechConfig",
+    # Request - Generation and Configuration
+    "GenerationConfig",
+    "ModelArmorConfig",
+    "Mode",
+    "FunctionCallingConfig",
+    "LatLng",
+    "RetrievalConfig",
+    "ToolConfig",
+    "GeminiSettings",
+    # Request - Code and Functions
+    "Language",
+    "Outcome",
+    "FileData",
+    "PartialArgs",
+    "FunctionCall",
+    "Blob",
+    "FunctionResponse",
+    "ExecutableCode",
+    "CodeExecutionResult",
+    # Request - Content Parts
+    "VideoMetadata",
+    "PartMetadata",
+    "Part",
+    "GeminiContent",
+    # Request - Tools and Functions
+    "Behavior",
+    "FunctionDeclaration",
+    # Request - Retrieval
+    "DataStoreSpec",
+    "VertexAISearch",
+    "VertexRagStore",
+    "RagResource",
+    "RagRetrievalConfig",
+    "Filter",
+    "RankService",
+    "LlmRanker",
+    "RankingConfig",
+    "Ranking",
+    # Request - External API
+    "ApiSpecType",
+    "SimpleSearchParams",
+    "ElasticSearchParams",
+    "AuthType",
+    "HttpElementLocation",
+    "ApiKeyConfig",
+    "HttpBasicAuthConfig",
+    "GoogleServiceAccountConfig",
+    "OauthConfigValue",
+    "OauthConfig",
+    "OidcConfig",
+    "AuthConfigValue",
+    "AuthConfig",
+    "ExternalApi",
+    "RetrievalSource",
+    "Retrieval",
+    # Request - Search
+    "Interval",
+    "GoogleSearch",
+    "PhishBlockThreshold",
+    "VertexGoogleSearch",
+    "EnterpriseWebSearch",
+    "ParallelAiSearch",
+    "GoogleSearchNum",
+    "DynamicRetrievalMode",
+    "DynamicRetrievalConfig",
+    "GoogleSearchRetrieval",
+    "GoogleMaps",
+    # Request - Computer Use and Context
+    "CodeExecution",
+    "ComputerUseEnvironment",
+    "ComputerUse",
+    "UrlContext",
+    "FileSearch",
+    "GeminiTool",
+    # Response - Usage and Metadata
+    "TrafficType",
+    "ModalityTokenCount",
+    "UsageMetadata",
+    "BlockedReason",
+    "PromptFeedback",
+    # Response - URL and Retrieval
+    "UrlRetrievalStatus",
+    "UrlMetadata",
+    "UrlContextMetadata",
+    "SourceFlaggingUri",
+    "RetrievalMetadata",
+    # Response - Search and Grounding
+    "SearchEntryPoint",
+    "Segment",
+    "GroundingSupport",
+    "Web",
+    "PageSpan",
+    "RagChunk",
+    "RetrievedContext",
+    "Maps",
+    "GroundingChunkType",
+    "GroundingChunk",
+    "GroundingMetadata",
+    # Response - Safety
+    "HarmProbability",
+    "HarmSeverity",
+    "SafetyRating",
+    # Response - Candidates
+    "FinishReason",
+    "LogprobsCandidate",
+    "TopCandidates",
+    "LogprobsResult",
+    "GoogleDate",
+    "Citation",
+    "CitationMetadata",
+    "Candidate",
+    "GenerateContentResponse",
+    # Embeddings
     "PredictRequest",
     "PredictResponse",
     "EmbeddingTaskType",
-    ### openai
-    "PromptTokenDetails",
-    "CompletionTokenDetails",
-    "Usage",
-    "AudioParam",
-    "ContentPart",
-    "Content",
-    "Prediction",
-    "StreamOptions",
-    "ToolChoiceMode",
-    "FunctionChoice",
-    "FunctionToolChoice",
-    "CustomChoice",
-    "CustomToolChoice",
-    "ToolDefinition",
-    "AllowedToolsMode",
-    "AllowedTools",
-    "OpenAIToolChoice",
-    "FunctionDefinition",
-    "FunctionTool",
-    "TextFormat",
-    "Grammar",
-    "GrammarFormat",
-    "CustomToolFormat",
-    "CustomDefinition",
-    "CustomTool",
-    "OpenAITool",
-    "OpenAIChatSettings",
-    "OpenAIEmbeddingConfig",
-    "OpenAIEmbeddingResponse",
-    ### Anthropic
+    "GeminiEmbeddingConfig",
+    "ContentEmbedding",
+    "GeminiEmbeddingResponse",
+    #######_______________________ Anthropic _________________________######
+    # Settings and Configuration
     "AnthropicSettings",
-    "Metadata",
     "CacheControl",
-    "AnthropicTool",
+    "Metadata",
+    # Tools
     "AnthropicThinkingConfig",
-    "AnthropicToolChoice",
+    "AnthropicTool",
+    "ToolChoice",
+    # Request - Citation Locations
+    "CitationCharLocationParam",
+    "CitationPageLocationParam",
+    "CitationContentBlockLocationParam",
+    "CitationWebSearchResultLocationParam",
+    "CitationSearchResultLocationParam",
+    # Request - Content Blocks
+    "TextBlockParam",
+    "Base64ImageSource",
+    "UrlImageSource",
+    "ImageBlockParam",
+    "Base64PDFSource",
+    "UrlPDFSource",
+    "PlainTextSource",
+    "CitationsConfigParams",
+    "DocumentBlockParam",
+    "SearchResultBlockParam",
+    "ThinkingBlockParam",
+    "RedactedThinkingBlockParam",
+    "ToolUseBlockParam",
+    "ToolResultBlockParam",
+    "ServerToolUseBlockParam",
+    "WebSearchResultBlockParam",
+    "WebSearchToolResultBlockParam",
+    "MessageParam",
+    "SystemPrompt",
+    # Response - Citation Locations
+    "CitationCharLocation",
+    "CitationPageLocation",
+    "CitationContentBlockLocation",
+    "CitationsWebSearchResultLocation",
+    "CitationsSearchResultLocation",
+    # Response - Content Blocks
+    "TextBlock",
+    "ThinkingBlock",
+    "RedactedThinkingBlock",
+    "ToolUseBlock",
+    "ServerToolUseBlock",
+    "WebSearchResultBlock",
+    "WebSearchToolResultError",
+    "WebSearchToolResultBlock",
+    # Response - Message
+    "StopReason",
+    "AnthropicUsage",
+    "AnthropicMessageResponse",
     ### logging
     "LogLevel",
     "RustyLogger",

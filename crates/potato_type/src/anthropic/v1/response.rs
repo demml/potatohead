@@ -278,7 +278,6 @@ pub(crate) enum ResponseContentBlockInner {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
 pub struct ResponseContentBlock {
     #[serde(flatten)]
     inner: ResponseContentBlockInner,
@@ -333,7 +332,7 @@ pub enum StopReason {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(name = "AnthropicUsage")]
 pub struct Usage {
     #[pyo3(get)]
     pub input_tokens: i32,

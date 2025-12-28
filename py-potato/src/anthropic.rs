@@ -25,7 +25,6 @@ pub fn add_anthropic_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ServerToolUseBlockParam>()?;
     m.add_class::<WebSearchResultBlockParam>()?;
     m.add_class::<WebSearchToolResultBlockParam>()?;
-    m.add_class::<ContentBlockParam>()?;
     m.add_class::<MessageParam>()?;
     m.add_class::<Metadata>()?;
     m.add_class::<CacheControl>()?;
@@ -49,7 +48,6 @@ pub fn add_anthropic_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<WebSearchResultBlock>()?;
     m.add_class::<WebSearchToolResultError>()?;
     m.add_class::<WebSearchToolResultBlock>()?;
-    m.add_class::<ResponseContentBlock>()?;
     m.add_class::<StopReason>()?;
     m.add_class::<Usage>()?;
     m.add_class::<AnthropicMessageResponse>()?;

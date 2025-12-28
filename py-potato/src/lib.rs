@@ -15,6 +15,7 @@ use pyo3::prelude::*;
 pub fn _potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // prompt interface
     m.add_class::<Prompt>()?;
+    m.add_class::<Role>()?;
     m.add_class::<ModelSettings>()?;
     m.add_class::<Provider>()?;
     m.add_class::<Score>()?;

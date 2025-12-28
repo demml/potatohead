@@ -20,6 +20,8 @@ use serde_json::Value;
 use std::fmt::Display;
 use tracing::error;
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[pyclass]
 pub enum Role {
     User,
     Assistant,
