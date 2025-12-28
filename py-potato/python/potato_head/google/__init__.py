@@ -1,7 +1,7 @@
 # mypy: disable-error-code="attr-defined"
 # pylint: disable=no-name-in-module
 
-from .._potato_head import (  # Request - Schema and Safety; Request - Modality and Media; Request - Routing; Request - Speech/Voice; Request - Generation and Configuration; Request - Code and Functions; Request - Content Parts; Request - Tools and Functions; Request - Retrieval; Request - External API; Request - Search; Request - Computer Use and Context; Response - Usage and Metadata; Response - URL and Retrieval; Response - Search and Grounding; Response - Safety; Response - Candidates; Embeddings; Aliased
+from .._potato_head import (
     ApiKeyConfig,
     ApiSpecType,
     AuthConfig,

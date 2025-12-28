@@ -302,6 +302,16 @@ impl ChatMessage {
             })
             .collect()
     }
+
+    #[pyo3(name = "bind")]
+    fn bind_py(&self, name: &str, value: &str) -> Result<Self, TypeError> {
+        self.bind(name, value)
+    }
+
+    #[pyo3(name = "bind_mut")]
+    fn bind_mut_py(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
+        self.bind_mut(name, value)
+    }
 }
 
 impl PromptMessageExt for ChatMessage {

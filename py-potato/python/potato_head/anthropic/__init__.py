@@ -6,11 +6,7 @@ from .._potato_head import (
     AnthropicSettings,
     AnthropicThinkingConfig,
     AnthropicTool,
-)
-from .._potato_head import (
-    AnthropicToolChoice as ToolChoice,  # Settings and Configuration; Tools; Request - Citation Locations; Request - Content Blocks; Response - Citation Locations; Response - Content Blocks; Response - Message
-)
-from .._potato_head import (
+    AnthropicToolChoice,
     AnthropicUsage,
     Base64ImageSource,
     Base64PDFSource,
@@ -62,7 +58,7 @@ __all__ = [
     # Tools
     "AnthropicThinkingConfig",
     "AnthropicTool",
-    "ToolChoice",
+    "AnthropicToolChoice",
     # Request - Citation Locations
     "CitationCharLocationParam",
     "CitationPageLocationParam",

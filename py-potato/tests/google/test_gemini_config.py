@@ -1,4 +1,4 @@
-from potato_head.google import GeminiSettings, GenerationConfig, ThinkingConfig
+from potato_head.google import GeminiSettings, GenerationConfig, GeminiThinkingConfig
 
 
 def test_gemini_settings_init():
@@ -11,7 +11,7 @@ def test_generation_config_init():
         top_k=5,
         top_p=0.9,
         temperature=0.8,
-        thinking_config=ThinkingConfig(
+        thinking_config=GeminiThinkingConfig(
             include_thoughts=True,
             thinking_budget=1000,
         ),

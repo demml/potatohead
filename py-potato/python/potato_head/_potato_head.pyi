@@ -222,7 +222,9 @@ PromptMessage: TypeAlias = Union[
     List[Union[str, ChatMessage, MessageParam, GeminiContent]],
 ]
 
-class Prompt:
+TMessage = TypeVar("TMessage", ChatMessage, MessageParam, GeminiContent)
+
+class Prompt(Generic[TMessage]):
     """Prompt for interacting with an LLM API.
 
     The Prompt class handles message parsing, provider-specific formatting, and
@@ -231,11 +233,13 @@ class Prompt:
 
     def __init__(
         self,
-        message: PromptMessage,
+        messages: TMessage | List[TMessage],
         model: str,
         provider: Provider | str,
-        system_instruction: Optional[PromptMessage] = None,
-        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = None,
+        system_instructions: Optional[PromptMessage] = None,
+        model_settings: Optional[
+            ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings
+        ] = None,
         output_type: Optional[Any] = None,
     ) -> None:
         """Initialize a Prompt object.
@@ -311,7 +315,7 @@ class Prompt:
         """
 
     @property
-    def messages(self) -> List[Any]:
+    def messages(self) -> List[TMessage]:
         """The user message(s) in the prompt.
 
         Returns a list of provider-specific message objects that were parsed
@@ -2443,7 +2447,9 @@ class ChatMessage:
     @property
     def content(
         self,
-    ) -> List[Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]]:
+    ) -> List[
+        Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]
+    ]:
         """The message content parts."""
 
     @property

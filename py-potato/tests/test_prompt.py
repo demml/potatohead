@@ -1,21 +1,15 @@
-from typing import List
+from typing import List, cast
 
-import httpx
+
 from potato_head import (
-    BinaryContent,
-    DocumentUrl,
-    ImageUrl,
-    Message,
     ModelSettings,
     Prompt,
     Provider,
 )
-from potato_head.google import GeminiSettings, GenerationConfig
-from potato_head.openai import OpenAIChatSettings
+from potato_head.google import GeminiSettings, GenerationConfig, GeminiContent
+from potato_head.openai import OpenAIChatSettings, ChatMessage, ImageContentPart
+from potato_head.anthropic import MessageParam
 from pydantic import BaseModel
-from pydantic_ai import BinaryContent as PydanticBinaryContent
-from pydantic_ai import DocumentUrl as PydanticDocumentUrl
-from pydantic_ai import ImageUrl as PydanticImageUrl
 from pydantic_ai.settings import ModelSettings as PydanticModelSettings
 
 
@@ -40,7 +34,7 @@ def test_string_prompt():
     prompt = Prompt(
         model="gpt-4o",
         provider=Provider.OpenAI,
-        message=Message(content="My prompt"),
+        message=ChatMessage(content="My prompt"),
         system_instruction="system_prompt",
     )
 
@@ -50,15 +44,17 @@ def test_string_prompt():
     prompt = Prompt(
         model="gpt-4o",
         provider="openai",
-        message=[
-            Message(content="Foo"),
-            Message(content="Bar"),
+        messages=[
+            ChatMessage(content="Foo"),
+            ChatMessage(content="Bar"),
         ],
-        system_instruction="system_prompt",
+        system_instructions="system_prompt",
     )
 
-    assert prompt.message[0].unwrap() == "Foo"
-    assert prompt.message[1].unwrap() == "Bar"
+    messages = prompt.messages
+
+    assert messages[0].content == "Foo"
+    assert messages[1].content == "Bar"
 
     # test list of strings
     prompt = Prompt(
@@ -71,14 +67,16 @@ def test_string_prompt():
         system_instruction="system_prompt",
     )
 
-    assert prompt.message[0].unwrap() == "Hello ${variable}"
-    assert prompt.message[1].unwrap() == "Bar"
+    messages = cast(List[ChatMessage], prompt.messages)
 
-    bounded_message = prompt.message[0].bind("variable", "world").unwrap()
+    assert messages[0].content == "Hello ${variable}"
+    assert messages[1].content == "Bar"
+
+    bounded_message = prompt.bind("variable", "world").messages[0]
     assert bounded_message == "Hello world"
 
     # test bind mut
-    msg = prompt.message[0]
+    msg = prompt.messages[0]
     msg.bind_mut("variable", "world")
     assert msg.unwrap() == "Hello world"
 
@@ -116,50 +114,22 @@ def test_bind_prompt():
 def test_image_prompt():
     prompt = Prompt(
         model="gpt-4o",
-        provider="openai",
-        message=[
-            "What company is this logo from?",
-            ImageUrl(url="https://iili.io/3Hs4FMg.png"),
+        provider=Provider.OpenAI,
+        messages=[
+            ChatMessage(content="What company is this logo from?"),
+            ChatMessage(
+                content=ImageContentPart(url="https://iili.io/3Hs4FMg.png"),
+            ),
         ],
-        system_instruction="system_prompt",
+        system_instructions="system_prompt",
     )
 
-    assert prompt.message[0].unwrap() == "What company is this logo from?"
+    messages = prompt.messages
+
+    assert messages[0].content == "What company is this logo from?"
 
     # unwrap for image url will convert to expected pydantic dataclass
-    assert isinstance(prompt.message[1].unwrap(), PydanticImageUrl)
-
-
-def test_binary_prompt():
-    image_response = httpx.get("https://iili.io/3Hs4FMg.png")
-
-    prompt = Prompt(
-        model="gpt-4o",
-        provider="openai",
-        message=[
-            "What company is this logo from?",
-            BinaryContent(data=image_response.content, media_type="image/png"),
-        ],
-        system_instruction="system_prompt",
-    )
-
-    assert prompt.message[0].unwrap() == "What company is this logo from?"
-    assert isinstance(prompt.message[1].unwrap(), PydanticBinaryContent)
-
-
-def test_document_prompt():
-    prompt = Prompt(
-        model="gpt-4o",
-        provider="openai",
-        message=[
-            "What is the main content of this document?",
-            DocumentUrl(url="https://storage.googleapis.com/cloud-samples-data/generative-ai/pdf/2403.05530.pdf"),
-        ],
-        system_instruction="system_prompt",
-    )
-
-    assert prompt.message[0].unwrap() == "What is the main content of this document?"
-    assert isinstance(prompt.message[1].unwrap(), PydanticDocumentUrl)
+    assert isinstance(messages[1], ImageContentPart)
 
 
 def test_model_settings_prompt():
@@ -216,7 +186,9 @@ def test_gemini_settings_direct():
             "My prompt ${1} is ${2}",
             "My prompt ${3} is ${4}",
         ],
-        model_settings=GeminiSettings(generation_config=GenerationConfig(temperature=0.5)),
+        model_settings=GeminiSettings(
+            generation_config=GenerationConfig(temperature=0.5)
+        ),
     )
 
 
