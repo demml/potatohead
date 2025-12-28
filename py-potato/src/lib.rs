@@ -26,12 +26,12 @@ pub fn _potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<EventDetails>()?;
     m.add_class::<WorkflowResult>()?;
     m.add_class::<PyWorkflow>()?;
+    m.add_class::<WorkflowTask>()?;
     m.add_class::<TaskList>()?;
 
     // agents
     m.add_class::<PyAgent>()?;
     m.add_class::<Task>()?;
-    m.add_class::<WorkflowTask>()?;
     m.add_class::<TaskStatus>()?;
     m.add_class::<PyAgentResponse>()?;
     m.add_class::<PyEmbedder>()?;

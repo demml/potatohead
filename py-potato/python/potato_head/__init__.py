@@ -2,27 +2,23 @@
 # pylint: disable=no-name-in-module
 
 from . import anthropic, google, logging, mock, openai
-from ._potato_head import (
-    # Prompt interface types
-    Prompt,
-    ModelSettings,
-    Provider,
-    Score,
-    ResponseType,
-    # Workflow types
-    TaskEvent,
+from ._potato_head import Agent  # PyAgent
+from ._potato_head import AgentResponse  # PyAgentResponse
+from ._potato_head import Embedder  # PyEmbedder
+from ._potato_head import Workflow  # PyWorkflow
+from ._potato_head import (  # Prompt interface types; Workflow types; Agent types; Python-exposed classes (with Py prefix in Rust)
     EventDetails,
-    WorkflowResult,
-    TaskList,
-    # Agent types
+    ModelSettings,
+    Prompt,
+    Provider,
+    ResponseType,
+    Score,
     Task,
-    WorkflowTask,
+    TaskEvent,
+    TaskList,
     TaskStatus,
-    # Python-exposed classes (with Py prefix in Rust)
-    Workflow,  # PyWorkflow
-    Agent,  # PyAgent
-    AgentResponse,  # PyAgentResponse
-    Embedder,  # PyEmbedder
+    WorkflowResult,
+    WorkflowTask,
 )
 
 __all__ = [
@@ -34,6 +30,7 @@ __all__ = [
     "anthropic",
     # Prompt interface
     "Prompt",
+    "Role",
     "ModelSettings",
     "Provider",
     "Score",
@@ -42,14 +39,14 @@ __all__ = [
     "TaskEvent",
     "EventDetails",
     "WorkflowResult",
-    "TaskList",
     "Workflow",
     "WorkflowTask",
+    "TaskList",
     # Agents
     "Agent",
-    "AgentResponse",
     "Task",
     "TaskStatus",
+    "AgentResponse",
     # Embeddings
     "Embedder",
 ]

@@ -159,6 +159,7 @@ class ModelSettings(Generic[T]):
             settings: Anthropic Claude settings
         """
         ...
+
     @property
     def settings(self) -> T:
         """Provider-specific settings object."""
@@ -234,9 +235,7 @@ class Prompt:
         model: str,
         provider: Provider | str,
         system_instruction: Optional[PromptMessage] = None,
-        model_settings: Optional[
-            ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings
-        ] = None,
+        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = None,
         output_type: Optional[Any] = None,
     ) -> None:
         """Initialize a Prompt object.
@@ -547,6 +546,7 @@ class EventDetails:
 
 class TaskEvent:
     """A class representing an event that occurs during the execution of a task in a workflow."""
+
     @property
     def id(self) -> str:
         """The ID of the event"""
@@ -719,6 +719,7 @@ class Task:
 
 class TaskList:
     """TaskList is a collection of Task objects used in a Workflow."""
+
     @property
     def items(self) -> Dict[str, Task]:
         """Dictionary of tasks in the TaskList where keys are task IDs and values are Task objects."""
@@ -2442,9 +2443,7 @@ class ChatMessage:
     @property
     def content(
         self,
-    ) -> List[
-        Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]
-    ]:
+    ) -> List[Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]]:
         """The message content parts."""
 
     @property
@@ -4959,6 +4958,7 @@ class CodeExecutionResult:
         ...     output="NameError: name 'x' is not defined"
         ... )
     """
+
     @property
     def outcome(self) -> Outcome:
         """The execution outcome."""
@@ -9439,6 +9439,27 @@ class RustyLogger:
         """
 
 __all__ = [
+    #######_______________________ main _________________________######
+    "Prompt",
+    "Role",
+    "ModelSettings",
+    "Provider",
+    "Score",
+    "ResponseType",
+    # Workflow
+    "TaskEvent",
+    "EventDetails",
+    "WorkflowResult",
+    "Workflow",
+    "WorkflowTask",
+    "TaskList",
+    # Agents
+    "Agent",
+    "Task",
+    "TaskStatus",
+    "AgentResponse",
+    # Embeddings
+    "Embedder",
     #######_______________________ OpenAI _________________________######
     "AllowedTools",
     "AllowedToolsMode",
