@@ -27,8 +27,9 @@ def test_string_prompt():
         message="My prompt",
         system_instruction="system_prompt",
     )
-    assert prompt.message[0].unwrap() == "My prompt"
-    assert prompt.system_instruction[0].unwrap() == "system_prompt"
+
+    assert prompt.messages[0].content == "My prompt"
+    assert prompt.system_instructions[0].content == "system_prompt"
 
     # test string message
     prompt = Prompt(
@@ -38,7 +39,7 @@ def test_string_prompt():
         system_instruction="system_prompt",
     )
 
-    assert prompt.message[0].unwrap() == "My prompt"
+    assert prompt.messages[0].content == "My prompt"
 
     # test list of string messages
     prompt = Prompt(
@@ -76,7 +77,7 @@ def test_string_prompt():
     assert bounded_message == "Hello world"
 
     # test bind mut
-    msg = prompt.messages[0]
+    msg = cast(ChatMessage, prompt.messages[0])
     msg.bind_mut("variable", "world")
     assert msg.unwrap() == "Hello world"
 
@@ -92,23 +93,23 @@ def test_bind_prompt():
         system_instruction="system_prompt",
     )
     bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
-    assert bound_prompt.message[0].unwrap() == "Hello world"
-    assert bound_prompt.message[1].unwrap() == "This is Foo"
+    assert bound_prompt.messages[0].content == "Hello world"
+    assert bound_prompt.messages[1].content == "This is Foo"
 
     # testing binding with kwargs
     bound_prompt = prompt.bind(variable1="world")
-    assert bound_prompt.message[0].unwrap() == "Hello world"
+    assert bound_prompt.messages[0].content == "Hello world"
 
     bound_prompt = prompt.bind(variable1=10)
-    assert bound_prompt.message[0].unwrap() == "Hello 10"
+    assert bound_prompt.messages[0].content == "Hello 10"
 
     bound_prompt = prompt.bind(variable1={"key": "value"})
-    assert bound_prompt.message[0].unwrap() == 'Hello {"key":"value"}'
+    assert bound_prompt.messages[0].content == 'Hello {"key":"value"}'
 
     # test bind mut
-    prompt.message[0].unwrap() == "Hello ${variable1}"
+    prompt.messages[0].unwrap() == "Hello ${variable1}"
     prompt.bind_mut("variable1", "world")
-    assert prompt.message[0].unwrap() == "Hello world"
+    assert prompt.messages[0].content == "Hello world"
 
 
 def test_image_prompt():
@@ -212,4 +213,4 @@ def test_prompt_no_args():
         system_instruction="system_prompt",
     )
 
-    assert prompt.message[0].unwrap() == "My prompt"
+    assert prompt.messages[0].content == "My prompt"
