@@ -118,10 +118,10 @@ pub struct Schema {
 #[pymethods]
 impl Schema {
     #[new]
-    #[pyo3(signature = (type_=None, format=None, title=None, description=None, nullable=None, enum_=None, max_items=None, min_items=None, properties=None, required=None, min_properties=None, max_properties=None, min_length=None, max_length=None, pattern=None, example=None, any_of=None, property_ordering=None, default=None, items=None, minimum=None, maximum=None))]
+    #[pyo3(signature = (r#type=None, format=None, title=None, description=None, nullable=None, enum_=None, max_items=None, min_items=None, properties=None, required=None, min_properties=None, max_properties=None, min_length=None, max_length=None, pattern=None, example=None, any_of=None, property_ordering=None, default=None, items=None, minimum=None, maximum=None))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        type_: Option<SchemaType>,
+        r#type: Option<SchemaType>,
         format: Option<String>,
         title: Option<String>,
         description: Option<String>,
@@ -151,7 +151,7 @@ impl Schema {
         let items = items.map(Box::new);
 
         Schema {
-            r#type: type_,
+            r#type: r#type,
             format,
             title,
             description,
@@ -2407,7 +2407,7 @@ impl FileSearch {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(name = "GeminiTool")]
 #[pyo3(get_all)]
 pub struct Tool {
     #[serde(skip_serializing_if = "Option::is_none")]
