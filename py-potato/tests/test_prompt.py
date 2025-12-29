@@ -1,14 +1,9 @@
 from typing import List, cast
 
-
-from potato_head import (
-    ModelSettings,
-    Prompt,
-    Provider,
-)
-from potato_head.google import GeminiSettings, GenerationConfig, GeminiContent
-from potato_head.openai import OpenAIChatSettings, ChatMessage, ImageContentPart
+from potato_head import ModelSettings, Prompt, Provider
 from potato_head.anthropic import MessageParam
+from potato_head.google import GeminiContent, GeminiSettings, GenerationConfig
+from potato_head.openai import ChatMessage, ImageContentPart, OpenAIChatSettings
 from pydantic import BaseModel
 from pydantic_ai.settings import ModelSettings as PydanticModelSettings
 
