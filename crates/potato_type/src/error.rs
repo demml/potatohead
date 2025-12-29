@@ -107,6 +107,15 @@ pub enum TypeError {
 
     #[error("Unsupported provider for message conversion")]
     UnsupportedProviderError,
+
+    #[error("Message is not an OpenAI ChatMessage")]
+    MessageIsNotOpenAIChatMessage,
+
+    #[error("Message is not a Google GeminiContent")]
+    MessageIsNotGoogleGeminiContent,
+
+    #[error("Message is not an Anthropic MessageParam")]
+    MessageIsNotAnthropicMessageParam,
 }
 
 impl From<TypeError> for PyErr {

@@ -285,6 +285,48 @@ impl Prompt {
     }
 
     #[getter]
+    pub fn openai_messages<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Vec<Bound<'py, OpenAIChatMessage>>, TypeError> {
+        if self.provider != Provider::OpenAI {
+            return Err(TypeError::Error(
+                "Prompt provider is not OpenAI".to_string(),
+            ));
+        }
+        self.request.get_py_openai_messages(py)
+    }
+
+    #[getter]
+    pub fn gemini_messages<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Vec<Bound<'py, GeminiContent>>, TypeError> {
+        if self.provider != Provider::Google
+            || self.provider != Provider::Gemini
+            || self.provider != Provider::Vertex
+        {
+            return Err(TypeError::Error(
+                "Prompt provider is not Google, Gemini, or Vertex".to_string(),
+            ));
+        }
+        self.request.get_py_gemini_messages(py)
+    }
+
+    #[getter]
+    pub fn anthropic_messages<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Vec<Bound<'py, AnthropicMessage>>, TypeError> {
+        if self.provider != Provider::Anthropic {
+            return Err(TypeError::Error(
+                "Prompt provider is not Anthropic".to_string(),
+            ));
+        }
+        self.request.get_py_anthropic_messages(py)
+    }
+
+    #[getter]
     pub fn system_instructions<'py>(
         &self,
         py: Python<'py>,

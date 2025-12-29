@@ -321,6 +321,30 @@ class Prompt(Generic[TMessage]):
         """
 
     @property
+    def openai_messages(self) -> List[ChatMessage]:
+        """The user messages as OpenAI ChatMessage objects.
+        Returns the user messages converted to OpenAI ChatMessage format.
+        Raises:
+            TypeError: If the provider is not OpenAI
+        """
+
+    @property
+    def anthropic_messages(self) -> List[MessageParam]:
+        """The user messages as Anthropic MessageParam objects.
+        Returns the user messages converted to Anthropic MessageParam format.
+        Raises:
+            TypeError: If the provider is not Anthropic
+        """
+
+    @property
+    def gemini_messages(self) -> List[GeminiContent]:
+        """The user messages as Google GeminiContent objects.
+        Returns the user messages converted to Google GeminiContent format.
+        Raises:
+            TypeError: If the provider is not Google/Gemini
+        """
+
+    @property
     def system_instructions(self) -> List[Any]:
         """The system instruction message(s) in the prompt.
 

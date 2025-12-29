@@ -430,6 +430,48 @@ impl MessageNum {
         }
     }
 
+    pub fn to_bound_openai_message<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, OpenAIChatMessage>, TypeError> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => {
+                let py_obj = Py::new(py, msg.clone())?;
+                let bound = py_obj.bind(py);
+                Ok(bound.clone())
+            }
+            _ => Err(TypeError::CantConvertSelf),
+        }
+    }
+
+    pub fn to_bound_gemini_message<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, GeminiContent>, TypeError> {
+        match self {
+            MessageNum::GeminiContentV1(msg) => {
+                let py_obj = Py::new(py, msg.clone())?;
+                let bound = py_obj.bind(py);
+                Ok(bound.clone())
+            }
+            _ => Err(TypeError::CantConvertSelf),
+        }
+    }
+
+    pub fn to_bound_anthropic_message<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, AnthropicMessage>, TypeError> {
+        match self {
+            MessageNum::AnthropicMessageV1(msg) => {
+                let py_obj = Py::new(py, msg.clone())?;
+                let bound = py_obj.bind(py);
+                Ok(bound.clone())
+            }
+            _ => Err(TypeError::CantConvertSelf),
+        }
+    }
+
     pub fn is_system_message(&self) -> bool {
         match self {
             MessageNum::OpenAIMessageV1(msg) => {

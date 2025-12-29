@@ -1,6 +1,9 @@
 use crate::anthropic::v1::request::AnthropicMessageRequestV1;
+use crate::anthropic::MessageParam;
 use crate::google::v1::generate::request::GeminiGenerateContentRequestV1;
+use crate::google::GeminiContent;
 use crate::openai::v1::chat::request::OpenAIChatCompletionRequestV1;
+use crate::openai::ChatMessage;
 use crate::prompt::types::MessageNum;
 use crate::prompt::ModelSettings;
 use crate::traits::RequestAdapter;
@@ -93,6 +96,45 @@ impl ProviderRequest {
 
         for msg in self.messages() {
             py_messages.append(msg.to_bound_py_object(py)?)?;
+        }
+
+        Ok(py_messages)
+    }
+
+    pub(crate) fn get_py_openai_messages<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Vec<Bound<'py, ChatMessage>>, TypeError> {
+        let mut py_messages = Vec::new();
+
+        for msg in self.messages() {
+            py_messages.push(msg.to_bound_openai_message(py)?);
+        }
+
+        Ok(py_messages)
+    }
+
+    pub(crate) fn get_py_gemini_messages<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Vec<Bound<'py, GeminiContent>>, TypeError> {
+        let mut py_messages = Vec::new();
+
+        for msg in self.messages() {
+            py_messages.push(msg.to_bound_gemini_message(py)?);
+        }
+
+        Ok(py_messages)
+    }
+
+    pub(crate) fn get_py_anthropic_messages<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Vec<Bound<'py, MessageParam>>, TypeError> {
+        let mut py_messages = Vec::new();
+
+        for msg in self.messages() {
+            py_messages.push(msg.to_bound_anthropic_message(py)?);
         }
 
         Ok(py_messages)
