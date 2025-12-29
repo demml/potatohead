@@ -8,13 +8,13 @@ use crate::prompt::settings::ModelSettings;
 use crate::prompt::types::parse_response_to_json;
 use crate::prompt::types::ResponseType;
 use crate::prompt::types::Role;
-use crate::prompt::MessageNum;
+use crate::prompt::{AnthropicMessageList, GeminiContentList, MessageNum, OpenAIMessageList};
 use crate::traits::MessageFactory;
 use crate::SettingsType;
 use crate::{Provider, SaveName};
 use potato_macro::try_extract_message;
 use potato_util::utils::extract_string_value;
-use potato_util::PyHelperFuncs;
+use potato_util::{json_to_pydict, PyHelperFuncs};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
 use serde::{Deserialize, Serialize};
@@ -280,28 +280,55 @@ impl Prompt {
     }
 
     #[getter]
+    /// Returns User messages as Python objects. This means, system instructions are excluded.
     pub fn messages<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyList>, TypeError> {
         self.request.get_py_messages(py)
     }
 
     #[getter]
-    pub fn openai_messages<'py>(
-        &self,
-        py: Python<'py>,
-    ) -> Result<Vec<Bound<'py, OpenAIChatMessage>>, TypeError> {
+    /// Returns the last User message as a Python object. This means, system instructions are excluded.
+    pub fn message<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        self.request.get_py_message(py)
+    }
+
+    #[getter]
+    /// Returns the messages as OpenAI ChatMessage Python objects
+    /// This is a helper that provide strict typing when working with OpenAI prompts
+    pub fn openai_messages(&self) -> Result<OpenAIMessageList, TypeError> {
         if self.provider != Provider::OpenAI {
             return Err(TypeError::Error(
                 "Prompt provider is not OpenAI".to_string(),
             ));
         }
-        self.request.get_py_openai_messages(py)
+        let messages = self
+            .request
+            .messages()
+            .iter()
+            .filter(|msg| msg.is_user_message())
+            .filter_map(|msg| match msg {
+                MessageNum::OpenAIMessageV1(m) => Some(m.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        Ok(OpenAIMessageList { messages })
     }
 
     #[getter]
-    pub fn gemini_messages<'py>(
-        &self,
-        py: Python<'py>,
-    ) -> Result<Vec<Bound<'py, GeminiContent>>, TypeError> {
+    /// Returns the last message as an OpenAI ChatMessage Python object
+    /// This is a helper that provide strict typing when working with OpenAI prompts
+    pub fn openai_message(&self) -> Result<OpenAIChatMessage, TypeError> {
+        if self.provider != Provider::OpenAI {
+            return Err(TypeError::Error(
+                "Prompt provider is not OpenAI".to_string(),
+            ));
+        }
+        self.request.get_openai_message()
+    }
+
+    #[getter]
+    /// Returns the messages as Google GeminiContent Python objects
+    /// This is a helper that provide strict typing when working with Google/Gemini/Vertex prompts
+    pub fn gemini_messages(&self) -> Result<GeminiContentList, TypeError> {
         if self.provider != Provider::Google
             || self.provider != Provider::Gemini
             || self.provider != Provider::Vertex
@@ -310,20 +337,65 @@ impl Prompt {
                 "Prompt provider is not Google, Gemini, or Vertex".to_string(),
             ));
         }
-        self.request.get_py_gemini_messages(py)
+        let messages = self
+            .request
+            .messages()
+            .iter()
+            .filter(|msg| msg.is_user_message())
+            .filter_map(|msg| match msg {
+                MessageNum::GeminiContentV1(m) => Some(m.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        Ok(GeminiContentList { messages })
     }
 
     #[getter]
-    pub fn anthropic_messages<'py>(
-        &self,
-        py: Python<'py>,
-    ) -> Result<Vec<Bound<'py, AnthropicMessage>>, TypeError> {
+    /// Returns the last message as a Google GeminiContent Python object
+    /// This is a helper that provide strict typing when working with Google/Gemini/Vertex prompts
+    pub fn gemini_message(&self) -> Result<GeminiContent, TypeError> {
+        if self.provider != Provider::Google
+            || self.provider != Provider::Gemini
+            || self.provider != Provider::Vertex
+        {
+            return Err(TypeError::Error(
+                "Prompt provider is not Google, Gemini, or Vertex".to_string(),
+            ));
+        }
+        self.request.get_gemini_message()
+    }
+
+    #[getter]
+    pub fn anthropic_messages(&self) -> Result<AnthropicMessageList, TypeError> {
         if self.provider != Provider::Anthropic {
             return Err(TypeError::Error(
                 "Prompt provider is not Anthropic".to_string(),
             ));
         }
-        self.request.get_py_anthropic_messages(py)
+        let messages = self
+            .request
+            .messages()
+            .iter()
+            .filter(|msg| msg.is_user_message())
+            .filter_map(|msg| match msg {
+                MessageNum::AnthropicMessageV1(m) => Some(m.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        Ok(AnthropicMessageList { messages })
+    }
+
+    #[getter]
+    /// Returns the last message as an Anthropic MessageParam Python object
+    pub fn anthropic_message(&self) -> Result<AnthropicMessage, TypeError> {
+        if self.provider != Provider::Anthropic {
+            return Err(TypeError::Error(
+                "Prompt provider is not Anthropic".to_string(),
+            ));
+        }
+        self.request.get_anthropic_message()
     }
 
     #[getter]
@@ -422,6 +494,12 @@ impl Prompt {
         Some(PyHelperFuncs::__str__(
             self.request.response_json_schema().as_ref()?,
         ))
+    }
+
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
+        let request = &self.request.to_json()?;
+        let pydict = PyDict::new(py);
+        Ok(json_to_pydict(py, request, &pydict)?)
     }
 }
 

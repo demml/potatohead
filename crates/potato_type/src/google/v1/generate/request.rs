@@ -1365,6 +1365,10 @@ impl GeminiContent {
     fn bind_mut_py(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
         self.bind_mut(name, value)
     }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
 }
 
 impl PromptMessageExt for GeminiContent {

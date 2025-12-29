@@ -323,9 +323,25 @@ class Prompt(Generic[TMessage]):
         """
 
     @property
+    def message(self) -> TMessage:
+        """The last user message in the prompt.
+
+        Returns a list of provider-specific message objects that were parsed
+        from the input during initialization.
+        """
+
+    @property
     def openai_messages(self) -> List[ChatMessage]:
         """The user messages as OpenAI ChatMessage objects.
         Returns the user messages converted to OpenAI ChatMessage format.
+        Raises:
+            TypeError: If the provider is not OpenAI
+        """
+
+    @property
+    def openai_message(self) -> ChatMessage:
+        """The last user message as an OpenAI ChatMessage object.
+        Returns the last user message converted to OpenAI ChatMessage format.
         Raises:
             TypeError: If the provider is not OpenAI
         """
@@ -339,9 +355,25 @@ class Prompt(Generic[TMessage]):
         """
 
     @property
+    def anthropic_message(self) -> MessageParam:
+        """The last user message as an Anthropic MessageParam object.
+        Returns the last user message converted to Anthropic MessageParam format.
+        Raises:
+            TypeError: If the provider is not Anthropic
+        """
+
+    @property
     def gemini_messages(self) -> List[GeminiContent]:
         """The user messages as Google GeminiContent objects.
         Returns the user messages converted to Google GeminiContent format.
+        Raises:
+            TypeError: If the provider is not Google/Gemini
+        """
+
+    @property
+    def gemini_message(self) -> GeminiContent:
+        """The last user message as a Google GeminiContent object.
+        Returns the last user message converted to Google GeminiContent format.
         Raises:
             TypeError: If the provider is not Google/Gemini
         """
@@ -432,6 +464,12 @@ class Prompt(Generic[TMessage]):
             json_str = '{"model": "gpt-4o", "provider": "openai", ...}'
             prompt = Prompt.model_validate_json(json_str)
             ```
+        """
+
+    def model_dump(self) -> Dict[str, Any]:
+        """Returns the Prompt request object as a dictionary.
+        For instance, if Provider is OpenAI, this will return the OpenAIChatRequest as a dict
+        that can be passed to the OpenAI SDK.
         """
 
     def model_dump_json(self) -> str:

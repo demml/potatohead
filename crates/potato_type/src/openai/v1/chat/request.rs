@@ -6,6 +6,7 @@ use crate::traits::{
     get_var_regex, MessageConversion, MessageFactory, PromptMessageExt, RequestAdapter,
 };
 use crate::{Provider, TypeError};
+use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyList, PyString};
 use pyo3::IntoPyObjectExt;
@@ -314,6 +315,10 @@ impl ChatMessage {
     #[pyo3(name = "bind_mut")]
     fn bind_mut_py(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
         self.bind_mut(name, value)
+    }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
     }
 }
 

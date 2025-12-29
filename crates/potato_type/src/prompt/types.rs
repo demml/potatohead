@@ -490,6 +490,15 @@ impl MessageNum {
             MessageNum::AnthropicSystemMessageV1(_) => true,
         }
     }
+
+    pub fn is_user_message(&self) -> bool {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => msg.role == Role::User.to_string(),
+            MessageNum::AnthropicMessageV1(msg) => msg.role == Role::User.to_string(),
+            MessageNum::GeminiContentV1(msg) => msg.role == Role::User.to_string(),
+            MessageNum::AnthropicSystemMessageV1(_) => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -498,4 +507,175 @@ pub enum ResponseContent {
     Google(Candidate),
     Anthropic(ResponseContentBlock),
     PredictResponse(PredictResponse),
+}
+
+#[pyclass]
+pub struct OpenAIMessageList {
+    pub messages: Vec<OpenAIChatMessage>,
+}
+
+#[pymethods]
+impl OpenAIMessageList {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<OpenAIMessageIterator>> {
+        let iter = OpenAIMessageIterator {
+            inner: slf.messages.clone().into_iter(),
+        };
+        Ok(Py::new(slf.py(), iter)?)
+    }
+
+    pub fn __len__(&self) -> usize {
+        self.messages.len()
+    }
+
+    pub fn __getitem__(&self, index: isize) -> Result<OpenAIChatMessage, TypeError> {
+        let len = self.messages.len() as isize;
+        let normalized_index = if index < 0 { len + index } else { index };
+
+        if normalized_index < 0 || normalized_index >= len {
+            return Err(TypeError::Error(format!(
+                "Index {} out of range for list of length {}",
+                index, len
+            )));
+        }
+
+        Ok(self.messages[normalized_index as usize].clone())
+    }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(&self.messages)
+    }
+
+    pub fn __repr__(&self) -> String {
+        self.__str__()
+    }
+}
+
+#[pyclass]
+pub struct OpenAIMessageIterator {
+    inner: std::vec::IntoIter<OpenAIChatMessage>,
+}
+
+#[pymethods]
+impl OpenAIMessageIterator {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<OpenAIChatMessage> {
+        slf.inner.next()
+    }
+}
+
+#[pyclass]
+pub struct AnthropicMessageList {
+    pub messages: Vec<AnthropicMessage>,
+}
+
+#[pymethods]
+impl AnthropicMessageList {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<AnthropicMessageIterator>> {
+        let iter = AnthropicMessageIterator {
+            inner: slf.messages.clone().into_iter(),
+        };
+        Ok(Py::new(slf.py(), iter)?)
+    }
+
+    pub fn __len__(&self) -> usize {
+        self.messages.len()
+    }
+
+    pub fn __getitem__(&self, index: isize) -> Result<AnthropicMessage, TypeError> {
+        let len = self.messages.len() as isize;
+        let normalized_index = if index < 0 { len + index } else { index };
+
+        if normalized_index < 0 || normalized_index >= len {
+            return Err(TypeError::Error(format!(
+                "Index {} out of range for list of length {}",
+                index, len
+            )));
+        }
+
+        Ok(self.messages[normalized_index as usize].clone())
+    }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(&self.messages)
+    }
+
+    pub fn __repr__(&self) -> String {
+        self.__str__()
+    }
+}
+
+#[pyclass]
+pub struct AnthropicMessageIterator {
+    inner: std::vec::IntoIter<AnthropicMessage>,
+}
+
+#[pymethods]
+impl AnthropicMessageIterator {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<AnthropicMessage> {
+        slf.inner.next()
+    }
+}
+
+#[pyclass]
+pub struct GeminiContentList {
+    pub messages: Vec<GeminiContent>,
+}
+
+#[pymethods]
+impl GeminiContentList {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<GeminiContentIterator>> {
+        let iter = GeminiContentIterator {
+            inner: slf.messages.clone().into_iter(),
+        };
+        Ok(Py::new(slf.py(), iter)?)
+    }
+
+    pub fn __len__(&self) -> usize {
+        self.messages.len()
+    }
+
+    pub fn __getitem__(&self, index: isize) -> Result<GeminiContent, TypeError> {
+        let len = self.messages.len() as isize;
+        let normalized_index = if index < 0 { len + index } else { index };
+
+        if normalized_index < 0 || normalized_index >= len {
+            return Err(TypeError::Error(format!(
+                "Index {} out of range for list of length {}",
+                index, len
+            )));
+        }
+
+        Ok(self.messages[normalized_index as usize].clone())
+    }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(&self.messages)
+    }
+
+    pub fn __repr__(&self) -> String {
+        self.__str__()
+    }
+}
+
+#[pyclass]
+pub struct GeminiContentIterator {
+    inner: std::vec::IntoIter<GeminiContent>,
+}
+
+#[pymethods]
+impl GeminiContentIterator {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<GeminiContent> {
+        slf.inner.next()
+    }
 }

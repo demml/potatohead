@@ -88,6 +88,7 @@ impl ProviderRequest {
         dispatch_trait_method!(mut self, RequestAdapter, preprend_system_instructions(instructions))
     }
 
+    /// Returns the messages as a Python list
     pub(crate) fn get_py_messages<'py>(
         &self,
         py: Python<'py>,
@@ -95,49 +96,87 @@ impl ProviderRequest {
         let py_messages = PyList::empty(py);
 
         for msg in self.messages() {
-            py_messages.append(msg.to_bound_py_object(py)?)?;
+            if msg.is_user_message() {
+                py_messages.append(msg.to_bound_py_object(py)?)?;
+            }
         }
 
         Ok(py_messages)
     }
 
-    pub(crate) fn get_py_openai_messages<'py>(
+    /// Returns the last message in the request as a Python object
+    pub(crate) fn get_py_message<'py>(
         &self,
         py: Python<'py>,
-    ) -> Result<Vec<Bound<'py, ChatMessage>>, TypeError> {
-        let mut py_messages = Vec::new();
+    ) -> Result<Bound<'py, PyAny>, TypeError> {
+        let last = self
+            .messages()
+            .iter()
+            .rev()
+            .find(|msg| msg.is_user_message())
+            .ok_or_else(|| {
+                TypeError::Error("No messages in request to convert to Python object".to_string())
+            })?;
 
-        for msg in self.messages() {
-            py_messages.push(msg.to_bound_openai_message(py)?);
-        }
-
-        Ok(py_messages)
+        Ok(last.to_bound_py_object(py)?)
     }
 
-    pub(crate) fn get_py_gemini_messages<'py>(
-        &self,
-        py: Python<'py>,
-    ) -> Result<Vec<Bound<'py, GeminiContent>>, TypeError> {
-        let mut py_messages = Vec::new();
+    pub(crate) fn get_openai_message(&self) -> Result<ChatMessage, TypeError> {
+        let last = self
+            .messages()
+            .iter()
+            .rev()
+            .find(|msg| msg.is_user_message())
+            .ok_or_else(|| {
+                TypeError::Error("No messages in request to convert to Python object".to_string())
+            })?;
 
-        for msg in self.messages() {
-            py_messages.push(msg.to_bound_gemini_message(py)?);
+        match last {
+            MessageNum::OpenAIMessageV1(msg) => Ok(msg.clone()),
+            _ => Err(TypeError::Error(
+                "Last message is not an OpenAI ChatMessage".to_string(),
+            )),
         }
-
-        Ok(py_messages)
     }
 
-    pub(crate) fn get_py_anthropic_messages<'py>(
-        &self,
-        py: Python<'py>,
-    ) -> Result<Vec<Bound<'py, MessageParam>>, TypeError> {
-        let mut py_messages = Vec::new();
+    /// Returns the messages as Anthropic MessageParam Python objects
+    pub(crate) fn get_gemini_message(&self) -> Result<GeminiContent, TypeError> {
+        let last = self
+            .messages()
+            .iter()
+            .rev()
+            .find(|msg| msg.is_user_message())
+            .ok_or_else(|| {
+                TypeError::Error("No messages in request to convert to Python object".to_string())
+            })?;
 
-        for msg in self.messages() {
-            py_messages.push(msg.to_bound_anthropic_message(py)?);
+        match last {
+            MessageNum::GeminiContentV1(msg) => Ok(msg.clone()),
+            _ => Err(TypeError::Error(
+                "Last message is not a GeminiContent".to_string(),
+            )),
         }
+    }
 
-        Ok(py_messages)
+    /// Returns the messages as Anthropic MessageParam Python objects
+    pub(crate) fn get_anthropic_message(&self) -> Result<MessageParam, TypeError> {
+        let last = self
+            .messages()
+            .iter()
+            .rev()
+            .find(|msg| msg.is_user_message())
+            .ok_or_else(|| {
+                TypeError::Error("No messages in request to convert to Python object".to_string())
+            })?;
+
+        Ok(match last {
+            MessageNum::AnthropicMessageV1(msg) => msg.clone(),
+            _ => {
+                return Err(TypeError::Error(
+                    "Last message is not an Anthropic MessageParam".to_string(),
+                ))
+            }
+        })
     }
 
     pub(crate) fn get_py_system_instructions<'py>(
