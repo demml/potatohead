@@ -189,13 +189,13 @@ impl Prompt {
     /// * `model_settings`: Optional model settings to use for the prompt.
     /// * `output_type`: Optional output type to enforce structured output.
     #[new]
-    #[pyo3(signature = (message, model, provider, system_instruction=None, model_settings=None, output_type=None))]
+    #[pyo3(signature = (messages, model, provider, system_instructions=None, model_settings=None, output_type=None))]
     pub fn new(
         py: Python<'_>,
-        message: &Bound<'_, PyAny>,
+        messages: &Bound<'_, PyAny>,
         model: &str,
         provider: &Bound<'_, PyAny>,
-        system_instruction: Option<&Bound<'_, PyAny>>,
+        system_instructions: Option<&Bound<'_, PyAny>>,
         model_settings: Option<&Bound<'_, PyAny>>,
         output_type: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
     ) -> Result<Self, TypeError> {
@@ -210,8 +210,8 @@ impl Prompt {
 
         // 3. Parse user messages with "user" role
         // We'll use this to figure out the type of request struct to create
-        let messages = parse_messages(message, &provider, Role::User.into())?;
-        let system_instructions = if let Some(sys_inst) = system_instruction {
+        let messages = parse_messages(messages, &provider, Role::User.into())?;
+        let system_instructions = if let Some(sys_inst) = system_instructions {
             parse_messages(sys_inst, &provider, get_system_role(&provider))?
         } else {
             vec![]

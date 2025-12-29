@@ -213,7 +213,7 @@ fn test_workflow() {
         let first_user_idx = messages
             .iter()
             .position(|msg| msg.role() == Role::User.as_str())
-            .expect(&format!("{} should have a user message", task_name));
+            .unwrap_or_else(|| panic!("{} should have a user message", task_name));
 
         // All assistant messages (dependency context) should come before the user message
         for (idx, msg) in messages.iter().enumerate() {
@@ -509,7 +509,7 @@ fn test_vendor_switching() {
         let first_user_idx = messages
             .iter()
             .position(|msg| msg.role() == Role::User.as_str())
-            .expect(&format!("{} should have a user message", task_name));
+            .unwrap_or_else(|| panic!("{} should have a user message", task_name));
 
         for (idx, msg) in messages.iter().enumerate() {
             if msg.role() == Role::Assistant.as_str() {

@@ -1,6 +1,6 @@
 from typing import List, cast
 
-from potato_head import ModelSettings, Prompt, Provider
+from potato_head import ModelSettings, Prompt, Provider, Role
 from potato_head.anthropic import MessageParam
 from potato_head.google import GeminiContent, GeminiSettings, GenerationConfig
 from potato_head.openai import ChatMessage, ImageContentPart, OpenAIChatSettings
@@ -19,92 +19,95 @@ def test_string_prompt():
     prompt = Prompt(
         model="gpt-4o",
         provider="openai",
-        message="My prompt",
-        system_instruction="system_prompt",
+        messages="My prompt",
+        system_instructions="system_prompt",
     )
 
-    assert prompt.openai_messages[0].content == "My prompt"
-    assert prompt.system_instructions[0].content == "system_prompt"
+    assert prompt.openai_messages[1].content[0].text == "My prompt"
+    assert prompt.system_instructions[0].content[0].text == "system_prompt"
 
     # test string message
     prompt = Prompt(
         model="gpt-4o",
         provider=Provider.OpenAI,
-        message=ChatMessage(content="My prompt"),
-        system_instruction="system_prompt",
+        messages=ChatMessage(
+            content="My prompt",
+            role=Role.User.as_str(),
+        ),
+        system_instructions="system_prompt",
     )
 
-    assert prompt.openai_messages[0].content == "My prompt"
+    assert prompt.openai_messages[1].content[0].text == "My prompt"
 
     # test list of string messages
     prompt = Prompt(
         model="gpt-4o",
-        provider="openai",
+        provider=Provider.OpenAI,
         messages=[
-            ChatMessage(content="Foo"),
-            ChatMessage(content="Bar"),
+            ChatMessage(content="Foo", role=Role.User.as_str()),
+            ChatMessage(content="Bar", role=Role.User.as_str()),
         ],
         system_instructions="system_prompt",
     )
 
     messages = prompt.openai_messages
 
-    assert messages[0].content == "Foo"
-    assert messages[1].content == "Bar"
+    assert messages[1].content[0].text == "Foo"
+    assert messages[2].content[0].text == "Bar"
 
     # test list of strings
     prompt = Prompt(
         model="gpt-4o",
-        provider="openai",
-        message=[
+        provider=Provider.OpenAI,
+        messages=[
             "Hello ${variable}",
             "Bar",
         ],
-        system_instruction="system_prompt",
+        system_instructions="system_prompt",
     )
 
     messages = cast(List[ChatMessage], prompt.messages)
 
-    assert messages[0].content == "Hello ${variable}"
-    assert messages[1].content == "Bar"
+    assert messages[1].content[0].text == "Hello ${variable}"
+    assert messages[2].content[0].text == "Bar"
 
-    bounded_message = prompt.bind("variable", "world").openai_messages[0]
-    assert bounded_message.content == "Hello world"
+    bounded_message = prompt.bind("variable", "world").openai_messages[1]
+    assert bounded_message.content[0].text == "Hello world"
 
     # test bind mut
-    msg = prompt.openai_messages[0]
+    msg = prompt.openai_messages[1]
     msg.bind_mut("variable", "world")
-    assert msg.content == "Hello world"
+    assert msg.content[0].text == "Hello world"
 
 
 def test_bind_prompt():
     prompt = Prompt(
         model="gpt-4o",
         provider="openai",
-        message=[
+        messages=[
             "Hello ${variable1}",
             "This is ${variable2}",
         ],
-        system_instruction="system_prompt",
+        system_instructions="system_prompt",
     )
     bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
-    assert bound_prompt.openai_messages[0].content == "Hello world"
-    assert bound_prompt.openai_messages[1].content == "This is Foo"
+    assert bound_prompt.openai_messages[1].content[0].text == "Hello world"
+    assert bound_prompt.openai_messages[2].content[0].text == "This is Foo"
 
     # testing binding with kwargs
     bound_prompt = prompt.bind(variable1="world")
-    assert bound_prompt.openai_messages[0].content == "Hello world"
+    assert bound_prompt.openai_messages[1].content[0].text == "Hello world"
 
     bound_prompt = prompt.bind(variable1=10)
-    assert bound_prompt.openai_messages[0].content == "Hello 10"
+    assert bound_prompt.openai_messages[1].content[0].text == "Hello 10"
 
     bound_prompt = prompt.bind(variable1={"key": "value"})
-    assert bound_prompt.openai_messages[0].content == 'Hello {"key":"value"}'
+    assert bound_prompt.openai_messages[1].content[0].text == 'Hello {"key":"value"}'
 
     # test bind mut
-    prompt.openai_messages[0].content == "Hello ${variable1}"
+    prompt.openai_messages[1].content[0].text == "Hello ${variable1}"
     prompt.bind_mut("variable1", "world")
-    assert prompt.openai_messages[0].content == "Hello world"
+    assert prompt.openai_messages[1].content[0].text == "Hello world"
 
 
 def test_image_prompt():
@@ -112,20 +115,23 @@ def test_image_prompt():
         model="gpt-4o",
         provider=Provider.OpenAI,
         messages=[
-            ChatMessage(content="What company is this logo from?"),
+            ChatMessage(
+                content="What company is this logo from?",
+                role=Role.User.as_str(),
+            ),
             ChatMessage(
                 content=ImageContentPart(url="https://iili.io/3Hs4FMg.png"),
+                role=Role.User.as_str(),
             ),
         ],
-        system_instructions="system_prompt",
     )
 
     messages = prompt.messages
 
-    assert messages[0].content == "What company is this logo from?"
+    assert messages[0].content[0].text == "What company is this logo from?"
 
     # unwrap for image url will convert to expected pydantic dataclass
-    assert isinstance(messages[1], ImageContentPart)
+    assert isinstance(messages[1].content[0], ImageContentPart)
 
 
 def test_model_settings_prompt():
@@ -143,7 +149,7 @@ def test_model_settings_prompt():
     prompt = Prompt(
         model="gpt-4o",
         provider="openai",
-        message=[
+        messages=[
             "My prompt ${1} is ${2}",
             "My prompt ${3} is ${4}",
         ],
@@ -158,7 +164,7 @@ def test_openai_settings_direct():
     Prompt(
         model="gpt-4o",
         provider="openai",
-        message=[
+        messages=[
             "My prompt ${1} is ${2}",
             "My prompt ${3} is ${4}",
         ],
@@ -178,7 +184,7 @@ def test_gemini_settings_direct():
     Prompt(
         model="gpt-4o",
         provider="gemini",
-        message=[
+        messages=[
             "My prompt ${1} is ${2}",
             "My prompt ${3} is ${4}",
         ],
@@ -192,9 +198,9 @@ def test_prompt_response_format():
     prompt = Prompt(
         model="gpt-4o",
         provider="openai",
-        message="My prompt ${1} is ${2}",
-        system_instruction="system_prompt",
-        response_format=CityLocation,
+        messages="My prompt ${1} is ${2}",
+        system_instructions="system_prompt",
+        output_type=CityLocation,
     )
 
     assert prompt.response_json_schema is not None
@@ -204,8 +210,8 @@ def test_prompt_no_args():
     prompt = Prompt(
         model="gpt-4o",
         provider="openai",
-        message="My prompt",
-        system_instruction="system_prompt",
+        messages="My prompt",
+        system_instructions="system_prompt",
     )
 
-    assert prompt.openai_messages[0].content == "My prompt"
+    assert prompt.openai_messages[1].content[0].text == "My prompt"

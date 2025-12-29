@@ -7,7 +7,7 @@ use potato_type::openai::v1::OpenAIChatResponse;
 use potato_type::prompt::MessageNum;
 use potato_type::traits::ResponseAdapter;
 use potato_type::Provider;
-use potato_util::utils::{ResponseLogProbs, TokenLogProbs};
+use potato_util::utils::TokenLogProbs;
 use pyo3::prelude::*;
 use reqwest::header::HeaderMap;
 use reqwest::Client;

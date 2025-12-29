@@ -292,6 +292,7 @@ fn parse_text_citation(cit: &Bound<'_, PyAny>) -> Result<TextCitationParam, Type
 #[pymethods]
 impl TextBlockParam {
     #[new]
+    #[pyo3(signature = (text, cache_control=None, citations=None))]
     pub fn new(
         text: String,
         cache_control: Option<CacheControl>,
@@ -397,6 +398,7 @@ pub struct ImageBlockParam {
 #[pymethods]
 impl ImageBlockParam {
     #[new]
+    #[pyo3(signature = (source, cache_control=None))]
     pub fn new(
         source: &Bound<'_, PyAny>,
         cache_control: Option<CacheControl>,
@@ -536,6 +538,7 @@ pub struct DocumentBlockParam {
 #[pymethods]
 impl DocumentBlockParam {
     #[new]
+    #[pyo3(signature = (source, cache_control=None, title=None, context=None, citations=None))]
     pub fn new(
         source: &Bound<'_, PyAny>,
         cache_control: Option<CacheControl>,
@@ -583,6 +586,7 @@ pub struct SearchResultBlockParam {
 #[pymethods]
 impl SearchResultBlockParam {
     #[new]
+    #[pyo3(signature = (content, source, title, cache_control=None, citations=None))]
     pub fn new(
         content: Vec<TextBlockParam>,
         source: String,
@@ -616,6 +620,7 @@ pub struct ThinkingBlockParam {
 #[pymethods]
 impl ThinkingBlockParam {
     #[new]
+    #[pyo3(signature = (thinking, signature=None))]
     pub fn new(thinking: String, signature: Option<String>) -> Self {
         Self {
             thinking,
@@ -665,6 +670,7 @@ pub struct ToolUseBlockParam {
 #[pymethods]
 impl ToolUseBlockParam {
     #[new]
+    #[pyo3(signature = (id, name, input, cache_control=None))]
     pub fn new(
         id: String,
         name: String,
@@ -732,6 +738,12 @@ where
 #[pymethods]
 impl ToolResultBlockParam {
     #[new]
+    #[pyo3(signature = (
+        tool_use_id,
+        is_error=None,
+        cache_control=None,
+        content=None
+    ))]
     pub fn new(
         tool_use_id: String,
         is_error: Option<bool>,
@@ -826,6 +838,7 @@ pub struct ServerToolUseBlockParam {
 #[pymethods]
 impl ServerToolUseBlockParam {
     #[new]
+    #[pyo3(signature = (id, name, input, cache_control=None))]
     pub fn new(
         id: String,
         name: String,
@@ -867,6 +880,7 @@ pub struct WebSearchResultBlockParam {
 #[pymethods]
 impl WebSearchResultBlockParam {
     #[new]
+    #[pyo3(signature = (encrypted_content, title, url, page_agent=None))]
     pub fn new(
         encrypted_content: String,
         title: String,
@@ -901,6 +915,7 @@ pub struct WebSearchToolResultBlockParam {
 #[pymethods]
 impl WebSearchToolResultBlockParam {
     #[new]
+    #[pyo3(signature = (tool_use_id, content, cache_control=None))]
     pub fn new(
         tool_use_id: String,
         content: Vec<WebSearchResultBlockParam>,
@@ -1376,6 +1391,7 @@ pub struct Metadata {
 #[pymethods]
 impl Metadata {
     #[new]
+    #[pyo3(signature = (user_id=None))]
     pub fn new(user_id: Option<String>) -> Self {
         Self { user_id }
     }
@@ -1393,6 +1409,7 @@ pub struct CacheControl {
 #[pymethods]
 impl CacheControl {
     #[new]
+    #[pyo3(signature = (cache_type, ttl=None))]
     pub fn new(cache_type: String, ttl: Option<String>) -> Self {
         Self { cache_type, ttl }
     }
@@ -1412,10 +1429,16 @@ pub struct Tool {
 #[pymethods]
 impl Tool {
     #[new]
+    #[pyo3(signature = (
+        name,
+        input_schema,
+        description=None,
+        cache_control=None
+    ))]
     pub fn new(
         name: String,
-        description: Option<String>,
         input_schema: &Bound<'_, PyAny>,
+        description: Option<String>,
         cache_control: Option<CacheControl>,
     ) -> Result<Self, UtilError> {
         Ok(Self {
@@ -1441,6 +1464,7 @@ pub struct ThinkingConfig {
 #[pymethods]
 impl ThinkingConfig {
     #[new]
+    #[pyo3(signature = (r#type, budget_tokens=None))]
     pub fn new(r#type: String, budget_tokens: Option<i32>) -> Self {
         Self {
             r#type,
@@ -1467,6 +1491,7 @@ pub struct ToolChoice {
 #[pymethods]
 impl ToolChoice {
     #[new]
+    #[pyo3(signature = (r#type, disable_parallel_tool_use=None, name=None))]
     pub fn new(
         r#type: String,
         disable_parallel_tool_use: Option<bool>,

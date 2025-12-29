@@ -31,6 +31,14 @@ pub enum Role {
     System,
 }
 
+#[pymethods]
+impl Role {
+    #[pyo3(name = "as_str")]
+    pub fn as_str_py(&self) -> &'static str {
+        self.as_str()
+    }
+}
+
 impl Role {
     /// Returns the string representation of the role
     pub const fn as_str(&self) -> &'static str {

@@ -151,7 +151,7 @@ impl Schema {
         let items = items.map(Box::new);
 
         Schema {
-            r#type: r#type,
+            r#type,
             format,
             title,
             description,
@@ -320,7 +320,7 @@ impl ThinkingConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass(name = "GeminiImageConfig")]
+#[pyclass(name = "ImageConfig")]
 pub struct ImageConfig {
     pub aspect_ratio: Option<String>,
     pub image_size: Option<String>,
@@ -496,6 +496,7 @@ pub struct SpeechConfig {
 #[pymethods]
 impl SpeechConfig {
     #[new]
+    #[pyo3(signature = (voice_config=None, multi_speaker_voice_config=None, language_code=None))]
     pub fn new(
         voice_config: Option<VoiceConfig>,
         multi_speaker_voice_config: Option<MultiSpeakerVoiceConfig>,
@@ -707,6 +708,7 @@ pub struct FunctionCallingConfig {
 #[pymethods]
 impl FunctionCallingConfig {
     #[new]
+    #[pyo3(signature = (mode=None, allowed_function_names=None))]
     pub fn new(mode: Option<Mode>, allowed_function_names: Option<Vec<String>>) -> Self {
         FunctionCallingConfig {
             mode,

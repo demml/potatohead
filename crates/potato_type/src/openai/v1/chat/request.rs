@@ -137,6 +137,7 @@ pub struct ImageUrl {
 #[pymethods]
 impl ImageUrl {
     #[new]
+    #[pyo3(signature = (url, detail=None))]
     pub fn new(url: String, detail: Option<String>) -> Self {
         Self { url, detail }
     }
@@ -155,6 +156,7 @@ pub struct ImageContentPart {
 #[pymethods]
 impl ImageContentPart {
     #[new]
+    #[pyo3(signature = (url, detail=None))]
     pub fn new(url: String, detail: Option<String>) -> Self {
         Self {
             image_url: ImageUrl::new(url, detail),
@@ -256,6 +258,7 @@ impl ChatMessage {
     /// 2. List: Processed as multiple content parts (strings or ContentPart types)
     /// 3. Single ContentPart: Wrapped in a vector
     #[new]
+    #[pyo3(signature = (role, content, name=None))]
     pub fn new(role: String, content: &Bound<'_, PyAny>, name: Option<String>) -> PyResult<Self> {
         let content_parts = if content.is_instance_of::<PyString>() {
             let text = content.extract::<String>()?;

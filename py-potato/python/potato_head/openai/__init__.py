@@ -45,7 +45,7 @@ from .._potato_head import (  # Settings; Request types; Response types; Embeddi
     TextContentPart,
     TextFormat,
     ToolCall,
-    ToolChoice,
+    OpenAIToolChoice,
     ToolChoiceMode,
     ToolDefinition,
     TopLogProbs,
@@ -77,7 +77,7 @@ __all__ = [
     "StreamOptions",
     "TextFormat",
     "OpenAITool",
-    "ToolChoice",
+    "OpenAIToolChoice",
     "ToolChoiceMode",
     "ToolDefinition",
     # Request types

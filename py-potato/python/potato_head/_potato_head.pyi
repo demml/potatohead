@@ -237,7 +237,9 @@ class Prompt(Generic[TMessage]):
         model: str,
         provider: Provider | str,
         system_instructions: Optional[PromptMessage] = None,
-        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = None,
+        model_settings: Optional[
+            ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings
+        ] = None,
         output_type: Optional[Any] = None,
     ) -> None:
         """Initialize a Prompt object.
@@ -1454,7 +1456,7 @@ class AllowedTools:
             str: String representation
         """
 
-class ToolChoice:
+class OpenAIToolChoice:
     """Tool choice configuration for chat completions.
 
     This class configures how the model should handle tool calling, supporting
@@ -1480,7 +1482,7 @@ class ToolChoice:
     """
 
     @staticmethod
-    def from_mode(mode: ToolChoiceMode) -> "ToolChoice":
+    def from_mode(mode: ToolChoiceMode) -> "OpenAIToolChoice":
         """Create tool choice from mode.
 
         Args:
@@ -1492,7 +1494,7 @@ class ToolChoice:
         """
 
     @staticmethod
-    def from_function(function_name: str) -> "ToolChoice":
+    def from_function(function_name: str) -> "OpenAIToolChoice":
         """Create tool choice for specific function.
 
         Args:
@@ -1504,7 +1506,7 @@ class ToolChoice:
         """
 
     @staticmethod
-    def from_custom(custom_name: str) -> "ToolChoice":
+    def from_custom(custom_name: str) -> "OpenAIToolChoice":
         """Create tool choice for custom tool.
 
         Args:
@@ -1516,7 +1518,7 @@ class ToolChoice:
         """
 
     @staticmethod
-    def from_allowed_tools(allowed_tools: AllowedTools) -> "ToolChoice":
+    def from_allowed_tools(allowed_tools: AllowedTools) -> "OpenAIToolChoice":
         """Create tool choice from allowed tools.
 
         Args:
@@ -1930,7 +1932,7 @@ class OpenAIChatSettings:
         store: Optional[bool] = None,
         stream: Optional[bool] = None,
         stream_options: Optional[StreamOptions] = None,
-        tool_choice: Optional[ToolChoice] = None,
+        tool_choice: Optional[OpenAIToolChoice] = None,
         tools: Optional[List[OpenAITool]] = None,
         top_logprobs: Optional[int] = None,
         verbosity: Optional[str] = None,
@@ -2096,7 +2098,7 @@ class OpenAIChatSettings:
         """Stream options."""
 
     @property
-    def tool_choice(self) -> Optional[ToolChoice]:
+    def tool_choice(self) -> Optional[OpenAIToolChoice]:
         """Tool choice configuration."""
 
     @property
@@ -2469,7 +2471,9 @@ class ChatMessage:
     @property
     def content(
         self,
-    ) -> List[Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]]:
+    ) -> List[
+        Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]
+    ]:
         """The message content parts."""
 
     @property
@@ -9600,7 +9604,7 @@ __all__ = [
     "StreamOptions",
     "TextFormat",
     "OpenAITool",
-    "ToolChoice",
+    "OpenAIToolChoice",
     "ToolChoiceMode",
     "ToolDefinition",
     # Request types
@@ -9785,7 +9789,7 @@ __all__ = [
     # Tools
     "AnthropicThinkingConfig",
     "AnthropicTool",
-    "ToolChoice",
+    "AnthropicToolChoice",
     # Request - Citation Locations
     "CitationCharLocationParam",
     "CitationPageLocationParam",
