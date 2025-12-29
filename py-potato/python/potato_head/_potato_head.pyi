@@ -234,9 +234,7 @@ class Prompt(Generic[TMessage]):
         model: str,
         provider: Provider | str,
         system_instructions: Optional[PromptMessage] = None,
-        model_settings: Optional[
-            ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings
-        ] = None,
+        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = None,
         output_type: Optional[Any] = None,
     ) -> None:
         """Initialize a Prompt object.
@@ -708,9 +706,9 @@ class ResponseLogProbs:
         """String representation of the log probabilities."""
 
 _ResponseType: TypeAlias = Union[
-    OpenAIChatResponse,
-    GenerateContentResponse,
-    AnthropicMessageResponse,
+    "OpenAIChatResponse",
+    "GenerateContentResponse",
+    "AnthropicMessageResponse",
 ]
 
 class AgentResponse:
@@ -2517,9 +2515,7 @@ class ChatMessage:
     @property
     def content(
         self,
-    ) -> List[
-        Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]
-    ]:
+    ) -> List[Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]]:
         """The message content parts."""
 
     @property
@@ -2555,6 +2551,9 @@ class ChatMessage:
         Returns:
             None
         """
+
+    def model_dump(self) -> dict:
+        """Dump the message to a dictionary."""
 
 # ============================================================================
 # Response Types
@@ -5323,6 +5322,9 @@ class GeminiContent:
         Returns:
             None
         """
+
+    def model_dump(self) -> dict:
+        """Dump the message to a dictionary."""
 
 class FunctionDeclaration:
     """Function declaration for tool use.
@@ -8639,6 +8641,9 @@ class MessageParam:
         Returns:
             None
         """
+
+    def model_dump(self) -> dict:
+        """Dump the message to a dictionary."""
 
 class Metadata:
     """Request metadata.
