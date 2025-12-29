@@ -104,6 +104,19 @@ impl ProviderRequest {
         Ok(py_messages)
     }
 
+    pub(crate) fn get_all_py_messages<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyList>, TypeError> {
+        let py_messages = PyList::empty(py);
+
+        for msg in self.messages() {
+            py_messages.append(msg.to_bound_py_object(py)?)?;
+        }
+
+        Ok(py_messages)
+    }
+
     /// Returns the last message in the request as a Python object
     pub(crate) fn get_py_message<'py>(
         &self,

@@ -280,6 +280,12 @@ impl Prompt {
     }
 
     #[getter]
+    /// Returns all messages as Python objects, including system instructions, user messages, and assistant messages.
+    pub fn all_messages<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyList>, TypeError> {
+        self.request.get_all_py_messages(py)
+    }
+
+    #[getter]
     /// Returns User messages as Python objects. This means, system instructions are excluded.
     pub fn messages<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyList>, TypeError> {
         self.request.get_py_messages(py)

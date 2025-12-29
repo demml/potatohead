@@ -234,9 +234,7 @@ class Prompt(Generic[TMessage]):
         model: str,
         provider: Provider | str,
         system_instructions: Optional[PromptMessage] = None,
-        model_settings: Optional[
-            ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings
-        ] = None,
+        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = None,
         output_type: Optional[Any] = None,
     ) -> None:
         """Initialize a Prompt object.
@@ -309,6 +307,12 @@ class Prompt(Generic[TMessage]):
 
         Returns the provider-specific settings (OpenAIChatSettings, GeminiSettings,
         or AnthropicSettings) wrapped in a ModelSettings union type.
+        """
+
+    @property
+    def all_messages(self) -> List[TMessage]:
+        """All messages in the prompt, including system instructions, user messages, tools, etc.
+        This is helpful for accessing the complete set of messages in the prompt.
         """
 
     @property
@@ -701,16 +705,21 @@ class ResponseLogProbs:
     def __str__(self) -> str:
         """String representation of the log probabilities."""
 
+_ResponseType: TypeAlias = Union[
+    OpenAIChatResponse,
+    GenerateContentResponse,
+    AnthropicMessageResponse,
+]
+
 class AgentResponse:
     @property
     def id(self) -> str:
         """The ID of the agent response."""
 
     @property
-    def result(self) -> Any:
-        """The result of the agent response. This can be a Pydantic BaseModel class or a supported
-        potato_head response type such as `Score`. If neither is provided, the response json
-        will be returned as a dictionary.
+    def response(self) -> _ResponseType:
+        """The response of the agent. This can be an OpenAIChatResponse, GenerateContentResponse,
+        or AnthropicMessageResponse depending on the provider used.
         """
 
     @property
@@ -2506,9 +2515,7 @@ class ChatMessage:
     @property
     def content(
         self,
-    ) -> List[
-        Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]
-    ]:
+    ) -> List[Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]]:
         """The message content parts."""
 
     @property

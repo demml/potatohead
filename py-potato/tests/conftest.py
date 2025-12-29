@@ -7,8 +7,8 @@ def prompt_step1():
     return Prompt(
         model="gpt-4o",
         provider="openai",
-        message="Prompt for task 1. Context: ${1}",
-        system_instruction="You are a helpful assistant.",
+        messages="Prompt for task 1. Context: ${1}",
+        system_instructions="You are a helpful assistant.",
     )
 
 
@@ -17,5 +17,5 @@ def prompt_step2():
     return Prompt(
         model="gpt-4o",
         provider="openai",
-        message="Prompt for task 2. Context: ${1}",
+        messages="Prompt for task 2. Context: ${1}",
     )
