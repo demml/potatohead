@@ -73,3 +73,4 @@ test_scripts/
 crates/potato_head/src/potato_head/openai/response/openai.yaml
 
 py-potato/dev
+py-potato/python/potato_head/stubs.pyi
