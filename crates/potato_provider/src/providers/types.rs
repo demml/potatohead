@@ -1,22 +1,25 @@
 use crate::error::ProviderError;
-use crate::providers::google::FunctionCall;
-use crate::providers::google::GenerateContentResponse;
-use crate::providers::openai::OpenAIChatResponse;
-use crate::providers::openai::ToolCall;
-
-use potato_type::anthropic::v1::message::AnthropicChatResponse;
-use potato_type::google::predict::PredictResponse;
-use potato_type::prompt::{Message, PromptContent, Role};
-use potato_util::PyHelperFuncs;
+use potato_macro::dispatch_response_trait_method;
+use potato_type::anthropic::v1::response::AnthropicMessageResponse;
+use potato_type::google::v1::generate::GenerateContentResponse;
+use potato_type::google::PredictResponse;
+use potato_type::openai::v1::OpenAIChatResponse;
+use potato_type::prompt::MessageNum;
+use potato_type::traits::ResponseAdapter;
+use potato_type::Provider;
+use potato_util::utils::TokenLogProbs;
 use pyo3::prelude::*;
-use pyo3::IntoPyObjectExt;
 use reqwest::header::HeaderMap;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tracing::debug;
-use tracing::instrument;
-use tracing::warn;
+
+pub const GENERATE_CONTENT: &str = "generateContent";
+pub const EMBED_CONTENT: &str = "embedContent";
+pub const CHAT_COMPLETIONS: &str = "chat/completions";
+pub const PREDICT: &str = "predict";
+pub const EMBEDDINGS: &str = "embeddings";
+pub const MESSAGES: &str = "messages";
 
 #[derive(Debug, PartialEq)]
 pub enum ServiceType {
@@ -28,216 +31,28 @@ impl ServiceType {
     /// Get the service type string
     pub fn gemini_endpoint(&self) -> &'static str {
         match self {
-            Self::Generate => "generateContent",
-            Self::Embed => "embedContent",
+            Self::Generate => GENERATE_CONTENT,
+            Self::Embed => EMBED_CONTENT,
         }
     }
     pub fn vertex_endpoint(&self) -> &'static str {
         match self {
-            Self::Generate => "generateContent",
-            Self::Embed => "predict",
+            Self::Generate => GENERATE_CONTENT,
+            Self::Embed => PREDICT, // vertex uses "predict" for embeddings since it calls models directly
         }
     }
 
     pub fn openai_endpoint(&self) -> &'static str {
         match self {
-            Self::Generate => "chat/completions",
-            Self::Embed => "embeddings",
+            Self::Generate => CHAT_COMPLETIONS,
+            Self::Embed => EMBEDDINGS,
         }
     }
 
     pub fn anthropic_endpoint(&self) -> &'static str {
         match self {
-            Self::Generate => "messages",
-            Self::Embed => "embeddings",
-        }
-    }
-}
-
-#[pyclass]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum ChatResponse {
-    OpenAI(OpenAIChatResponse),
-    Gemini(GenerateContentResponse),
-    VertexGenerate(GenerateContentResponse),
-    VertexPredict(PredictResponse),
-    AnthropicMessageV1(AnthropicChatResponse),
-}
-
-#[pymethods]
-impl ChatResponse {
-    pub fn to_py<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, ProviderError> {
-        // try unwrapping the prompt, if it exists
-        match self {
-            ChatResponse::OpenAI(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::Gemini(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::VertexGenerate(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::VertexPredict(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::AnthropicMessageV1(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-        }
-    }
-    pub fn __str__(&self) -> String {
-        match self {
-            ChatResponse::OpenAI(resp) => PyHelperFuncs::__str__(resp),
-            ChatResponse::Gemini(resp) => PyHelperFuncs::__str__(resp),
-            ChatResponse::VertexGenerate(resp) => PyHelperFuncs::__str__(resp),
-            ChatResponse::VertexPredict(resp) => PyHelperFuncs::__str__(resp),
-            ChatResponse::AnthropicMessageV1(resp) => PyHelperFuncs::__str__(resp),
-        }
-    }
-}
-
-impl ChatResponse {
-    pub fn is_empty(&self) -> bool {
-        match self {
-            ChatResponse::OpenAI(resp) => resp.choices.is_empty(),
-            ChatResponse::Gemini(resp) => resp.candidates.is_empty(),
-            ChatResponse::VertexGenerate(resp) => resp.candidates.is_empty(),
-            _ => true,
-        }
-    }
-
-    #[instrument(skip_all)]
-    pub fn to_message(&self, role: Role) -> Result<Vec<Message>, ProviderError> {
-        debug!("Converting chat response to message with role");
-        match self {
-            ChatResponse::OpenAI(resp) => {
-                let first_choice = resp
-                    .choices
-                    .first()
-                    .ok_or_else(|| ProviderError::ClientNoResponseError)?;
-
-                let content =
-                    PromptContent::Str(first_choice.message.content.clone().unwrap_or_default());
-
-                Ok(vec![Message::from(content, role)])
-            }
-
-            ChatResponse::Gemini(resp) => {
-                let content = resp
-                    .candidates
-                    .first()
-                    .ok_or_else(|| ProviderError::ClientNoResponseError)?
-                    .content
-                    .parts
-                    .first()
-                    .and_then(|part| part.text.as_ref())
-                    .map(|s| s.as_str())
-                    .unwrap_or("")
-                    .to_string();
-
-                Ok(vec![Message::from(PromptContent::Str(content), role)])
-            }
-            _ => {
-                warn!("to_message not implemented for this provider");
-                Err(ProviderError::NotImplementedError(
-                    "to_message not implemented for this provider".to_string(),
-                ))
-            }
-        }
-    }
-
-    pub fn to_python<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, ProviderError> {
-        match self {
-            ChatResponse::OpenAI(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::Gemini(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            ChatResponse::VertexGenerate(resp) => Ok(resp.clone().into_bound_py_any(py)?),
-            _ => Err(ProviderError::NotImplementedError(
-                "to_python not implemented for this provider".to_string(),
-            )),
-        }
-    }
-
-    pub fn id(&self) -> String {
-        match self {
-            ChatResponse::OpenAI(resp) => resp.id.clone(),
-            ChatResponse::Gemini(resp) => resp.response_id.clone().unwrap_or("".to_string()),
-            ChatResponse::VertexGenerate(resp) => {
-                resp.response_id.clone().unwrap_or("".to_string())
-            }
-            _ => "".to_string(),
-        }
-    }
-
-    /// Get the content of the first choice in the chat response
-    pub fn content(&self) -> Option<String> {
-        match self {
-            ChatResponse::OpenAI(resp) => {
-                resp.choices.first().and_then(|c| c.message.content.clone())
-            }
-            ChatResponse::Gemini(resp) => resp
-                .candidates
-                .first()
-                .and_then(|c| c.content.parts.first())
-                .and_then(|part| part.text.as_ref().map(|s| s.to_string())),
-            ChatResponse::VertexGenerate(resp) => resp
-                .candidates
-                .first()
-                .and_then(|c| c.content.parts.first())
-                .and_then(|part| part.text.as_ref().map(|s| s.to_string())),
-            _ => {
-                warn!("content not implemented for this provider");
-                None
-            }
-        }
-    }
-
-    /// Check for tool calls in the chat response
-    pub fn tool_calls(&self) -> Option<Value> {
-        match self {
-            ChatResponse::OpenAI(resp) => {
-                let tool_calls: Option<&Vec<ToolCall>> =
-                    resp.choices.first().map(|c| c.message.tool_calls.as_ref());
-                tool_calls.and_then(|tc| serde_json::to_value(tc).ok())
-            }
-            ChatResponse::Gemini(resp) => {
-                // Collect all function calls from all parts in the first candidate
-                let function_calls: Vec<&FunctionCall> = resp
-                    .candidates
-                    .first()?
-                    .content
-                    .parts
-                    .iter()
-                    .filter_map(|part| part.function_call.as_ref())
-                    .collect();
-
-                if function_calls.is_empty() {
-                    None
-                } else {
-                    serde_json::to_value(&function_calls).ok()
-                }
-            }
-
-            ChatResponse::VertexGenerate(resp) => {
-                // Collect all function calls from all parts in the first candidate
-                let function_calls: Vec<&FunctionCall> = resp
-                    .candidates
-                    .first()?
-                    .content
-                    .parts
-                    .iter()
-                    .filter_map(|part| part.function_call.as_ref())
-                    .collect();
-
-                if function_calls.is_empty() {
-                    None
-                } else {
-                    serde_json::to_value(&function_calls).ok()
-                }
-            }
-            _ => {
-                warn!("tool_calls not implemented for this provider");
-                None
-            }
-        }
-    }
-
-    /// Extracts structured data from a chat response
-    pub fn extract_structured_data(&self) -> Option<Value> {
-        if let Some(content) = self.content() {
-            serde_json::from_str(&content).ok()
-        } else {
-            self.tool_calls()
+            Self::Generate => MESSAGES,
+            Self::Embed => EMBEDDINGS,
         }
     }
 }
@@ -273,4 +88,101 @@ pub fn build_http_client(default_headers: Option<HeaderMap>) -> Result<Client, P
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(ProviderError::from)
+}
+
+/// Unified ChatResponse enum to encapsulate different provider responses
+/// Follows  our strategy pattern for dispatching methods to the appropriate inner type
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ChatResponse {
+    OpenAIV1(OpenAIChatResponse),
+    GeminiV1(GenerateContentResponse),
+    VertexGenerateV1(GenerateContentResponse),
+    VertexPredictV1(PredictResponse),
+    AnthropicMessageV1(AnthropicMessageResponse),
+}
+
+impl ChatResponse {
+    /// Returns the token usage as a Python object
+    pub fn token_usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, ProviderError> {
+        Ok(dispatch_response_trait_method!(
+            self,
+            ResponseAdapter,
+            usage(py)
+        )?)
+    }
+
+    /// Converts the response to a Python object
+    pub fn to_bound_py_object<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyAny>, ProviderError> {
+        Ok(dispatch_response_trait_method!(
+            self,
+            ResponseAdapter,
+            to_bound_py_object(py)
+        )?)
+    }
+
+    /// Returns the string representation of the response
+    pub fn __str__(&self) -> String {
+        dispatch_response_trait_method!(self, ResponseAdapter, __str__())
+    }
+
+    /// Checks if the response is empty
+    pub fn is_empty(&self) -> bool {
+        dispatch_response_trait_method!(self, ResponseAdapter, is_empty())
+    }
+
+    /// Converts the response to a vector of MessageNum
+    pub fn id(&self) -> String {
+        dispatch_response_trait_method!(self, ResponseAdapter, id()).to_string()
+    }
+
+    /// Converts the response to a vector of MessageNum
+    pub fn structured_output<'py>(
+        &self,
+        py: Python<'py>,
+        output_type: Option<&Bound<'py, PyAny>>,
+    ) -> Result<Bound<'py, PyAny>, ProviderError> {
+        Ok(dispatch_response_trait_method!(
+            self,
+            ResponseAdapter,
+            structured_output(py, output_type)
+        )?)
+    }
+
+    pub fn get_log_probs(&self) -> Vec<TokenLogProbs> {
+        dispatch_response_trait_method!(self, ResponseAdapter, get_log_probs())
+    }
+
+    /// Converts the response messages to a vector of MessageNum for requests
+    /// If necessary, will convert each message to the appropriate provider format
+    pub fn to_message_num(&self, provider: &Provider) -> Result<Vec<MessageNum>, ProviderError> {
+        // convert response to MessageNum of existing provider type
+        let mut messages =
+            dispatch_response_trait_method!(self, ResponseAdapter, to_message_num())?;
+
+        // convert each message to the target provider type if needed
+        // if the current message provider type matches the target provider, no conversion done
+        for msg in messages.iter_mut() {
+            msg.convert_message(provider)?;
+        }
+        Ok(messages)
+    }
+
+    /// Retrieves the structured output value as a serde_json::Value
+    /// output is either a structure response or tool call data
+    pub fn extract_structured_data(&self) -> Option<Value> {
+        if let Some(output) =
+            dispatch_response_trait_method!(self, ResponseAdapter, structured_output_value())
+        {
+            Some(output)
+        } else {
+            dispatch_response_trait_method!(self, ResponseAdapter, tool_call_output())
+        }
+    }
+
+    pub fn response_text(&self) -> Option<String> {
+        dispatch_response_trait_method!(self, ResponseAdapter, response_text())
+    }
 }

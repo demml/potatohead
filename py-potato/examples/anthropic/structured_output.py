@@ -4,6 +4,7 @@ from typing import List
 from potato_head import Agent, Prompt, Provider
 from pydantic import BaseModel
 from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
+from potato_head.anthropic import AnthropicSettings, AnthropicThinkingConfig
 
 RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
 
@@ -14,7 +15,7 @@ class StructuredTaskOutput(BaseModel):
 
 
 prompt = Prompt(
-    message="""
+    messages="""
     Please provide a list of tasks to complete and their status in JSON format.
     Example:
     {
@@ -24,10 +25,13 @@ prompt = Prompt(
 
     Return the response in the same format.
     """,
-    system_instruction="You are a helpful assistant.",
+    system_instructions="You are a helpful assistant.",
     model="claude-sonnet-4-5",
     provider="anthropic",
-    response_format=StructuredTaskOutput,
+    output_type=StructuredTaskOutput,
+    model_settings=AnthropicSettings(
+        thinking=AnthropicThinkingConfig(type="disabled"),
+    ),
 )
 
 
@@ -37,7 +41,7 @@ if __name__ == "__main__":
     result: StructuredTaskOutput = agent.execute_prompt(
         prompt=prompt,
         output_type=StructuredTaskOutput,
-    ).result
+    ).structured_output
 
     assert isinstance(result, StructuredTaskOutput)
     print("Tasks:", result.tasks)

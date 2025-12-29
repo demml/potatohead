@@ -1,5 +1,3 @@
-pub mod chat;
-pub mod embedding;
-
-pub use embedding::*;
-pub mod predict;
+pub mod v1;
+pub use v1::embedding::*;
+pub use v1::generate::*;

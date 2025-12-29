@@ -52,6 +52,6 @@ assert nd_array.shape == (512,)
 ```
 
 ## References
-- Embedder class: [Documentation](./docs/api/potato_head.md#potato_head._potato_head.Embedder)
-- OpenAI Embedding Configuration: [Documentation](./docs/api/openai.md#potato_head.openai._openai.OpenAIEmbeddingConfig)
-- Gemini Embedding Configuration: [Documentation](./docs/api/google.md#potato_head.google._google.GeminiEmbeddingConfig)
+- Embedder class: [Documentation](/potatohead/docs/api/stubs/#potato_head.stubs.Embedder)
+- OpenAI Embedding Configuration: [Documentation](/potatohead/docs/api/stubs/#potato_head.stubs.OpenAIEmbeddingConfig)
+- Gemini Embedding Configuration: [Documentation](/potatohead/docs/api/stubs/#potato_head.stubs.GeminiEmbeddingConfig)

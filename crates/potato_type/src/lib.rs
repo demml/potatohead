@@ -16,6 +16,8 @@ pub mod common;
 pub mod google;
 pub mod openai;
 pub mod prompt;
+pub mod tools;
+pub mod traits;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[pyclass]
@@ -175,7 +177,7 @@ impl From<SaveName> for PathBuf {
 ///
 /// # Example
 /// ```rust
-/// use potato_macros::StructureOutput;
+/// use potato_macro::StructureOutput;
 /// use serde::{Serialize, Deserialize};
 /// use schemars::JsonSchema;
 ///
@@ -236,4 +238,5 @@ pub enum SettingsType {
     GoogleChat,
     OpenAIChat,
     ModelSettings,
+    Anthropic,
 }

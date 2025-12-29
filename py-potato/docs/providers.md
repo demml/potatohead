@@ -10,6 +10,9 @@ Below is a list of currently supported providers in `Potato Head`.
 
 - Gemini Generate Content API [Documentation](https://ai.google.dev/gemini-api/docs/text-generation)
 - Vertex Generate Content `v1beta` API [Documentation](https://cloud.google.com/vertex-ai/generative-ai/docs/reference/rest/v1beta1/projects.locations.endpoints/generateContent)
+-
+## Anthropic
+- Claude Messages API [Documentation](https://platform.claude.com/docs/en/api/messages/create)
 
 ## Base URLs and Endpoints
 
@@ -18,6 +21,7 @@ Below is a list of currently supported providers in `Potato Head`.
 | OpenAI    | `https://api.openai.com/v1`                                   | `/chat/completions`, `/embeddings`        |
 | Gemini    | `https://generativelanguage.googleapis.com/v1beta/models`     | `/{model}:generateContent`,  `/{model}:embedContent`   |
 | Vertex    | `https://{LOCATION}-aiplatform.googleapis.com/{VERTEX_API_VERSION}/projects/{PROJECT_ID}/locations/{LOCATION}/publishers/google/models`          | `/{model}:generateContent`, `/{model}:predict` (for embeddings)                                   |
+| Anthropic | `https://api.anthropic.com/v1`                                | `/messages`                                                    |
 | Undefined | `https://undefined.provider.url`                               | N/A                                                              |
 
 ## Environment Variables
@@ -30,13 +34,14 @@ To use the OpenAI or Gemini providers, you need to set the following environment
 | Vertex    | `GOOGLE_CLOUD_PROJECT`        | None (**Required**)  |
 | Vertex    | `GOOGLE_CLOUD_LOCATION`     | us-central1  |
 | Vertex    | `VERTEX_API_VERSION`     | v1beta1  |
+| Anthropic | `ANTHROPIC_API_KEY`           | `ANTHROPIC_API_URL` - default: `https://api.anthropic.com/v1` |
 
 
 ## Google Authentication
 
 [Reference](https://ai.google.dev/gemini-api/docs/migrate-to-cloud)
 
-As per Google's best practices, both the Gemini and Vertex APIs can be used for LLM applications. However, the Vertex API is designed for production use cases that require specific enterprise controls. As such, the Vertex API authenticates users/services accounts through embedded application credentials instead of a an API key. 
+As per Google's best practices, both the Gemini and Vertex APIs can be used for LLM applications. However, the Vertex API is designed for production use cases that require specific enterprise controls. As such, the Vertex API authenticates users/services accounts through embedded application credentials instead of an API key.
 
 If using the `Vertex` provider, `Potato Head` will attempt to use Google application credentials by default. Please refer to the [Google Application Default Credentials documentation](https://cloud.google.com/vertex-ai/generative-ai/docs/start/gcp-auth) for more information on how to set this up.
 

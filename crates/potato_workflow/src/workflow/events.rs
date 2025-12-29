@@ -1,8 +1,8 @@
 use chrono::{DateTime, Duration, Utc};
 use potato_agent::agents::task::TaskStatus;
 use potato_agent::AgentResponse;
-use potato_prompt::Prompt;
 use potato_provider::ChatResponse;
+use potato_type::prompt::Prompt;
 use potato_util::create_uuid7;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
@@ -44,7 +44,6 @@ pub struct EventDetails {
     #[pyo3(get)]
     pub prompt: Option<Prompt>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[pyo3(get)]
     pub response: Option<ChatResponse>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get)]
@@ -64,6 +63,17 @@ pub struct EventDetails {
 impl EventDetails {
     pub fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
+    }
+
+    #[getter]
+    pub fn response<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        match &self.response {
+            Some(resp) => {
+                let response = resp.to_bound_py_object(py)?;
+                Ok(Some(response))
+            }
+            None => Ok(None),
+        }
     }
 }
 

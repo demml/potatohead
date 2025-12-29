@@ -1,4 +1,3 @@
-use potato_prompt::PromptError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
 use thiserror::Error;
@@ -26,9 +25,6 @@ pub enum AgentError {
 
     #[error(transparent)]
     SerializationError(#[from] serde_json::Error),
-
-    #[error(transparent)]
-    PromptError(#[from] PromptError),
 
     #[error(transparent)]
     UtilError(#[from] potato_util::UtilError),

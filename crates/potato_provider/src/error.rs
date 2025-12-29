@@ -1,5 +1,4 @@
 use gcloud_auth::error::Error as GCloudAuthError;
-use potato_prompt::PromptError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::pyclass::PyClassGuardError;
 use pyo3::PyErr;
@@ -70,9 +69,6 @@ pub enum ProviderError {
     UtilError(#[from] potato_util::UtilError),
 
     #[error(transparent)]
-    PromptError(#[from] PromptError),
-
-    #[error(transparent)]
     DecodeError(#[from] base64::DecodeError),
 
     #[error(transparent)]
@@ -110,6 +106,9 @@ pub enum ProviderError {
 
     #[error("Embedding not supported for this provider")]
     EmbeddingNotSupported,
+
+    #[error(transparent)]
+    MacroError(#[from] potato_macro::error::MacroError),
 }
 
 impl<'a, 'py> From<pyo3::CastError<'a, 'py>> for ProviderError {

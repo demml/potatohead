@@ -1,5 +1,6 @@
+use crate::AgentError;
 use crate::{AgentResponse, PyAgentResponse};
-use potato_prompt::Prompt;
+use potato_type::prompt::Prompt;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
@@ -16,7 +17,7 @@ pub enum TaskStatus {
 
 #[pyclass]
 #[derive(Debug, Serialize)]
-pub struct PyTask {
+pub struct WorkflowTask {
     #[pyo3(get)]
     pub id: String,
     #[pyo3(get, set)]
@@ -34,16 +35,19 @@ pub struct PyTask {
 }
 
 #[pymethods]
-impl PyTask {
+impl WorkflowTask {
     #[getter]
-    pub fn result<'py>(&mut self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
-        match &mut self.result {
-            Some(resp) => {
-                //Ok(chat_resp)
-                Ok(Some(resp.result(py)?))
-            }
-            None => Ok(None),
+    pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+        if let Some(resp) = &self.result {
+            let output = resp.structured_output(py)?;
+            Ok(output)
+        } else {
+            Ok(py.None().bind(py).clone())
         }
+    }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
     }
 }
 
@@ -58,7 +62,7 @@ pub struct Task {
     pub dependencies: Vec<String>,
     #[pyo3(get)]
     pub status: TaskStatus,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub agent_id: String,
     pub result: Option<AgentResponse>,
     #[pyo3(get)]
@@ -102,7 +106,7 @@ impl Task {
     }
 
     #[getter]
-    pub fn result<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+    pub fn result<'py>(&self, py: Python<'py>) -> Result<Option<Bound<'py, PyAny>>, AgentError> {
         match &self.result {
             Some(resp) => Ok(resp.clone().into_bound_py_any(py).map(Some)?),
             None => Ok(None),

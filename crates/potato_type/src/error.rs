@@ -24,6 +24,9 @@ pub enum TypeError {
     #[error(transparent)]
     SerdeError(#[from] serde_json::Error),
 
+    #[error(transparent)]
+    StdError(#[from] std::io::Error),
+
     #[error("Failed to create GeminiEmbeddingConfig: {0}")]
     GeminiEmbeddingConfigError(String),
 
@@ -41,6 +44,78 @@ pub enum TypeError {
 
     #[error("Content type is not supported")]
     UnsupportedContentType,
+
+    #[error("Invalid model settings provided. ModelSettings expects either OpenAIChatSettings, GeminiSettings, or AnthropicSettings.")]
+    InvalidModelSettings,
+
+    #[error("Expected string, Message, or list of messages")]
+    MessageParseError,
+
+    #[error("Invalid message type in list. Received: {0}")]
+    InvalidMessageTypeInList(String),
+
+    #[error("Either 'auto_mode' or 'manual_mode' must be provided, but not both.")]
+    MissingRoutingConfigMode,
+
+    #[error("Invalid data type for Part. Expected String, Blob, FileData, FunctionCall, FunctionResponse, ExecutableCode, or CodeExecutionResult. Got: {0}")]
+    InvalidDataType(String),
+
+    #[error("Invalid list type for Part. Expected a list of Strings or a list of Message objects. Got: {0}")]
+    InvalidListType(String),
+
+    #[error("Parts must be a string, Part, DataNum variant, or a list of these types")]
+    InvalidPartType,
+
+    #[error("Invalid ranking config provided.")]
+    InvalidRankingConfig,
+
+    #[error("Invalid retrieval source provided.")]
+    InvalidRetrievalSource,
+
+    #[error("Invalid authentication configuration provided.")]
+    InvalidAuthConfig,
+
+    #[error("Invalid OAuth configuration provided.")]
+    InvalidOauthConfig,
+
+    #[error("Invalid OIDC configuration provided.")]
+    InvalidOidcConfig,
+
+    #[error("More than one system instruction provided where only one is allowed.")]
+    MoreThanOneSystemInstruction,
+
+    #[error("Invalid request type for Anthropic provider.")]
+    InvalidRequestTypeForAnthropic,
+
+    #[error("Invalid request type for Gemini provider.")]
+    InvalidRequestTypeForGemini,
+
+    #[error("Invalid request type for OpenAI provider.")]
+    InvalidRequestTypeForOpenAI,
+
+    #[error("Unsupported provider for request creation.")]
+    UnsupportedProviderForRequestCreation,
+
+    #[error("OpenAI response content is empty.")]
+    EmptyOpenAIResponseContent,
+
+    #[error("{0}")]
+    UnsupportedConversion(String),
+
+    #[error("Cannot convert message to self")]
+    CantConvertSelf,
+
+    #[error("Unsupported provider for message conversion")]
+    UnsupportedProviderError,
+
+    #[error("Message is not an OpenAI ChatMessage")]
+    MessageIsNotOpenAIChatMessage,
+
+    #[error("Message is not a Google GeminiContent")]
+    MessageIsNotGoogleGeminiContent,
+
+    #[error("Message is not an Anthropic MessageParam")]
+    MessageIsNotAnthropicMessageParam,
 }
 
 impl From<TypeError> for PyErr {
@@ -59,6 +134,12 @@ impl From<PyErr> for TypeError {
 
 impl<'a, 'py> From<PyClassGuardError<'a, 'py>> for TypeError {
     fn from(err: PyClassGuardError<'a, 'py>) -> Self {
+        TypeError::Error(err.to_string())
+    }
+}
+
+impl<'a, 'py> From<pyo3::CastError<'a, 'py>> for TypeError {
+    fn from(err: pyo3::CastError<'a, 'py>) -> Self {
         TypeError::Error(err.to_string())
     }
 }

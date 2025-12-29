@@ -7,16 +7,17 @@ use crate::providers::embed::EmbeddingResponse;
 use crate::providers::google::{GeminiClient, VertexClient};
 use crate::providers::openai::OpenAIClient;
 use crate::providers::types::ChatResponse;
-use potato_prompt::Prompt;
-use potato_type::google::predict::PredictRequest;
-use potato_type::google::predict::PredictResponse;
+use potato_type::google::v1::embedding::PredictRequest;
+use potato_type::google::v1::embedding::PredictResponse;
 use potato_type::google::EmbeddingConfigTrait;
+use potato_type::prompt::Prompt;
 use potato_type::Provider;
 use reqwest::header::HeaderName;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
+use tracing::debug;
 use tracing::{error, instrument};
 const TIMEOUT_SECS: u64 = 30;
 
@@ -62,23 +63,23 @@ impl GenAiClient {
                 let response = client.chat_completion(task).await.inspect_err(|e| {
                     error!(error = %e, "Failed to complete chat");
                 })?;
-                Ok(ChatResponse::OpenAI(response))
+                Ok(ChatResponse::OpenAIV1(response))
             }
             GenAiClient::Gemini(client) => {
                 let response = client.generate_content(task).await.inspect_err(|e| {
                     error!(error = %e, "Failed to generate content");
                 })?;
-                Ok(ChatResponse::Gemini(response))
+                Ok(ChatResponse::GeminiV1(response))
             }
             GenAiClient::Vertex(client) => {
                 let response = client.generate_content(task).await.inspect_err(|e| {
                     error!(error = %e, "Failed to generate content");
                 })?;
-                Ok(ChatResponse::VertexGenerate(response))
+                Ok(ChatResponse::VertexGenerateV1(response))
             }
             GenAiClient::Anthropic(client) => {
-                let response = client.chat_completion(task).await.inspect_err(|e| {
-                    error!(error = %e, "Failed to complete chat");
+                let response = client.message(task).await.inspect_err(|e| {
+                    error!(error = %e, "Failed to complete message");
                 })?;
                 Ok(ChatResponse::AnthropicMessageV1(response))
             }
@@ -95,6 +96,7 @@ impl GenAiClient {
         match self {
             // Create embedding using OpenAI client that expects an array of strings
             GenAiClient::OpenAI(client) => {
+                debug!("Creating embedding with OpenAI client");
                 let response = match inputs {
                     EmbeddingInput::Texts(texts) => client.create_embedding(texts, config).await,
                     _ => Err(ProviderError::DoesNotSupportPredictRequest),
@@ -106,6 +108,7 @@ impl GenAiClient {
             }
             // Create embedding using Gemini client that expects an array of strings
             GenAiClient::Gemini(client) => {
+                debug!("Creating embedding with Gemini client");
                 let response = match inputs {
                     EmbeddingInput::Texts(texts) => client.create_embedding(texts, config).await,
                     _ => Err(ProviderError::DoesNotSupportPredictRequest),
@@ -118,6 +121,7 @@ impl GenAiClient {
             }
             // Create embedding using Vertex client that expects a PredictRequest
             GenAiClient::Vertex(client) => {
+                debug!("Creating embedding with Vertex client");
                 let model = config.get_model();
                 let response = match inputs {
                     EmbeddingInput::PredictRequest(request) => {

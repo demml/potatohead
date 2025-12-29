@@ -1,61 +1,53 @@
 # mypy: disable-error-code="attr-defined"
 # pylint: disable=no-name-in-module
-# python/opsml/__init__.py
 
 from . import anthropic, google, logging, mock, openai
-from ._potato_head import (
-    Agent,
-    AgentResponse,
-    AudioUrl,
-    BinaryContent,
-    ChatResponse,
-    DocumentUrl,
-    Embedder,
+from ._potato_head import Agent  # PyAgent
+from ._potato_head import AgentResponse  # PyAgentResponse
+from ._potato_head import Embedder  # PyEmbedder
+from ._potato_head import Workflow  # PyWorkflow
+from ._potato_head import (  # Prompt interface types; Workflow types; Agent types; Python-exposed classes (Py prefix in Rust)
     EventDetails,
-    ImageUrl,
-    LLMTestServer,
-    Message,
     ModelSettings,
     Prompt,
     Provider,
-    PyTask,
+    ResponseType,
+    Role,
     Score,
     Task,
     TaskEvent,
     TaskList,
     TaskStatus,
-    Workflow,
     WorkflowResult,
+    WorkflowTask,
 )
 
 __all__ = [
-    # submodules
+    # Submodules
     "google",
     "mock",
     "logging",
     "openai",
     "anthropic",
-    # classes and functions
-    "ImageUrl",
-    "AudioUrl",
-    "BinaryContent",
-    "DocumentUrl",
-    "Message",
-    "ModelSettings",
+    # Prompt interface
     "Prompt",
+    "Role",
+    "ModelSettings",
     "Provider",
+    "Score",
+    "ResponseType",
+    # Workflow
+    "TaskEvent",
+    "EventDetails",
+    "WorkflowResult",
+    "Workflow",
+    "WorkflowTask",
+    "TaskList",
+    # Agents
+    "Agent",
+    "Task",
     "TaskStatus",
     "AgentResponse",
-    "Task",
-    "TaskList",
-    "Agent",
-    "Workflow",
-    "PyTask",
-    "ChatResponse",
-    "EventDetails",
-    "TaskEvent",
-    "WorkflowResult",
-    "Score",
+    # Embeddings
     "Embedder",
-    "LLMTestServer",
 ]

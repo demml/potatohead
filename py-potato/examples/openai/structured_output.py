@@ -3,6 +3,7 @@ from typing import List
 
 from potato_head import Agent, Prompt, Provider
 from pydantic import BaseModel
+from potato_head.openai import OpenAIChatSettings
 
 
 class StructuredTaskOutput(BaseModel):
@@ -11,7 +12,7 @@ class StructuredTaskOutput(BaseModel):
 
 
 prompt = Prompt(
-    message="""
+    messages="""
     Please provide a list of tasks to complete and their status in JSON format.
     Example:
     {
@@ -21,10 +22,14 @@ prompt = Prompt(
 
     Return the response in the same format.
     """,
-    system_instruction="You are a helpful assistant.",
-    model="gpt-4o",
+    system_instructions="You are a helpful assistant.",
+    model="gpt-5.1",
     provider="openai",
-    response_format=StructuredTaskOutput,
+    output_type=StructuredTaskOutput,
+    model_settings=OpenAIChatSettings(
+        max_completion_tokens=100,
+        reasoning_effort="none",
+    ),
 )
 
 agent = Agent(Provider.OpenAI)
@@ -33,7 +38,7 @@ if __name__ == "__main__":
     result: StructuredTaskOutput = agent.execute_prompt(
         prompt=prompt,
         output_type=StructuredTaskOutput,
-    ).result
+    ).structured_output
 
     assert isinstance(result, StructuredTaskOutput)
     print("Tasks:", result.tasks)

@@ -17,10 +17,25 @@ use uuid::Uuid;
 pub fn create_uuid7() -> String {
     Uuid::now_v7().to_string()
 }
-
+use tracing::warn;
 pub struct PyHelperFuncs {}
 
 impl PyHelperFuncs {
+    /// Convert any type implementing `IntoPyObject` to a Python object
+    /// # Arguments
+    /// * `py` - A Python interpreter instance
+    /// * `object` - A reference to an object implementing `IntoPyObject`
+    /// # Returns
+    /// * `Result<Bound<'py, PyAny>, UtilError>` - A result containing the Python object or an error
+    pub fn to_bound_py_object<'py, T>(
+        py: Python<'py>,
+        object: &T,
+    ) -> Result<Bound<'py, PyAny>, UtilError>
+    where
+        T: IntoPyObject<'py> + Clone,
+    {
+        Ok(object.clone().into_bound_py_any(py)?)
+    }
     pub fn __str__<T: Serialize>(object: T) -> String {
         match ColoredFormatter::with_styler(
             PrettyFormatter::default(),
@@ -322,7 +337,7 @@ pub fn extract_string_value(py_value: &Bound<'_, PyAny>) -> Result<String, UtilE
 
 #[pyclass]
 #[derive(Debug, Serialize, Clone)]
-pub struct ResponseLogProbs {
+pub struct TokenLogProbs {
     #[pyo3(get)]
     pub token: String,
 
@@ -332,20 +347,20 @@ pub struct ResponseLogProbs {
 
 #[pyclass]
 #[derive(Debug, Serialize, Clone)]
-pub struct LogProbs {
+pub struct ResponseLogProbs {
     #[pyo3(get)]
-    pub tokens: Vec<ResponseLogProbs>,
+    pub tokens: Vec<TokenLogProbs>,
 }
 
 #[pymethods]
-impl LogProbs {
+impl ResponseLogProbs {
     pub fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
     }
 }
 
 /// Calculate a weighted score base on the log probabilities of tokens 1-5.
-pub fn calculate_weighted_score(log_probs: &[ResponseLogProbs]) -> Result<Option<f64>, UtilError> {
+pub fn calculate_weighted_score(log_probs: &[TokenLogProbs]) -> Result<Option<f64>, UtilError> {
     let score_range = RangeInclusive::new(1, 5);
     let mut score_probs = Vec::new();
     let mut weighted_sum = 0.0;
@@ -374,21 +389,82 @@ pub fn calculate_weighted_score(log_probs: &[ResponseLogProbs]) -> Result<Option
     }
 }
 
+/// Generic function to convert text to a structured output model
+/// It is expected that output_model is a pydantic model or a potatohead type that implements serde json deserialization
+/// via model_validate_json method.
+/// Flow:
+/// 1. Attempt to validate the model using model_validate_json
+/// 2. If validation fails, attempt to parse the text as JSON and convert to python object
+/// # Arguments
+/// * `py` - A Python interpreter instance
+/// * `text` - The text to be converted (typically from an LLM response that returns structured output)
+/// * `output_model` - A bound python object representing the output model
+/// # Returns
+/// * `Result<Bound<'py, PyAny>, UtilError>` - A result containing the structured output or an error
+pub fn convert_text_to_structured_output<'py>(
+    py: Python<'py>,
+    text: String,
+    output_model: &Bound<'py, PyAny>,
+) -> Result<Bound<'py, PyAny>, UtilError> {
+    let output = output_model.call_method1("model_validate_json", (&text,));
+    match output {
+        Ok(obj) => {
+            // Successfully validated the model
+            Ok(obj)
+        }
+        Err(err) => {
+            // Model validation failed
+            // convert string to json and then to python object
+            warn!(
+                "Failed to validate model: {}, Attempting fallback to JSON parsing",
+                err
+            );
+            let val = serde_json::from_str::<serde_json::Value>(&text)?;
+            Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
+        }
+    }
+}
+
+/// Helper function to extract result from LLM response text
+/// If an output model is provided, it will attempt to convert the text to the structured output
+/// using the provided model. If no model is provided, it will attempt to convert the response to an appropriate
+/// Python type directly.
+/// # Arguments
+/// * `py` - A Python interpreter instance
+/// * `text` - The text to be converted (typically from an LLM response)
+/// * `output_model` - An optional bound python object representing the output model
+/// # Returns
+/// * `Result<Bound<'py, PyAny>, UtilError>` - A result containing the structured output or an error
+pub fn construct_structured_response<'py>(
+    py: Python<'py>,
+    text: String,
+    output_model: Option<&Bound<'py, PyAny>>,
+) -> Result<Bound<'py, PyAny>, UtilError> {
+    match output_model {
+        Some(model) => convert_text_to_structured_output(py, text, model),
+        None => {
+            // No output model provided, return the text as a Python string
+            let val = Value::String(text);
+            Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
     fn test_calculate_weighted_score() {
         let log_probs = vec![
-            ResponseLogProbs {
+            TokenLogProbs {
                 token: "1".into(),
                 logprob: 0.9,
             },
-            ResponseLogProbs {
+            TokenLogProbs {
                 token: "2".into(),
                 logprob: 0.8,
             },
-            ResponseLogProbs {
+            TokenLogProbs {
                 token: "3".into(),
                 logprob: 0.7,
             },
@@ -403,7 +479,7 @@ mod tests {
     }
     #[test]
     fn test_calculate_weighted_score_empty() {
-        let log_probs: Vec<ResponseLogProbs> = vec![];
+        let log_probs: Vec<TokenLogProbs> = vec![];
         let result = calculate_weighted_score(&log_probs);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), None);

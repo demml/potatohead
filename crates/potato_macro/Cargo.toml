@@ -1,0 +1,12 @@
+[package]
+name = "potato-macro"
+version = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+
+[lib]
+proc-macro = false  # This is NOT a proc-macro crate, just regular macros
+
+
+[dependencies]
+thiserror = { workspace = true }

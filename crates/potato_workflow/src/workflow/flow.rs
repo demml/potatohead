@@ -1,15 +1,17 @@
 use crate::tasklist::TaskList;
-use crate::types::Context;
+
 use crate::{
     events::{EventTracker, TaskEvent},
     workflow::error::WorkflowError,
 };
 pub use potato_agent::agents::{
     agent::{Agent, PyAgent},
-    task::{PyTask, Task, TaskStatus},
+    task::{Task, TaskStatus, WorkflowTask},
 };
-use potato_agent::PyAgentResponse;
-use potato_type::prompt::{parse_response_to_json, Message, Role};
+use potato_agent::{AgentError, PyAgentResponse};
+use potato_state::block_on;
+use potato_type::prompt::{parse_response_to_json, MessageNum};
+use potato_type::Provider;
 use potato_util::{create_uuid7, utils::update_serde_map_with, PyHelperFuncs};
 use potato_util::{json_to_pydict, pyobject_to_json};
 use pyo3::prelude::*;
@@ -30,14 +32,18 @@ use tracing::{debug, error, info, warn};
 /// Python workflows are a work in progress
 use pyo3::types::PyDict;
 
+pub type Context = (HashMap<String, Vec<MessageNum>>, Value, Option<Value>);
+
 #[derive(Debug)]
 #[pyclass]
 pub struct WorkflowResult {
     #[pyo3(get)]
-    pub tasks: HashMap<String, Py<PyTask>>,
+    pub tasks: HashMap<String, Py<WorkflowTask>>,
 
     #[pyo3(get)]
     pub events: Vec<TaskEvent>,
+
+    last_task_id: Option<String>,
 }
 
 impl WorkflowResult {
@@ -46,6 +52,7 @@ impl WorkflowResult {
         tasks: HashMap<String, Task>,
         output_types: &HashMap<String, Arc<Py<PyAny>>>,
         events: Vec<TaskEvent>,
+        last_task_id: Option<String>,
     ) -> Self {
         let py_tasks = tasks
             .into_iter()
@@ -56,7 +63,7 @@ impl WorkflowResult {
                 } else {
                     None
                 };
-                let py_task = PyTask {
+                let py_task = WorkflowTask {
                     id: task.id.clone(),
                     prompt: task.prompt,
                     dependencies: task.dependencies,
@@ -73,6 +80,7 @@ impl WorkflowResult {
         Self {
             tasks: py_tasks,
             events,
+            last_task_id,
         }
     }
 }
@@ -87,6 +95,18 @@ impl WorkflowResult {
         });
 
         PyHelperFuncs::__str__(&json)
+    }
+
+    /// Get last task result
+    #[getter]
+    pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
+        if let Some(last_task_id) = &self.last_task_id {
+            if let Some(task) = self.tasks.get(last_task_id) {
+                let result = task.bind(py).getattr("result")?;
+                return Ok(result);
+            }
+        }
+        Ok(py.None().bind(py).clone())
     }
 }
 
@@ -214,6 +234,12 @@ impl Workflow {
             .insert(agent.id.clone(), Arc::new(agent.clone()));
     }
 
+    pub fn add_agents(&mut self, agents: &[&Agent]) {
+        for agent in agents {
+            self.add_agent(agent);
+        }
+    }
+
     pub fn execution_plan(&self) -> Result<HashMap<i32, HashSet<String>>, WorkflowError> {
         let mut remaining: HashMap<String, HashSet<String>> = self
             .task_list
@@ -286,6 +312,10 @@ impl Workflow {
             .cloned()
             .collect::<Vec<String>>()
     }
+
+    pub fn last_task_id(&self) -> Option<String> {
+        self.task_list.get_last_task_id()
+    }
 }
 
 /// Check if the workflow is complete
@@ -356,6 +386,15 @@ fn get_agent_for_task(workflow: &Arc<RwLock<Workflow>>, agent_id: &str) -> Optio
 }
 
 /// Builds the context for a task from its dependencies
+/// For a given list of dependency task IDs (tasks current task depends on),
+/// for each dependency:
+/// 1. Retrieve the task from the workflow's task list
+/// 2. If the task has a result, convert the result to MessageNum format (convert from response struct to request struct)
+/// 2a. Inside of to_message_num, convert each request message to the target provider format if needed
+/// 3. Insert the converted messages into the context hashmap
+/// 4. if the result has a structured output, extract it and merge into parameter context
+/// This is helpful for when a user wants to pass structured output variables that can be bound in subsequent tasks
+/// 5. Return the dependency context, parameter context, and global context
 /// # Arguments
 /// * `workflow` - A reference to the workflow instance
 /// * `task` - A reference to the task for which the context is being built
@@ -364,6 +403,7 @@ fn get_agent_for_task(workflow: &Arc<RwLock<Workflow>>, agent_id: &str) -> Optio
 fn build_task_context(
     workflow: &Arc<RwLock<Workflow>>,
     task_dependencies: &Vec<String>,
+    provider: &Provider,
 ) -> Result<Context, WorkflowError> {
     let wf = workflow.read().unwrap();
     let mut ctx = HashMap::new();
@@ -373,7 +413,7 @@ fn build_task_context(
         debug!("Building context for task dependency: {}", dep_id);
         if let Some(dep) = wf.task_list.get_task(dep_id) {
             if let Some(result) = &dep.read().unwrap().result {
-                let msg_to_insert = result.response.to_message(Role::Assistant);
+                let msg_to_insert = result.response.to_message_num(provider);
 
                 match msg_to_insert {
                     Ok(message) => {
@@ -415,7 +455,7 @@ fn spawn_task_execution(
     task: Arc<RwLock<Task>>,
     task_id: String,
     agent: Option<Arc<Agent>>,
-    context: HashMap<String, Vec<Message>>,
+    context: HashMap<String, Vec<MessageNum>>,
     parameter_context: Value,
     global_context: Option<Value>,
 ) -> tokio::task::JoinHandle<()> {
@@ -457,17 +497,18 @@ fn spawn_task_execution(
     })
 }
 
-fn get_parameters_from_context(task: Arc<RwLock<Task>>) -> (String, Vec<String>, String) {
-    let (task_id, dependencies, agent_id) = {
+fn get_parameters_from_context(task: Arc<RwLock<Task>>) -> (String, Vec<String>, String, Provider) {
+    let (task_id, dependencies, agent_id, provider) = {
         let task_guard = task.read().unwrap();
         (
             task_guard.id.clone(),
             task_guard.dependencies.clone(),
             task_guard.agent_id.clone(),
+            task_guard.prompt.provider.clone(),
         )
     };
 
-    (task_id, dependencies, agent_id)
+    (task_id, dependencies, agent_id, provider)
 }
 
 /// Helper for spawning a task execution
@@ -485,8 +526,8 @@ fn spawn_task_executions(
     let event_tracker = workflow.read().unwrap().event_tracker.clone();
 
     for task in ready_tasks {
-        // Get task parameters
-        let (task_id, dependencies, agent_id) = get_parameters_from_context(task.clone());
+        // Get task parameters for active task
+        let (task_id, dependencies, agent_id, provider) = get_parameters_from_context(task.clone());
 
         // Mark task as running
         // This will also record the task started event
@@ -495,9 +536,10 @@ fn spawn_task_executions(
         // Build the context
         // Here we:
         // 1. Get the task dependencies and their results (these will be injected as assistant messages)
+        // We need to know the provider here so that we can convert  messages to a different provider type if needed
         // 2. Parse dependent tasks for any structured outputs and return as a serde_json::Value (this will be task-level context)
         let (context, parameter_context, global_context) =
-            build_task_context(workflow, &dependencies)?;
+            build_task_context(workflow, &dependencies, &provider)?;
 
         // Get/clone agent ARC
         let agent = get_agent_for_task(workflow, &agent_id);
@@ -708,9 +750,6 @@ pub struct PyWorkflow {
     // these are provided at runtime by the user and must match the response
     // format of the prompt the task is associated with
     output_types: HashMap<String, Arc<Py<PyAny>>>,
-
-    // potatohead version holds a reference to the runtime
-    runtime: Arc<tokio::runtime::Runtime>,
 }
 
 #[pymethods]
@@ -722,10 +761,6 @@ impl PyWorkflow {
         Ok(Self {
             workflow: Workflow::new(name),
             output_types: HashMap::new(),
-            runtime: Arc::new(
-                tokio::runtime::Runtime::new()
-                    .map_err(|e| WorkflowError::RuntimeError(e.to_string()))?,
-            ),
         })
     }
 
@@ -759,7 +794,6 @@ impl PyWorkflow {
                     id.clone(),
                     PyAgent {
                         agent: agent.clone(),
-                        runtime: self.runtime.clone(),
                     },
                 ))
             })
@@ -793,9 +827,12 @@ impl PyWorkflow {
     ) -> Result<(), WorkflowError> {
         if let Some(output_type) = output_type {
             // Parse and set the response format
-            (task.prompt.response_type, task.prompt.response_json_schema) =
-                parse_response_to_json(py, &output_type)
-                    .map_err(|e| WorkflowError::InvalidOutputType(e.to_string()))?;
+            let (response_type, response_json_schema) = parse_response_to_json(py, &output_type)
+                .map_err(|e| WorkflowError::InvalidOutputType(e.to_string()))?;
+
+            // update the task prompt with the response schema
+            task.prompt
+                .set_response_json_schema(response_json_schema, response_type);
 
             // Store the output type for later use
             self.output_types
@@ -817,6 +854,12 @@ impl PyWorkflow {
         // extract the arc rust agent from the python agent
         let agent = agent.extract::<PyAgent>().unwrap().agent.clone();
         self.workflow.agents.insert(agent.id.clone(), agent);
+    }
+
+    pub fn add_agents(&mut self, agents: Vec<Bound<'_, PyAgent>>) {
+        for agent in agents {
+            self.add_agent(&agent);
+        }
     }
 
     pub fn is_complete(&self) -> bool {
@@ -863,9 +906,8 @@ impl PyWorkflow {
             None
         };
 
-        let workflow: Arc<RwLock<Workflow>> = self
-            .runtime
-            .block_on(async { self.workflow.run(global_context).await })?;
+        let workflow: Arc<RwLock<Workflow>> =
+            block_on(async { self.workflow.run(global_context).await })?;
 
         // Try to get exclusive ownership of the workflow by unwrapping the Arc if there's only one reference
         let workflow_result = match Arc::try_unwrap(workflow) {
@@ -887,7 +929,13 @@ impl PyWorkflow {
                     .clone();
 
                 // Move the tasks out of the workflow
-                WorkflowResult::new(py, workflow.task_list.tasks(), &self.output_types, events)
+                WorkflowResult::new(
+                    py,
+                    workflow.task_list.tasks(),
+                    &self.output_types,
+                    events,
+                    workflow.task_list.get_last_task_id(),
+                )
             }
             // If there are other references, we need to clone
             Err(arc) => {
@@ -907,7 +955,13 @@ impl PyWorkflow {
                     .unwrap()
                     .clone();
 
-                WorkflowResult::new(py, workflow.task_list.tasks(), &self.output_types, events)
+                WorkflowResult::new(
+                    py,
+                    workflow.task_list.tasks(),
+                    &self.output_types,
+                    events,
+                    workflow.task_list.get_last_task_id(),
+                )
             }
         };
 
@@ -925,16 +979,11 @@ impl PyWorkflow {
         json_string: String,
         output_types: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, WorkflowError> {
-        let runtime = Arc::new(
-            tokio::runtime::Runtime::new()
-                .map_err(|e| WorkflowError::RuntimeError(e.to_string()))?,
-        );
         let mut workflow: Workflow = Workflow::from_json(&json_string)?;
 
         // reload agents to ensure clients are rebuilt
         // This is necessary because during deserialization the GenAIClient
-        runtime.block_on(async { workflow.reset_agents().await })?;
-
+        block_on(async { workflow.reset_agents().await })?;
         let output_types = match output_types {
             Some(output_types) => output_types
                 .iter()
@@ -950,7 +999,6 @@ impl PyWorkflow {
         let py_workflow = PyWorkflow {
             workflow,
             output_types,
-            runtime,
         };
 
         Ok(py_workflow)
@@ -960,8 +1008,22 @@ impl PyWorkflow {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use potato_prompt::Prompt;
-    use potato_type::prompt::{Message, PromptContent, ResponseType};
+    use potato_type::openai::v1::chat::request::{
+        ChatMessage as OpenAIChatMessage, ContentPart, TextContentPart,
+    };
+    use potato_type::prompt::Prompt;
+    use potato_type::prompt::ResponseType;
+
+    fn create_openai_chat_message_num() -> MessageNum {
+        let text_part = TextContentPart::new("What company is this logo from?".to_string());
+        let text_content_part = ContentPart::Text(text_part);
+        let text_message = OpenAIChatMessage {
+            role: "user".to_string(),
+            content: vec![text_content_part],
+            name: None,
+        };
+        MessageNum::OpenAIMessageV1(text_message)
+    }
 
     #[test]
     fn test_workflow_creation() {
@@ -973,9 +1035,9 @@ mod tests {
     #[test]
     fn test_task_list_add_and_get() {
         let mut task_list = TaskList::new();
-        let prompt_content = PromptContent::Str("Test prompt".to_string());
+
         let prompt = Prompt::new_rs(
-            vec![Message::new_rs(prompt_content)],
+            vec![create_openai_chat_message_num()],
             "gpt-4o",
             potato_type::Provider::OpenAI,
             vec![],

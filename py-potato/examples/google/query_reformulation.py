@@ -6,7 +6,7 @@
 # 3. Returns a score and reason for how well the reformulation improves the query.
 
 from potato_head import Agent, Prompt, Provider, Score, Task, Workflow
-from potato_head.google import GeminiSettings, GenerationConfig, ThinkingConfig
+from potato_head.google import GeminiSettings, GenerationConfig, GeminiThinkingConfig
 from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
 
 RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
@@ -23,7 +23,7 @@ def create_reformulation_evaluation_prompt():
         >>> prompt = create_reformulation_evaluation_prompt()
     """
     return Prompt(
-        message=(
+        messages=(
             "You are an expert evaluator of search query reformulations. "
             "Given the original user query and its reformulated version, your task is to assess how well the reformulation improves the query. "
             "Consider the following criteria:\n"
@@ -49,7 +49,7 @@ def create_reformulation_evaluation_prompt():
         provider="gemini",
         model_settings=GeminiSettings(
             generation_config=GenerationConfig(
-                thinking_config=ThinkingConfig(thinking_budget=0),
+                thinking_config=GeminiThinkingConfig(thinking_budget=0),
             ),
         ),
     )
@@ -58,7 +58,7 @@ def create_reformulation_evaluation_prompt():
 def create_query_reformulation_prompt():
     """Builds a prompt for query reformulation tasks."""
     return Prompt(
-        message=(
+        messages=(
             "You are an expert at query reformulation. Your task is to take a user's original search query "
             "and rewrite it to be more feature-rich and keyword-dense, so it better aligns with the user's intent "
             "and improves search results.\n\n"
@@ -76,7 +76,7 @@ def create_query_reformulation_prompt():
         provider="gemini",
         model_settings=GeminiSettings(
             generation_config=GenerationConfig(
-                thinking_config=ThinkingConfig(thinking_budget=0),
+                thinking_config=GeminiThinkingConfig(thinking_budget=0),
             ),
         ),
     )
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     result = workflow.run(
         global_context={
             "user_query": user_query,
-            "reformulated_query": response.result,
+            "reformulated_query": response.structured_output,
         }
     )
 

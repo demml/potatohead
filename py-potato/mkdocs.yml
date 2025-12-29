@@ -58,11 +58,7 @@ nav:
   - Providers: "providers.md"
   - Workflows: "workflow.md"
   - API Documentation:
-      - PotatoHead: "docs/api/potato_head.md"
-      - Mock: "docs/api/mock.md"
-      - Logging: "docs/api/logging.md"
-      - OpenAI: "docs/api/openai.md"
-      - Google Gemini: "docs/api/google.md"
+      - API: "docs/api/stubs.md"
 
 markdown_extensions:
   - tables

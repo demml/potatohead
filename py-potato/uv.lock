@@ -2215,6 +2215,7 @@ source = { editable = "." }
 
 [package.dev-dependencies]
 dev = [
+    { name = "anthropic" },
     { name = "black" },
     { name = "httpx" },
     { name = "isort" },
@@ -2240,6 +2241,7 @@ docs = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "anthropic", specifier = ">=0.57.1" },
     { name = "black", specifier = ">=24.3.0,<25.0.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "isort", specifier = ">=5.13.2,<6.0.0" },
