@@ -1,10 +1,11 @@
 # type: ignore
 from typing import List
 
-from potato_head import Agent, Prompt, Provider
+from potato_head import Prompt
 from pydantic import BaseModel
 from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
 from potato_head.anthropic import AnthropicSettings, AnthropicThinkingConfig
+from anthropic import Anthropic
 
 RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
 
@@ -34,14 +35,10 @@ prompt = Prompt(
     ),
 )
 
-
-agent = Agent(Provider.Anthropic)
-
+# come back to this later, looks like claude sdk docs mismatch the actual sdk
+# this doesnt work because beta.messages.create does not recognize output_format even though its in the docs
 if __name__ == "__main__":
-    result: StructuredTaskOutput = agent.execute_prompt(
-        prompt=prompt,
-        output_type=StructuredTaskOutput,
-    ).structured_output
+    client = Anthropic()
 
-    assert isinstance(result, StructuredTaskOutput)
-    print("Tasks:", result.tasks)
+    message = client.beta.messages.create(**prompt.model_dump())
+    StructuredTaskOutput.model_validate_json(message.content[0].text)

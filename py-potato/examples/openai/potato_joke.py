@@ -7,13 +7,13 @@ RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
 
 
 prompt = Prompt(
-    model="o4-mini",
+    model="gpt-5.1",
     provider="openai",
-    message="Tell me a joke about potatoes.",
-    system_instruction="You are a helpful assistant.",
+    messages="Tell me a joke about potatoes.",
+    system_instructions="You are a helpful assistant.",
     model_settings=OpenAIChatSettings(
-        max_completion_tokens=50,
-        temperature=0.7,
+        max_completion_tokens=100,
+        reasoning_effort="none",
     ),
 )
 
@@ -22,7 +22,6 @@ if __name__ == "__main__":
     print("Running potato joke example...")
     agent = Agent(Provider.OpenAI)
     response = agent.execute_prompt(prompt=prompt)
-
-    print(response.result)
+    print(response.response.choices[0].message.content)
     # Why did the potato win the talent show?
     # Because it was outstanding in its field!

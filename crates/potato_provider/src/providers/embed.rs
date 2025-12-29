@@ -1,3 +1,4 @@
+use potato_state::block_on;
 use potato_type::google::EmbeddingConfigTrait;
 use potato_type::Provider;
 use tracing::debug;
@@ -254,7 +255,6 @@ impl EmbeddingResponse {
 #[derive(Debug, Clone)]
 pub struct PyEmbedder {
     pub embedder: Arc<Embedder>,
-    pub runtime: Arc<tokio::runtime::Runtime>,
 }
 
 #[pymethods]
@@ -267,15 +267,11 @@ impl PyEmbedder {
     ) -> Result<Self, ProviderError> {
         let provider = Provider::extract_provider(provider)?;
         let config = EmbeddingConfig::extract_config(config, &provider)?;
-        let runtime = Arc::new(
-            tokio::runtime::Runtime::new()
-                .map_err(|e| ProviderError::RuntimeError(e.to_string()))?,
-        );
-        let embedder = runtime.block_on(async { Embedder::new(provider, config).await })?;
+
+        let embedder = block_on(async { Embedder::new(provider, config).await })?;
 
         Ok(Self {
             embedder: Arc::new(embedder),
-            runtime,
         })
     }
 
@@ -306,9 +302,7 @@ impl PyEmbedder {
             ));
         };
 
-        let embeddings = self
-            .runtime
-            .block_on(async { embedder.embed(embedding_input).await })?;
+        let embeddings = block_on(async { embedder.embed(embedding_input).await })?;
         embeddings.into_py_bound_any(py)
     }
 }

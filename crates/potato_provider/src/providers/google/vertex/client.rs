@@ -9,7 +9,7 @@ use potato_type::prompt::Prompt;
 use potato_type::Provider;
 use reqwest::header::{HeaderValue, AUTHORIZATION};
 use reqwest::Client;
-use tracing::{debug, instrument};
+use tracing::{debug, error, instrument};
 
 #[derive(Debug)]
 pub struct VertexApiConfig {
@@ -41,7 +41,7 @@ impl ApiConfigExt for VertexApiConfig {
         auth: &GoogleAuth,
     ) -> Result<reqwest::RequestBuilder, ProviderError> {
         match auth {
-            GoogleAuth::ApiKey(_) => Err(ProviderError::MissingAuthenticationError),
+            GoogleAuth::ApiKey(api_key) => Ok(req.header("x-goog-api-key", api_key)),
             GoogleAuth::GoogleCredentials(token) => {
                 // we uses req.header instead of req.bearer_auth because get_access_token
                 // already returns the token with the "Bearer " prefix
@@ -157,8 +157,11 @@ impl VertexClient {
         model: &str,
     ) -> Result<PredictResponse, ProviderError> {
         if let GoogleAuth::NotSet = self.config.auth {
+            error!("Missing authentication for VertexClient predict request");
             return Err(ProviderError::MissingAuthenticationError);
         }
+
+        debug!("auth: {:?}", self.config.auth);
 
         let request = serde_json::to_value(inputs)?;
         let response =

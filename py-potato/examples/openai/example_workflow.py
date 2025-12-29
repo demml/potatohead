@@ -8,17 +8,17 @@ class TaskOutput(BaseModel):
 
 
 task_one_prompt = Prompt(
-    message="What is 1 + 1?",
+    messages="What is 1 + 1?",
     model="gpt-4o",
     provider="openai",
-    response_format=TaskOutput,
+    output_type=TaskOutput,
 )
 
 task_two_prompt = Prompt(
-    message="Take the result of the previous task and multiply it by 2.",
+    messages="Take the result of the previous task and multiply it by 2.",
     model="gpt-4o",
     provider="openai",
-    response_format=TaskOutput,
+    output_type=TaskOutput,
 )
 
 agent = Agent(Provider.OpenAI)
@@ -51,5 +51,6 @@ workflow.add_task(
 if __name__ == "__main__":
     # This is just to ensure the script can be run directly
     print("Running potato workflow example...")
-    result = workflow.run()
-    print(result.tasks["task_two"].result.result)  # Access the result of task_two
+    output = workflow.run().result
+    print(output)  # Access the result of task_two
+    assert isinstance(output, TaskOutput)

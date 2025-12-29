@@ -4,6 +4,7 @@ from typing import List
 from potato_head import Agent, Prompt, Provider
 from pydantic import BaseModel
 from potato_head.openai import OpenAIChatSettings
+from openai import OpenAI
 
 
 class StructuredTaskOutput(BaseModel):
@@ -35,10 +36,6 @@ prompt = Prompt(
 agent = Agent(Provider.OpenAI)
 
 if __name__ == "__main__":
-    result: StructuredTaskOutput = agent.execute_prompt(
-        prompt=prompt,
-        output_type=StructuredTaskOutput,
-    ).structured_output
-
-    assert isinstance(result, StructuredTaskOutput)
-    print("Tasks:", result.tasks)
+    client = OpenAI()
+    response = client.chat.completions.create(**prompt.model_dump())
+    print("Response:", response.choices[0].message.content)

@@ -17,6 +17,7 @@ use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
+use tracing::debug;
 use tracing::{error, instrument};
 const TIMEOUT_SECS: u64 = 30;
 
@@ -95,6 +96,7 @@ impl GenAiClient {
         match self {
             // Create embedding using OpenAI client that expects an array of strings
             GenAiClient::OpenAI(client) => {
+                debug!("Creating embedding with OpenAI client");
                 let response = match inputs {
                     EmbeddingInput::Texts(texts) => client.create_embedding(texts, config).await,
                     _ => Err(ProviderError::DoesNotSupportPredictRequest),
@@ -106,6 +108,7 @@ impl GenAiClient {
             }
             // Create embedding using Gemini client that expects an array of strings
             GenAiClient::Gemini(client) => {
+                debug!("Creating embedding with Gemini client");
                 let response = match inputs {
                     EmbeddingInput::Texts(texts) => client.create_embedding(texts, config).await,
                     _ => Err(ProviderError::DoesNotSupportPredictRequest),
@@ -118,6 +121,7 @@ impl GenAiClient {
             }
             // Create embedding using Vertex client that expects a PredictRequest
             GenAiClient::Vertex(client) => {
+                debug!("Creating embedding with Vertex client");
                 let model = config.get_model();
                 let response = match inputs {
                     EmbeddingInput::PredictRequest(request) => {

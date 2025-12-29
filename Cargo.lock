@@ -1193,6 +1193,7 @@ dependencies = [
  "gcloud-auth",
  "http",
  "potato-macro",
+ "potato-state",
  "potato-type",
  "potato-util",
  "pyo3",
