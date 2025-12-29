@@ -40,6 +40,9 @@ pub const ANTHROPIC_MESSAGE_RESPONSE: &str =
 pub const ANTHROPIC_MESSAGE_STRUCTURED_RESPONSE: &str =
     include_str!("assets/anthropic/message_structured_completion.json");
 
+pub const ANTHROPIC_MESSAGE_STRUCTURED_TASK_OUTPUT: &str =
+    include_str!("assets/anthropic/message_structured_completion_tasks.json");
+
 fn randomize_openai_embedding_response(
     response: OpenAIEmbeddingResponse,
 ) -> OpenAIEmbeddingResponse {
@@ -152,6 +155,9 @@ impl LLMApiMock {
 
         let anthropic_message_structured_response: AnthropicMessageResponse =
             serde_json::from_str(ANTHROPIC_MESSAGE_STRUCTURED_RESPONSE).unwrap();
+
+        let anthropic_message_structured_task_output: AnthropicMessageResponse =
+            serde_json::from_str(ANTHROPIC_MESSAGE_STRUCTURED_TASK_OUTPUT).unwrap();
 
         server
             .mock("POST", "/chat/completions")
@@ -368,6 +374,18 @@ impl LLMApiMock {
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(serde_json::to_string(&anthropic_message_structured_response).unwrap())
+            .create();
+
+        server
+            .mock("POST", "/messages")
+            .match_header("content-type", "application/json")
+            .match_body(mockito::Matcher::Regex(
+                r#".*"text"\s*:\s*"Give me a task list!".*"#.to_string(),
+            ))
+            .expect(usize::MAX) // More specific expectation than usize::MAX
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&anthropic_message_structured_task_output).unwrap())
             .create();
 
         server

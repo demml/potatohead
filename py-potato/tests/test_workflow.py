@@ -1,16 +1,21 @@
 import os
 from dataclasses import dataclass
-from typing import List, cast
 
 import pytest
 from potato_head import Agent, Prompt, Provider, Score, Task, TaskStatus, Workflow
 from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
 from potato_head.mock import LLMTestServer
 from potato_head.openai import TextContentPart
-from pydantic import BaseModel
 from pydantic_ai import Agent as PydanticAgent
 from pydantic_ai import RunContext, models
 from pydantic_ai.models.test import TestModel
+
+from tests.conftest import (  # type: ignore
+    StructuredTaskOutput,
+    anthropic_task,
+    gemini_task,
+    openai_task,
+)
 
 # Sets up logging for tests
 RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
@@ -18,11 +23,6 @@ RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
 
 models.ALLOW_MODEL_REQUESTS = False
 os.environ["OPENAI_API_KEY"] = "mock_api_key"
-
-
-class StructuredTaskOutput(BaseModel):
-    tasks: List[str]
-    status: str
 
 
 @dataclass
@@ -413,3 +413,35 @@ def test_agent_env_var_failure():
     ):
         # This should raise an error because the API key is not set
         agent.execute_prompt(prompt=prompt, output_type=Score)
+
+
+def test_multi_provider_workflow():
+    with LLMTestServer():
+        openai_agent = Agent(Provider.OpenAI)
+        gemini_agent = Agent(Provider.Gemini)
+        anthropic_agent = Agent(Provider.Anthropic)
+
+        workflow = Workflow(name="multi_provider_workflow")
+        workflow.add_agents([openai_agent, gemini_agent, anthropic_agent])
+
+        ## add tasks for each provider
+        workflow.add_tasks(
+            [
+                openai_task(openai_agent.id),
+                gemini_task(gemini_agent.id),
+                anthropic_task(anthropic_agent.id),
+            ]
+        )
+
+        ## add output types for structured outputs
+        workflow.add_task_output_types(
+            {
+                "gemini_task": Score,
+                "anthropic_task": StructuredTaskOutput,
+            }
+        )
+
+        result = workflow.run()
+
+        assert isinstance(result.tasks["gemini_task"].result, Score)
+        assert isinstance(result.result, StructuredTaskOutput)

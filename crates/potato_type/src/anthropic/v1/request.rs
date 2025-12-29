@@ -7,6 +7,7 @@ use crate::openai::v1::chat::request::{ChatMessage, ContentPart, TextContentPart
 use crate::prompt::builder::ProviderRequest;
 use crate::prompt::MessageNum;
 use crate::prompt::ModelSettings;
+use crate::tools::AgentToolDefinition;
 use crate::traits::get_var_regex;
 use crate::traits::{MessageConversion, MessageFactory, PromptMessageExt, RequestAdapter};
 use crate::TypeError;
@@ -1454,6 +1455,17 @@ impl Tool {
     }
 }
 
+impl Tool {
+    pub fn from_tool_agent_tool_definition(tool: &AgentToolDefinition) -> Result<Self, TypeError> {
+        Ok(Self {
+            name: tool.name.clone(),
+            description: Some(tool.description.clone()),
+            input_schema: tool.parameters.clone(),
+            cache_control: None,
+        })
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[pyclass(name = "AnthropicThinkingConfig")]
 pub struct ThinkingConfig {
@@ -1671,6 +1683,19 @@ impl AnthropicSettings {
     }
 }
 
+impl AnthropicSettings {
+    pub fn add_tools(&mut self, tools: Vec<AgentToolDefinition>) -> Result<(), TypeError> {
+        let current_tools = self.tools.get_or_insert_with(Vec::new);
+
+        for tool in tools {
+            let tool_param = Tool::from_tool_agent_tool_definition(&tool)?;
+            current_tools.push(tool_param);
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct AnthropicMessageRequestV1 {
     pub model: String,
@@ -1761,6 +1786,10 @@ impl RequestAdapter for AnthropicMessageRequestV1 {
     fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) {
         self.output_format =
             response_json_schema.map(|json_schema| create_structured_output_schema(&json_schema));
+    }
+
+    fn add_tools(&mut self, tools: Vec<AgentToolDefinition>) -> Result<(), TypeError> {
+        self.settings.add_tools(tools)
     }
 }
 

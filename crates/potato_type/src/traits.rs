@@ -1,6 +1,7 @@
 use crate::{
     error::TypeError,
     prompt::{MessageNum, ModelSettings, ResponseContent},
+    tools::AgentToolDefinition,
     Provider,
 };
 use potato_util::utils::TokenLogProbs;
@@ -80,6 +81,9 @@ pub trait RequestAdapter {
     /// Sets the response JSON schema for the request
     /// Typically used as part of workflows when adding tasks
     fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) -> ();
+
+    /// Adds tools to the request
+    fn add_tools(&mut self, tools: Vec<AgentToolDefinition>) -> Result<(), TypeError>;
 }
 
 pub trait ResponseAdapter {

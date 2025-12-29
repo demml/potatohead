@@ -1,18 +1,21 @@
-use crate::{
-    agents::error::AgentError,
-    agents::task::Task,
-    agents::types::{AgentResponse, PyAgentResponse},
+use crate::agents::{
+    error::AgentError,
+    task::Task,
+    types::{AgentResponse, PyAgentResponse},
 };
 use potato_provider::providers::anthropic::client::AnthropicClient;
 use potato_provider::providers::types::ServiceType;
 use potato_provider::GeminiClient;
 use potato_provider::{providers::google::VertexClient, GenAiClient, OpenAIClient};
 use potato_state::block_on;
-use potato_type::prompt::extract_system_instructions;
 use potato_type::prompt::ModelSettings;
 use potato_type::prompt::Prompt;
 use potato_type::prompt::{MessageNum, Role};
 use potato_type::Provider;
+use potato_type::{
+    prompt::extract_system_instructions,
+    tools::{Tool, ToolRegistry},
+};
 use potato_util::create_uuid7;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
@@ -28,12 +31,14 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use tracing::{debug, instrument, warn};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Agent {
     pub id: String,
     client: Arc<GenAiClient>,
     pub provider: Provider,
     pub system_instruction: Vec<MessageNum>,
+    pub tools: Arc<RwLock<ToolRegistry>>, // Add tool registry
+    pub max_iterations: u32,
 }
 
 /// Rust method implementation of the Agent
@@ -59,6 +64,8 @@ impl Agent {
             client: Arc::new(client),
             system_instruction: self.system_instruction.clone(),
             provider: self.provider.clone(),
+            tools: self.tools.clone(),
+            max_iterations: self.max_iterations,
         })
     }
     pub async fn new(
@@ -86,8 +93,62 @@ impl Agent {
             id: create_uuid7(),
             system_instruction: system_instruction.unwrap_or_default(),
             provider,
+            tools: Arc::new(RwLock::new(ToolRegistry::new())),
+            max_iterations: 10,
         })
     }
+
+    pub fn register_tool(&self, tool: Box<dyn Tool + Send + Sync>) {
+        self.tools.write().unwrap().register_tool(tool);
+    }
+
+    //TODO: add back later
+    /// Execute task with agentic reasoning loop
+    //pub async fn execute_agentic_task(&self, task: &Task) -> Result<AgentResponse, AgentError> {
+    //    let mut prompt = task.prompt.clone();
+    //    self.prepend_system_instructions(&mut prompt);
+
+    //    // Add tool definitions to prompt if tools are registered
+    //    let tool_definitions = self.tools.read().unwrap().get_definitions();
+    //    if !tool_definitions.is_empty() {
+    //        // Convert tools to provider-specific format and add to prompt
+    //        prompt.add_tools(tool_definitions)?;
+    //    }
+
+    //    let mut iteration = 0;
+    //    let mut conversation_history = Vec::new();
+
+    //    loop {
+    //        if iteration >= self.max_iterations {
+    //            return Err(AgentError::Error("Max iterations reached".to_string()));
+    //        }
+
+    //        // Generate response
+    //        let response = self.client.generate_content(&prompt).await?;
+
+    //        // Check if response contains tool calls
+    //        if let Some(tool_calls) = response.extract_tool_calls() {
+    //            debug!("Agent requesting {} tool calls", tool_calls.len());
+
+    //            // Execute all requested tools
+    //            let mut tool_results = Vec::new();
+    //            for tool_call in tool_calls {
+    //                let result = self.tools.read().unwrap().execute(&tool_call)?;
+    //                tool_results.push((tool_call.tool_name.clone(), result));
+    //            }
+
+    //            // Add tool results back to conversation
+    //            conversation_history.push(response.clone());
+    //            prompt.add_tool_results(tool_results)?;
+
+    //            iteration += 1;
+    //            continue;
+    //        }
+
+    //        // No tool calls - agent has final answer
+    //        return Ok(AgentResponse::new(task.id.clone(), response));
+    //    }
+    //}
 
     #[instrument(skip_all)]
     fn append_task_with_message_dependency_context(
@@ -286,7 +347,19 @@ impl Agent {
             id: create_uuid7(),
             system_instruction: Vec::new(),
             provider,
+            tools: Arc::new(RwLock::new(ToolRegistry::new())),
+            max_iterations: 10,
         })
+    }
+}
+
+impl PartialEq for Agent {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.provider == other.provider
+            && self.system_instruction == other.system_instruction
+            && self.max_iterations == other.max_iterations
+            && self.client == other.client
     }
 }
 
@@ -361,6 +434,8 @@ impl<'de> Deserialize<'de> for Agent {
                     client: Arc::new(client),
                     system_instruction,
                     provider,
+                    tools: Arc::new(RwLock::new(ToolRegistry::new())),
+                    max_iterations: 10,
                 })
             }
         }

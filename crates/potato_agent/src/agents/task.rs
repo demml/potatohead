@@ -45,6 +45,10 @@ impl WorkflowTask {
             Ok(py.None().bind(py).clone())
         }
     }
+
+    pub fn __str__(&self) -> String {
+        PyHelperFuncs::__str__(self)
+    }
 }
 
 #[pyclass]
@@ -58,7 +62,7 @@ pub struct Task {
     pub dependencies: Vec<String>,
     #[pyo3(get)]
     pub status: TaskStatus,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub agent_id: String,
     pub result: Option<AgentResponse>,
     #[pyo3(get)]

@@ -1,4 +1,5 @@
 use crate::error::TypeError;
+use crate::tools::AgentToolDefinition;
 use crate::SettingsType;
 use potato_util::json_to_pydict;
 use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
@@ -425,6 +426,17 @@ impl FunctionDefinition {
     }
 }
 
+impl FunctionDefinition {
+    pub fn from_agent_tool_definition(def: &AgentToolDefinition) -> Result<Self, UtilError> {
+        Ok(FunctionDefinition {
+            name: def.name.clone(),
+            description: Some(def.description.clone()),
+            parameters: Some(def.parameters.clone()),
+            strict: None,
+        })
+    }
+}
+
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct FunctionTool {
@@ -828,5 +840,26 @@ impl OpenAIChatSettings {
 
     pub fn settings_type(&self) -> SettingsType {
         SettingsType::OpenAIChat
+    }
+}
+
+impl OpenAIChatSettings {
+    pub fn add_tools(
+        &mut self,
+        tools: Vec<crate::tools::AgentToolDefinition>,
+    ) -> Result<(), TypeError> {
+        let mut tool_list = self.tools.clone().unwrap_or_default();
+
+        for tool in tools {
+            let function_tool = FunctionTool::new(
+                FunctionDefinition::from_agent_tool_definition(&tool)?,
+                "function".to_string(),
+            );
+            let new_tool = Tool::new(Some(function_tool), None)?;
+            tool_list.push(new_tool);
+        }
+
+        self.tools = Some(tool_list);
+        Ok(())
     }
 }

@@ -1,5 +1,6 @@
 use crate::prompt::builder::ProviderRequest;
 use crate::prompt::{MessageNum, ModelSettings, Role};
+use crate::tools::AgentToolDefinition;
 use crate::traits::{get_var_regex, RequestAdapter};
 use crate::traits::{MessageConversion, MessageFactory, PromptMessageExt};
 use crate::Provider;
@@ -899,6 +900,17 @@ impl GeminiSettings {
                 });
             }
         }
+    }
+}
+
+impl GeminiSettings {
+    pub fn add_tools(&mut self, tools: Vec<AgentToolDefinition>) -> Result<(), TypeError> {
+        // get current tools or create new vec
+        let current_tools = self.tools.get_or_insert_with(Vec::new);
+        for tool in tools {
+            current_tools.push(Tool::from_tool_agent_tool_definition(&tool)?);
+        }
+        Ok(())
     }
 }
 
@@ -2460,6 +2472,20 @@ pub struct Tool {
     pub file_search: Option<FileSearch>,
 }
 
+impl Tool {
+    fn from_tool_agent_tool_definition(tool: &AgentToolDefinition) -> Result<Self, TypeError> {
+        let function_declaration = FunctionDeclaration {
+            name: tool.name.clone(),
+            description: tool.description.clone(),
+            ..Default::default()
+        };
+        Ok(Tool {
+            function_declarations: Some(vec![function_declaration]),
+            ..Default::default()
+        })
+    }
+}
+
 #[pymethods]
 impl Tool {
     #[new]
@@ -2607,5 +2633,9 @@ impl RequestAdapter for GeminiGenerateContentRequestV1 {
             cfg.response_mime_type = Some("application/json".to_string());
             cfg.response_json_schema = response_json_schema;
         }
+    }
+
+    fn add_tools(&mut self, tools: Vec<AgentToolDefinition>) -> Result<(), TypeError> {
+        self.settings.add_tools(tools)
     }
 }

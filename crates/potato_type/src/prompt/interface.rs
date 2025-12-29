@@ -9,6 +9,7 @@ use crate::prompt::types::parse_response_to_json;
 use crate::prompt::types::ResponseType;
 use crate::prompt::types::Role;
 use crate::prompt::{AnthropicMessageList, GeminiContentList, MessageNum, OpenAIMessageList};
+use crate::tools::AgentToolDefinition;
 use crate::traits::MessageFactory;
 use crate::SettingsType;
 use crate::{Provider, SaveName};
@@ -553,6 +554,10 @@ impl Prompt {
             self.provider,
             Provider::Google | Provider::Gemini | Provider::Vertex
         )
+    }
+
+    pub fn add_tools(&mut self, tools: Vec<AgentToolDefinition>) -> Result<(), TypeError> {
+        self.request.add_tools(tools)
     }
 
     pub fn extract_variables(

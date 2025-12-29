@@ -2,6 +2,7 @@ use crate::openai::v1::chat::settings::OpenAIChatSettings;
 use crate::prompt::builder::ProviderRequest;
 use crate::prompt::types::MessageNum;
 use crate::prompt::ModelSettings;
+use crate::tools::AgentToolDefinition;
 use crate::traits::{
     get_var_regex, MessageConversion, MessageFactory, PromptMessageExt, RequestAdapter,
 };
@@ -559,6 +560,19 @@ impl RequestAdapter for OpenAIChatCompletionRequestV1 {
     fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) {
         self.response_format =
             response_json_schema.map(|json_schema| create_structured_output_schema(&json_schema));
+    }
+
+    fn add_tools(&mut self, tools: Vec<AgentToolDefinition>) -> Result<(), TypeError> {
+        // add tools to settings if possible
+        if let Some(settings) = &mut self.settings {
+            settings.add_tools(tools)
+        } else {
+            // not settings, set default settings with tools
+            let mut new_settings = OpenAIChatSettings::default();
+            new_settings.add_tools(tools)?;
+            self.settings = Some(new_settings);
+            Ok(())
+        }
     }
 }
 

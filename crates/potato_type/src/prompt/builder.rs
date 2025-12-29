@@ -6,6 +6,7 @@ use crate::openai::v1::chat::request::OpenAIChatCompletionRequestV1;
 use crate::openai::ChatMessage;
 use crate::prompt::types::MessageNum;
 use crate::prompt::ModelSettings;
+use crate::tools::AgentToolDefinition;
 use crate::traits::RequestAdapter;
 use crate::{Provider, TypeError};
 use potato_macro::dispatch_trait_method;
@@ -79,6 +80,10 @@ impl ProviderRequest {
 
     pub fn messages_mut(&mut self) -> &mut Vec<MessageNum> {
         dispatch_trait_method!(mut self, RequestAdapter, messages_mut())
+    }
+
+    pub fn add_tools(&mut self, tools: Vec<AgentToolDefinition>) -> Result<(), TypeError> {
+        dispatch_trait_method!(mut self, RequestAdapter, add_tools(tools))
     }
 
     pub fn prepend_system_instructions(

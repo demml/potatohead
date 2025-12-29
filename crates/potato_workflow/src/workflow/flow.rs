@@ -102,7 +102,7 @@ impl WorkflowResult {
     pub fn result<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
         if let Some(last_task_id) = &self.last_task_id {
             if let Some(task) = self.tasks.get(last_task_id) {
-                let result = task.bind(py).call_method0("result")?;
+                let result = task.bind(py).getattr("result")?;
                 return Ok(result);
             }
         }

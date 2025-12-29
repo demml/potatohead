@@ -16,6 +16,7 @@ pub mod common;
 pub mod google;
 pub mod openai;
 pub mod prompt;
+pub mod tools;
 pub mod traits;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
