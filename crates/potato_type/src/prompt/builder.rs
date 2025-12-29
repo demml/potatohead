@@ -136,7 +136,7 @@ impl ProviderRequest {
                 TypeError::Error("No messages in request to convert to Python object".to_string())
             })?;
 
-        Ok(last.to_bound_py_object(py)?)
+        last.to_bound_py_object(py)
     }
 
     pub(crate) fn get_openai_message(&self) -> Result<ChatMessage, TypeError> {

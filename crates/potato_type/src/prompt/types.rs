@@ -520,7 +520,7 @@ impl OpenAIMessageList {
         let iter = OpenAIMessageIterator {
             inner: slf.messages.clone().into_iter(),
         };
-        Ok(Py::new(slf.py(), iter)?)
+        Py::new(slf.py(), iter)
     }
 
     pub fn __len__(&self) -> usize {
@@ -577,7 +577,7 @@ impl AnthropicMessageList {
         let iter = AnthropicMessageIterator {
             inner: slf.messages.clone().into_iter(),
         };
-        Ok(Py::new(slf.py(), iter)?)
+        Py::new(slf.py(), iter)
     }
 
     pub fn __len__(&self) -> usize {
@@ -634,7 +634,7 @@ impl GeminiContentList {
         let iter = GeminiContentIterator {
             inner: slf.messages.clone().into_iter(),
         };
-        Ok(Py::new(slf.py(), iter)?)
+        Py::new(slf.py(), iter)
     }
 
     pub fn __len__(&self) -> usize {
