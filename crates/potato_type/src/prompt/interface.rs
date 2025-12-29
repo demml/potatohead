@@ -329,10 +329,7 @@ impl Prompt {
     /// Returns the messages as Google GeminiContent Python objects
     /// This is a helper that provide strict typing when working with Google/Gemini/Vertex prompts
     pub fn gemini_messages(&self) -> Result<GeminiContentList, TypeError> {
-        if self.provider != Provider::Google
-            || self.provider != Provider::Gemini
-            || self.provider != Provider::Vertex
-        {
+        if !self.is_google_provider() {
             return Err(TypeError::Error(
                 "Prompt provider is not Google, Gemini, or Vertex".to_string(),
             ));
@@ -355,10 +352,7 @@ impl Prompt {
     /// Returns the last message as a Google GeminiContent Python object
     /// This is a helper that provide strict typing when working with Google/Gemini/Vertex prompts
     pub fn gemini_message(&self) -> Result<GeminiContent, TypeError> {
-        if self.provider != Provider::Google
-            || self.provider != Provider::Gemini
-            || self.provider != Provider::Vertex
-        {
+        if !self.is_google_provider() {
             return Err(TypeError::Error(
                 "Prompt provider is not Google, Gemini, or Vertex".to_string(),
             ));
@@ -546,6 +540,13 @@ impl Prompt {
             model,
             provider,
         })
+    }
+
+    fn is_google_provider(&self) -> bool {
+        matches!(
+            self.provider,
+            Provider::Google | Provider::Gemini | Provider::Vertex
+        )
     }
 
     pub fn extract_variables(

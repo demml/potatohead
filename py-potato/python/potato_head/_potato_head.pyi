@@ -117,7 +117,7 @@ class TaskStatus:
     Failed: "TaskStatus"
     """Task has failed"""
 
-T = TypeVar("T", OpenAIChatSettings, GeminiSettings, AnthropicSettings)
+T = TypeVar("T", "OpenAIChatSettings", "GeminiSettings", "AnthropicSettings")
 
 class ModelSettings(Generic[T]):
     """Configuration settings for LLM models.
@@ -134,31 +134,28 @@ class ModelSettings(Generic[T]):
     """
 
     @overload
-    def __init__(self, settings: OpenAIChatSettings) -> None:
+    def __init__(self, settings: "OpenAIChatSettings") -> None:
         """Initialize with OpenAI settings.
 
         Args:
             settings: OpenAI chat completion settings
         """
-        ...
 
     @overload
-    def __init__(self, settings: GeminiSettings) -> None:
+    def __init__(self, settings: "GeminiSettings") -> None:
         """Initialize with Gemini settings.
 
         Args:
             settings: Gemini/Google AI settings
         """
-        ...
 
     @overload
-    def __init__(self, settings: AnthropicSettings) -> None:
+    def __init__(self, settings: "AnthropicSettings") -> None:
         """Initialize with Anthropic settings.
 
         Args:
             settings: Anthropic Claude settings
         """
-        ...
 
     @property
     def settings(self) -> T:
@@ -216,13 +213,13 @@ class Score:
 
 PromptMessage: TypeAlias = Union[
     str,
-    ChatMessage,
-    MessageParam,
-    GeminiContent,
-    List[Union[str, ChatMessage, MessageParam, GeminiContent]],
+    "ChatMessage",
+    "MessageParam",
+    "GeminiContent",
+    List[Union[str, "ChatMessage", "MessageParam", "GeminiContent"]],
 ]
 
-TMessage = TypeVar("TMessage", ChatMessage, MessageParam, GeminiContent)
+TMessage = TypeVar("TMessage", "ChatMessage", "MessageParam", "GeminiContent")
 
 class Prompt(Generic[TMessage]):
     """Prompt for interacting with an LLM API.
@@ -717,7 +714,7 @@ class AgentResponse:
         """
 
     @property
-    def token_usage(self) -> Usage:
+    def token_usage(self) -> Any:
         """Returns the token usage of the agent response if supported"""
 
     @property
@@ -5270,7 +5267,8 @@ class GeminiContent:
         """Initialize message content.
 
         Args:
-            parts (Union[str, Part, List[Union[str, Part, Blob, FileData, FunctionCall, FunctionResponse, ExecutableCode, CodeExecutionResult]]]):
+            parts (Union[str, Part, List[Union[str, Part, Blob, FileData, FunctionCall, FunctionResponse,
+            ExecutableCode, CodeExecutionResult]]]):
                 Content from typing import Any, Dict, List, Optional, Union from the message
             role (Optional[str]):
                 Role of the message sender (e.g., "user", "model", "function")
@@ -8551,6 +8549,22 @@ class WebSearchToolResultBlockParam:
     def type(self) -> str:
         """Content type (always 'web_search_tool_result')."""
 
+_ParamType: TypeAlias = (
+    TextBlockParam
+    | ImageBlockParam
+    | DocumentBlockParam
+    | SearchResultBlockParam
+    | ThinkingBlockParam
+    | RedactedThinkingBlockParam
+    | ToolUseBlockParam
+    | ToolResultBlockParam
+    | ServerToolUseBlockParam
+    | ServerToolUseBlockParam
+    | WebSearchResultBlockParam
+)
+
+_ContentType: TypeAlias = str | _ParamType | List[_ParamType]
+
 class MessageParam:
     """Message parameter for chat completion requests.
 
@@ -8567,18 +8581,18 @@ class MessageParam:
         >>> msg = MessageParam(content=[text_block, image_block], role="user")
     """
 
-    def __init__(self, content: Any, role: str) -> None:
+    def __init__(self, content: _ContentType, role: str) -> None:
         """Initialize message parameter.
 
         Args:
-            content (Any):
-                Message content (string or list of content blocks)
+            content (_ContentType):
+                Message content (string, content block or list of content blocks)
             role (str):
                 Message role ("user" or "assistant")
         """
 
     @property
-    def content(self) -> List[Any]:
+    def content(self) -> List[_ParamType]:
         """Message content blocks."""
 
     @property

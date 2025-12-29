@@ -9,8 +9,8 @@ use crate::prompt::MessageNum;
 use crate::prompt::ModelSettings;
 use crate::traits::get_var_regex;
 use crate::traits::{MessageConversion, MessageFactory, PromptMessageExt, RequestAdapter};
-use crate::Provider;
 use crate::TypeError;
+use crate::{Provider, SettingsType};
 use potato_util::{json_to_pydict, json_to_pyobject};
 use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
@@ -1664,6 +1664,10 @@ impl AnthropicSettings {
         let pydict = PyDict::new(py);
         json_to_pydict(py, &json, &pydict)?;
         Ok(pydict)
+    }
+
+    pub fn settings_type(&self) -> SettingsType {
+        SettingsType::Anthropic
     }
 }
 
