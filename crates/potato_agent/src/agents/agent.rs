@@ -8,7 +8,6 @@ use potato_provider::providers::types::ServiceType;
 use potato_provider::GeminiClient;
 use potato_provider::{providers::google::VertexClient, GenAiClient, OpenAIClient};
 use potato_state::block_on;
-use potato_type::prompt::ModelSettings;
 use potato_type::prompt::Prompt;
 use potato_type::prompt::{MessageNum, Role};
 use potato_type::Provider;
@@ -319,37 +318,6 @@ impl Agent {
 
     pub fn client_provider(&self) -> &Provider {
         self.client.provider()
-    }
-
-    pub async fn from_model_settings(model_settings: &ModelSettings) -> Result<Self, AgentError> {
-        let provider = model_settings.provider();
-        let client = match provider {
-            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(ServiceType::Generate)?),
-            Provider::Gemini => {
-                GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
-            }
-            Provider::Vertex => {
-                GenAiClient::Vertex(VertexClient::new(ServiceType::Generate).await?)
-            }
-            Provider::Google => {
-                GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
-            }
-            Provider::Anthropic => {
-                GenAiClient::Anthropic(AnthropicClient::new(ServiceType::Generate)?)
-            }
-            Provider::Undefined => {
-                return Err(AgentError::MissingProviderError);
-            }
-        };
-
-        Ok(Self {
-            client: Arc::new(client),
-            id: create_uuid7(),
-            system_instruction: Vec::new(),
-            provider,
-            tools: Arc::new(RwLock::new(ToolRegistry::new())),
-            max_iterations: 10,
-        })
     }
 }
 

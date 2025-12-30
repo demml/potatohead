@@ -7,14 +7,13 @@ use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::warn;
-#[pyclass]
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentResponse {
     pub id: String,
     pub response: ChatResponse,
 }
 
-#[pymethods]
 impl AgentResponse {
     pub fn token_usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, AgentError> {
         Ok(self.response.token_usage(py)?)
@@ -98,6 +97,10 @@ impl PyAgentResponse {
 
     pub fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
+    }
+
+    pub fn response_text(&self) -> Option<String> {
+        self.inner.response_text()
     }
 }
 

@@ -61,8 +61,9 @@ pub trait RequestAdapter {
         &self,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyList>, TypeError>;
-    /// Returns the model settings for the request
+    /// Returns the model settings for the request (python object)
     fn model_settings<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError>;
+
     /// Converts the request to a JSON value for sending to the provider
     fn to_request_body(&self) -> Result<Value, TypeError>;
     /// Checks if the request matches the given provider

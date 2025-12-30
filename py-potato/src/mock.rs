@@ -1,4 +1,4 @@
-use ::potato_head::LLMTestServer;
+use ::potato_head::mock::LLMTestServer;
 use pyo3::prelude::*;
 
 pub fn add_mock_module(m: &Bound<'_, PyModule>) -> PyResult<()> {

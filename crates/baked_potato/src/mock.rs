@@ -569,3 +569,30 @@ pub fn create_score_prompt(params: Option<Vec<String>>) -> Prompt {
     )
     .unwrap()
 }
+
+pub fn create_parameterized_prompt() -> Prompt {
+    let user_content = "What is ${variable1} + ${variable2}?".to_string();
+    let system_content = "You are a helpful assistant.".to_string();
+
+    let system_msg = ChatMessage {
+        role: Role::Developer.to_string(),
+        content: vec![ContentPart::Text(TextContentPart::new(system_content))],
+        name: None,
+    };
+
+    let user_msg = ChatMessage {
+        role: Role::User.to_string(),
+        content: vec![ContentPart::Text(TextContentPart::new(user_content))],
+        name: None,
+    };
+    Prompt::new_rs(
+        vec![MessageNum::OpenAIMessageV1(user_msg)],
+        "gpt-4o",
+        potato_type::Provider::OpenAI,
+        vec![MessageNum::OpenAIMessageV1(system_msg)],
+        None,
+        None,
+        potato_type::prompt::ResponseType::Null,
+    )
+    .unwrap()
+}
