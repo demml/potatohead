@@ -738,7 +738,6 @@ class AgentResponse:
     def structured_output(self) -> Any:
         """Returns the structured output of the agent response if supported."""
 
-    @property
     def response_text(self) -> Optional[str]:
         """The response text from the agent if available, otherwise None."""
 
