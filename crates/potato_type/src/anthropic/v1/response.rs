@@ -460,16 +460,16 @@ impl ResponseAdapter for AnthropicMessageResponse {
         Vec::new()
     }
 
-    fn response_text(&self) -> Option<String> {
+    fn response_text(&self) -> String {
         if self.content.is_empty() {
-            return None;
+            return String::new();
         }
 
         let inner = self.content.first().cloned().unwrap().inner;
 
         match inner {
-            ResponseContentBlockInner::Text(block) => Some(block.text),
-            _ => None,
+            ResponseContentBlockInner::Text(block) => block.text,
+            _ => String::new(),
         }
     }
 }

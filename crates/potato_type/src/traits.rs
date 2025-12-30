@@ -139,7 +139,7 @@ pub trait ResponseAdapter {
     fn tool_call_output(&self) -> Option<Value>;
 
     /// Returns the output text of the response if available
-    fn response_text(&self) -> Option<String>;
+    fn response_text(&self) -> String;
 }
 
 pub trait MessageResponseExt {

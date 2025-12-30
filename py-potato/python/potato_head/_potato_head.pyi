@@ -736,8 +736,8 @@ class AgentResponse:
     def structured_output(self) -> Any:
         """Returns the structured output of the agent response if supported."""
 
-    def response_text(self) -> Optional[str]:
-        """The response text from the agent if available, otherwise None."""
+    def response_text(self) -> str:
+        """The response text from the agent if available, otherwise an empty string."""
 
 class Task:
     def __init__(
