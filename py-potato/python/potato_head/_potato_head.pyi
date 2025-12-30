@@ -232,9 +232,7 @@ class Prompt:
         model: str,
         provider: Provider | str,
         system_instructions: Optional[PromptMessage] = None,
-        model_settings: Optional[
-            ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings
-        ] = None,
+        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = None,
         output_type: Optional[Any] = None,
     ) -> None:
         """Initialize a Prompt object.
@@ -380,7 +378,9 @@ class Prompt:
         """
 
     @property
-    def system_instructions(self) -> List[Any]:
+    def system_instructions(
+        self,
+    ) -> List["ChatMessage" | "GeminiContent" | "MessageParam"]:
         """The system instruction message(s) in the prompt.
 
         Returns a list of provider-specific message objects for system instructions.
@@ -2500,6 +2500,7 @@ class ChatMessage:
         Raises:
             TypeError: If content format is invalid
         """
+
     def text(self) -> str:
         """Get the text content of the first part, if available. Returns
         an empty string if the first part is not text.
@@ -2513,9 +2514,7 @@ class ChatMessage:
     @property
     def content(
         self,
-    ) -> List[
-        Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]
-    ]:
+    ) -> List[Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]]:
         """The message content parts."""
 
     @property

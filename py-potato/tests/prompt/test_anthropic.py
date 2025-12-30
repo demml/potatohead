@@ -1,5 +1,3 @@
-from typing import cast
-
 from potato_head import Prompt, Provider, Role
 from potato_head.anthropic import (
     AnthropicSettings,
@@ -23,10 +21,8 @@ def test_prompt():
         system_instructions="system_prompt",
     )
 
-    assert prompt.anthropic_message.content[0].text == "My prompt"
-
-    system_msg = cast(TextBlockParam, prompt.system_instructions[0])
-    assert system_msg.text == "system_prompt"
+    assert prompt.anthropic_message.text() == "My prompt"
+    assert prompt.system_instructions[0].text() == "system_prompt"
 
     # test string message
     prompt = Prompt(
