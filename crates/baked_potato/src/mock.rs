@@ -5,6 +5,9 @@ use potato_type::google::v1::generate::{DataNum, GenerateContentResponse};
 use potato_type::google::GeminiEmbeddingResponse;
 use potato_type::openai::v1::embedding::OpenAIEmbeddingResponse;
 use potato_type::openai::v1::OpenAIChatResponse;
+use potato_type::openai::{ChatMessage, ContentPart, TextContentPart};
+use potato_type::prompt::{MessageNum, Prompt, Role, Score};
+use potato_type::StructuredOutput;
 use pyo3::prelude::*;
 use rand::Rng;
 use serde_json;
@@ -529,4 +532,40 @@ impl Default for LLMTestServer {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[allow(clippy::uninlined_format_args)]
+pub fn create_score_prompt(params: Option<Vec<String>>) -> Prompt {
+    let mut user_prompt = "What is the score?".to_string();
+
+    // If parameters are provided, append them to the user prompt in format ${param}
+    if let Some(params) = params {
+        for param in params {
+            user_prompt.push_str(&format!(" ${{{}}}", param));
+        }
+    }
+
+    let system_content = "You are a helpful assistant.".to_string();
+
+    let system_msg = ChatMessage {
+        role: Role::Developer.to_string(),
+        content: vec![ContentPart::Text(TextContentPart::new(system_content))],
+        name: None,
+    };
+
+    let user_msg = ChatMessage {
+        role: Role::User.to_string(),
+        content: vec![ContentPart::Text(TextContentPart::new(user_prompt))],
+        name: None,
+    };
+    Prompt::new_rs(
+        vec![MessageNum::OpenAIMessageV1(user_msg)],
+        "gpt-4o",
+        potato_type::Provider::OpenAI,
+        vec![MessageNum::OpenAIMessageV1(system_msg)],
+        None,
+        Some(Score::get_structured_output_schema()),
+        potato_type::prompt::ResponseType::Score,
+    )
+    .unwrap()
 }
