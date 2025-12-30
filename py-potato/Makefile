@@ -37,15 +37,18 @@ test.unit:
 		--cov-report term
 
 test.integration.gemini:
-	uv run examples/query_reformulation.py
-	uv run examples/gemini_embedding.py
+	uv run examples/google/query_reformulation.py
+	uv run examples/google/gemini_embedding.py
 
 test.integration.openai:
-	uv run examples/structured_output.py
-	uv run examples/openai_embedding.py
+	uv run examples/openai/structured_output.py
+	uv run examples/openai/embedding.py
 
 test.integration.vertex:
-	uv run examples/vertex_embedding.py
+	uv run examples/google/vertex_embedding.py
+
+test.integration.anthropic:
+	uv run examples/anthropic/structured_output.py
 
 uv.pre.patch:
 	uv version prepatch
