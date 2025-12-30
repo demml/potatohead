@@ -182,7 +182,7 @@ impl ChatResponse {
         }
     }
 
-    pub fn response_text(&self) -> Option<String> {
+    pub fn response_text(&self) -> String {
         dispatch_response_trait_method!(self, ResponseAdapter, response_text())
     }
 }

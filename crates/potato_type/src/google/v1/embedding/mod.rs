@@ -154,8 +154,8 @@ impl ResponseAdapter for PredictResponse {
         None
     }
 
-    fn response_text(&self) -> Option<String> {
-        None
+    fn response_text(&self) -> String {
+        String::new()
     }
 }
 

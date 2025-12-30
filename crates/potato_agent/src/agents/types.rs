@@ -42,7 +42,7 @@ impl AgentResponse {
         Ok(self.response.structured_output(py, output_type)?)
     }
 
-    pub fn response_text(&self) -> Option<String> {
+    pub fn response_text(&self) -> String {
         self.response.response_text()
     }
 }
@@ -99,7 +99,7 @@ impl PyAgentResponse {
         PyHelperFuncs::__str__(self)
     }
 
-    pub fn response_text(&self) -> Option<String> {
+    pub fn response_text(&self) -> String {
         self.inner.response_text()
     }
 }

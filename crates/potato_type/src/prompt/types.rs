@@ -432,7 +432,9 @@ impl MessageNum {
                 Ok(bound_msg)
             }
             MessageNum::AnthropicSystemMessageV1(msg) => {
-                let bound_msg = msg.clone().into_bound_py_any(py)?;
+                // Convert to AnthropicMessage first
+                let anthropic_msg = AnthropicMessage::from_text(msg.text.clone(), self.role())?;
+                let bound_msg = anthropic_msg.into_bound_py_any(py)?;
                 Ok(bound_msg)
             }
         }
@@ -485,7 +487,7 @@ impl MessageNum {
             MessageNum::OpenAIMessageV1(msg) => {
                 msg.role == Role::Developer.to_string() || msg.role == Role::System.to_string()
             }
-            MessageNum::AnthropicMessageV1(msg) => msg.role == Role::Assistant.to_string(),
+            MessageNum::AnthropicMessageV1(msg) => msg.role == Role::System.to_string(),
             MessageNum::GeminiContentV1(msg) => msg.role == Role::Model.to_string(),
             MessageNum::AnthropicSystemMessageV1(_) => true,
         }

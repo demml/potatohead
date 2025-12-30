@@ -106,10 +106,9 @@ fn parse_messages(
 
 fn get_system_role(provider: &Provider) -> &'static str {
     match provider {
-        Provider::OpenAI | Provider::Gemini | Provider::Vertex | Provider::Google => {
-            Role::Developer.into()
-        }
-        Provider::Anthropic => Role::Assistant.into(),
+        Provider::OpenAI => Role::Developer.into(),
+        Provider::Gemini | Provider::Vertex | Provider::Google => Role::Model.into(),
+        Provider::Anthropic => Role::System.into(),
         _ => Role::System.into(),
     }
 }

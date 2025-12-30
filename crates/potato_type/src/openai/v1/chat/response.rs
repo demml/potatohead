@@ -342,12 +342,12 @@ impl ResponseAdapter for OpenAIChatResponse {
         probabilities
     }
 
-    fn response_text(&self) -> Option<String> {
+    fn response_text(&self) -> String {
         if self.choices.is_empty() {
-            return None;
+            return String::new();
         }
         let content = self.choices.first().cloned().unwrap_or_default();
 
-        content.message.content
+        content.message.content.unwrap_or_default()
     }
 }

@@ -1389,6 +1389,21 @@ impl GeminiContent {
         json_to_pydict(py, &json, &pydict)?;
         Ok(pydict)
     }
+
+    // helper method for returning firs text part content
+    pub fn text(&self) -> String {
+        self.parts
+            .iter()
+            .find(|part| matches!(part.data, DataNum::Text(_)))
+            .map(|part| {
+                if let DataNum::Text(text) = &part.data {
+                    text.clone()
+                } else {
+                    String::new()
+                }
+            })
+            .unwrap_or_default()
+    }
 }
 
 impl PromptMessageExt for GeminiContent {
