@@ -219,9 +219,7 @@ PromptMessage: TypeAlias = Union[
     List[Union[str, "ChatMessage", "MessageParam", "GeminiContent"]],
 ]
 
-TMessage = TypeVar("TMessage", "ChatMessage", "MessageParam", "GeminiContent")
-
-class Prompt(Generic[TMessage]):
+class Prompt:
     """Prompt for interacting with an LLM API.
 
     The Prompt class handles message parsing, provider-specific formatting, and
@@ -230,11 +228,13 @@ class Prompt(Generic[TMessage]):
 
     def __init__(
         self,
-        messages: TMessage | List[TMessage],
+        messages: PromptMessage,
         model: str,
         provider: Provider | str,
         system_instructions: Optional[PromptMessage] = None,
-        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = None,
+        model_settings: Optional[
+            ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings
+        ] = None,
         output_type: Optional[Any] = None,
     ) -> None:
         """Initialize a Prompt object.
@@ -310,13 +310,13 @@ class Prompt(Generic[TMessage]):
         """
 
     @property
-    def all_messages(self) -> List[TMessage]:
+    def all_messages(self) -> List["ChatMessage" | "MessageParam" | "GeminiContent"]:
         """All messages in the prompt, including system instructions, user messages, tools, etc.
         This is helpful for accessing the complete set of messages in the prompt.
         """
 
     @property
-    def messages(self) -> List[TMessage]:
+    def messages(self) -> List["ChatMessage" | "MessageParam" | "GeminiContent"]:
         """The user message(s) in the prompt.
 
         Returns a list of provider-specific message objects that were parsed
@@ -324,7 +324,7 @@ class Prompt(Generic[TMessage]):
         """
 
     @property
-    def message(self) -> TMessage:
+    def message(self) -> "ChatMessage" | "MessageParam" | "GeminiContent":
         """The last user message in the prompt.
 
         Returns a list of provider-specific message objects that were parsed
@@ -2508,7 +2508,9 @@ class ChatMessage:
     @property
     def content(
         self,
-    ) -> List[Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]]:
+    ) -> List[
+        Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]
+    ]:
         """The message content parts."""
 
     @property
