@@ -234,7 +234,9 @@ class Prompt(Generic[TMessage]):
         model: str,
         provider: Provider | str,
         system_instructions: Optional[PromptMessage] = None,
-        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = None,
+        model_settings: Optional[
+            ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings
+        ] = None,
         output_type: Optional[Any] = None,
     ) -> None:
         """Initialize a Prompt object.
@@ -735,6 +737,10 @@ class AgentResponse:
     @property
     def structured_output(self) -> Any:
         """Returns the structured output of the agent response if supported."""
+
+    @property
+    def response_text(self) -> Optional[str]:
+        """The response text from the agent if available, otherwise None."""
 
 class Task:
     def __init__(
@@ -2515,7 +2521,9 @@ class ChatMessage:
     @property
     def content(
         self,
-    ) -> List[Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]]:
+    ) -> List[
+        Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]
+    ]:
         """The message content parts."""
 
     @property

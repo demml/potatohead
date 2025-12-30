@@ -3,7 +3,6 @@ use crate::{AgentResponse, PyAgentResponse};
 use potato_type::prompt::Prompt;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
-use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 
 #[pyclass(eq)]
@@ -97,22 +96,6 @@ impl Task {
         self.dependencies.push(dependency);
     }
 
-    pub fn set_status(&mut self, status: TaskStatus) {
-        self.status = status;
-    }
-
-    pub fn set_result(&mut self, result: AgentResponse) {
-        self.result = Some(result);
-    }
-
-    #[getter]
-    pub fn result<'py>(&self, py: Python<'py>) -> Result<Option<Bound<'py, PyAny>>, AgentError> {
-        match &self.result {
-            Some(resp) => Ok(resp.clone().into_bound_py_any(py).map(Some)?),
-            None => Ok(None),
-        }
-    }
-
     pub fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
     }
@@ -121,5 +104,13 @@ impl Task {
 impl Task {
     pub fn increment_retry(&mut self) {
         self.retry_count += 1;
+    }
+
+    pub fn set_status(&mut self, status: TaskStatus) {
+        self.status = status;
+    }
+
+    pub fn set_result(&mut self, result: AgentResponse) {
+        self.result = Some(result);
     }
 }
