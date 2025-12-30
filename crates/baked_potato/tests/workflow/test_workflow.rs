@@ -312,7 +312,7 @@ fn test_parameterized_workflow() {
 
     // validate task1_output can be deserialized into Parameters struct
     // Should be a structured output JSON
-    let _ = Parameters::model_validate_json_str(&task1_output.unwrap());
+    let _ = Parameters::model_validate_json_str(&task1_output);
 
     // assert original workflow is unmodified
     assert_eq!(workflow.task_list.len(), 2);

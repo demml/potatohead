@@ -92,7 +92,7 @@ fn test_gemini_agent() {
 
     let response = runtime.block_on(async { agent.execute_prompt(&task.prompt).await.unwrap() });
 
-    let content = response.response_text().unwrap();
+    let content = response.response_text();
     assert!(content.contains("AI learns from data to make predictions or decisions"));
 
     mock.stop_server().unwrap();
@@ -136,7 +136,7 @@ fn test_gemini_score_agent() {
 
     let response = runtime.block_on(async { agent.execute_prompt(&task.prompt).await.unwrap() });
 
-    let content = response.response_text().unwrap();
+    let content = response.response_text();
     let _score: Score = Score::model_validate_json_str(&content).unwrap();
 
     mock.stop_server().unwrap();
@@ -179,7 +179,7 @@ fn test_gemini_score_agent_integration() {
 
     let response = runtime.block_on(async { agent.execute_prompt(&task.prompt).await.unwrap() });
 
-    let content = response.response_text().unwrap();
+    let content = response.response_text();
     let _score: Score = Score::model_validate_json_str(&content).unwrap();
 
     mock.stop_server().unwrap();
@@ -218,7 +218,7 @@ fn test_anthropic_agent() {
     let agent_response =
         runtime.block_on(async { agent.execute_prompt(&task.prompt).await.unwrap() });
 
-    let text = agent_response.response_text().unwrap();
+    let text = agent_response.response_text();
 
     assert!(text.contains("This is a response from the Anthropic mock server"));
 
@@ -256,7 +256,7 @@ fn test_anthropic_agent_structured_output() {
     });
 
     let response = runtime.block_on(async { agent.execute_prompt(&task.prompt).await.unwrap() });
-    let content = response.response_text().unwrap();
+    let content = response.response_text();
     let _score: Score = Score::model_validate_json_str(&content).unwrap();
 
     mock.stop_server().unwrap();
