@@ -319,36 +319,6 @@ impl Agent {
     pub fn client_provider(&self) -> &Provider {
         self.client.provider()
     }
-
-    pub async fn from_provider(provider: &Provider) -> Result<Self, AgentError> {
-        let client = match provider {
-            Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(ServiceType::Generate)?),
-            Provider::Gemini => {
-                GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
-            }
-            Provider::Vertex => {
-                GenAiClient::Vertex(VertexClient::new(ServiceType::Generate).await?)
-            }
-            Provider::Google => {
-                GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
-            }
-            Provider::Anthropic => {
-                GenAiClient::Anthropic(AnthropicClient::new(ServiceType::Generate)?)
-            }
-            Provider::Undefined => {
-                return Err(AgentError::MissingProviderError);
-            }
-        };
-
-        Ok(Self {
-            client: Arc::new(client),
-            id: create_uuid7(),
-            system_instruction: Vec::new(),
-            provider: provider.clone(),
-            tools: Arc::new(RwLock::new(ToolRegistry::new())),
-            max_iterations: 10,
-        })
-    }
 }
 
 impl PartialEq for Agent {
