@@ -234,7 +234,9 @@ class Prompt(Generic[TMessage]):
         model: str,
         provider: Provider | str,
         system_instructions: Optional[PromptMessage] = None,
-        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = None,
+        model_settings: Optional[
+            ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings
+        ] = None,
         output_type: Optional[Any] = None,
     ) -> None:
         """Initialize a Prompt object.
@@ -767,12 +769,6 @@ class Task:
     def add_dependency(self, task_id: str) -> None:
         """Add a dependency to the task."""
 
-    def set_status(self, status: TaskStatus) -> None:
-        """Set the status of the task."""
-
-    def set_result(self, result: Any) -> None:
-        """Set the result of the task."""
-
     @property
     def prompt(self) -> Prompt:
         """The prompt to use for the task."""
@@ -780,10 +776,6 @@ class Task:
     @property
     def dependencies(self) -> List[str]:
         """The dependencies of the task."""
-
-    @property
-    def result(self) -> Optional[Any]:
-        """The result of the task if it has been executed, otherwise None."""
 
     @property
     def id(self) -> str:
@@ -2519,7 +2511,9 @@ class ChatMessage:
     @property
     def content(
         self,
-    ) -> List[Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]]:
+    ) -> List[
+        Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]
+    ]:
         """The message content parts."""
 
     @property
