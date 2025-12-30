@@ -2500,6 +2500,11 @@ class ChatMessage:
         Raises:
             TypeError: If content format is invalid
         """
+    def text(self) -> str:
+        """Get the text content of the first part, if available. Returns
+        an empty string if the first part is not text.
+        This is meant for convenience when working with simple text messages.
+        """
 
     @property
     def role(self) -> str:
@@ -5277,6 +5282,12 @@ class GeminiContent:
                 Content from typing import Any, Dict, List, Optional, Union from the message
             role (Optional[str]):
                 Role of the message sender (e.g., "user", "model", "function")
+        """
+
+    def text(self) -> str:
+        """Get the text content of the first part, if available. Returns
+        an empty string if the first part is not text.
+        This is meant for convenience when working with simple text messages.
         """
 
     @property
@@ -8597,6 +8608,12 @@ class MessageParam:
                 Message content (string, content block or list of content blocks)
             role (str):
                 Message role ("user" or "assistant")
+        """
+
+    def text(self) -> str:
+        """Get the text content of the first part, if available. Returns
+        an empty string if the first part is not text.
+        This is meant for convenience when working with simple text messages.
         """
 
     @property

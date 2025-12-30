@@ -330,6 +330,20 @@ impl ChatMessage {
         json_to_pydict(py, &json, &pydict)?;
         Ok(pydict)
     }
+
+    // Return the text content from the first content part that is text
+    pub fn text(&self) -> String {
+        self.content
+            .iter()
+            .find_map(|part| {
+                if let ContentPart::Text(text_part) = part {
+                    Some(text_part.text.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default()
+    }
 }
 
 impl PromptMessageExt for ChatMessage {
