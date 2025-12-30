@@ -8,7 +8,6 @@ use potato_provider::providers::types::ServiceType;
 use potato_provider::GeminiClient;
 use potato_provider::{providers::google::VertexClient, GenAiClient, OpenAIClient};
 use potato_state::block_on;
-use potato_type::prompt::ModelSettings;
 use potato_type::prompt::Prompt;
 use potato_type::prompt::{MessageNum, Role};
 use potato_type::Provider;
@@ -321,8 +320,7 @@ impl Agent {
         self.client.provider()
     }
 
-    pub async fn from_model_settings(model_settings: &ModelSettings) -> Result<Self, AgentError> {
-        let provider = model_settings.provider();
+    pub async fn from_provider(provider: &Provider) -> Result<Self, AgentError> {
         let client = match provider {
             Provider::OpenAI => GenAiClient::OpenAI(OpenAIClient::new(ServiceType::Generate)?),
             Provider::Gemini => {
@@ -346,7 +344,7 @@ impl Agent {
             client: Arc::new(client),
             id: create_uuid7(),
             system_instruction: Vec::new(),
-            provider,
+            provider: provider.clone(),
             tools: Arc::new(RwLock::new(ToolRegistry::new())),
             max_iterations: 10,
         })

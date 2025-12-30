@@ -1,8 +1,5 @@
-use crate::common::{
-    create_anthropic_prompt, create_google_prompt, create_openai_prompt,
-    create_parameterized_prompt,
-};
-use baked_potato::LLMTestServer;
+use crate::common::{create_anthropic_prompt, create_google_prompt, create_openai_prompt};
+use baked_potato::{create_parameterized_prompt, LLMTestServer};
 use potato_agent::TaskStatus;
 use potato_agent::{Agent, Task};
 use potato_type::prompt::MessageNum;
