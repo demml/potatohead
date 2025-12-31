@@ -5,6 +5,7 @@ use potato_util::utils::TokenLogProbs;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tracing::instrument;
 use tracing::warn;
 
@@ -44,6 +45,10 @@ impl AgentResponse {
 
     pub fn response_text(&self) -> String {
         self.response.response_text()
+    }
+
+    pub fn response_value(&self) -> Option<Value> {
+        self.response.extract_structured_data()
     }
 }
 
