@@ -116,6 +116,9 @@ pub enum TypeError {
 
     #[error("Message is not an Anthropic MessageParam")]
     MessageIsNotAnthropicMessageParam,
+
+    #[error(transparent)]
+    PythonizeError(#[from] pythonize::PythonizeError),
 }
 
 impl From<TypeError> for PyErr {

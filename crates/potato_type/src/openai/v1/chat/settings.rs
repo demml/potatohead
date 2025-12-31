@@ -1,10 +1,10 @@
 use crate::error::TypeError;
 use crate::tools::AgentToolDefinition;
 use crate::SettingsType;
-use potato_util::json_to_pydict;
-use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
+use potato_util::{PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pythonize::{depythonize, pythonize};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -409,7 +409,7 @@ impl FunctionDefinition {
         strict: Option<bool>,
     ) -> Result<Self, UtilError> {
         let params = match parameters {
-            Some(obj) => Some(pyobject_to_json(obj)?),
+            Some(obj) => Some(depythonize(obj)?),
             None => None,
         };
 
@@ -773,7 +773,7 @@ impl OpenAIChatSettings {
         extra_body: Option<&Bound<'_, PyAny>>,
     ) -> Result<Self, UtilError> {
         let extra = match extra_body {
-            Some(obj) => Some(pyobject_to_json(obj)?),
+            Some(obj) => Some(depythonize(obj)?),
             None => None,
         };
 
@@ -815,27 +815,18 @@ impl OpenAIChatSettings {
     }
 
     #[getter]
-    pub fn extra_body<'py>(
-        &self,
-        py: Python<'py>,
-    ) -> Result<Option<Bound<'py, PyDict>>, TypeError> {
+    pub fn extra_body<'py>(&self, py: Python<'py>) -> Result<Option<Bound<'py, PyAny>>, TypeError> {
         // error if extra body is None
         Ok(self
             .extra_body
             .as_ref()
-            .map(|v| {
-                let pydict = PyDict::new(py);
-                json_to_pydict(py, v, &pydict)
-            })
+            .map(|v| pythonize(py, v))
             .transpose()?)
     }
 
-    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
-        // iterate over each field in model_settings and add to the dict if it is not None
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         let json = serde_json::to_value(self)?;
-        let pydict = PyDict::new(py);
-        json_to_pydict(py, &json, &pydict)?;
-        Ok(pydict)
+        Ok(pythonize(py, &json)?)
     }
 
     pub fn settings_type(&self) -> SettingsType {

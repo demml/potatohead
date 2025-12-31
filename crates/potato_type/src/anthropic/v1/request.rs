@@ -12,11 +12,11 @@ use crate::traits::get_var_regex;
 use crate::traits::{MessageConversion, MessageFactory, PromptMessageExt, RequestAdapter};
 use crate::TypeError;
 use crate::{Provider, SettingsType};
-use potato_util::{json_to_pydict, json_to_pyobject};
-use potato_util::{pyobject_to_json, PyHelperFuncs, UtilError};
+use potato_util::{PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+use pyo3::types::PyList;
 use pyo3::IntoPyObjectExt;
+use pythonize::{depythonize, pythonize};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
@@ -678,7 +678,7 @@ impl ToolUseBlockParam {
         input: &Bound<'_, PyAny>,
         cache_control: Option<CacheControl>,
     ) -> Result<Self, TypeError> {
-        let input_value = pyobject_to_json(input)?;
+        let input_value = depythonize(input)?;
         Ok(Self {
             id,
             name,
@@ -690,7 +690,7 @@ impl ToolUseBlockParam {
 
     #[getter]
     pub fn input<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
-        let py_dict = json_to_pyobject(py, &self.input)?.bind(py).clone();
+        let py_dict = pythonize(py, &self.input)?;
         Ok(py_dict)
     }
 }
@@ -846,7 +846,7 @@ impl ServerToolUseBlockParam {
         input: &Bound<'_, PyAny>,
         cache_control: Option<CacheControl>,
     ) -> Result<Self, TypeError> {
-        let input_value = pyobject_to_json(input)?;
+        let input_value = depythonize(input)?;
         Ok(Self {
             id,
             name,
@@ -857,7 +857,7 @@ impl ServerToolUseBlockParam {
     }
     #[getter]
     pub fn input<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
-        let py_dict = json_to_pyobject(py, &self.input)?.bind(py).clone();
+        let py_dict = pythonize(py, &self.input)?;
         Ok(py_dict)
     }
 }
@@ -1218,12 +1218,10 @@ impl MessageParam {
         PyHelperFuncs::__str__(self)
     }
 
-    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         // iterate over each field in model_settings and add to the dict if it is not None
         let json = serde_json::to_value(self)?;
-        let pydict = PyDict::new(py);
-        json_to_pydict(py, &json, &pydict)?;
-        Ok(pydict)
+        Ok(pythonize(py, &json)?)
     }
 
     // Return the text content from the first content part that is text
@@ -1471,7 +1469,7 @@ impl Tool {
         Ok(Self {
             name,
             description,
-            input_schema: pyobject_to_json(input_schema)?,
+            input_schema: depythonize(input_schema)?,
             cache_control,
         })
     }
@@ -1667,7 +1665,7 @@ impl AnthropicSettings {
         extra_body: Option<&Bound<'_, PyAny>>,
     ) -> Result<Self, UtilError> {
         let extra = match extra_body {
-            Some(obj) => Some(pyobject_to_json(obj)?),
+            Some(obj) => Some(depythonize(obj)?),
             None => None,
         };
 
@@ -1692,12 +1690,10 @@ impl AnthropicSettings {
         PyHelperFuncs::__str__(self)
     }
 
-    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         // iterate over each field in model_settings and add to the dict if it is not None
         let json = serde_json::to_value(self)?;
-        let pydict = PyDict::new(py);
-        json_to_pydict(py, &json, &pydict)?;
-        Ok(pydict)
+        Ok(pythonize(py, &json)?)
     }
 
     pub fn settings_type(&self) -> SettingsType {

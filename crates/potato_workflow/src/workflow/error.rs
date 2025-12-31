@@ -44,6 +44,9 @@ pub enum WorkflowError {
 
     #[error(transparent)]
     AgentError(#[from] potato_agent::AgentError),
+
+    #[error(transparent)]
+    PythonizeError(#[from] pythonize::PythonizeError),
 }
 
 impl From<WorkflowError> for PyErr {

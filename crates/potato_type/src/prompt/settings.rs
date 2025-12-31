@@ -6,7 +6,6 @@ use crate::{
 use crate::{Provider, SettingsType};
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -61,7 +60,7 @@ impl ModelSettings {
         serde_json::to_string(self).unwrap()
     }
 
-    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         match self {
             ModelSettings::OpenAIChat(settings) => Ok(settings.model_dump(py)?),
             ModelSettings::GoogleChat(settings) => Ok(settings.model_dump(py)?),

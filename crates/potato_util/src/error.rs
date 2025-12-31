@@ -31,6 +31,9 @@ pub enum UtilError {
 
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    PythonizeError(#[from] pythonize::PythonizeError),
 }
 
 impl<'a, 'py> From<pyo3::CastError<'a, 'py>> for UtilError {

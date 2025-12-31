@@ -11,15 +11,14 @@ use crate::traits::PromptMessageExt;
 use crate::Provider;
 use crate::{StructuredOutput, TypeError};
 use potato_util::PyHelperFuncs;
-use potato_util::{json_to_pyobject, pyobject_to_json};
 use pyo3::types::PyAnyMethods;
 use pyo3::{prelude::*, IntoPyObjectExt};
+use pythonize::{depythonize, pythonize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Display;
 use tracing::error;
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[pyclass]
 pub enum Role {
@@ -134,10 +133,7 @@ fn get_json_schema_from_basemodel(object: &Bound<'_, PyAny>) -> Result<Value, Ty
     // call staticmethod .model_json_schema()
     let schema = object.getattr("model_json_schema")?.call1(())?;
 
-    let mut schema = pyobject_to_json(&schema).map_err(|e| {
-        error!("Failed to convert schema to JSON: {}", e);
-        TypeError::PySerializationError(e.to_string())
-    })?;
+    let mut schema: Value = depythonize(&schema)?;
 
     // ensure schema as additionalProperties set to false
     if let Some(additional_properties) = schema.get_mut("additionalProperties") {
@@ -239,9 +235,9 @@ impl Score {
     }
 
     #[staticmethod]
-    pub fn model_json_schema(py: Python<'_>) -> Result<Py<PyAny>, TypeError> {
+    pub fn model_json_schema<'py>(py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         let schema = Score::get_structured_output_schema();
-        Ok(json_to_pyobject(py, &schema)?)
+        Ok(pythonize(py, &schema)?)
     }
 
     pub fn __str__(&self) -> String {

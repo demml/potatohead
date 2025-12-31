@@ -34,6 +34,7 @@ http = "1.*"
 gcloud-auth = { version = "1.*" }
 mockito = "1.*"
 pyo3 = { version = "0.*", features = ["abi3-py310", "extension-module", "anyhow", "serde", "chrono"] }
+pythonize = { version = "0.*" }
 rand = "0.9.*"
 regex = "1.*"
 reqwest = { version = "0.12.*", features = ["json", "stream", "multipart", "rustls-tls", "rustls-tls-native-roots", "blocking" ], default-features = false }

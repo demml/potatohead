@@ -225,7 +225,7 @@ impl Agent {
         &self,
         prompt: &mut Prompt,
         parameter_context: &Value,
-        global_context: &Option<Value>,
+        global_context: &Option<Arc<Value>>,
     ) -> Result<(), AgentError> {
         // print user messages
         if !prompt.parameters.is_empty() {
@@ -297,7 +297,7 @@ impl Agent {
         task: &Arc<RwLock<Task>>,
         context_messages: HashMap<String, Vec<MessageNum>>,
         parameter_context: Value,
-        global_context: Option<Value>,
+        global_context: Option<Arc<Value>>,
     ) -> Result<AgentResponse, AgentError> {
         // Prepare prompt and context before await
         let (prompt, task_id) = {

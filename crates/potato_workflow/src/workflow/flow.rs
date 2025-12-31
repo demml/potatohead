@@ -13,9 +13,9 @@ use potato_state::block_on;
 use potato_type::prompt::{parse_response_to_json, MessageNum};
 use potato_type::Provider;
 use potato_util::{create_uuid7, utils::update_serde_map_with, PyHelperFuncs};
-use potato_util::{json_to_pydict, pyobject_to_json};
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
+use pythonize::{depythonize, pythonize};
 use serde::{
     de::{self, MapAccess, Visitor},
     ser::SerializeStruct,
@@ -32,7 +32,7 @@ use tracing::{debug, error, info, warn};
 /// Python workflows are a work in progress
 use pyo3::types::PyDict;
 
-pub type Context = (HashMap<String, Vec<MessageNum>>, Value, Option<Value>);
+pub type Context = (HashMap<String, Vec<MessageNum>>, Value, Option<Arc<Value>>);
 
 #[derive(Debug)]
 #[pyclass]
@@ -118,7 +118,7 @@ pub struct Workflow {
     pub task_list: TaskList,
     pub agents: HashMap<String, Arc<Agent>>,
     pub event_tracker: Arc<RwLock<EventTracker>>,
-    pub global_context: Option<Value>,
+    pub global_context: Option<Arc<Value>>,
 }
 
 impl PartialEq for Workflow {
@@ -180,7 +180,10 @@ impl Workflow {
         }
     }
 
-    pub fn get_new_workflow(&self, global_context: Option<Value>) -> Result<Self, WorkflowError> {
+    pub fn get_new_workflow(
+        &self,
+        global_context: Option<Arc<Value>>,
+    ) -> Result<Self, WorkflowError> {
         // set new id for the new workflow
         let id = create_uuid7();
 
@@ -193,7 +196,7 @@ impl Workflow {
             task_list,
             agents: self.agents.clone(), // Agents can be shared since they're read-only during execution
             event_tracker: Arc::new(RwLock::new(EventTracker::new(id))),
-            global_context, // Use the provided global context or None
+            global_context,
         })
     }
 
@@ -203,6 +206,7 @@ impl Workflow {
     ) -> Result<Arc<RwLock<Workflow>>, WorkflowError> {
         debug!("Running workflow: {}", self.name);
 
+        let global_context = global_context.map(Arc::new);
         let run_workflow = Arc::new(RwLock::new(self.get_new_workflow(global_context)?));
 
         execute_workflow(&run_workflow).await?;
@@ -437,7 +441,12 @@ fn build_task_context(
     }
 
     debug!("Built context for task dependencies: {:?}", ctx);
-    let global_context = workflow.read().unwrap().global_context.clone();
+    let global_context = workflow
+        .read()
+        .unwrap()
+        .global_context
+        .as_ref()
+        .map(Arc::clone);
 
     Ok((ctx, param_ctx, global_context))
 }
@@ -457,7 +466,7 @@ fn spawn_task_execution(
     agent: Option<Arc<Agent>>,
     context: HashMap<String, Vec<MessageNum>>,
     parameter_context: Value,
-    global_context: Option<Value>,
+    global_context: Option<Arc<Value>>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         if let Some(agent) = agent {
@@ -870,10 +879,7 @@ impl PyWorkflow {
         self.workflow.task_list.pending_count()
     }
 
-    pub fn execution_plan<'py>(
-        &self,
-        py: Python<'py>,
-    ) -> Result<Bound<'py, PyDict>, WorkflowError> {
+    pub fn execution_plan<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, WorkflowError> {
         let plan = self.workflow.execution_plan()?;
         debug!("Execution plan: {:?}", plan);
 
@@ -883,10 +889,7 @@ impl PyWorkflow {
             e
         })?;
 
-        let pydict = PyDict::new(py);
-        json_to_pydict(py, &json, &pydict)?;
-
-        Ok(pydict)
+        Ok(pythonize(py, &json)?)
     }
 
     #[pyo3(signature = (global_context=None))]
@@ -899,8 +902,7 @@ impl PyWorkflow {
 
         // Convert the global context from PyDict to serde_json::Value if provided
         let global_context = if let Some(context) = global_context {
-            // Convert PyDict to serde_json::Value
-            let json_value = pyobject_to_json(&context.into_bound_py_any(py)?)?;
+            let json_value = depythonize(&context.into_bound_py_any(py)?)?;
             Some(json_value)
         } else {
             None
