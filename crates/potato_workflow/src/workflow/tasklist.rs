@@ -118,11 +118,25 @@ impl TaskList {
         self.tasks.get(task_id).cloned()
     }
 
-    pub fn get_task_response(&self, task_id: &str) -> Option<Value> {
-        self.tasks.get(task_id).and_then(|task_arc| {
-            let task = task_arc.read().unwrap();
-            task.result.as_ref().and_then(|res| res.response_value())
-        })
+    /// returns all task responses as a HashMap of task ID to serde_json::Value
+    pub fn get_task_responses(&self) -> Result<HashMap<String, Value>, WorkflowError> {
+        let mut responses = HashMap::new();
+
+        for (task_id, task_arc) in &self.tasks {
+            let task = task_arc
+                .read()
+                .map_err(|_| WorkflowError::ReadLockAcquireError)?;
+            if let Some(result) = &task.result {
+                if let Some(value) = result.response_value() {
+                    responses.insert(task_id.clone(), value);
+                } else {
+                    // insert null if there is no response value
+                    responses.insert(task_id.clone(), Value::Null);
+                }
+            }
+        }
+
+        Ok(responses)
     }
 
     pub fn remove_task(&mut self, task_id: &str) {
