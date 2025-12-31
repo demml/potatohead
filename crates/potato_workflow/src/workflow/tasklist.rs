@@ -8,6 +8,7 @@ use potato_agent::AgentResponse;
 use pyo3::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
+use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -115,6 +116,13 @@ impl TaskList {
 
     pub fn get_task(&self, task_id: &str) -> Option<Arc<RwLock<Task>>> {
         self.tasks.get(task_id).cloned()
+    }
+
+    pub fn get_task_response(&self, task_id: &str) -> Option<Value> {
+        self.tasks.get(task_id).and_then(|task_arc| {
+            let task = task_arc.read().unwrap();
+            task.result.as_ref().and_then(|res| res.response_value())
+        })
     }
 
     pub fn remove_task(&mut self, task_id: &str) {
