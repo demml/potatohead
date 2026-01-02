@@ -1222,6 +1222,7 @@ dependencies = [
  "potato-macro",
  "potato-util",
  "pyo3",
+ "pythonize",
  "regex",
  "schemars",
  "serde",
@@ -1236,6 +1237,7 @@ version = "0.10.0"
 dependencies = [
  "colored_json",
  "pyo3",
+ "pythonize",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
@@ -1255,6 +1257,7 @@ dependencies = [
  "potato-type",
  "potato-util",
  "pyo3",
+ "pythonize",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
@@ -1366,6 +1369,16 @@ dependencies = [
  "pyo3-build-config",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "pythonize"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3a8f29db331e28c332c63496cfcbb822aca3d7320bc08b655d7fd0c29c50ede"
+dependencies = [
+ "pyo3",
+ "serde",
 ]
 
 [[package]]

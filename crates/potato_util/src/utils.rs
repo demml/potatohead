@@ -3,12 +3,9 @@ use crate::error::UtilError;
 use colored_json::{Color, ColorMode, ColoredFormatter, PrettyFormatter, Styler};
 use pyo3::prelude::*;
 
-use pyo3::types::{
-    PyAny, PyBool, PyDict, PyDictMethods, PyFloat, PyInt, PyList, PyString, PyTuple,
-};
+use pyo3::types::{PyAny, PyList};
 use pyo3::IntoPyObjectExt;
 use serde::Serialize;
-use serde_json::json;
 use serde_json::Value;
 use serde_json::Value::{Null, Object};
 use std::ops::RangeInclusive;
@@ -17,6 +14,7 @@ use uuid::Uuid;
 pub fn create_uuid7() -> String {
     Uuid::now_v7().to_string()
 }
+use pythonize::{depythonize, pythonize};
 use tracing::warn;
 pub struct PyHelperFuncs {}
 
@@ -103,157 +101,16 @@ impl PyHelperFuncs {
     }
 }
 
-pub fn json_to_pydict<'py>(
-    py: Python,
-    value: &Value,
-    dict: &Bound<'py, PyDict>,
-) -> Result<Bound<'py, PyDict>, UtilError> {
-    match value {
-        Value::Object(map) => {
-            for (k, v) in map {
-                let py_value = match v {
-                    Value::Null => py.None(),
-                    Value::Bool(b) => b.into_py_any(py)?,
-                    Value::Number(n) => {
-                        if let Some(i) = n.as_i64() {
-                            i.into_py_any(py)?
-                        } else if let Some(f) = n.as_f64() {
-                            f.into_py_any(py)?
-                        } else {
-                            return Err(UtilError::InvalidNumber);
-                        }
-                    }
-                    Value::String(s) => s.into_py_any(py)?,
-                    Value::Array(arr) => {
-                        let py_list = PyList::empty(py);
-                        for item in arr {
-                            let py_item = json_to_pyobject(py, item)?;
-                            py_list.append(py_item)?;
-                        }
-                        py_list.into_py_any(py)?
-                    }
-                    Value::Object(_) => {
-                        let nested_dict = PyDict::new(py);
-                        json_to_pydict(py, v, &nested_dict)?;
-                        nested_dict.into_py_any(py)?
-                    }
-                };
-                dict.set_item(k, py_value)?;
-            }
-        }
-        _ => return Err(UtilError::RootMustBeObjectError),
-    }
-
-    Ok(dict.clone())
-}
-
-/// Converts a serde_json::Value to a PyObject. Including support for nested objects and arrays.
-/// This function handles all Serde JSON types:
-/// - Serde Null -> Python None
-/// - Serde Bool -> Python bool
-/// - Serde String -> Python str
-/// - Serde Number -> Python int or float
-/// - Serde Array -> Python list (with each item converted to Python type)
-/// - Serde Object -> Python dict (with each key-value pair converted to Python type)
-////// # Arguments
-/// * `py` - A Python interpreter instance.
-/// * `value` - A reference to a serde_json::Value object.
-/// # Returns
-/// * `Ok(PyObject)` if the conversion was successful.
-/// * `Err(UtilError)` if the conversion failed.
-pub fn json_to_pyobject(py: Python, value: &Value) -> Result<Py<PyAny>, UtilError> {
-    Ok(match value {
-        Value::Null => py.None(),
-        Value::Bool(b) => b.into_py_any(py)?,
-        Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                i.into_py_any(py)?
-            } else if let Some(f) = n.as_f64() {
-                f.into_py_any(py)?
-            } else {
-                return Err(UtilError::InvalidNumber);
-            }
-        }
-        Value::String(s) => s.into_py_any(py)?,
-        Value::Array(arr) => {
-            let py_list = PyList::empty(py);
-            for item in arr {
-                let py_item = json_to_pyobject(py, item)?;
-                py_list.append(py_item)?;
-            }
-            py_list.into_py_any(py)?
-        }
-        Value::Object(_) => {
-            let nested_dict = PyDict::new(py);
-            json_to_pydict(py, value, &nested_dict)?;
-            nested_dict.into_py_any(py)?
-        }
-    })
-}
-
 pub fn vec_to_py_object<'py>(
     py: Python<'py>,
     vec: &Vec<Value>,
 ) -> Result<Bound<'py, PyList>, UtilError> {
     let py_list = PyList::empty(py);
     for item in vec {
-        let py_item = json_to_pyobject(py, item)?;
+        let py_item = pythonize(py, item)?;
         py_list.append(py_item)?;
     }
     Ok(py_list)
-}
-
-pub fn pyobject_to_json(obj: &Bound<'_, PyAny>) -> Result<Value, UtilError> {
-    if obj.is_instance_of::<PyDict>() {
-        let dict = obj.cast::<PyDict>()?;
-        let mut map = serde_json::Map::new();
-        for (key, value) in dict.iter() {
-            let key_str = key.extract::<String>()?;
-            let json_value = pyobject_to_json(&value)?;
-            map.insert(key_str, json_value);
-        }
-        Ok(Value::Object(map))
-    } else if obj.is_instance_of::<PyList>() {
-        let list = obj.cast::<PyList>()?;
-        let mut vec = Vec::new();
-        for item in list.iter() {
-            vec.push(pyobject_to_json(&item)?);
-        }
-        Ok(Value::Array(vec))
-    } else if obj.is_instance_of::<PyTuple>() {
-        let tuple = obj.cast::<PyTuple>()?;
-        let mut vec = Vec::new();
-        for item in tuple.iter() {
-            vec.push(pyobject_to_json(&item)?);
-        }
-        Ok(Value::Array(vec))
-    } else if obj.is_instance_of::<PyString>() {
-        let s = obj.extract::<String>()?;
-        Ok(Value::String(s))
-    } else if obj.is_instance_of::<PyFloat>() {
-        let f = obj.extract::<f64>()?;
-        Ok(json!(f))
-    } else if obj.is_instance_of::<PyBool>() {
-        let b = obj.extract::<bool>()?;
-        Ok(json!(b))
-    } else if obj.is_instance_of::<PyInt>() {
-        let i = obj.extract::<i64>()?;
-        Ok(json!(i))
-    } else if obj.is_none() {
-        Ok(Value::Null)
-    } else {
-        // display "cant show" for unsupported types
-        // call obj.str to get the string representation
-        // if error, default to "unsupported type"
-        let obj_str = match obj.str() {
-            Ok(s) => s
-                .extract::<String>()
-                .unwrap_or_else(|_| "unsupported type".to_string()),
-            Err(_) => "unsupported type".to_string(),
-        };
-
-        Ok(Value::String(obj_str))
-    }
 }
 
 pub fn version() -> String {
@@ -277,7 +134,7 @@ pub fn update_serde_value(value: &mut Value, key: &str, new_value: Value) -> Res
 /// * `dest` - A mutable reference to the destination serde_json::Value object.
 /// * `src` - A reference to the source serde_json::Value object.
 /// # Returns
-/// * `Ok(())` if the update was successful.    
+/// * `Ok(())` if the update was successful.
 /// * `Err(UtilError::RootMustBeObjectError)` if either `dest` or `src` is not an `Object`.
 pub fn update_serde_map_with(
     dest: &mut serde_json::Value,
@@ -303,6 +160,10 @@ pub fn extract_string_value(py_value: &Bound<'_, PyAny>) -> Result<String, UtilE
     if let Ok(string_val) = py_value.extract::<String>() {
         return Ok(string_val);
     }
+    // Try to extract as boolean
+    if let Ok(bool_val) = py_value.extract::<bool>() {
+        return Ok(bool_val.to_string());
+    }
 
     // Try to extract as integer
     if let Ok(int_val) = py_value.extract::<i64>() {
@@ -314,13 +175,8 @@ pub fn extract_string_value(py_value: &Bound<'_, PyAny>) -> Result<String, UtilE
         return Ok(float_val.to_string());
     }
 
-    // Try to extract as boolean
-    if let Ok(bool_val) = py_value.extract::<bool>() {
-        return Ok(bool_val.to_string());
-    }
-
     // For complex objects, convert to JSON but extract the value without quotes
-    let json_value = pyobject_to_json(py_value)?;
+    let json_value = depythonize(py_value)?;
 
     match json_value {
         Value::String(s) => Ok(s),
@@ -420,7 +276,7 @@ pub fn convert_text_to_structured_output<'py>(
                 err
             );
             let val = serde_json::from_str::<serde_json::Value>(&text)?;
-            Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
+            Ok(pythonize(py, &val)?)
         }
     }
 }
@@ -445,7 +301,7 @@ pub fn construct_structured_response<'py>(
         None => {
             // No output model provided, return the text as a Python string
             let val = Value::String(text);
-            Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
+            Ok(pythonize(py, &val)?)
         }
     }
 }

@@ -5,16 +5,17 @@ use crate::traits::{get_var_regex, RequestAdapter};
 use crate::traits::{MessageConversion, MessageFactory, PromptMessageExt};
 use crate::Provider;
 use crate::{SettingsType, TypeError};
-use potato_util::{json_to_pydict, pyobject_to_json, PyHelperFuncs, UtilError};
+use potato_util::{PyHelperFuncs, UtilError};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use pyo3::IntoPyObjectExt;
+use pythonize::pythonize;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::collections::HashSet;
-
 // openai imports
 use crate::openai::v1::chat::request::{ChatMessage, ContentPart, TextContentPart};
 
@@ -22,6 +23,7 @@ use crate::openai::v1::chat::request::{ChatMessage, ContentPart, TextContentPart
 use crate::anthropic::v1::request::{
     ContentBlock, ContentBlockParam, MessageParam, TextBlockParam,
 };
+use pythonize::depythonize;
 
 // API Reference:
 // Note - This is an attempt at combining both the Gemini and Vertex API specs as they are largely the same
@@ -145,8 +147,8 @@ impl Schema {
         minimum: Option<f64>,
         maximum: Option<f64>,
     ) -> Self {
-        let example = example.map(|e| pyobject_to_json(&e).unwrap_or(Value::Null));
-        let default = default.map(|d| pyobject_to_json(&d).unwrap_or(Value::Null));
+        let example = example.map(|e| depythonize(&e).unwrap_or(Value::Null));
+        let default = default.map(|d| depythonize(&d).unwrap_or(Value::Null));
 
         // need to add a Box to items
         let items = items.map(Box::new);
@@ -627,7 +629,7 @@ impl GenerationConfig {
         image_config: Option<ImageConfig>,
     ) -> Self {
         let response_json_schema =
-            response_json_schema.map(|rs| pyobject_to_json(rs).unwrap_or(Value::Null));
+            response_json_schema.map(|rs| depythonize(rs).unwrap_or(Value::Null));
         Self {
             stop_sequences,
             response_mime_type,
@@ -836,7 +838,7 @@ impl GeminiSettings {
         tools: Option<Vec<Tool>>,
     ) -> Result<Self, UtilError> {
         let extra = match extra_body {
-            Some(obj) => Some(pyobject_to_json(obj)?),
+            Some(obj) => Some(depythonize(obj)?),
             None => None,
         };
 
@@ -853,30 +855,22 @@ impl GeminiSettings {
     }
 
     #[getter]
-    pub fn extra_body<'py>(
-        &self,
-        py: Python<'py>,
-    ) -> Result<Option<Bound<'py, PyDict>>, UtilError> {
+    pub fn extra_body<'py>(&self, py: Python<'py>) -> Result<Option<Bound<'py, PyAny>>, UtilError> {
         // error if extra body is None
-        self.extra_body
+        Ok(self
+            .extra_body
             .as_ref()
-            .map(|v| {
-                let pydict = PyDict::new(py);
-                json_to_pydict(py, v, &pydict)
-            })
-            .transpose()
+            .map(|v| pythonize(py, v))
+            .transpose()?)
     }
 
     pub fn __str__(&self) -> String {
         PyHelperFuncs::__str__(self)
     }
 
-    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
-        // iterate over each field in model_settings and add to the dict if it is not None
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         let json = serde_json::to_value(self)?;
-        let pydict = PyDict::new(py);
-        json_to_pydict(py, &json, &pydict)?;
-        Ok(pydict)
+        Ok(pythonize(py, &json)?)
     }
 
     pub fn settings_type(&self) -> SettingsType {
@@ -1013,7 +1007,7 @@ impl FunctionCall {
     ) -> Self {
         let args = match args {
             Some(dict) => {
-                let json_value = pyobject_to_json(dict).unwrap_or(Value::Null);
+                let json_value = depythonize(dict).unwrap_or(Value::Null);
                 if let Value::Object(map) = json_value {
                     Some(map)
                 } else {
@@ -1104,7 +1098,7 @@ impl PartMetadata {
     pub fn new(struct_: Option<&Bound<'_, PyDict>>) -> Result<Self, TypeError> {
         let struct_map = match struct_ {
             Some(dict) => {
-                let json_value = pyobject_to_json(dict)?;
+                let json_value = depythonize(dict)?;
                 if let Value::Object(map) = json_value {
                     map
                 } else {
@@ -1382,12 +1376,9 @@ impl GeminiContent {
         PyHelperFuncs::__str__(self)
     }
 
-    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
-        // iterate over each field in model_settings and add to the dict if it is not None
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         let json = serde_json::to_value(self)?;
-        let pydict = PyDict::new(py);
-        json_to_pydict(py, &json, &pydict)?;
-        Ok(pydict)
+        Ok(pythonize(py, &json)?)
     }
 
     // helper method for returning firs text part content
@@ -2272,7 +2263,7 @@ impl ParallelAiSearch {
     ) -> Result<Self, TypeError> {
         let custom_configs_map = match custom_configs {
             Some(dict) => {
-                let json_value = pyobject_to_json(dict)?;
+                let json_value = depythonize(dict)?;
                 if let Value::Object(map) = json_value {
                     Some(map)
                 } else {

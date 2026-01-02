@@ -1,6 +1,7 @@
 use potato_util::UtilError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
+use pythonize::PythonizeError;
 use thiserror::Error;
 use tracing::error;
 
@@ -44,6 +45,12 @@ pub enum WorkflowError {
 
     #[error(transparent)]
     AgentError(#[from] potato_agent::AgentError),
+}
+
+impl From<PythonizeError> for WorkflowError {
+    fn from(err: PythonizeError) -> Self {
+        WorkflowError::Error(err.to_string())
+    }
 }
 
 impl From<WorkflowError> for PyErr {

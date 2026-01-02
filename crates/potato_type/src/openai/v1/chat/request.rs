@@ -7,12 +7,11 @@ use crate::traits::{
     get_var_regex, MessageConversion, MessageFactory, PromptMessageExt, RequestAdapter,
 };
 use crate::{Provider, TypeError};
-use potato_util::json_to_pydict;
 use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
 use pyo3::types::{PyAny, PyList, PyString};
 use pyo3::IntoPyObjectExt;
+use pythonize::pythonize;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
@@ -323,12 +322,9 @@ impl ChatMessage {
         PyHelperFuncs::__str__(self)
     }
 
-    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
-        // iterate over each field in model_settings and add to the dict if it is not None
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         let json = serde_json::to_value(self)?;
-        let pydict = PyDict::new(py);
-        json_to_pydict(py, &json, &pydict)?;
-        Ok(pydict)
+        Ok(pythonize(py, &json)?)
     }
 
     // Return the text content from the first content part that is text

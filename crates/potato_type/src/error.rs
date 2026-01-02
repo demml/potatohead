@@ -1,6 +1,7 @@
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::pyclass::PyClassGuardError;
 use pyo3::PyErr;
+use pythonize::PythonizeError;
 use thiserror::Error;
 use tracing::error;
 
@@ -123,6 +124,12 @@ impl From<TypeError> for PyErr {
         let msg = err.to_string();
         error!("{}", msg);
         PyRuntimeError::new_err(msg)
+    }
+}
+
+impl From<PythonizeError> for TypeError {
+    fn from(err: PythonizeError) -> Self {
+        TypeError::Error(err.to_string())
     }
 }
 

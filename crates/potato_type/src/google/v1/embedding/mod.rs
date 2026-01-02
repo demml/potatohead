@@ -6,9 +6,9 @@ use crate::traits::ResponseAdapter;
 use crate::TypeError;
 use potato_util::utils::TokenLogProbs;
 use potato_util::PyHelperFuncs;
-use potato_util::{json_to_pyobject, pyobject_to_json};
 use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
+use pythonize::{depythonize, pythonize};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -22,14 +22,14 @@ pub struct PredictRequest {
 #[pymethods]
 impl PredictRequest {
     #[getter]
-    pub fn instances<'py>(&self, py: Python<'py>) -> Result<Py<PyAny>, TypeError> {
-        let obj = json_to_pyobject(py, &self.instances)?;
+    pub fn instances<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        let obj = pythonize(py, &self.instances)?;
         Ok(obj)
     }
 
     #[getter]
-    pub fn parameters<'py>(&self, py: Python<'py>) -> Result<Py<PyAny>, TypeError> {
-        let obj = json_to_pyobject(py, &self.parameters)?;
+    pub fn parameters<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        let obj = pythonize(py, &self.parameters)?;
         Ok(obj)
     }
 
@@ -37,9 +37,8 @@ impl PredictRequest {
     #[pyo3(signature = (instances, parameters=None))]
     pub fn new(instances: Bound<'_, PyAny>, parameters: Option<Bound<'_, PyAny>>) -> Self {
         // check if instances is a PyList, if not,
-        let instances = pyobject_to_json(&instances).unwrap_or(Value::Null);
-        let parameters =
-            parameters.map_or(Value::Null, |p| pyobject_to_json(&p).unwrap_or(Value::Null));
+        let instances = depythonize(&instances).unwrap_or(Value::Null);
+        let parameters = parameters.map_or(Value::Null, |p| depythonize(&p).unwrap_or(Value::Null));
 
         Self {
             instances,
@@ -71,14 +70,14 @@ pub struct PredictResponse {
 #[pymethods]
 impl PredictResponse {
     #[getter]
-    pub fn predictions<'py>(&self, py: Python<'py>) -> Result<Py<PyAny>, TypeError> {
-        let obj = json_to_pyobject(py, &self.predictions)?;
+    pub fn predictions<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        let obj = pythonize(py, &self.predictions)?;
         Ok(obj)
     }
 
     #[getter]
-    pub fn metadata<'py>(&self, py: Python<'py>) -> Result<Py<PyAny>, TypeError> {
-        let obj = json_to_pyobject(py, &self.metadata)?;
+    pub fn metadata<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
+        let obj = pythonize(py, &self.metadata)?;
         Ok(obj)
     }
 
@@ -135,7 +134,7 @@ impl ResponseAdapter for PredictResponse {
         }
 
         let val = self.predictions.clone();
-        Ok(json_to_pyobject(py, &val)?.into_bound_py_any(py)?)
+        Ok(pythonize(py, &val)?)
     }
 
     fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {

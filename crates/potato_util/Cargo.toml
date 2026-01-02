@@ -13,6 +13,7 @@ doctest = false
 [dependencies]
 colored_json = { workspace = true }
 pyo3 = { workspace = true }
+pythonize = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

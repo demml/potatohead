@@ -11,6 +11,7 @@ doctest = false
 
 [dependencies]
 pyo3 = { workspace = true }
+pythonize = { workspace = true }
 potato-macro = { workspace = true }
 potato-util = { workspace = true }
 regex = { workspace = true }

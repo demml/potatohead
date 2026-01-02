@@ -1,5 +1,6 @@
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
+use pythonize::PythonizeError;
 use thiserror::Error;
 use tracing::error;
 
@@ -31,6 +32,12 @@ pub enum UtilError {
 
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
+}
+
+impl From<PythonizeError> for UtilError {
+    fn from(err: PythonizeError) -> Self {
+        UtilError::PyError(err.to_string())
+    }
 }
 
 impl<'a, 'py> From<pyo3::CastError<'a, 'py>> for UtilError {

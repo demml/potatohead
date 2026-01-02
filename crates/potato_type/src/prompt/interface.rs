@@ -15,9 +15,10 @@ use crate::SettingsType;
 use crate::{Provider, SaveName};
 use potato_macro::try_extract_message;
 use potato_util::utils::extract_string_value;
-use potato_util::{json_to_pydict, PyHelperFuncs};
+use potato_util::PyHelperFuncs;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
+use pythonize::pythonize;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
@@ -496,10 +497,9 @@ impl Prompt {
         ))
     }
 
-    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, TypeError> {
+    pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         let request = &self.request.to_json()?;
-        let pydict = PyDict::new(py);
-        Ok(json_to_pydict(py, request, &pydict)?)
+        Ok(pythonize(py, request)?)
     }
 }
 
