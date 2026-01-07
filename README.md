@@ -17,8 +17,8 @@ from potato_head import Prompt
 prompt = Prompt(
   model="gpt-4o",
   provider="openai",
-  message="Tell me a joke about potatoes.",
-  system_instruction="You are a helpful assistant.",
+  messages="Tell me a joke about potatoes.",
+  system_instructions="You are a helpful assistant.",
 )
 ```
 

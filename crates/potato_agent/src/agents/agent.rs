@@ -295,6 +295,26 @@ impl Agent {
     pub async fn execute_task_with_context(
         &self,
         task: &Arc<RwLock<Task>>,
+        context: &Value,
+    ) -> Result<AgentResponse, AgentError> {
+        // Prepare prompt and context before await
+        let (prompt, task_id) = {
+            let mut task = task.write().unwrap();
+            // 1. Bind parameters
+            self.bind_context(&mut task.prompt, context, &None)?;
+            // 2. Prepend agent system instructions (add to front)
+            self.prepend_system_instructions(&mut task.prompt);
+            (task.prompt.clone(), task.id.clone())
+        };
+
+        // Now do the async work without holding the lock
+        let chat_response = self.client.generate_content(&prompt).await?;
+        Ok(AgentResponse::new(task_id, chat_response))
+    }
+
+    pub async fn execute_task_with_context_message(
+        &self,
+        task: &Arc<RwLock<Task>>,
         context_messages: HashMap<String, Vec<MessageNum>>,
         parameter_context: Value,
         global_context: Option<Arc<Value>>,

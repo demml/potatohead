@@ -16,14 +16,14 @@ class TaskOutput(BaseModel):
 
 
 task_one_prompt = Prompt(
-    message="What is 1 + 1?",
+    messages="What is 1 + 1?",
     model="gpt-4o",
     provider="openai",
     response_format=TaskOutput,
 )
 
 task_two_prompt = Prompt(
-    message="Take the result of the previous task and multiply it by 2.",
+    messages="Take the result of the previous task and multiply it by 2.",
     model="gpt-4o",
     provider="openai",
     response_format=TaskOutput,
