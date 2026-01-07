@@ -51,8 +51,10 @@ pub enum WorkflowError {
 
     #[error("Task lock error")]
     TaskLockError,
-}
 
+    #[error("Task not found: {0}")]
+    TaskNotFound(String),
+}
 impl From<PythonizeError> for WorkflowError {
     fn from(err: PythonizeError) -> Self {
         WorkflowError::Error(err.to_string())

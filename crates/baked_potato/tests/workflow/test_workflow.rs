@@ -340,6 +340,32 @@ fn test_parameterized_workflow() {
     let serialized = workflow.serialize().unwrap();
 
     let _deserialized: Workflow = serde_json::from_str(&serialized).unwrap();
+
+    // call workflow.execute_task directly for task1
+    let empty_context = serde_json::json!({});
+    let task1 = runtime.block_on(async {
+        workflow
+            .execute_task("task1", &empty_context)
+            .await
+            .unwrap()
+    });
+
+    let task1_value_orig = result
+        .read()
+        .unwrap()
+        .task_list
+        .get_task("task1")
+        .unwrap()
+        .read()
+        .unwrap()
+        .result
+        .as_ref()
+        .unwrap()
+        .response_value()
+        .unwrap();
+
+    // assert task1 result is same as previous task1 result
+    assert_eq!(task1, task1_value_orig,);
 }
 
 #[test]

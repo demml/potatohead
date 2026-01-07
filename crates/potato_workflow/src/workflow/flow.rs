@@ -244,13 +244,14 @@ impl Workflow {
         }
     }
 
-    pub async fn execute_task(
-        &self,
-        task: &Arc<RwLock<Task>>,
-        context: &Value,
-    ) -> Result<Value, WorkflowError> {
+    pub async fn execute_task(&self, task: &str, context: &Value) -> Result<Value, WorkflowError> {
+        let task = self
+            .task_list
+            .get_task(task)
+            .ok_or_else(|| WorkflowError::TaskNotFound(task.to_string()))?;
+
         let agent_id = {
-            let task_guard = task.read().map_err(|_| WorkflowError::TaskLockError)?;
+            let task_guard = &task.read().map_err(|_| WorkflowError::TaskLockError)?;
             task_guard.agent_id.clone()
         };
 
@@ -260,7 +261,7 @@ impl Workflow {
             .ok_or_else(|| WorkflowError::AgentNotFound(agent_id))?;
 
         // Execute task with agent
-        let result = agent.execute_task_with_context(task, context).await?;
+        let result = agent.execute_task_with_context(&task, context).await?;
 
         let response_value = if let Some(response) = result.response_value() {
             response.clone()
