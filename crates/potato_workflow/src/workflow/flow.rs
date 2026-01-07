@@ -10,6 +10,7 @@ pub use potato_agent::agents::{
 };
 use potato_agent::{AgentError, PyAgentResponse};
 use potato_state::block_on;
+use potato_type::anthropic::response;
 use potato_type::prompt::{parse_response_to_json, MessageNum};
 use potato_type::Provider;
 use potato_util::{create_uuid7, utils::update_serde_map_with, PyHelperFuncs};
@@ -244,6 +245,30 @@ impl Workflow {
         }
     }
 
+    pub async fn execute_task(
+        &self,
+        task: &Arc<RwLock<Task>>,
+        context: &Value,
+    ) -> Result<Value, WorkflowError> {
+        let task_guard = task.read().map_err(|_| WorkflowError::TaskLockError)?;
+
+        let agent = self
+            .agents
+            .get(&task_guard.agent_id)
+            .ok_or_else(|| WorkflowError::AgentNotFound(task_guard.agent_id.clone()))?;
+
+        // Execute task with agent
+        let result = agent.execute_task_with_context(task, context).await?;
+
+        let response_value = if let Some(response) = result.response_value() {
+            response.clone()
+        } else {
+            Value::Null
+        };
+
+        Ok(response_value)
+    }
+
     pub fn execution_plan(&self) -> Result<HashMap<i32, HashSet<String>>, WorkflowError> {
         let mut remaining: HashMap<String, HashSet<String>> = self
             .task_list
@@ -474,7 +499,12 @@ fn spawn_task_execution(
             // (2) Execute the task with the agent
             // (3) Return the AgentResponse
             let result = agent
-                .execute_task_with_context(&task, context, parameter_context, global_context)
+                .execute_task_with_context_message(
+                    &task,
+                    context,
+                    parameter_context,
+                    global_context,
+                )
                 .await;
             match result {
                 Ok(response) => {

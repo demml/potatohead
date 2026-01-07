@@ -55,8 +55,8 @@ def benchmark_potatohead_sdk() -> List[float]:
         prompt = Prompt(
             model="gpt-4o",
             provider="openai",
-            message="Hello, how are you?",
-            system_instruction="You are a helpful assistant.",
+            messages="Hello, how are you?",
+            system_instructions="You are a helpful assistant.",
         )
         agent = Agent(Provider.OpenAI)
 

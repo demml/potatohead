@@ -45,6 +45,12 @@ pub enum WorkflowError {
 
     #[error(transparent)]
     AgentError(#[from] potato_agent::AgentError),
+
+    #[error("Agent not found: {0}")]
+    AgentNotFound(String),
+
+    #[error("Task lock error")]
+    TaskLockError,
 }
 
 impl From<PythonizeError> for WorkflowError {

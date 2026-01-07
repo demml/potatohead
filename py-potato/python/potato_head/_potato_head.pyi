@@ -181,9 +181,9 @@ class Score:
     ```python
         Prompt(
             model="openai:gpt-4o",
-            message="What is the score of this response?",
-            system_instruction="system_prompt",
-            response_format=Score,
+            messages="What is the score of this response?",
+            system_instructions="system_prompt",
+            output_type=Score,
         )
     ```
     """
@@ -286,8 +286,8 @@ class Prompt:
             ```python
             prompt = Prompt(
                 model="gpt-4o",
-                message="My prompt variable is ${variable}",
-                system_instruction="You are a helpful assistant",
+                messages="My prompt variable is ${variable}",
+                system_instructions="You are a helpful assistant",
                 provider="openai",
             )
 
@@ -398,7 +398,7 @@ class Prompt:
         Example:
             ```python
             prompt = Prompt(
-                message="Hello ${name}, your score is ${score}",
+                messages="Hello ${name}, your score is ${score}",
                 model="gpt-4o",
                 provider="openai",
             )
@@ -419,7 +419,7 @@ class Prompt:
 
         Example:
             ```python
-            prompt = Prompt(message="Hello!", model="gpt-4o", provider="openai")
+            prompt = Prompt(messages="Hello!", model="gpt-4o", provider="openai")
             saved_path = prompt.save_prompt(Path("my_prompt.json"))
             ```
         """
@@ -481,7 +481,7 @@ class Prompt:
 
         Example:
             ```python
-            prompt = Prompt(message="Hello!", model="gpt-4o", provider="openai")
+            prompt = Prompt(messages="Hello!", model="gpt-4o", provider="openai")
             json_str = prompt.model_dump_json()
             ```
         """
@@ -517,7 +517,7 @@ class Prompt:
         Example:
             ```python
             prompt = Prompt(
-                message="Hello ${name}, you scored ${score}/100",
+                messages="Hello ${name}, you scored ${score}/100",
                 model="gpt-4o",
                 provider="openai",
             )
@@ -562,7 +562,7 @@ class Prompt:
         Example:
             ```python
             prompt = Prompt(
-                message="Hello ${name}, you scored ${score}/100",
+                messages="Hello ${name}, you scored ${score}/100",
                 model="gpt-4o",
                 provider="openai",
             )
@@ -811,7 +811,7 @@ class Agent:
         ```python
             agent = Agent(
                 provider=Provider.OpenAI,
-                system_instruction="You are a helpful assistant.",
+                system_instructions="You are a helpful assistant.",
             )
         ```
         """
@@ -6774,7 +6774,7 @@ class PromptFeedback:
         >>> feedback = PromptFeedback(
         ...     block_reason=BlockedReason.Safety,
         ...     safety_ratings=[...],
-        ...     block_reason_message="Prompt contains unsafe content"
+        ...     block_reason_messages="Prompt contains unsafe content"
         ... )
     """
 
