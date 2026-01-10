@@ -260,16 +260,44 @@ impl Workflow {
             .get(&agent_id)
             .ok_or_else(|| WorkflowError::AgentNotFound(agent_id))?;
 
-        // Execute task with agent
-        let result = agent.execute_task_with_context(&task, context).await?;
-
-        let response_value = if let Some(response) = result.response_value() {
-            response.clone()
-        } else {
-            Value::Null
+        let max_retries = {
+            let task_guard = &task.read().map_err(|_| WorkflowError::TaskLockError)?;
+            task_guard.retry_count
         };
 
-        Ok(response_value)
+        for attempt in 0..=max_retries {
+            match agent.execute_task_with_context(&task, context).await {
+                Ok(response) => {
+                    let response_value = response
+                        .response_value()
+                        .map(|v| v.clone())
+                        .unwrap_or(Value::Null);
+                    return Ok(response_value);
+                }
+                Err(e) => {
+                    warn!(
+                        "Task {} execution failed (attempt {}/{}): {}",
+                        task.read().unwrap().id,
+                        attempt + 1,
+                        max_retries + 1,
+                        e
+                    );
+
+                    if attempt == max_retries {
+                        error!(
+                            "Task {} exceeded max retries ({})",
+                            task.read().unwrap().id,
+                            max_retries
+                        );
+                        return Err(WorkflowError::MaxRetriesExceeded(
+                            task.read().unwrap().id.clone(),
+                        ));
+                    }
+                }
+            }
+        }
+
+        unreachable!("Loop should always return via Ok or MaxRetriesExceeded error")
     }
 
     pub fn execution_plan(&self) -> Result<HashMap<i32, HashSet<String>>, WorkflowError> {
