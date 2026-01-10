@@ -1433,7 +1433,6 @@ name = "potato-util"
 version = "0.10.0"
 dependencies = [
  "colored_json",
- "jsonschema",
  "pyo3",
  "pythonize",
  "serde",
@@ -1449,7 +1448,6 @@ name = "potato-workflow"
 version = "0.10.0"
 dependencies = [
  "chrono",
- "jsonschema",
  "potato-agent",
  "potato-provider",
  "potato-state",
