@@ -6,6 +6,14 @@ from potato_head.google import (
     GenerationConfig,
     Part,
 )
+from pydantic import BaseModel
+from typing import List
+
+
+class CityLocation(BaseModel):
+    city: str
+    country: str
+    zip_codes: List[int]
 
 
 def test_gemini_settings_init():
@@ -77,9 +85,27 @@ def test_bind_prompt():
             "This is ${variable2}",
         ],
         system_instructions="system_prompt",
-        model_settings=GeminiSettings(generation_config=GenerationConfig(temperature=0.7)),
+        model_settings=GeminiSettings(
+            generation_config=GenerationConfig(temperature=0.7)
+        ),
     )
 
     bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
     assert bound_prompt.messages[0].parts[0].data == "Hello world"
     assert bound_prompt.messages[1].parts[0].data == "This is Foo"
+
+
+def test_prompt_structured_output():
+    # test string prompt
+    prompt = Prompt(
+        model="gemini-3.0-flash",
+        provider="gemini",
+        messages="My prompt",
+        system_instructions="system_prompt",
+        output_type=CityLocation,
+    )
+
+    assert prompt.response_json_schema is not None
+
+    print(prompt.response_json_schema)
+    a

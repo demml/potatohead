@@ -196,7 +196,9 @@ def test_gemini_settings_direct():
             "My prompt ${1} is ${2}",
             "My prompt ${3} is ${4}",
         ],
-        model_settings=GeminiSettings(generation_config=GenerationConfig(temperature=0.5)),
+        model_settings=GeminiSettings(
+            generation_config=GenerationConfig(temperature=0.5)
+        ),
     )
 
 
@@ -210,6 +212,9 @@ def test_prompt_response_format():
     )
 
     assert prompt.response_json_schema is not None
+
+    print(prompt.response_json_schema)
+    a
 
 
 def test_prompt_no_args():
@@ -254,7 +259,9 @@ def test_openai_model_dump():
         )
 
         response = client.chat.completions.create(**prompt.model_dump())
-        structured_output = TaskReturn.model_validate_json(response.choices[0].message.content)
+        structured_output = TaskReturn.model_validate_json(
+            response.choices[0].message.content
+        )
         assert isinstance(structured_output, TaskReturn)
 
 

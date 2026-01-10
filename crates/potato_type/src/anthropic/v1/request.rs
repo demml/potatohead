@@ -1744,7 +1744,14 @@ impl RequestAdapter for AnthropicMessageRequestV1 {
         self.system.iter().collect()
     }
     fn response_json_schema(&self) -> Option<&Value> {
-        self.output_format.as_ref()
+        let schema = self.output_format.as_ref();
+
+        // if Some, get "schema" field
+        // output_format: {
+        //     "type": "json_schema",
+        //     "schema": { ... }
+        // }
+        schema.and_then(|of| of.get("schema"))
     }
 
     fn preprend_system_instructions(&mut self, messages: Vec<MessageNum>) -> Result<(), TypeError> {

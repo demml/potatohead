@@ -511,7 +511,18 @@ impl RequestAdapter for OpenAIChatCompletionRequestV1 {
             .collect()
     }
     fn response_json_schema(&self) -> Option<&Value> {
-        self.response_format.as_ref()
+        let schema = self.response_format.as_ref();
+
+        // if Some, get "json_schema.schema" field
+        // response_format: {
+        //     "type": "json_schema",
+        //     "json_schema": {
+        //         "name": "MySchema",
+        //         "schema": { ... }
+        // }
+        schema
+            .and_then(|of| of.get("json_schema"))
+            .and_then(|js| js.get("schema"))
     }
     fn preprend_system_instructions(&mut self, messages: Vec<MessageNum>) -> Result<(), TypeError> {
         let mut combined = messages;

@@ -272,6 +272,7 @@ impl Workflow {
                         .response_value()
                         .map(|v| v.clone())
                         .unwrap_or(Value::Null);
+
                     return Ok(response_value);
                 }
                 Err(e) => {

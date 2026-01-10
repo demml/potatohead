@@ -281,6 +281,10 @@ pub fn convert_text_to_structured_output<'py>(
     }
 }
 
+pub fn validate_json_schema(instance: &Value, schema: &Value) -> bool {
+    jsonschema::is_valid(&schema, &instance)
+}
+
 /// Helper function to extract result from LLM response text
 /// If an output model is provided, it will attempt to convert the text to the structured output
 /// using the provided model. If no model is provided, it will attempt to convert the response to an appropriate
