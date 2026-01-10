@@ -9659,19 +9659,6 @@ class RustyLogger:
                 Additional arguments to log.
         """
 
-def validate_json_schema(instance: Any, schema: Any) -> bool:
-    """Validates JSON data against a schema.
-    Args:
-        instance (Any):
-            The JSON serializable data to validate (including pydantic models).
-        schema (Any):
-            The JSON schema to validate against. Typically a pydantic model
-            or a string representing the schema.
-    Returns:
-        bool:
-            True if the data is valid, False otherwise.
-    """
-
 __all__ = [
     #######_______________________ main _________________________######
     "Prompt",
@@ -9953,5 +9940,4 @@ __all__ = [
     "RustyLogger",
     "LoggingConfig",
     "WriteLevel",
-    "validate_json_schema",
 ]

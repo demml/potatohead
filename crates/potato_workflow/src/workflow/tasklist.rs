@@ -82,11 +82,12 @@ impl TaskList {
         self.tasks.is_empty()
     }
 
-    pub fn rebuild_task_validators(&mut self) {
+    pub fn rebuild_task_validators(&mut self) -> Result<(), WorkflowError> {
         for task_arc in self.tasks.values_mut() {
             let mut task = task_arc.write().unwrap();
-            task.rebuild_validator();
+            task.rebuild_validator()?
         }
+        Ok(())
     }
 
     pub fn is_complete(&self) -> bool {

@@ -2,7 +2,7 @@ import os
 from typing import List, cast
 
 from openai import OpenAI
-from potato_head import ModelSettings, Prompt, Provider, Role, validate_json_schema
+from potato_head import ModelSettings, Prompt, Provider, Role
 from potato_head.google import GeminiSettings, GenerationConfig
 from potato_head.mock import LLMTestServer
 from potato_head.openai import ChatMessage, ImageContentPart, OpenAIChatSettings
@@ -210,16 +210,6 @@ def test_prompt_response_format():
     )
 
     assert prompt.response_json_schema is not None
-
-    schema = prompt.response_json_schema
-
-    instance = {
-        "city": "San Francisco",
-        "country": "USA",
-        "zip_codes": [94105, 94107],
-    }
-
-    assert validate_json_schema(instance, schema)
 
 
 def test_prompt_no_args():

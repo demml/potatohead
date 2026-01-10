@@ -43,7 +43,7 @@ fn test_openai_agent() {
     let agent = runtime
         .block_on(async { Agent::new(Provider::OpenAI, None).await })
         .unwrap();
-    let task = Task::new(&agent.id, prompt, "task1", None, None);
+    let task = Task::new(&agent.id, prompt, "task1", None, None).unwrap();
 
     runtime.block_on(async {
         agent.execute_task(&task).await.unwrap();
@@ -84,7 +84,7 @@ fn test_gemini_agent() {
     let agent = runtime
         .block_on(async { Agent::new(Provider::Gemini, None).await })
         .unwrap();
-    let task = Task::new(&agent.id, prompt, "task1", None, None);
+    let task = Task::new(&agent.id, prompt, "task1", None, None).unwrap();
 
     runtime.block_on(async {
         agent.execute_task(&task).await.unwrap();
@@ -128,7 +128,7 @@ fn test_gemini_score_agent() {
     let agent = runtime
         .block_on(async { Agent::new(Provider::Gemini, None).await })
         .unwrap();
-    let task = Task::new(&agent.id, prompt, "task1", None, None);
+    let task = Task::new(&agent.id, prompt, "task1", None, None).unwrap();
 
     runtime.block_on(async {
         agent.execute_task(&task).await.unwrap();
@@ -171,7 +171,7 @@ fn test_gemini_score_agent_integration() {
     let agent = runtime
         .block_on(async { Agent::new(Provider::Gemini, None).await })
         .unwrap();
-    let task = Task::new(&agent.id, prompt, "task1", None, None);
+    let task = Task::new(&agent.id, prompt, "task1", None, None).unwrap();
 
     runtime.block_on(async {
         agent.execute_task(&task).await.unwrap();
@@ -209,7 +209,7 @@ fn test_anthropic_agent() {
     let agent = runtime
         .block_on(async { Agent::new(Provider::Anthropic, None).await })
         .unwrap();
-    let task = Task::new(&agent.id, prompt, "task1", None, None);
+    let task = Task::new(&agent.id, prompt, "task1", None, None).unwrap();
 
     runtime.block_on(async {
         agent.execute_task(&task).await.unwrap();
@@ -249,7 +249,7 @@ fn test_anthropic_agent_structured_output() {
     let agent = runtime
         .block_on(async { Agent::new(Provider::Anthropic, None).await })
         .unwrap();
-    let task = Task::new(&agent.id, prompt, "task1", None, None);
+    let task = Task::new(&agent.id, prompt, "task1", None, None).unwrap();
 
     runtime.block_on(async {
         agent.execute_task(&task).await.unwrap();

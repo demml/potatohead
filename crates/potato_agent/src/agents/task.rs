@@ -95,16 +95,25 @@ impl Task {
         id: &str,
         dependencies: Option<Vec<String>>,
         max_retries: Option<u32>,
-    ) -> Self {
+    ) -> Result<Self, AgentError> {
         let validator = match prompt.response_json_schema() {
             Some(schema) => {
-                let compiled_validator = jsonschema::validator_for(&schema).unwrap();
+                let compiled_validator = jsonschema::validator_for(schema).map_err(|e| {
+                    error!(
+                        "Failed to compile JSON schema validator for task {}: {}",
+                        id, e
+                    );
+                    AgentError::ValidationError(format!(
+                        "Failed to compile JSON schema validator: {}",
+                        e
+                    ))
+                })?;
                 Some(compiled_validator)
             }
             None => None,
         };
 
-        Self {
+        Ok(Self {
             prompt,
             dependencies: dependencies.unwrap_or_default(),
             status: TaskStatus::Pending,
@@ -114,7 +123,7 @@ impl Task {
             max_retries: max_retries.unwrap_or(3),
             retry_count: 0,
             output_validator: validator,
-        }
+        })
     }
 
     pub fn add_dependency(&mut self, dependency: String) {
@@ -140,13 +149,24 @@ impl Task {
     }
 
     /// Helper to rebuild the validator when workflow is deserialized
-    pub fn rebuild_validator(&mut self) {
+    pub fn rebuild_validator(&mut self) -> Result<(), AgentError> {
         if let Some(schema) = self.prompt.response_json_schema() {
-            let compiled_validator = jsonschema::validator_for(&schema).unwrap();
+            let compiled_validator = jsonschema::validator_for(schema).map_err(|e| {
+                error!(
+                    "Failed to compile JSON schema validator for task {}: {}",
+                    self.id, e
+                );
+                AgentError::ValidationError(format!(
+                    "Failed to compile JSON schema validator: {}",
+                    e
+                ))
+            })?;
             self.output_validator = Some(compiled_validator);
         } else {
             self.output_validator = None;
         }
+
+        Ok(())
     }
 
     /// Validate the output against the task's output schema, if defined.

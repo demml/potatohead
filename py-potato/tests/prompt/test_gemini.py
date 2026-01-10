@@ -1,6 +1,6 @@
 from typing import List
 
-from potato_head import Prompt, Provider, Role, validate_json_schema
+from potato_head import Prompt, Provider, Role
 from potato_head.google import (
     GeminiContent,
     GeminiSettings,
@@ -105,13 +105,3 @@ def test_prompt_structured_output():
     )
 
     assert prompt.response_json_schema is not None
-
-    schema = prompt.response_json_schema
-
-    instance = {
-        "city": "San Francisco",
-        "country": "USA",
-        "zip_codes": [94105, 94107],
-    }
-
-    assert validate_json_schema(instance, schema)

@@ -329,26 +329,6 @@ pub fn depythonize_object_to_value<'py>(
     Ok(py_value)
 }
 
-#[pyfunction(name = "validate_json_schema")]
-pub fn validate_json_schema_py(
-    py: Python<'_>,
-    instance: &Bound<'_, PyAny>,
-    schema: &Bound<'_, PyAny>,
-) -> Result<bool, UtilError> {
-    let mut schema_value = depythonize_object_to_value(py, schema)?;
-    let instance_value = depythonize_object_to_value(py, instance)?;
-
-    if let Value::String(schema_str) = schema_value {
-        schema_value = serde_json::from_str(&schema_str)?;
-    }
-
-    Ok(jsonschema::is_valid(&schema_value, &instance_value))
-}
-
-pub fn validate_json_schema(instance: &Value, schema: &Value) -> bool {
-    jsonschema::is_valid(&schema, &instance)
-}
-
 /// Helper function to extract result from LLM response text
 /// If an output model is provided, it will attempt to convert the text to the structured output
 /// using the provided model. If no model is provided, it will attempt to convert the response to an appropriate

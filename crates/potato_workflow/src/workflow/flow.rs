@@ -1135,7 +1135,7 @@ impl PyWorkflow {
         let mut workflow: Workflow = Workflow::from_json(&json_string)?;
 
         // rebuild tasklist schema validators
-        workflow.task_list.rebuild_task_validators();
+        workflow.task_list.rebuild_task_validators()?;
 
         // reload agents to ensure clients are rebuilt
         // This is necessary because during deserialization the GenAIClient
@@ -1203,7 +1203,7 @@ mod tests {
         )
         .unwrap();
 
-        let task = Task::new("task1", prompt, "task1", None, None);
+        let task = Task::new("task1", prompt, "task1", None, None).unwrap();
         task_list.add_task(task.clone()).unwrap();
         assert_eq!(
             task_list.get_task(&task.id).unwrap().read().unwrap().id,
