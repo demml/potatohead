@@ -6,7 +6,7 @@ pub use potato_type::{
 };
 pub use potato_util::{
     calculate_weighted_score, create_uuid7, error::UtilError, utils::ResponseLogProbs,
-    utils::TokenLogProbs, version, PyHelperFuncs,
+    utils::TokenLogProbs, validate_json_schema_py, version, PyHelperFuncs,
 };
 
 pub use potato_provider::{

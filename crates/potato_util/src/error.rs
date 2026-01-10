@@ -32,6 +32,9 @@ pub enum UtilError {
 
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
+
+    #[error("Failed to check if the context is a Pydantic BaseModel. Error: {0}")]
+    FailedToCheckPydanticModel(String),
 }
 
 impl From<PythonizeError> for UtilError {

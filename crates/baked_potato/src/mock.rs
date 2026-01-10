@@ -96,8 +96,8 @@ fn randomize_gemini_score_response(response: GenerateContentResponse) -> Generat
     let mut cloned_response = response.clone();
     let mut rng = rand::rng();
 
-    // Generate random score between 1 and 100 (typical for Gemini scoring)
-    let score = rng.random_range(1..=100);
+    // Generate random score between 1 and 5 (typical for Gemini scoring)
+    let score = rng.random_range(1..=5);
 
     // Generate random reason from a set of predefined reasons
     let reasons = [

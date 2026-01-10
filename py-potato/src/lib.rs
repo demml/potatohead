@@ -1,8 +1,8 @@
 use ::potato_head::prompt_types::*;
 use ::potato_head::PyEmbedder;
 use potato_head::{
-    EventDetails, Provider, PyAgent, PyAgentResponse, PyWorkflow, Task, TaskEvent, TaskList,
-    TaskStatus, WorkflowResult, WorkflowTask,
+    validate_json_schema_py, EventDetails, Provider, PyAgent, PyAgentResponse, PyWorkflow, Task,
+    TaskEvent, TaskList, TaskStatus, WorkflowResult, WorkflowTask,
 };
 pub mod anthropic;
 pub mod google;
@@ -35,6 +35,8 @@ pub fn _potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TaskStatus>()?;
     m.add_class::<PyAgentResponse>()?;
     m.add_class::<PyEmbedder>()?;
+
+    m.add_function(wrap_pyfunction!(validate_json_schema_py, m)?)?;
 
     mock::add_mock_module(m)?;
     logging::add_logging_module(m)?;

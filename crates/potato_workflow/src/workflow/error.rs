@@ -54,6 +54,13 @@ pub enum WorkflowError {
 
     #[error("Task not found: {0}")]
     TaskNotFound(String),
+
+    #[error("Response validation against JSON schema failed for task: {task_id}. Expected schema: {expected_schema}, Received response: {received_response}")]
+    ResponseValidationFailed {
+        task_id: String,
+        expected_schema: String,
+        received_response: String,
+    },
 }
 impl From<PythonizeError> for WorkflowError {
     fn from(err: PythonizeError) -> Self {

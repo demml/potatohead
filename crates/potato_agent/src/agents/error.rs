@@ -58,6 +58,9 @@ pub enum AgentError {
 
     #[error("Not supported: {0}")]
     NotSupportedError(String),
+
+    #[error("Output validation error: {0}")]
+    ValidationError(String),
 }
 
 impl<'a, 'py> From<pyo3::CastError<'a, 'py>> for AgentError {

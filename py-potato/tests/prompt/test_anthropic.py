@@ -1,4 +1,6 @@
-from potato_head import Prompt, Provider, Role
+from typing import List
+
+from potato_head import Prompt, Provider, Role, validate_json_schema
 from potato_head.anthropic import (
     AnthropicSettings,
     AnthropicThinkingConfig,
@@ -6,7 +8,6 @@ from potato_head.anthropic import (
     TextBlockParam,
 )
 from pydantic import BaseModel
-from typing import List
 
 
 class CityLocation(BaseModel):
@@ -71,9 +72,7 @@ def test_bind_prompt():
             "This is ${variable2}",
         ],
         system_instructions="system_prompt",
-        model_settings=AnthropicSettings(
-            thinking=AnthropicThinkingConfig(type="disabled")
-        ),
+        model_settings=AnthropicSettings(thinking=AnthropicThinkingConfig(type="disabled")),
     )
 
     bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
@@ -93,5 +92,12 @@ def test_prompt_structured_output():
 
     assert prompt.response_json_schema is not None
 
-    print(prompt.response_json_schema)
-    a
+    schema = prompt.response_json_schema
+
+    instance = {
+        "city": "San Francisco",
+        "country": "USA",
+        "zip_codes": [94105, 94107],
+    }
+
+    assert validate_json_schema(instance, schema)
