@@ -306,11 +306,9 @@ impl Agent {
             (task.prompt.clone(), task.id.clone())
         };
 
-        // Transform the cloned prompt (no mutation of original)
         self.bind_context(&mut prompt, context, &None)?;
         self.prepend_system_instructions(&mut prompt);
 
-        // Execute async work without any locks held
         let chat_response = self.client.generate_content(&prompt).await?;
         Ok(AgentResponse::new(task_id, chat_response))
     }
