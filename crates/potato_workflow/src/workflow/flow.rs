@@ -12,10 +12,10 @@ use potato_agent::{AgentError, PyAgentResponse};
 use potato_state::block_on;
 use potato_type::prompt::{parse_response_to_json, MessageNum};
 use potato_type::Provider;
+use potato_util::utils::depythonize_object_to_value;
 use potato_util::{create_uuid7, utils::update_serde_map_with, PyHelperFuncs};
 use pyo3::prelude::*;
-use pyo3::IntoPyObjectExt;
-use pythonize::{depythonize, pythonize};
+use pythonize::pythonize;
 use serde::{
     de::{self, MapAccess, Visitor},
     ser::SerializeStruct,
@@ -260,16 +260,72 @@ impl Workflow {
             .get(&agent_id)
             .ok_or_else(|| WorkflowError::AgentNotFound(agent_id))?;
 
-        // Execute task with agent
-        let result = agent.execute_task_with_context(&task, context).await?;
-
-        let response_value = if let Some(response) = result.response_value() {
-            response.clone()
-        } else {
-            Value::Null
+        let max_retries = {
+            let task_guard = &task.read().map_err(|_| WorkflowError::TaskLockError)?;
+            task_guard.retry_count
         };
 
-        Ok(response_value)
+        for attempt in 0..=max_retries {
+            match agent.execute_task_with_context(&task, context).await {
+                Ok(response) => {
+                    let is_valid = validate_response_schema(&task, &response);
+
+                    if !is_valid {
+                        error!(
+                            "Task {} response validation against JSON schema failed",
+                            task.read().unwrap().id
+                        );
+                        // Continue to retry if validation fails
+                        if attempt == max_retries {
+                            let task_id = task.read().unwrap().id.clone();
+                            let expected_schema = task
+                                .read()
+                                .unwrap()
+                                .prompt
+                                .response_json_schema()
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| "No schema".to_string());
+                            let received_response = response
+                                .response_value()
+                                .map(|v| v.to_string())
+                                .unwrap_or_else(|| "No response".to_string());
+                            return Err(WorkflowError::ResponseValidationFailed {
+                                task_id,
+                                expected_schema,
+                                received_response,
+                            });
+                        } else {
+                            continue;
+                        }
+                    }
+
+                    let response_value = response.response_value().unwrap_or(Value::Null);
+                    return Ok(response_value);
+                }
+                Err(e) => {
+                    warn!(
+                        "Task {} execution failed (attempt {}/{}): {}",
+                        task.read().unwrap().id,
+                        attempt + 1,
+                        max_retries + 1,
+                        e
+                    );
+
+                    if attempt == max_retries {
+                        error!(
+                            "Task {} exceeded max retries ({})",
+                            task.read().unwrap().id,
+                            max_retries
+                        );
+                        return Err(WorkflowError::MaxRetriesExceeded(
+                            task.read().unwrap().id.clone(),
+                        ));
+                    }
+                }
+            }
+        }
+
+        unreachable!("Loop should always return via Ok or MaxRetriesExceeded error")
     }
 
     pub fn execution_plan(&self) -> Result<HashMap<i32, HashSet<String>>, WorkflowError> {
@@ -412,9 +468,15 @@ fn mark_task_as_running(task: Arc<RwLock<Task>>, event_tracker: &Arc<RwLock<Even
 /// # Arguments
 /// * `workflow` - A reference to the workflow instance
 /// * `task` - A reference to the task for which the agent is needed
-fn get_agent_for_task(workflow: &Arc<RwLock<Workflow>>, agent_id: &str) -> Option<Arc<Agent>> {
+fn get_agent_for_task(
+    workflow: &Arc<RwLock<Workflow>>,
+    agent_id: &str,
+) -> Result<Arc<Agent>, WorkflowError> {
     let wf = workflow.read().unwrap();
-    wf.agents.get(agent_id).cloned()
+    match wf.agents.get(agent_id) {
+        Some(agent) => Ok(agent.clone()),
+        None => Err(WorkflowError::AgentNotFound(agent_id.to_string())),
+    }
 }
 
 /// Builds the context for a task from its dependencies
@@ -479,6 +541,27 @@ fn build_task_context(
     Ok((ctx, param_ctx, global_context))
 }
 
+/// Validate a task response against its JSON schema
+/// Only validates if a schema is defined for the task
+/// # Arguments
+/// * `task` - A reference to the task
+/// * `response` - A reference to the task response
+/// # Returns
+/// true if the response is invalid, false otherwise
+fn validate_response_schema(
+    task: &Arc<RwLock<Task>>,
+    response: &potato_agent::AgentResponse,
+) -> bool {
+    task.read()
+        .ok()
+        .and_then(|t| {
+            response
+                .response_value()
+                .map(|value| t.validate_output(&value).is_ok())
+        })
+        .unwrap_or(true)
+}
+
 /// Spawns an individual task execution
 /// # Arguments
 /// * `workflow` - A reference to the workflow instance
@@ -491,50 +574,65 @@ fn spawn_task_execution(
     event_tracker: Arc<RwLock<EventTracker>>,
     task: Arc<RwLock<Task>>,
     task_id: String,
-    agent: Option<Arc<Agent>>,
+    agent: Arc<Agent>,
     context: HashMap<String, Vec<MessageNum>>,
     parameter_context: Value,
     global_context: Option<Arc<Value>>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        if let Some(agent) = agent {
-            // (1) Insert any context messages and/or parameters into the task prompt
-            // (2) Execute the task with the agent
-            // (3) Return the AgentResponse
-            let result = agent
-                .execute_task_with_context_message(
-                    &task,
-                    context,
-                    parameter_context,
-                    global_context,
-                )
-                .await;
-            match result {
-                Ok(response) => {
-                    let mut write_task = task.write().unwrap();
+        let result = agent
+            .execute_task_with_context_message(&task, context, parameter_context, global_context)
+            .await;
+
+        match result {
+            Ok(response) => {
+                info!("Task {} completed successfully", task_id);
+
+                let is_valid = validate_response_schema(&task, &response); // No schema or no response_value = validation passes
+                if !is_valid {
+                    error!(
+                        "Task {} response validation against JSON schema failed",
+                        task_id
+                    );
+
+                    if let Ok(mut write_task) = task.write() {
+                        write_task.set_status(TaskStatus::Failed);
+
+                        if let Ok(tracker) = event_tracker.write() {
+                            tracker.record_task_failed(
+                                &write_task.id,
+                                "Response JSON schema validation failed",
+                                &write_task.prompt,
+                            );
+                        }
+                    }
+                    return;
+                }
+
+                if let Ok(mut write_task) = task.write() {
                     write_task.set_status(TaskStatus::Completed);
                     write_task.set_result(response.clone());
-                    event_tracker.write().unwrap().record_task_completed(
-                        &write_task.id,
-                        &write_task.prompt,
-                        response,
-                    );
-                }
-                Err(e) => {
-                    error!("Task {} failed: {}", task_id, e);
-                    let mut write_task = task.write().unwrap();
-                    write_task.set_status(TaskStatus::Failed);
-                    event_tracker.write().unwrap().record_task_failed(
-                        &write_task.id,
-                        &e.to_string(),
-                        &write_task.prompt,
-                    );
+
+                    if let Ok(tracker) = event_tracker.write() {
+                        tracker.record_task_completed(&write_task.id, &write_task.prompt, response);
+                    }
                 }
             }
-        } else {
-            error!("No agent found for task {}", task_id);
-            let mut write_task = task.write().unwrap();
-            write_task.set_status(TaskStatus::Failed);
+            Err(e) => {
+                error!("Task {} failed: {}", task_id, e);
+
+                if let Ok(mut write_task) = task.write() {
+                    write_task.set_status(TaskStatus::Failed);
+
+                    if let Ok(tracker) = event_tracker.write() {
+                        tracker.record_task_failed(
+                            &write_task.id,
+                            &e.to_string(),
+                            &write_task.prompt,
+                        );
+                    }
+                }
+            }
         }
     })
 }
@@ -584,7 +682,7 @@ fn spawn_task_executions(
             build_task_context(workflow, &dependencies, &provider)?;
 
         // Get/clone agent ARC
-        let agent = get_agent_for_task(workflow, &agent_id);
+        let agent = get_agent_for_task(workflow, &agent_id)?;
 
         // Spawn task execution and push handle to future vector
         let handle = spawn_task_execution(
@@ -929,13 +1027,13 @@ impl PyWorkflow {
     pub fn run(
         &self,
         py: Python,
-        global_context: Option<Bound<'_, PyDict>>,
+        global_context: Option<Bound<'_, PyAny>>,
     ) -> Result<WorkflowResult, WorkflowError> {
         debug!("Running workflow: {}", self.workflow.name);
 
         // Convert the global context from PyDict to serde_json::Value if provided
         let global_context = if let Some(context) = global_context {
-            let json_value = depythonize(&context.into_bound_py_any(py)?)?;
+            let json_value = depythonize_object_to_value(py, &context)?;
             Some(json_value)
         } else {
             None
@@ -1004,6 +1102,26 @@ impl PyWorkflow {
         Ok(workflow_result)
     }
 
+    #[pyo3(signature = (task_id, context=None))]
+    pub fn execute_task<'py>(
+        &self,
+        py: Python<'py>,
+        task_id: String,
+        context: Option<Bound<'py, PyAny>>,
+    ) -> Result<Bound<'py, PyAny>, WorkflowError> {
+        let context_value = if let Some(ctx) = context {
+            depythonize_object_to_value(py, &ctx)?
+        } else {
+            Value::Null
+        };
+
+        let response_value =
+            block_on(async { self.workflow.execute_task(&task_id, &context_value).await })?;
+        let py_response = pythonize(py, &response_value)?;
+
+        Ok(py_response)
+    }
+
     pub fn model_dump_json(&self) -> Result<String, WorkflowError> {
         Ok(self.workflow.serialize()?)
     }
@@ -1015,6 +1133,9 @@ impl PyWorkflow {
         output_types: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, WorkflowError> {
         let mut workflow: Workflow = Workflow::from_json(&json_string)?;
+
+        // rebuild tasklist schema validators
+        workflow.task_list.rebuild_task_validators()?;
 
         // reload agents to ensure clients are rebuilt
         // This is necessary because during deserialization the GenAIClient
@@ -1082,7 +1203,7 @@ mod tests {
         )
         .unwrap();
 
-        let task = Task::new("task1", prompt, "task1", None, None);
+        let task = Task::new("task1", prompt, "task1", None, None).unwrap();
         task_list.add_task(task.clone()).unwrap();
         assert_eq!(
             task_list.get_task(&task.id).unwrap().read().unwrap().id,

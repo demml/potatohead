@@ -14,7 +14,7 @@ potato-type = { workspace = true }
 potato-provider = { workspace = true }
 potato-state = { workspace = true }
 potato-util = { workspace = true }
-
+jsonschema = { workspace = true }
 base64 = { workspace = true }
 http = { workspace = true }
 gcloud-auth = { workspace = true }

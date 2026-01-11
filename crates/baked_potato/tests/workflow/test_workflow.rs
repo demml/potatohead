@@ -45,39 +45,48 @@ fn test_workflow() {
 
     // add a task to the workflow
     workflow
-        .add_task(Task::new(&agent1.id, prompt.clone(), "task1", None, None))
+        .add_task(Task::new(&agent1.id, prompt.clone(), "task1", None, None).unwrap())
         .unwrap();
     workflow
-        .add_task(Task::new(&agent2.id, prompt.clone(), "task2", None, None))
+        .add_task(Task::new(&agent2.id, prompt.clone(), "task2", None, None).unwrap())
         .unwrap();
     workflow
-        .add_task(Task::new(
-            &agent2.id,
-            prompt.clone(),
-            "task3",
-            Some(vec!["task1".to_string(), "task2".to_string()]),
-            None,
-        ))
+        .add_task(
+            Task::new(
+                &agent2.id,
+                prompt.clone(),
+                "task3",
+                Some(vec!["task1".to_string(), "task2".to_string()]),
+                None,
+            )
+            .unwrap(),
+        )
         .unwrap();
     workflow
-        .add_task(Task::new(
-            &agent1.id,
-            prompt.clone(),
-            "task4",
-            Some(vec!["task3".to_string()]),
-            None,
-        ))
+        .add_task(
+            Task::new(
+                &agent1.id,
+                prompt.clone(),
+                "task4",
+                Some(vec!["task3".to_string()]),
+                None,
+            )
+            .unwrap(),
+        )
         .unwrap();
 
     // add final task
     workflow
-        .add_task(Task::new(
-            &agent1.id,
-            prompt.clone(),
-            "final_task",
-            Some(vec!["task3".to_string(), "task4".to_string()]),
-            None,
-        ))
+        .add_task(
+            Task::new(
+                &agent1.id,
+                prompt.clone(),
+                "final_task",
+                Some(vec!["task3".to_string(), "task4".to_string()]),
+                None,
+            )
+            .unwrap(),
+        )
         .unwrap();
 
     assert_eq!(workflow.task_list.len(), 5);
@@ -270,17 +279,20 @@ fn test_parameterized_workflow() {
     workflow.add_agent(&agent1);
 
     workflow
-        .add_task(Task::new(&agent1.id, prompt.clone(), "task1", None, None))
+        .add_task(Task::new(&agent1.id, prompt.clone(), "task1", None, None).unwrap())
         .unwrap();
 
     workflow
-        .add_task(Task::new(
-            &agent1.id,
-            parameterized_prompt.clone(),
-            "task2",
-            Some(vec!["task1".to_string()]),
-            None,
-        ))
+        .add_task(
+            Task::new(
+                &agent1.id,
+                parameterized_prompt.clone(),
+                "task2",
+                Some(vec!["task1".to_string()]),
+                None,
+            )
+            .unwrap(),
+        )
         .unwrap();
 
     // assert pending task count is
@@ -394,36 +406,45 @@ fn test_vendor_switching() {
     workflow.add_agents(&[&openai_agent, &anthropic_agent, &gemini_agent]);
 
     workflow
-        .add_task(Task::new(
-            &openai_agent.id,
-            create_openai_prompt(None),
-            "openai_task",
-            None,
-            None,
-        ))
+        .add_task(
+            Task::new(
+                &openai_agent.id,
+                create_openai_prompt(None),
+                "openai_task",
+                None,
+                None,
+            )
+            .unwrap(),
+        )
         .unwrap();
 
     workflow
-        .add_task(Task::new(
-            &anthropic_agent.id,
-            create_anthropic_prompt(),
-            "anthropic_task",
-            Some(vec!["openai_task".to_string()]),
-            None,
-        ))
+        .add_task(
+            Task::new(
+                &anthropic_agent.id,
+                create_anthropic_prompt(),
+                "anthropic_task",
+                Some(vec!["openai_task".to_string()]),
+                None,
+            )
+            .unwrap(),
+        )
         .unwrap();
 
     workflow
-        .add_task(Task::new(
-            &gemini_agent.id,
-            create_google_prompt(),
-            "gemini_task",
-            Some(vec![
-                "openai_task".to_string(),
-                "anthropic_task".to_string(),
-            ]),
-            None,
-        ))
+        .add_task(
+            Task::new(
+                &gemini_agent.id,
+                create_google_prompt(),
+                "gemini_task",
+                Some(vec![
+                    "openai_task".to_string(),
+                    "anthropic_task".to_string(),
+                ]),
+                None,
+            )
+            .unwrap(),
+        )
         .unwrap();
 
     // This will fail if the message conversions do not work correctly

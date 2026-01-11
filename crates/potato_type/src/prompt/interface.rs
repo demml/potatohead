@@ -491,10 +491,16 @@ impl Prompt {
     }
 
     #[getter]
-    pub fn response_json_schema(&self) -> Option<String> {
+    pub fn response_json_schema_pretty(&self) -> Option<String> {
         Some(PyHelperFuncs::__str__(
             self.request.response_json_schema().as_ref()?,
         ))
+    }
+
+    #[getter]
+    #[pyo3(name = "response_json_schema")]
+    pub fn response_json_schema_py(&self) -> Option<String> {
+        Some(self.request.response_json_schema().as_ref()?.to_string())
     }
 
     pub fn model_dump<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
@@ -504,6 +510,10 @@ impl Prompt {
 }
 
 impl Prompt {
+    pub fn response_json_schema(&self) -> Option<&Value> {
+        self.request.response_json_schema()
+    }
+
     pub fn new_rs(
         messages: Vec<MessageNum>,
         model: &str,

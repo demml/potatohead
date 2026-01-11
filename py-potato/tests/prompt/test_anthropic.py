@@ -1,3 +1,5 @@
+from typing import List
+
 from potato_head import Prompt, Provider, Role
 from potato_head.anthropic import (
     AnthropicSettings,
@@ -5,6 +7,13 @@ from potato_head.anthropic import (
     MessageParam,
     TextBlockParam,
 )
+from pydantic import BaseModel
+
+
+class CityLocation(BaseModel):
+    city: str
+    country: str
+    zip_codes: List[int]
 
 
 def test_settings_init():
@@ -69,3 +78,16 @@ def test_bind_prompt():
     bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
     assert bound_prompt.messages[0].content[0].text == "Hello world"
     assert bound_prompt.messages[1].content[0].text == "This is Foo"
+
+
+def test_prompt_structured_output():
+    # test string prompt
+    prompt = Prompt(
+        model="claude-4.5-sonnet",
+        provider="anthropic",
+        messages="My prompt",
+        system_instructions="system_prompt",
+        output_type=CityLocation,
+    )
+
+    assert prompt.response_json_schema is not None

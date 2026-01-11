@@ -3,7 +3,7 @@ use crate::error::UtilError;
 use colored_json::{Color, ColorMode, ColoredFormatter, PrettyFormatter, Styler};
 use pyo3::prelude::*;
 
-use pyo3::types::{PyAny, PyList};
+use pyo3::types::{PyAny, PyDict, PyList};
 use pyo3::IntoPyObjectExt;
 use serde::Serialize;
 use serde_json::Value;
@@ -279,6 +279,54 @@ pub fn convert_text_to_structured_output<'py>(
             Ok(pythonize(py, &val)?)
         }
     }
+}
+
+pub fn is_pydantic_basemodel(py: Python, obj: &Bound<'_, PyAny>) -> Result<bool, UtilError> {
+    let pydantic = match py.import("pydantic") {
+        Ok(module) => module,
+        // return false if pydantic cannot be imported
+        Err(_) => return Ok(false),
+    };
+
+    let basemodel = pydantic.getattr("BaseModel")?;
+
+    // check if context is a pydantic model
+    let is_basemodel = obj
+        .is_instance(&basemodel)
+        .map_err(|e| UtilError::FailedToCheckPydanticModel(e.to_string()))?;
+
+    Ok(is_basemodel)
+}
+
+fn process_dict_with_nested_models(
+    py: Python<'_>,
+    dict: &Bound<'_, PyAny>,
+) -> Result<Value, UtilError> {
+    let py_dict = dict.cast::<PyDict>()?;
+    let mut result = serde_json::Map::new();
+
+    for (key, value) in py_dict.iter() {
+        let key_str: String = key.extract()?;
+        let processed_value = depythonize_object_to_value(py, &value)?;
+        result.insert(key_str, processed_value);
+    }
+
+    Ok(Value::Object(result))
+}
+
+pub fn depythonize_object_to_value<'py>(
+    py: Python<'py>,
+    value: &Bound<'py, PyAny>,
+) -> Result<Value, UtilError> {
+    let py_value = if is_pydantic_basemodel(py, value)? {
+        let model = value.call_method0("model_dump")?;
+        depythonize(&model)?
+    } else if value.is_instance_of::<PyDict>() {
+        process_dict_with_nested_models(py, value)?
+    } else {
+        depythonize(value)?
+    };
+    Ok(py_value)
 }
 
 /// Helper function to extract result from LLM response text

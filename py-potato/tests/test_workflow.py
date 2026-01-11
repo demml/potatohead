@@ -444,3 +444,28 @@ def test_multi_provider_workflow():
 
         assert isinstance(result.tasks["gemini_task"].result, Score)
         assert isinstance(result.result, StructuredTaskOutput)
+
+
+def test_potato_head_workflow_structured_output_execute_task():
+    with LLMTestServer():
+        prompt = Prompt(
+            messages="Hello, how are you?",
+            system_instructions="You are a helpful assistant.",
+            model="gpt-4o",
+            provider="openai",
+        )
+
+        open_agent1 = Agent(Provider.OpenAI)
+
+        workflow = Workflow(name="test_workflow")  # expand named argument to allow agents and tasks
+        workflow.add_agent(open_agent1)  # allow adding list of agents
+        workflow.add_task(  # allow adding list of tasks
+            Task(
+                prompt=prompt,
+                agent_id=open_agent1.id,
+                id="task1",
+            ),
+            output_type=StructuredTaskOutput,  # specify output type for task
+        )
+        result = workflow.execute_task("task1")
+        StructuredTaskOutput(**result)
