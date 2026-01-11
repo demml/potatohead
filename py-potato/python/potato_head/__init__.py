@@ -20,7 +20,6 @@ from ._potato_head import (  # Prompt interface types; Workflow types; Agent typ
     TaskStatus,
     WorkflowResult,
     WorkflowTask,
-    validate_json_schema,
 )
 
 __all__ = [
@@ -51,6 +50,4 @@ __all__ = [
     "AgentResponse",
     # Embeddings
     "Embedder",
-    # Utilities
-    "validate_json_schema",
 ]
