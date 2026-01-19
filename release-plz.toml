@@ -10,6 +10,10 @@ publish = false
 repo_url = "https://github.com/demml/potato_head"
 
 [[package]]
+name = "baked-potato"
+publish = true
+
+[[package]]
 name = "potato-agent"
 publish = true
 
@@ -22,6 +26,14 @@ name = "potatohead-macro"
 publish = true
 
 [[package]]
+name = "potato-provider"
+publish = true
+
+[[package]]
+name = "potato-state"
+publish = true
+
+[[package]]
 name = "potato-type"
 publish = true
 
@@ -31,12 +43,4 @@ publish = true
 
 [[package]]
 name = "potato-workflow"
-publish = true
-
-[[package]]
-name = "potato-provider"
-publish = true
-
-[[package]]
-name = "baked-potato"
 publish = true
