@@ -9,7 +9,7 @@ use crate::prompt::ModelSettings;
 use crate::tools::AgentToolDefinition;
 use crate::traits::RequestAdapter;
 use crate::{Provider, TypeError};
-use potato_macro::dispatch_trait_method;
+use potatohead_macro::dispatch_trait_method;
 use pyo3::types::PyList;
 use pyo3::types::PyListMethods;
 use pyo3::Python;

@@ -216,7 +216,7 @@ fn extract_content_from_py_object(content: &Bound<'_, PyAny>) -> PyResult<Vec<Co
                 continue;
             }
 
-            if potato_macro::extract_and_push!(
+            if potatohead_macro::extract_and_push!(
                 item => parts,
                 ImageContentPart => ContentPart::ImageUrl,
                 InputAudioContentPart => ContentPart::InputAudio,
@@ -270,7 +270,7 @@ impl ChatMessage {
         } else {
             let mut result = Vec::with_capacity(1);
 
-            if !potato_macro::extract_and_push!(
+            if !potatohead_macro::extract_and_push!(
                 content => result,
                 TextContentPart => ContentPart::Text,
                 ImageContentPart => ContentPart::ImageUrl,

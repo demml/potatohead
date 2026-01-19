@@ -1,5 +1,4 @@
 use crate::error::ProviderError;
-use potato_macro::dispatch_response_trait_method;
 use potato_type::anthropic::v1::response::AnthropicMessageResponse;
 use potato_type::google::v1::generate::GenerateContentResponse;
 use potato_type::google::PredictResponse;
@@ -8,6 +7,7 @@ use potato_type::prompt::MessageNum;
 use potato_type::traits::ResponseAdapter;
 use potato_type::Provider;
 use potato_util::utils::TokenLogProbs;
+use potatohead_macro::dispatch_response_trait_method;
 use pyo3::prelude::*;
 use reqwest::header::HeaderMap;
 use reqwest::Client;

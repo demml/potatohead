@@ -108,7 +108,7 @@ pub enum ProviderError {
     EmbeddingNotSupported,
 
     #[error(transparent)]
-    MacroError(#[from] potato_macro::error::MacroError),
+    MacroError(#[from] potatohead_macro::error::MacroError),
 }
 
 impl<'a, 'py> From<pyo3::CastError<'a, 'py>> for ProviderError {

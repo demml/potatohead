@@ -10,7 +10,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-potato-macro = { workspace = true }
+potatohead-macro = { workspace = true }
 potato-state = { workspace = true }
 potato-type = { workspace = true }
 potato-util = { workspace = true }

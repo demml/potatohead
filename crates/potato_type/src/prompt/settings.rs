@@ -30,7 +30,7 @@ impl Default for ModelSettings {
 impl ModelSettings {
     #[new]
     pub fn new(settings: &Bound<'_, PyAny>) -> Result<Self, TypeError> {
-        potato_macro::try_extract_py_object!(
+        potatohead_macro::try_extract_py_object!(
             settings,
             OpenAIChatSettings => ModelSettings::OpenAIChat,
             GeminiSettings => ModelSettings::GoogleChat,

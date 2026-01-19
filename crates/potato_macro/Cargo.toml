@@ -1,5 +1,5 @@
 [package]
-name = "potato-macro"
+name = "potatohead-macro"
 version = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
@@ -9,7 +9,7 @@ description = "Macros for Potato"
 
 
 [lib]
-proc-macro = false  # This is NOT a proc-macro crate, just regular macros
+proc-macro = false  
 
 
 [dependencies]

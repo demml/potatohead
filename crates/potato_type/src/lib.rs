@@ -177,7 +177,7 @@ impl From<SaveName> for PathBuf {
 ///
 /// # Example
 /// ```rust
-/// use potato_macro::StructureOutput;
+/// use potatohead_macro::StructureOutput;
 /// use serde::{Serialize, Deserialize};
 /// use schemars::JsonSchema;
 ///

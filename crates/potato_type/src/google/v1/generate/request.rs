@@ -1160,7 +1160,7 @@ fn extract_data_from_py_object(data: &Bound<'_, PyAny>) -> Result<DataNum, TypeE
         return Ok(DataNum::Text(text));
     }
     // Use macro for all type extractions
-    potato_macro::try_extract_to_enum!(
+    potatohead_macro::try_extract_to_enum!(
         data,
         Blob => DataNum::InlineData,
         FileData => DataNum::FileData,

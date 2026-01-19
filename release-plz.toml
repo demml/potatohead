@@ -18,7 +18,7 @@ name = "potato-head"
 publish = true
 
 [[package]]
-name = "potato-macro"
+name = "potatohead-macro"
 publish = true
 
 [[package]]

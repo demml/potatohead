@@ -1376,23 +1376,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "potato-macro"
-version = "0.10.0"
-dependencies = [
- "thiserror 2.0.17",
-]
-
-[[package]]
 name = "potato-provider"
 version = "0.10.0"
 dependencies = [
  "base64",
  "gcloud-auth",
  "http",
- "potato-macro",
  "potato-state",
  "potato-type",
  "potato-util",
+ "potatohead-macro",
  "pyo3",
  "reqwest",
  "serde",
@@ -1416,8 +1409,8 @@ dependencies = [
 name = "potato-type"
 version = "0.10.0"
 dependencies = [
- "potato-macro",
  "potato-util",
+ "potatohead-macro",
  "pyo3",
  "pythonize",
  "regex",
@@ -1460,6 +1453,13 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "potatohead-macro"
+version = "0.10.0"
+dependencies = [
+ "thiserror 2.0.17",
 ]
 
 [[package]]
