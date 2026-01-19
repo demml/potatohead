@@ -46,7 +46,7 @@ impl ApiConfigExt for GeminiApiConfig {
         match auth {
             GoogleAuth::ApiKey(api_key) => Ok(req.header("x-goog-api-key", api_key)),
             GoogleAuth::GoogleCredentials(token) => {
-                // we uses req.header instead of req.bearer_auth because get_access_token
+                // we use req.header instead of req.bearer_auth because get_access_token
                 // already returns the token with the "Bearer " prefix
                 let token = token.get_access_token().await?;
                 let mut auth_value = HeaderValue::from_str(&token)?;

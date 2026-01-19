@@ -250,18 +250,16 @@ impl Workflow {
             .get_task(task)
             .ok_or_else(|| WorkflowError::TaskNotFound(task.to_string()))?;
 
-        let agent_id = {
-            let task_guard = &task.read().map_err(|_| WorkflowError::TaskLockError)?;
-            task_guard.agent_id.clone()
+        let agent = {
+            let task_guard = task.read().map_err(|_| WorkflowError::TaskLockError)?;
+            self.agents
+                .get(&task_guard.agent_id)
+                .ok_or_else(|| WorkflowError::AgentNotFound(task_guard.agent_id.clone()))?
+                .clone()
         };
 
-        let agent = self
-            .agents
-            .get(&agent_id)
-            .ok_or_else(|| WorkflowError::AgentNotFound(agent_id))?;
-
         let max_retries = {
-            let task_guard = &task.read().map_err(|_| WorkflowError::TaskLockError)?;
+            let task_guard = task.read().map_err(|_| WorkflowError::TaskLockError)?;
             task_guard.retry_count
         };
 
@@ -271,61 +269,64 @@ impl Workflow {
                     let is_valid = validate_response_schema(&task, &response);
 
                     if !is_valid {
-                        error!(
-                            "Task {} response validation against JSON schema failed",
-                            task.read().unwrap().id
-                        );
-                        // Continue to retry if validation fails
                         if attempt == max_retries {
-                            let task_id = task.read().unwrap().id.clone();
-                            let expected_schema = task
-                                .read()
-                                .unwrap()
-                                .prompt
-                                .response_json_schema()
-                                .map(|s| s.to_string())
-                                .unwrap_or_else(|| "No schema".to_string());
-                            let received_response = response
-                                .response_value()
-                                .map(|v| v.to_string())
-                                .unwrap_or_else(|| "No response".to_string());
+                            let (task_id, expected_schema, received_response) = {
+                                let task_guard = task.read().unwrap();
+                                (
+                                    task_guard.id.clone(),
+                                    task_guard
+                                        .prompt
+                                        .response_json_schema()
+                                        .map(|s| s.to_string())
+                                        .unwrap_or_else(|| "No schema".to_string()),
+                                    response
+                                        .response_value()
+                                        .map(|v| v.to_string())
+                                        .unwrap_or_else(|| "No response".to_string()),
+                                )
+                            };
+
+                            error!(
+                                "Task {} response validation failed after {} attempts",
+                                task_id,
+                                max_retries + 1
+                            );
+
                             return Err(WorkflowError::ResponseValidationFailed {
                                 task_id,
                                 expected_schema,
                                 received_response,
                             });
-                        } else {
-                            continue;
                         }
+                        warn!(
+                            "Task validation failed (attempt {}/{}), retrying...",
+                            attempt + 1,
+                            max_retries + 1
+                        );
+                        continue;
                     }
 
-                    let response_value = response.response_value().unwrap_or(Value::Null);
-                    return Ok(response_value);
+                    return Ok(response.response_value().unwrap_or(Value::Null));
                 }
                 Err(e) => {
+                    let task_id = { task.read().unwrap().id.clone() };
                     warn!(
                         "Task {} execution failed (attempt {}/{}): {}",
-                        task.read().unwrap().id,
+                        task_id,
                         attempt + 1,
                         max_retries + 1,
                         e
                     );
 
                     if attempt == max_retries {
-                        error!(
-                            "Task {} exceeded max retries ({})",
-                            task.read().unwrap().id,
-                            max_retries
-                        );
-                        return Err(WorkflowError::MaxRetriesExceeded(
-                            task.read().unwrap().id.clone(),
-                        ));
+                        error!("Task {} exceeded max retries ({})", task_id, max_retries);
+                        return Err(WorkflowError::MaxRetriesExceeded(task_id));
                     }
                 }
             }
         }
 
-        unreachable!("Loop should always return via Ok or MaxRetriesExceeded error")
+        unreachable!("Loop should always return via Ok or error")
     }
 
     pub fn execution_plan(&self) -> Result<HashMap<i32, HashSet<String>>, WorkflowError> {

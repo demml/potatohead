@@ -292,22 +292,23 @@ impl Agent {
         Ok(AgentResponse::new(chat_response.id(), chat_response))
     }
 
+    /// Execute task with context without mutating the original task
+    /// This method is used by the workflow executor to run individual tasks with context
+    #[instrument(skip_all)]
     pub async fn execute_task_with_context(
         &self,
         task: &Arc<RwLock<Task>>,
         context: &Value,
     ) -> Result<AgentResponse, AgentError> {
-        // Prepare prompt and context before await
-        let (prompt, task_id) = {
-            let mut task = task.write().unwrap();
-            // 1. Bind parameters
-            self.bind_context(&mut task.prompt, context, &None)?;
-            // 2. Prepend agent system instructions (add to front)
-            self.prepend_system_instructions(&mut task.prompt);
+        // Clone prompt and task_id without holding lock across await
+        let (mut prompt, task_id) = {
+            let task = task.read().unwrap();
             (task.prompt.clone(), task.id.clone())
         };
 
-        // Now do the async work without holding the lock
+        self.bind_context(&mut prompt, context, &None)?;
+        self.prepend_system_instructions(&mut prompt);
+
         let chat_response = self.client.generate_content(&prompt).await?;
         Ok(AgentResponse::new(task_id, chat_response))
     }
