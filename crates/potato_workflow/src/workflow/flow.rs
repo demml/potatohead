@@ -255,7 +255,7 @@ impl Workflow {
             self.agents
                 .get(&task_guard.agent_id)
                 .ok_or_else(|| WorkflowError::AgentNotFound(task_guard.agent_id.clone()))?
-                .clone() // Clone agent arc if needed
+                .clone()
         };
 
         let max_retries = {
