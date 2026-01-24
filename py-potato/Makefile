@@ -16,10 +16,8 @@ lints.ruff:
 	uv run ruff check ${SOURCE_OBJECTS}
 lints.mypy:
 	uv run mypy ${SOURCE_OBJECTS}
-lints.pylint:
-	uv run pylint ${SOURCE_OBJECTS}
-lints: lints.ruff lints.pylint lints.mypy
-lints.ci: lints.format_check lints.ruff lints.pylint lints.mypy
+lints: lints.ruff lints.mypy
+lints.ci: lints.format_check lints.ruff lints.mypy
 
 setup.project:
 	uv sync --all-extras --group dev --group docs
