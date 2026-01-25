@@ -80,6 +80,7 @@ def test_prompt():
 def test_bind_prompt():
     prompt = Prompt(
         provider="gemini",
+        model="gemini-3.0-flash",
         messages=[
             "Hello ${variable1}",
             "This is ${variable2}",

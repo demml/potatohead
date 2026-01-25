@@ -30,8 +30,8 @@ def test_prompt():
         system_instructions="system_prompt",
     )
 
-    assert prompt.anthropic_message.text() == "My prompt"
-    assert prompt.system_instructions[0].text() == "system_prompt"
+    assert prompt.anthropic_message.text == "My prompt"
+    assert prompt.system_instructions[0].text == "system_prompt"
 
     # test string message
     prompt = Prompt(
