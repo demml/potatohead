@@ -79,7 +79,6 @@ def test_prompt():
 
 def test_bind_prompt():
     prompt = Prompt(
-        model="gemini-3.0-flash",
         provider="gemini",
         messages=[
             "Hello ${variable1}",
@@ -90,7 +89,8 @@ def test_bind_prompt():
     )
 
     bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
-    assert bound_prompt.messages[0].parts[0].data == "Hello world"
+    messages = bound_prompt.messages
+    assert messages[0].parts[0].data == "Hello world"
     assert bound_prompt.messages[1].parts[0].data == "This is Foo"
 
 

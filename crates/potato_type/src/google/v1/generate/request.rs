@@ -1382,6 +1382,7 @@ impl GeminiContent {
     }
 
     // helper method for returning firs text part content
+    #[getter]
     pub fn text(&self) -> String {
         self.parts
             .iter()

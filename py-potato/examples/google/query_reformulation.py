@@ -5,8 +5,13 @@
 # 2. Evaluates the quality of the reformulated query.
 # 3. Returns a score and reason for how well the reformulation improves the query.
 
-from potato_head import Agent, Prompt, Provider, Score, Task, Workflow
-from potato_head.google import GeminiSettings, GenerationConfig, GeminiThinkingConfig
+from potato_head import Agent, Prompt, Provider, Score, Task, Workflow, AgentResponse
+from potato_head.google import (
+    GeminiSettings,
+    GenerationConfig,
+    GeminiThinkingConfig,
+    GenerateContentResponse,
+)
 from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
 
 RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
@@ -112,7 +117,9 @@ if __name__ == "__main__":
 
     agent = Agent(Provider.Gemini)
     user_query = "How do I find good post-hardcore bands?"
-    response = agent.execute_prompt(prompt=prompt.bind(user_query=user_query))
+    response: AgentResponse[str, GenerateContentResponse] = agent.execute_prompt(
+        prompt=prompt.bind(user_query=user_query)
+    )
 
     workflow = create_workflow()
 
