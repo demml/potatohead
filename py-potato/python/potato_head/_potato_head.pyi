@@ -714,8 +714,9 @@ OutT = TypeVar(
     "OutT",
     default=str,
 )
+RespT = TypeVar("RespT", default=_ResponseType)
 
-class AgentResponse(Generic[OutT]):
+class AgentResponse(Generic[OutT, RespT]):
     """Agent response generic over OutputDataT.
 
     The structured_output property returns OutputDataT type.
@@ -731,7 +732,7 @@ class AgentResponse(Generic[OutT]):
         """The ID of the agent response."""
 
     @property
-    def response(self) -> _ResponseType:
+    def response(self) -> RespT:
         """The response of the agent."""
 
     @property
@@ -847,7 +848,7 @@ class Agent:
         self,
         task: Task,
         output_type: type[OutT] | None = None,
-    ) -> AgentResponse[OutT]:
+    ) -> AgentResponse[OutT, _ResponseType]:
         """Execute a task.
 
         Args:
@@ -857,15 +858,16 @@ class Agent:
                 The output type to use for the task.
 
         Returns:
-            AgentResponse[OutT]:
-                The response from the agent after executing the task.
+            AgentResponse[OutT, _ResponseType]:
+                The response from the agent. For type-safe response access,
+                annotate the return value with the specific response type.
         """
 
     def execute_prompt(
         self,
         prompt: Prompt,
         output_type: type[OutT] | None = None,
-    ) -> AgentResponse[OutT]:
+    ) -> AgentResponse[OutT, _ResponseType]:
         """Execute a prompt.
 
         Args:
@@ -875,8 +877,9 @@ class Agent:
                 The output type to use for the task.
 
         Returns:
-            AgentResponse:
-                The response from the agent after executing the task.
+            AgentResponse[OutT, _ResponseType]:
+                The response from the agent. For type-safe response access,
+                annotate the return value with the specific response type.
         """
 
     @property
@@ -2540,6 +2543,7 @@ class ChatMessage:
             TypeError: If content format is invalid
         """
 
+    @property
     def text(self) -> str:
         """Get the text content of the first part, if available. Returns
         an empty string if the first part is not text.
@@ -5322,6 +5326,7 @@ class GeminiContent:
                 Role of the message sender (e.g., "user", "model", "function")
         """
 
+    @property
     def text(self) -> str:
         """Get the text content of the first part, if available. Returns
         an empty string if the first part is not text.
@@ -8648,6 +8653,7 @@ class MessageParam:
                 Message role ("user" or "assistant")
         """
 
+    @property
     def text(self) -> str:
         """Get the text content of the first part, if available. Returns
         an empty string if the first part is not text.

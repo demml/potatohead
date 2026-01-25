@@ -328,6 +328,7 @@ impl ChatMessage {
     }
 
     // Return the text content from the first content part that is text
+    #[getter]
     pub fn text(&self) -> String {
         self.content
             .iter()

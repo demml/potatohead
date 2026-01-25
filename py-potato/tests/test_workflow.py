@@ -33,23 +33,23 @@ class Prompts:
 def test_simple_workflow(prompt_step1: Prompt):
     agent = PydanticAgent(
         prompt_step1.model_identifier,
-        system_prompt=prompt_step1.system_instructions[0].text(),
+        system_prompt=prompt_step1.system_instructions[0].text,
     )
 
     with agent.override(model=TestModel()):
-        agent.run_sync(prompt_step1.message.text())
+        agent.run_sync(prompt_step1.message.text)
 
 
 def test_simple_dep_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
     agent = PydanticAgent(
         prompt_step1.model_identifier,
-        system_prompt=prompt_step1.system_instructions[0].text(),
+        system_prompt=prompt_step1.system_instructions[0].text,
         deps_type=Prompts,
     )
 
     @agent.system_prompt
     def get_system_instruction(ctx: RunContext[Prompts]) -> str:
-        return ctx.deps.prompt_step1.system_instructions[0].text()
+        return ctx.deps.prompt_step1.system_instructions[0].text
 
     with agent.override(model=TestModel()):
         agent.run_sync(
@@ -64,7 +64,7 @@ def test_simple_dep_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
 def test_binding_workflow(prompt_step1: Prompt, prompt_step2: Prompt):
     agent = PydanticAgent(
         "openai:gpt-4o",
-        system_prompt=prompt_step1.system_instructions[0].text(),
+        system_prompt=prompt_step1.system_instructions[0].text,
         deps_type=Prompts,
     )
 

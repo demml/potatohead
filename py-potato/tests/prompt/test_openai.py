@@ -98,9 +98,11 @@ def test_bind_prompt():
         ],
         system_instructions="system_prompt",
     )
-    bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
-    assert bound_prompt.openai_messages[0].content[0].text == "Hello world"
-    assert bound_prompt.openai_messages[1].content[0].text == "This is Foo"
+    kwargs = {"variable1": "world", "variable2": "Foo"}
+    bound_prompt = prompt.bind(**kwargs)
+
+    assert bound_prompt.openai_messages[0].text == "Hello world"
+    assert bound_prompt.openai_messages[1].text == "This is Foo"
 
     # testing binding with kwargs
     bound_prompt = prompt.bind(variable1="world")

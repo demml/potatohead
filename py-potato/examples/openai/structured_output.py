@@ -35,7 +35,7 @@ prompt = Prompt(
 agent = Agent(Provider.OpenAI)
 
 if __name__ == "__main__":
-    result: StructuredTaskOutput = agent.execute_prompt(
+    result = agent.execute_prompt(
         prompt=prompt,
         output_type=StructuredTaskOutput,
     ).structured_output

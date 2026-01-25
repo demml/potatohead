@@ -30,8 +30,8 @@ def test_prompt():
         system_instructions="system_prompt",
     )
 
-    assert prompt.anthropic_message.text() == "My prompt"
-    assert prompt.system_instructions[0].text() == "system_prompt"
+    assert prompt.anthropic_message.text == "My prompt"
+    assert prompt.system_instructions[0].text == "system_prompt"
 
     # test string message
     prompt = Prompt(
@@ -76,8 +76,8 @@ def test_bind_prompt():
     )
 
     bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
-    assert bound_prompt.messages[0].content[0].text == "Hello world"
-    assert bound_prompt.messages[1].content[0].text == "This is Foo"
+    assert bound_prompt.messages[0].text == "Hello world"
+    assert bound_prompt.messages[1].text == "This is Foo"
 
 
 def test_prompt_structured_output():
