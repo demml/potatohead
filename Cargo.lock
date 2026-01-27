@@ -104,7 +104,7 @@ dependencies = [
 
 [[package]]
 name = "baked-potato"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "mockito",
  "potato-agent",
@@ -1343,7 +1343,7 @@ checksum = "f89776e4d69bb58bc6993e99ffa1d11f228b839984854c7daeb5d37f87cbe950"
 
 [[package]]
 name = "potato-agent"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "base64",
  "gcloud-auth",
@@ -1365,7 +1365,7 @@ dependencies = [
 
 [[package]]
 name = "potato-head"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "baked-potato",
  "potato-agent",
@@ -1377,7 +1377,7 @@ dependencies = [
 
 [[package]]
 name = "potato-provider"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "base64",
  "gcloud-auth",
@@ -1398,7 +1398,7 @@ dependencies = [
 
 [[package]]
 name = "potato-state"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "thiserror 2.0.17",
  "tokio",
@@ -1407,7 +1407,7 @@ dependencies = [
 
 [[package]]
 name = "potato-type"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "potato-util",
  "potatohead-macro",
@@ -1423,7 +1423,7 @@ dependencies = [
 
 [[package]]
 name = "potato-util"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "colored_json",
  "pyo3",
@@ -1438,7 +1438,7 @@ dependencies = [
 
 [[package]]
 name = "potato-workflow"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "chrono",
  "potato-agent",
@@ -1457,7 +1457,7 @@ dependencies = [
 
 [[package]]
 name = "potatohead-macro"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "thiserror 2.0.17",
 ]
@@ -1497,7 +1497,7 @@ dependencies = [
 
 [[package]]
 name = "py-potatohead"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "potato-head",
  "pyo3",
