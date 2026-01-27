@@ -2,7 +2,7 @@
 
 import datetime
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Optional, TypeAlias, Union, overload, Type
+from typing import Any, Dict, Generic, List, Optional, Type, TypeAlias, Union, overload
 
 from typing_extensions import TypeVar
 
@@ -226,9 +226,7 @@ class Prompt(Generic[OutputType]):
         model: str,
         provider: Provider | str,
         system_instructions: Optional[PromptMessage] = None,
-        model_settings: Optional[
-            ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings
-        ] = None,
+        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = None,
         output_type: Optional[Type[OutputType]] = None,
     ) -> None:
         """Initialize a Prompt object.
@@ -2559,9 +2557,7 @@ class ChatMessage:
     @property
     def content(
         self,
-    ) -> List[
-        Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]
-    ]:
+    ) -> List[Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]]:
         """The message content parts."""
 
     @property
