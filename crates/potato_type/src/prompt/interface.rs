@@ -146,8 +146,10 @@ pub struct Prompt {
     pub version: String,
 
     #[pyo3(get)]
+    #[serde(default)]
     pub parameters: Vec<String>,
 
+    #[serde(default)]
     pub response_type: ResponseType,
 }
 
@@ -257,11 +259,42 @@ impl Prompt {
 
     #[staticmethod]
     pub fn from_path(path: PathBuf) -> Result<Self, TypeError> {
-        // Load the JSON file from the path
-        let file = std::fs::read_to_string(&path)?;
+        let content = std::fs::read_to_string(&path)?;
 
-        // Parse the JSON file into a Prompt
-        Ok(serde_json::from_str(&file)?)
+        let extension = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .ok_or_else(|| TypeError::Error(format!("Invalid file path: {:?}", path)))?;
+
+        let mut prompt = match extension.to_lowercase().as_str() {
+            "json" => {
+                let json_value: Prompt = serde_json::from_str(&content)?;
+                Ok(json_value)
+            }
+            "yaml" | "yml" => {
+                let yaml_value: Prompt = serde_yaml::from_str(&content)?;
+                Ok(yaml_value)
+            }
+            _ => Err(TypeError::Error(format!(
+                "Unsupported file extension '{}'. Expected .json, .yaml, or .yml",
+                extension
+            ))),
+        }?;
+
+        if prompt.parameters.is_empty() {
+            // if paramters is empty, extract from messages
+            let system_instructions: Vec<MessageNum> = prompt
+                .request
+                .system_instructions()
+                .iter()
+                .map(|msg| (*msg).clone())
+                .collect();
+            let parameters =
+                Self::extract_variables(prompt.request.messages(), &system_instructions);
+            prompt.parameters = parameters;
+        }
+
+        Ok(prompt)
     }
 
     #[staticmethod]

@@ -1,0 +1,64 @@
+{
+  "request": {
+    "model": "gpt-4o",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Extract key information from this resume:\n\n${resume_text}"
+          }
+        ],
+        "name": null
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "ResumeExtraction",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string"
+            },
+            "phone": {
+              "type": "string"
+            },
+            "skills": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "experience_years": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "name",
+            "email",
+            "skills"
+          ],
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    "settings": {
+      "temperature": 0.0,
+      "max_tokens": 2048
+    }
+  },
+  "model": "gpt-4o",
+  "provider": "OpenAI",
+  "version": "0.1.0",
+  "parameters": [
+    "resume_text"
+  ],
+  "response_type": "Pydantic"
+}

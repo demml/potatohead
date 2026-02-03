@@ -1,0 +1,27 @@
+{
+  "request": {
+    "model": "claude-4.5-sonnet",
+    "messages": [
+      {
+        "content": [
+          {
+            "text": "Hello ${name}",
+            "type": "text"
+          }
+        ],
+        "role": "user"
+      }
+    ],
+    "system": [],
+    "settings": {
+      "max_tokens": 4096
+    }
+  },
+  "model": "claude-4.5-sonnet",
+  "provider": "Anthropic",
+  "version": "0.1.0",
+  "parameters": [
+    "name"
+  ],
+  "response_type": "Null"
+}

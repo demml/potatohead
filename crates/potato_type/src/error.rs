@@ -117,6 +117,9 @@ pub enum TypeError {
 
     #[error("Message is not an Anthropic MessageParam")]
     MessageIsNotAnthropicMessageParam,
+
+    #[error(transparent)]
+    SerdeYamlError(#[from] serde_yaml::Error),
 }
 
 impl From<TypeError> for PyErr {
