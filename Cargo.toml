@@ -9,22 +9,22 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.11.0"
+version = "0.12.0"
 authors = ["demml <support@demmlai.com>"]
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/demml/potatohead"
 
 [workspace.dependencies]
-baked-potato = { path = "crates/baked_potato", version = "0.11.0" }
-potato-agent = { path = "crates/potato_agent", version = "0.11.0" }
-potato-provider = { path = "crates/potato_provider", version = "0.11.0" }
-potatohead-macro = { path = "crates/potato_macro", version = "0.11.0" }
-potato-type = { path = "crates/potato_type", version = "0.11.0" }
-potato-workflow = { path = "crates/potato_workflow", version = "0.11.0" }
-potato-util = { path = "crates/potato_util", version = "0.11.0" }
-potato-head = { path = "crates/potato_head", version = "0.11.0" }
-potato-state = { path = "crates/potato_state", version = "0.11.0" }
+baked-potato = { path = "crates/baked_potato", version = "0.12.0" }
+potato-agent = { path = "crates/potato_agent", version = "0.12.0" }
+potato-provider = { path = "crates/potato_provider", version = "0.12.0" }
+potatohead-macro = { path = "crates/potato_macro", version = "0.12.0" }
+potato-type = { path = "crates/potato_type", version = "0.12.0" }
+potato-workflow = { path = "crates/potato_workflow", version = "0.12.0" }
+potato-util = { path = "crates/potato_util", version = "0.12.0" }
+potato-head = { path = "crates/potato_head", version = "0.12.0" }
+potato-state = { path = "crates/potato_state", version = "0.12.0" }
 
 anyhow = "1.0.93"
 base64 = "0.*"
