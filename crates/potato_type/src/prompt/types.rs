@@ -248,10 +248,11 @@ impl Score {
 impl StructuredOutput for Score {}
 
 #[pyclass]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum ResponseType {
     Score,
     Pydantic,
+    #[default]
     Null, // This is used when no response type is specified
 }
 

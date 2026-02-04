@@ -104,7 +104,7 @@ dependencies = [
 
 [[package]]
 name = "baked-potato"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "mockito",
  "potato-agent",
@@ -1343,7 +1343,7 @@ checksum = "f89776e4d69bb58bc6993e99ffa1d11f228b839984854c7daeb5d37f87cbe950"
 
 [[package]]
 name = "potato-agent"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "base64",
  "gcloud-auth",
@@ -1365,7 +1365,7 @@ dependencies = [
 
 [[package]]
 name = "potato-head"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "baked-potato",
  "potato-agent",
@@ -1377,7 +1377,7 @@ dependencies = [
 
 [[package]]
 name = "potato-provider"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "base64",
  "gcloud-auth",
@@ -1398,7 +1398,7 @@ dependencies = [
 
 [[package]]
 name = "potato-state"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "thiserror 2.0.17",
  "tokio",
@@ -1407,7 +1407,7 @@ dependencies = [
 
 [[package]]
 name = "potato-type"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "potato-util",
  "potatohead-macro",
@@ -1417,13 +1417,14 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "serde_yaml",
  "thiserror 2.0.17",
  "tracing",
 ]
 
 [[package]]
 name = "potato-util"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "colored_json",
  "pyo3",
@@ -1438,7 +1439,7 @@ dependencies = [
 
 [[package]]
 name = "potato-workflow"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "chrono",
  "potato-agent",
@@ -1457,7 +1458,7 @@ dependencies = [
 
 [[package]]
 name = "potatohead-macro"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "thiserror 2.0.17",
 ]
@@ -1497,7 +1498,7 @@ dependencies = [
 
 [[package]]
 name = "py-potatohead"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "potato-head",
  "pyo3",
@@ -2071,6 +2072,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_yaml"
+version = "0.9.34+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+dependencies = [
+ "indexmap",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
+]
+
+[[package]]
 name = "sharded-slab"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2527,6 +2541,12 @@ name = "unindent"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7264e107f553ccae879d21fbea1d6724ac785e8c3bfc762137959b5802826ef3"
+
+[[package]]
+name = "unsafe-libyaml"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "untrusted"

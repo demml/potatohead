@@ -59,7 +59,7 @@ impl Display for Common {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[pyclass]
+#[pyclass(eq, eq_int)]
 pub enum Provider {
     OpenAI,
     Gemini,
