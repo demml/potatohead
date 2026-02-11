@@ -1400,11 +1400,20 @@ impl GeminiContent {
 
 impl PromptMessageExt for GeminiContent {
     fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
-        let placeholder = format!("${{{name}}}");
+        let regex = get_var_regex();
 
         for part in &mut self.parts {
             if let DataNum::Text(text) = &mut part.data {
-                *text = text.replace(&placeholder, value);
+                *text = regex
+                    .replace_all(text, |caps: &regex::Captures| {
+                        if &caps[1] == name {
+                            value.to_string()
+                        } else {
+                            caps.get(0)
+                                .map_or_else(|| "".to_string(), |m| m.as_str().to_string())
+                        }
+                    })
+                    .to_string();
             }
         }
 

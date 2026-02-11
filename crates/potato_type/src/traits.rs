@@ -14,7 +14,7 @@ use std::sync::OnceLock;
 
 pub static VAR_REGEX: OnceLock<Regex> = OnceLock::new();
 pub fn get_var_regex() -> &'static Regex {
-    VAR_REGEX.get_or_init(|| Regex::new(r"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}").unwrap())
+    VAR_REGEX.get_or_init(|| Regex::new(r"\$?\{([a-zA-Z_][a-zA-Z0-9_]*)\}").unwrap())
 }
 use crate::prompt::builder::ProviderRequest;
 /// Core trait that all message types must implement
