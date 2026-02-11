@@ -22,3 +22,40 @@ def test_load_prompt_from_path():
     prompt_openai = Prompt.from_path(openai_file_path)
     assert prompt_openai.model == "gpt-4o"
     assert prompt_openai.provider == Provider.OpenAI
+
+
+def test_load_simple_gemini_prompt_from_path():
+    yaml_file_path = Path(__file__).parent / "assets" / "simple_gemini.yaml"
+    prompt = Prompt.from_path(yaml_file_path)
+
+    assert prompt.model == "gemini-2.5-flash"
+    assert prompt.provider == Provider.Google
+
+    messages = prompt.gemini_messages
+    assert messages[0].parts[0].data == "Hello ${variable1}"
+
+
+def test_load_simple_openai_prompt_from_path():
+    yaml_file_path = Path(__file__).parent / "assets" / "simple_openai.yaml"
+    prompt = Prompt.from_path(yaml_file_path)
+
+    assert prompt.model == "gpt-4"
+    assert prompt.provider == Provider.OpenAI
+
+    messages = prompt.openai_messages
+    assert messages[0].content[0].text == "Summarize this: ${text}"
+
+
+def test_load_simple_anthropic_prompt_from_path():
+    yaml_file_path = Path(__file__).parent / "assets" / "simple_anthropic.yaml"
+    prompt = Prompt.from_path(yaml_file_path)
+
+    assert prompt.model == "claude-3-5-sonnet-20241022"
+    assert prompt.provider == Provider.Anthropic
+
+    messages = prompt.anthropic_messages
+    assert messages[0].text == "Analyze this: ${content}"
+
+    system_instructions = prompt.system_instructions
+
+    assert system_instructions[0].text == "You are an expert analyst"
