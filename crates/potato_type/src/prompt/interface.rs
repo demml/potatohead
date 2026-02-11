@@ -202,7 +202,7 @@ fn extract_model_settings(model_settings: &Bound<'_, PyAny>) -> Result<ModelSett
 #[serde(untagged)]
 enum PromptFormat {
     Generic(GenericPromptConfig),
-    Full(PromptInternal),
+    Full(Box<PromptInternal>),
 }
 
 #[derive(Debug, Deserialize)]
