@@ -38,7 +38,7 @@ use std::path::PathBuf;
 ///     temperature: 0.7
 /// ```
 #[derive(Debug, Deserialize)]
-struct GenericPromptConfig {
+pub struct GenericPromptConfig {
     model: String,
     provider: String,
     messages: Vec<String>, // Required field - no default
@@ -576,7 +576,7 @@ impl Prompt {
 impl Prompt {
     /// Converts a generic prompt configuration to a Prompt instance.
     /// This handles the user-friendly YAML/JSON format parsing.
-    fn from_generic_config(config: GenericPromptConfig) -> Result<Self, TypeError> {
+    pub fn from_generic_config(config: GenericPromptConfig) -> Result<Self, TypeError> {
         // Validate that messages is not empty
         if config.messages.is_empty() {
             return Err(TypeError::Error(
