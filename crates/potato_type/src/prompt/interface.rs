@@ -157,7 +157,7 @@ pub fn extract_system_instructions(
 }
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct Prompt {
     pub request: ProviderRequest,
 
@@ -196,6 +196,47 @@ fn extract_model_settings(model_settings: &Bound<'_, PyAny>) -> Result<ModelSett
         SettingsType::ModelSettings => model_settings.extract::<ModelSettings>(),
     }
     .map_err(Into::into)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum PromptFormat {
+    Generic(GenericPromptConfig),
+    Full(PromptInternal),
+}
+
+#[derive(Debug, Deserialize)]
+struct PromptInternal {
+    request: ProviderRequest,
+    model: String,
+    provider: Provider,
+    version: String,
+    #[serde(default)]
+    parameters: Vec<String>,
+    #[serde(default)]
+    response_type: ResponseType,
+}
+
+impl<'de> Deserialize<'de> for Prompt {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let format = PromptFormat::deserialize(deserializer)?;
+
+        match format {
+            PromptFormat::Generic(config) => Self::from_generic_config(config)
+                .map_err(|e| serde::de::Error::custom(e.to_string())),
+            PromptFormat::Full(internal) => Ok(Prompt {
+                request: internal.request,
+                model: internal.model,
+                provider: internal.provider,
+                version: internal.version,
+                parameters: internal.parameters,
+                response_type: internal.response_type,
+            }),
+        }
+    }
 }
 
 #[pymethods]
@@ -290,21 +331,9 @@ impl Prompt {
             .and_then(|ext| ext.to_str())
             .ok_or_else(|| TypeError::Error(format!("Invalid file path: {:?}", path)))?;
 
-        let mut prompt = match extension.to_lowercase().as_str() {
-            "json" => {
-                if let Ok(config) = serde_json::from_str::<GenericPromptConfig>(&content) {
-                    Self::from_generic_config(config)?
-                } else {
-                    serde_json::from_str(&content)?
-                }
-            }
-            "yaml" | "yml" => {
-                if let Ok(config) = serde_yaml::from_str::<GenericPromptConfig>(&content) {
-                    Self::from_generic_config(config)?
-                } else {
-                    serde_yaml::from_str(&content)?
-                }
-            }
+        let mut prompt: Prompt = match extension.to_lowercase().as_str() {
+            "json" => serde_json::from_str(&content)?,
+            "yaml" | "yml" => serde_yaml::from_str(&content)?,
             _ => {
                 return Err(TypeError::Error(format!(
                     "Unsupported file extension '{}'. Expected .json, .yaml, or .yml",
