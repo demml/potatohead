@@ -86,9 +86,7 @@ def test_bind_prompt():
             "This is ${variable2}",
         ],
         system_instructions="system_prompt",
-        model_settings=GeminiSettings(
-            generation_config=GenerationConfig(temperature=0.7)
-        ),
+        model_settings=GeminiSettings(generation_config=GenerationConfig(temperature=0.7)),
     )
 
     bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
@@ -106,9 +104,7 @@ def test_bind_prompt_brackets():
             "This is {variable2}",
         ],
         system_instructions="system_prompt",
-        model_settings=GeminiSettings(
-            generation_config=GenerationConfig(temperature=0.7)
-        ),
+        model_settings=GeminiSettings(generation_config=GenerationConfig(temperature=0.7)),
     )
 
     bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
