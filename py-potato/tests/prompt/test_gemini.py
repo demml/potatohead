@@ -86,7 +86,29 @@ def test_bind_prompt():
             "This is ${variable2}",
         ],
         system_instructions="system_prompt",
-        model_settings=GeminiSettings(generation_config=GenerationConfig(temperature=0.7)),
+        model_settings=GeminiSettings(
+            generation_config=GenerationConfig(temperature=0.7)
+        ),
+    )
+
+    bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
+    messages = bound_prompt.messages
+    assert messages[0].parts[0].data == "Hello world"
+    assert bound_prompt.messages[1].parts[0].data == "This is Foo"
+
+
+def test_bind_prompt_brackets():
+    prompt = Prompt(
+        provider="gemini",
+        model="gemini-3.0-flash",
+        messages=[
+            "Hello {variable1}",
+            "This is {variable2}",
+        ],
+        system_instructions="system_prompt",
+        model_settings=GeminiSettings(
+            generation_config=GenerationConfig(temperature=0.7)
+        ),
     )
 
     bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")

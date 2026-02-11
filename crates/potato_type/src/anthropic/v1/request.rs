@@ -1242,11 +1242,20 @@ impl MessageParam {
 
 impl PromptMessageExt for MessageParam {
     fn bind_mut(&mut self, name: &str, value: &str) -> Result<(), TypeError> {
-        let placeholder = format!("${{{}}}", name);
+        let regex = get_var_regex();
 
         for part in &mut self.content {
             if let ContentBlock::Text(text_part) = &mut part.inner {
-                text_part.text = text_part.text.replace(&placeholder, value);
+                text_part.text = regex
+                    .replace_all(&text_part.text, |caps: &regex::Captures| {
+                        if &caps[1] == name {
+                            value.to_string()
+                        } else {
+                            caps.get(0)
+                                .map_or_else(|| "".to_string(), |m| m.as_str().to_string())
+                        }
+                    })
+                    .to_string();
             }
         }
 
