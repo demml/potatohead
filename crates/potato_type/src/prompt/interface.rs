@@ -24,6 +24,30 @@ use serde_json::Value;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+/// Generic prompt configuration structure for user-friendly YAML/JSON format.
+/// This format allows users to write prompts in a more intuitive way:
+/// ```yaml
+/// model: gemini-1.5-pro
+/// provider: Google
+/// messages:
+///   - "Hello ${variable1}"
+///   - "This is ${variable2}"
+/// settings:
+///   generation_config:
+///     max_output_tokens: 1024
+///     temperature: 0.7
+/// ```
+#[derive(Debug, Deserialize)]
+struct GenericPromptConfig {
+    model: String,
+    provider: String,
+    messages: Vec<String>, // Required field - no default
+    #[serde(default)]
+    system_instructions: Option<Vec<String>>,
+    #[serde(default)]
+    settings: Option<Value>,
+}
+
 fn create_message_for_provider(
     content: String,
     provider: &Provider,
@@ -268,21 +292,28 @@ impl Prompt {
 
         let mut prompt = match extension.to_lowercase().as_str() {
             "json" => {
-                let json_value: Prompt = serde_json::from_str(&content)?;
-                Ok(json_value)
+                if let Ok(config) = serde_json::from_str::<GenericPromptConfig>(&content) {
+                    Self::from_generic_config(config)?
+                } else {
+                    serde_json::from_str(&content)?
+                }
             }
             "yaml" | "yml" => {
-                let yaml_value: Prompt = serde_yaml::from_str(&content)?;
-                Ok(yaml_value)
+                if let Ok(config) = serde_yaml::from_str::<GenericPromptConfig>(&content) {
+                    Self::from_generic_config(config)?
+                } else {
+                    serde_yaml::from_str(&content)?
+                }
             }
-            _ => Err(TypeError::Error(format!(
-                "Unsupported file extension '{}'. Expected .json, .yaml, or .yml",
-                extension
-            ))),
-        }?;
+            _ => {
+                return Err(TypeError::Error(format!(
+                    "Unsupported file extension '{}'. Expected .json, .yaml, or .yml",
+                    extension
+                )))
+            }
+        };
 
         if prompt.parameters.is_empty() {
-            // if paramters is empty, extract from messages
             let system_instructions: Vec<MessageNum> = prompt
                 .request
                 .system_instructions()
@@ -543,6 +574,79 @@ impl Prompt {
 }
 
 impl Prompt {
+    /// Converts a generic prompt configuration to a Prompt instance.
+    /// This handles the user-friendly YAML/JSON format parsing.
+    fn from_generic_config(config: GenericPromptConfig) -> Result<Self, TypeError> {
+        // Validate that messages is not empty
+        if config.messages.is_empty() {
+            return Err(TypeError::Error(
+                "Prompt has no messages. Generic prompt format requires at least one message."
+                    .to_string(),
+            ));
+        }
+
+        // Parse provider string to Provider enum
+        let provider = Provider::from_string(&config.provider)?;
+
+        // Convert message strings to MessageNum based on provider
+        let messages: Vec<MessageNum> = config
+            .messages
+            .into_iter()
+            .map(|msg| create_message_for_provider(msg, &provider, Role::User.as_str()))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Convert system instructions if present
+        let system_instructions = if let Some(sys_inst) = config.system_instructions {
+            sys_inst
+                .into_iter()
+                .map(|msg| create_message_for_provider(msg, &provider, get_system_role(&provider)))
+                .collect::<Result<Vec<_>, _>>()?
+        } else {
+            Vec::new()
+        };
+
+        // Convert settings to ModelSettings based on provider
+        let model_settings = if let Some(settings) = config.settings {
+            Some(Self::settings_from_value(settings, &provider)?)
+        } else {
+            None
+        };
+
+        // Create the prompt using new_rs
+        Self::new_rs(
+            messages,
+            &config.model,
+            provider,
+            system_instructions,
+            model_settings,
+            None,
+            ResponseType::Null,
+        )
+    }
+
+    /// Converts a JSON Value to ModelSettings based on the provider.
+    /// This handles the provider-specific settings structure from generic configs.
+    fn settings_from_value(value: Value, provider: &Provider) -> Result<ModelSettings, TypeError> {
+        match provider {
+            Provider::OpenAI => {
+                let settings: OpenAIChatSettings = serde_json::from_value(value)?;
+                Ok(ModelSettings::OpenAIChat(settings))
+            }
+            Provider::Anthropic => {
+                let settings: AnthropicSettings = serde_json::from_value(value)?;
+                Ok(ModelSettings::AnthropicChat(settings))
+            }
+            Provider::Gemini | Provider::Google | Provider::Vertex => {
+                let settings: GeminiSettings = serde_json::from_value(value)?;
+                Ok(ModelSettings::GoogleChat(settings))
+            }
+            _ => Err(TypeError::Error(format!(
+                "Settings not supported for provider: {:?}",
+                provider
+            ))),
+        }
+    }
+
     pub fn response_json_schema(&self) -> Option<&Value> {
         self.request.response_json_schema()
     }

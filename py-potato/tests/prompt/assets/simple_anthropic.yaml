@@ -1,0 +1,9 @@
+model: claude-3-5-sonnet-20241022
+provider: Anthropic
+messages:
+  - "Analyze this: ${content}"
+system_instructions:
+  - "You are an expert analyst"
+settings:
+  max_tokens: 4096
+  temperature: 1.0
