@@ -445,6 +445,8 @@ impl LLMTestServer {
             std::env::remove_var("OPENAI_API_KEY");
             std::env::remove_var("GEMINI_API_KEY");
             std::env::remove_var("GEMINI_API_URL");
+            std::env::remove_var("GOOGLE_API_KEY");
+            std::env::remove_var("GOOGLE_API_URL");
             std::env::remove_var("ANTHROPIC_API_KEY");
             std::env::remove_var("ANTHROPIC_API_URL");
         }
@@ -456,6 +458,7 @@ impl LLMTestServer {
             std::env::set_var("APP_ENV", "dev_client");
             std::env::set_var("OPENAI_API_KEY", "test_key");
             std::env::set_var("GEMINI_API_KEY", "gemini");
+            std::env::set_var("GOOGLE_API_KEY", "google");
             std::env::set_var("ANTHROPIC_API_KEY", "anthropic_key");
             std::env::set_var(
                 "OPENAI_API_URL",
@@ -463,6 +466,10 @@ impl LLMTestServer {
             );
             std::env::set_var(
                 "GEMINI_API_URL",
+                self.openai_server.as_ref().unwrap().url.clone(),
+            );
+            std::env::set_var(
+                "GOOGLE_API_URL",
                 self.openai_server.as_ref().unwrap().url.clone(),
             );
             std::env::set_var(
@@ -500,6 +507,8 @@ impl LLMTestServer {
         std::env::remove_var("OPENAI_API_KEY");
         std::env::remove_var("GEMINI_API_KEY");
         std::env::remove_var("GEMINI_API_URL");
+        std::env::remove_var("GOOGLE_API_KEY");
+        std::env::remove_var("GOOGLE_API_URL");
         std::env::remove_var("ANTHROPIC_API_KEY");
         std::env::remove_var("ANTHROPIC_API_URL");
         Ok(())
