@@ -19,10 +19,29 @@ use potatohead_macro::try_extract_message;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
 use pythonize::pythonize;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::path::PathBuf;
+
+/// Deserializes `messages` from either a single string or a list of strings.
+/// This allows YAML block scalars (`|`) to be used for multi-line prompts.
+fn deserialize_string_or_vec<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrVec {
+        Single(String),
+        List(Vec<String>),
+    }
+
+    match StringOrVec::deserialize(deserializer)? {
+        StringOrVec::Single(s) => Ok(vec![s]),
+        StringOrVec::List(v) => Ok(v),
+    }
+}
 
 /// Generic prompt configuration structure for user-friendly YAML/JSON format.
 /// This format allows users to write prompts in a more intuitive way:
@@ -37,15 +56,18 @@ use std::path::PathBuf;
 ///     max_output_tokens: 1024
 ///     temperature: 0.7
 /// ```
+/// `messages` also accepts a single block-scalar string (YAML `|`).
 #[derive(Debug, Deserialize)]
 pub struct GenericPromptConfig {
     model: String,
     provider: String,
-    messages: Vec<String>, // Required field - no default
+    #[serde(deserialize_with = "deserialize_string_or_vec")]
+    messages: Vec<String>,
     #[serde(default)]
     system_instructions: Option<Vec<String>>,
     #[serde(default)]
     settings: Option<Value>,
+    response_format: Option<Value>,
 }
 
 fn create_message_for_provider(
@@ -648,7 +670,7 @@ impl Prompt {
             provider,
             system_instructions,
             model_settings,
-            None,
+            config.response_format,
             ResponseType::Null,
         )
     }

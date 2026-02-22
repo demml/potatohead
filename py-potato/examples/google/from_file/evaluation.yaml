@@ -1,0 +1,39 @@
+model: gemini-2.5-flash
+provider: Gemini
+messages: |
+  You are an expert evaluator of search query reformulations.
+  Given the original user query and its reformulated version, your task is to assess how well the reformulation improves the query.
+  Consider the following criteria:
+  - Does the reformulation make the query more explicit and comprehensive?
+  - Are relevant synonyms, related concepts, or specific features added?
+  - Is the original intent preserved without changing the meaning?
+  - Is the reformulation clear and unambiguous?
+  Provide your evaluation as a JSON object with the following attributes:
+  - score: An integer from 1 (poor) to 5 (excellent) indicating the overall quality of the reformulation.
+  - reason: A brief explanation for your score.
+    Format your response as:
+    {
+      "score": <integer 1-5>,
+      "reason": <your explanation>
+    }
+  Original Query:
+    {user_query}
+  Reformulated Query:
+    {reformulated_query}
+  Evaluation:
+settings:
+  generation_config:
+    thinking_config:
+      thinking_budget: 0
+response_format:
+  title: EvaluationResponse
+  type: object
+  properties:
+    score:
+      type: integer
+      minimum: 1
+      maximum: 5
+    reason:
+      type: string
+  required: ["score", "reason"]
+  additionalProperties: false

@@ -107,6 +107,17 @@ impl PyAgentResponse {
     pub fn response_text(&self) -> String {
         self.inner.response_text()
     }
+
+    #[classmethod]
+    pub fn __class_getitem__<'a>(
+        cls: Bound<'a, pyo3::types::PyType>,
+        item: &'a Bound<'a, PyAny>,
+    ) -> PyResult<Bound<'a, PyAny>> {
+        let py = cls.py();
+        let types = py.import("types")?;
+        let generic_alias = types.getattr("GenericAlias")?;
+        generic_alias.call1((cls, item))
+    }
 }
 
 impl PyAgentResponse {

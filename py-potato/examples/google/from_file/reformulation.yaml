@@ -1,0 +1,31 @@
+model: gemini-2.5-flash
+provider: Gemini
+messages: |
+  ou are an expert at query reformulation. Your task is to take a user's original search query:
+  and rewrite it to be more feature-rich and keyword-dense, so it better aligns with the user's intent
+  and improves search results.
+  Guidelines:
+    - Expand abbreviations and clarify ambiguous terms.
+    - Add relevant synonyms, related concepts, and specific features.
+    - Preserve the original intent, but make the query more explicit and comprehensive.
+    - Do not change the meaning of the query.
+    - Return only the reformulated query.
+  User Query:
+    {user_query}
+  Reformulated Query:
+settings:
+  generation_config:
+    thinking_config:
+      thinking_budget: 0
+response_format:
+  title: EvaluationResponse
+  type: object
+  properties:
+    score:
+      type: integer
+      minimum: 1
+      maximum: 5
+    reason:
+      type: string
+  required: ["score", "reason"]
+  additionalProperties: false
