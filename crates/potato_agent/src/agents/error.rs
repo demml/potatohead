@@ -47,7 +47,7 @@ pub enum AgentError {
     #[error(transparent)]
     ProviderError(#[from] potato_provider::error::ProviderError),
 
-    #[error("No provider specified in Agent")]
+    #[error("No provider specified for Agent")]
     MissingProviderError,
 
     #[error(transparent)]
