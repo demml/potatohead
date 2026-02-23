@@ -21,7 +21,7 @@ use pyo3::types::{PyDict, PyList, PyString, PyTuple};
 use pythonize::pythonize;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 /// Deserializes `messages` from either a single string or a list of strings.
@@ -761,7 +761,7 @@ impl Prompt {
         messages: &[MessageNum],
         system_instructions: &[MessageNum],
     ) -> Vec<String> {
-        let mut variables = HashSet::new();
+        let mut variables = BTreeSet::new();
 
         // Extract from system instructions
         for msg in system_instructions {
