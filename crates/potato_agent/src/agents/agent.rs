@@ -53,6 +53,12 @@ impl Agent {
             Provider::Vertex => {
                 GenAiClient::Vertex(VertexClient::new(ServiceType::Generate).await?)
             }
+            Provider::Anthropic => {
+                GenAiClient::Anthropic(AnthropicClient::new(ServiceType::Generate)?)
+            }
+            Provider::Google => {
+                GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
+            }
             _ => {
                 return Err(AgentError::MissingProviderError);
             } // Add other providers here as needed
@@ -81,6 +87,9 @@ impl Agent {
             }
             Provider::Anthropic => {
                 GenAiClient::Anthropic(AnthropicClient::new(ServiceType::Generate)?)
+            }
+            Provider::Google => {
+                GenAiClient::Gemini(GeminiClient::new(ServiceType::Generate).await?)
             }
             _ => {
                 return Err(AgentError::MissingProviderError);
