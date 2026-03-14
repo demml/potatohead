@@ -160,6 +160,21 @@ fn get_system_role(provider: &Provider) -> &'static str {
     }
 }
 
+/// Create a single system `MessageNum` for the given provider from a plain Rust string.
+/// Useful for `AgentBuilder::system_prompt()` which runs in pure-Rust (no Python context).
+pub fn create_system_message_for_provider(
+    content: String,
+    provider: &Provider,
+) -> Result<MessageNum, TypeError> {
+    let role = get_system_role(provider);
+    let mut msg = create_message_for_provider(content, provider, role)?;
+    // Anthropic system messages must be TextBlockParam
+    if provider == &Provider::Anthropic {
+        msg.anthropic_message_to_system_message()?;
+    }
+    Ok(msg)
+}
+
 /// Helper for extracting system instructions from optional parameter
 pub fn extract_system_instructions(
     system_instruction: Option<&Bound<'_, PyAny>>,

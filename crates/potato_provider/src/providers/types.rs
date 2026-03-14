@@ -185,4 +185,9 @@ impl ChatResponse {
     pub fn response_text(&self) -> String {
         dispatch_response_trait_method!(self, ResponseAdapter, response_text())
     }
+
+    /// Extracts tool calls from the response, if any.
+    pub fn extract_tool_calls(&self) -> Option<Vec<potato_type::tools::ToolCall>> {
+        dispatch_response_trait_method!(self, ResponseAdapter, extract_tool_calls())
+    }
 }

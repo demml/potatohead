@@ -46,6 +46,15 @@ pub const ANTHROPIC_MESSAGE_STRUCTURED_RESPONSE: &str =
 pub const ANTHROPIC_MESSAGE_STRUCTURED_TASK_OUTPUT: &str =
     include_str!("assets/anthropic/message_structured_completion_tasks.json");
 
+pub const OPENAI_CHAT_TOOL_CALL_RESPONSE: &str =
+    include_str!("assets/openai/chat_completion_tool_call.json");
+
+pub const GEMINI_CHAT_TOOL_CALL_RESPONSE: &str =
+    include_str!("assets/gemini/chat_completion_tool_call.json");
+
+pub const ANTHROPIC_MESSAGE_TOOL_USE_RESPONSE: &str =
+    include_str!("assets/anthropic/message_tool_use.json");
+
 fn randomize_openai_embedding_response(
     response: OpenAIEmbeddingResponse,
 ) -> OpenAIEmbeddingResponse {
@@ -406,6 +415,55 @@ impl LLMApiMock {
     }
 }
 
+impl LLMApiMock {
+    /// Register tool-call response mocks for all three providers.
+    ///
+    /// Mockito's last-registered-wins matching ensures the tool-call mock fires first
+    /// (one shot via `.expect(1)`), then subsequent requests fall through to the
+    /// existing text-response mock.
+    pub fn enable_tool_call_flow(&mut self) {
+        let openai_tool_response: OpenAIChatResponse =
+            serde_json::from_str(OPENAI_CHAT_TOOL_CALL_RESPONSE).unwrap();
+        let gemini_tool_response: GenerateContentResponse =
+            serde_json::from_str(GEMINI_CHAT_TOOL_CALL_RESPONSE).unwrap();
+        let anthropic_tool_response: AnthropicMessageResponse =
+            serde_json::from_str(ANTHROPIC_MESSAGE_TOOL_USE_RESPONSE).unwrap();
+
+        // OpenAI tool call mock — fires once then falls through to the text response mock
+        self.server
+            .mock("POST", "/chat/completions")
+            .expect(1)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&openai_tool_response).unwrap())
+            .create();
+
+        // Gemini tool call mock — fires once
+        self.server
+            .mock(
+                "POST",
+                mockito::Matcher::Regex(r".*/.*:generateContent$".to_string()),
+            )
+            .match_header("x-goog-api-key", mockito::Matcher::Any)
+            .match_header("content-type", "application/json")
+            .expect(1)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&gemini_tool_response).unwrap())
+            .create();
+
+        // Anthropic tool use mock — fires once
+        self.server
+            .mock("POST", "/messages")
+            .match_header("content-type", "application/json")
+            .expect(1)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&anthropic_tool_response).unwrap())
+            .create();
+    }
+}
+
 impl Default for LLMApiMock {
     fn default() -> Self {
         Self::new()
@@ -512,6 +570,14 @@ impl LLMTestServer {
         std::env::remove_var("ANTHROPIC_API_KEY");
         std::env::remove_var("ANTHROPIC_API_URL");
         Ok(())
+    }
+
+    /// Enable tool call flow on the underlying mock server.
+    /// Must be called after `start_server()`.
+    pub fn enable_tool_call_flow(&mut self) {
+        if let Some(ref mut mock) = self.openai_server {
+            mock.enable_tool_call_flow();
+        }
     }
 
     fn cleanup(&self) -> Result<(), MockError> {

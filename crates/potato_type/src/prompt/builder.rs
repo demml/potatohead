@@ -6,7 +6,7 @@ use crate::openai::v1::chat::request::OpenAIChatCompletionRequestV1;
 use crate::openai::ChatMessage;
 use crate::prompt::types::MessageNum;
 use crate::prompt::ModelSettings;
-use crate::tools::AgentToolDefinition;
+use crate::tools::{AgentToolDefinition, ToolCall};
 use crate::traits::RequestAdapter;
 use crate::{Provider, TypeError};
 use potatohead_macro::dispatch_trait_method;
@@ -47,6 +47,8 @@ impl MessageNum {
             MessageNum::AnthropicMessageV1(_) => RequestType::AnthropicMessageV1,
             MessageNum::GeminiContentV1(_) => RequestType::GeminiContentV1,
             MessageNum::AnthropicSystemMessageV1(_) => RequestType::AnthropicMessageV1,
+            // RawV1 is a fallback — should not appear in initial messages list
+            MessageNum::RawV1(_) => RequestType::OpenAIChatV1,
         }
     }
 }
@@ -240,6 +242,86 @@ impl ProviderRequest {
 
     pub fn set_response_json_schema(&mut self, response_json_schema: Option<Value>) {
         dispatch_trait_method!(mut self, RequestAdapter, set_response_json_schema(response_json_schema))
+    }
+
+    /// Injects a tool result message into the conversation in the appropriate provider format.
+    ///
+    /// - OpenAI: Pushes a RawV1 message with role="tool" and tool_call_id
+    /// - Anthropic: Pushes a user MessageParam with a tool_result content block
+    /// - Gemini: Pushes a user GeminiContent with a functionResponse part
+    pub fn add_tool_result(
+        &mut self,
+        call: &ToolCall,
+        result: &serde_json::Value,
+    ) -> Result<(), TypeError> {
+        match self {
+            ProviderRequest::OpenAIV1(_) => {
+                let call_id = call
+                    .call_id
+                    .clone()
+                    .unwrap_or_else(|| "unknown".to_string());
+                let content = result.to_string();
+                let raw = serde_json::json!({
+                    "role": "tool",
+                    "tool_call_id": call_id,
+                    "content": content,
+                });
+                self.messages_mut().push(MessageNum::RawV1(raw));
+                Ok(())
+            }
+            ProviderRequest::AnthropicV1(_) => {
+                use crate::anthropic::v1::request::{
+                    ContentBlock, ContentBlockParam, TextBlockParam, ToolResultBlockParam,
+                    ToolResultContentEnum,
+                };
+                let tool_use_id = call
+                    .call_id
+                    .clone()
+                    .unwrap_or_else(|| call.tool_name.clone());
+                let result_text = result.to_string();
+                let text_block = TextBlockParam::new_rs(result_text, None, None);
+                let tool_result = ToolResultBlockParam {
+                    tool_use_id,
+                    is_error: None,
+                    cache_control: None,
+                    r#type: "tool_result".to_string(),
+                    content: Some(ToolResultContentEnum::Text(vec![text_block])),
+                };
+                let content_block = ContentBlockParam {
+                    inner: ContentBlock::ToolResult(tool_result),
+                };
+                let message = MessageParam {
+                    role: "user".to_string(),
+                    content: vec![content_block],
+                };
+                self.messages_mut()
+                    .push(MessageNum::AnthropicMessageV1(message));
+                Ok(())
+            }
+            ProviderRequest::GeminiV1(_) => {
+                use crate::google::v1::generate::request::{
+                    DataNum, FunctionResponse, GeminiContent, Part,
+                };
+                let name = call.tool_name.clone();
+                let mut response_map = std::collections::HashMap::new();
+                response_map.insert("output".to_string(), result.clone());
+                let func_response = FunctionResponse {
+                    name,
+                    response: response_map,
+                };
+                let part = Part {
+                    data: DataNum::FunctionResponse(func_response),
+                    ..Default::default()
+                };
+                let content = GeminiContent {
+                    role: "user".to_string(),
+                    parts: vec![part],
+                };
+                self.messages_mut()
+                    .push(MessageNum::GeminiContentV1(content));
+                Ok(())
+            }
+        }
     }
 }
 

@@ -56,11 +56,29 @@ pub enum AgentError {
     #[error(transparent)]
     StdIoError(#[from] std::io::Error),
 
+    #[error(transparent)]
+    StoreError(#[from] crate::agents::store::StoreError),
+
     #[error("Not supported: {0}")]
     NotSupportedError(String),
 
     #[error("Output validation error: {0}")]
     ValidationError(String),
+
+    #[error("Circular agent call detected: agent '{0}' is already in the call stack")]
+    CircularAgentCall(String),
+
+    #[error("Agent call disallowed by policy: agent '{0}'")]
+    DisallowedAgentCall(String),
+
+    #[error("Sub-agent calls are disallowed by policy")]
+    SubAgentCallsDisallowed,
+
+    #[error("Sub-agent needs user input: {0}")]
+    SubAgentNeedsInput(String),
+
+    #[error("Callback aborted run: {0}")]
+    CallbackAbort(String),
 }
 
 impl<'a, 'py> From<pyo3::CastError<'a, 'py>> for AgentError {

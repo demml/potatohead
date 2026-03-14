@@ -1,8 +1,19 @@
 use crate::agents::{
+    callbacks::{AgentCallback, CallbackAction},
+    criteria::CompletionCriteria,
     error::AgentError,
+    memory::{Memory, MemoryTurn},
+    run_context::{AgentRunConfig, AgentRunContext, ResumeContext},
+    runner::{AgentRunOutcome, AgentRunResult, AgentRunner},
+    session::{SessionSnapshot, SessionState},
+    store::{
+        app_state_store::AppStateStore, persistent_memory::PersistentMemory,
+        session_store::SessionStore, user_state_store::UserStateStore,
+    },
     task::Task,
     types::{AgentResponse, PyAgentResponse},
 };
+use async_trait::async_trait;
 use potato_provider::providers::anthropic::client::AnthropicClient;
 use potato_provider::providers::types::ServiceType;
 use potato_provider::GeminiClient;
@@ -30,14 +41,33 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use tracing::{debug, instrument, warn};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Agent {
     pub id: String,
     client: Arc<GenAiClient>,
     pub provider: Provider,
     pub system_instruction: Vec<MessageNum>,
-    pub tools: Arc<RwLock<ToolRegistry>>, // Add tool registry
+    pub tools: Arc<RwLock<ToolRegistry>>,
     pub max_iterations: u32,
+    // --- new agentic-loop fields ---
+    pub run_config: Option<AgentRunConfig>,
+    /// If set, overrides the model in any Prompt built by AgentBuilder::run().
+    pub model_override: Option<String>,
+    pub criteria: Vec<Box<dyn CompletionCriteria>>,
+    pub callbacks: Vec<Arc<dyn AgentCallback>>,
+    pub memory: Option<Arc<tokio::sync::Mutex<Box<dyn Memory>>>>,
+    /// Application name used for store scoping.
+    pub app_name: Option<String>,
+    /// User identifier used for store scoping.
+    pub user_id: Option<String>,
+    /// Session identifier used to key store lookups.
+    pub session_id: Option<String>,
+    /// Optional durable session state store.
+    pub session_store: Option<Arc<dyn SessionStore>>,
+    /// Optional per-user state store.
+    pub user_state_store: Option<Arc<dyn UserStateStore>>,
+    /// Optional app-level state store.
+    pub app_state_store: Option<Arc<dyn AppStateStore>>,
 }
 
 /// Rust method implementation of the Agent
@@ -71,6 +101,17 @@ impl Agent {
             provider: self.provider.clone(),
             tools: self.tools.clone(),
             max_iterations: self.max_iterations,
+            run_config: None,
+            model_override: None,
+            criteria: Vec::new(),
+            callbacks: Vec::new(),
+            memory: None,
+            app_name: None,
+            user_id: None,
+            session_id: None,
+            session_store: None,
+            user_state_store: None,
+            app_state_store: None,
         })
     }
     pub async fn new(
@@ -103,6 +144,17 @@ impl Agent {
             provider,
             tools: Arc::new(RwLock::new(ToolRegistry::new())),
             max_iterations: 10,
+            run_config: None,
+            model_override: None,
+            criteria: Vec::new(),
+            callbacks: Vec::new(),
+            memory: None,
+            app_name: None,
+            user_id: None,
+            session_id: None,
+            session_store: None,
+            user_state_store: None,
+            app_state_store: None,
         })
     }
 
@@ -349,6 +401,394 @@ impl Agent {
     pub fn client_provider(&self) -> &Provider {
         self.client.provider()
     }
+
+    // ── Agentic loop helper ─────────────────────────────────────────────────
+
+    /// Build a minimal one-turn Prompt from a plain input string.
+    fn build_input_prompt(&self, input: &str) -> Result<Prompt, AgentError> {
+        use potato_type::prompt::builder::to_provider_request;
+        use potato_type::prompt::settings::ModelSettings;
+        use potato_type::prompt::types::ResponseType;
+
+        let msg = {
+            use potato_type::traits::MessageFactory;
+            match self.provider {
+                Provider::OpenAI => {
+                    use potato_type::openai::v1::chat::request::ChatMessage;
+                    ChatMessage::from_text(input.to_string(), "user")
+                        .map(MessageNum::OpenAIMessageV1)?
+                }
+                Provider::Anthropic => {
+                    use potato_type::anthropic::v1::request::MessageParam;
+                    MessageParam::from_text(input.to_string(), "user")
+                        .map(MessageNum::AnthropicMessageV1)?
+                }
+                Provider::Gemini | Provider::Google | Provider::Vertex => {
+                    use potato_type::google::v1::generate::request::GeminiContent;
+                    GeminiContent::from_text(input.to_string(), "user")
+                        .map(MessageNum::GeminiContentV1)?
+                }
+                _ => {
+                    return Err(AgentError::MissingProviderError);
+                }
+            }
+        };
+
+        let model = self
+            .model_override
+            .clone()
+            .unwrap_or_else(|| "gpt-4o".to_string());
+
+        let settings = ModelSettings::provider_default_settings(&self.provider);
+
+        let request = to_provider_request(
+            vec![msg],
+            self.system_instruction.clone(),
+            model.clone(),
+            settings,
+            None,
+        )?;
+
+        Ok(Prompt {
+            request,
+            model,
+            provider: self.provider.clone(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            parameters: Vec::new(),
+            response_type: ResponseType::Null,
+        })
+    }
+
+    /// Fire `before_model_call` callbacks. Returns an error if any callback aborts.
+    fn fire_before_model(&self, ctx: &AgentRunContext, prompt: &Prompt) -> Result<(), AgentError> {
+        for cb in &self.callbacks {
+            if let CallbackAction::Abort(msg) = cb.before_model_call(ctx, prompt) {
+                return Err(AgentError::CallbackAbort(msg));
+            }
+        }
+        Ok(())
+    }
+
+    /// Fire `after_model_call` callbacks. Returns `Some(override_text)` or None.
+    fn fire_after_model(
+        &self,
+        ctx: &AgentRunContext,
+        response: &AgentResponse,
+    ) -> Result<Option<String>, AgentError> {
+        for cb in &self.callbacks {
+            match cb.after_model_call(ctx, response) {
+                CallbackAction::Abort(msg) => return Err(AgentError::CallbackAbort(msg)),
+                CallbackAction::OverrideResponse(text) => return Ok(Some(text)),
+                CallbackAction::Continue => {}
+            }
+        }
+        Ok(None)
+    }
+
+    /// Fire `before_tool_call` callbacks.
+    fn fire_before_tool(
+        &self,
+        ctx: &AgentRunContext,
+        call: &potato_type::tools::ToolCall,
+    ) -> Result<(), AgentError> {
+        for cb in &self.callbacks {
+            if let CallbackAction::Abort(msg) = cb.before_tool_call(ctx, call) {
+                return Err(AgentError::CallbackAbort(msg));
+            }
+        }
+        Ok(())
+    }
+
+    /// Fire `after_tool_call` callbacks.
+    fn fire_after_tool(
+        &self,
+        ctx: &AgentRunContext,
+        call: &potato_type::tools::ToolCall,
+        result: &serde_json::Value,
+    ) -> Result<(), AgentError> {
+        for cb in &self.callbacks {
+            if let CallbackAction::Abort(msg) = cb.after_tool_call(ctx, call, result) {
+                return Err(AgentError::CallbackAbort(msg));
+            }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl AgentRunner for Agent {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    async fn run(
+        &self,
+        input: &str,
+        session: &mut SessionState,
+    ) -> Result<AgentRunOutcome, AgentError> {
+        let max_iter = self
+            .run_config
+            .as_ref()
+            .map(|c| c.max_iterations)
+            .unwrap_or(self.max_iterations);
+
+        let mut run_ctx = AgentRunContext::new(self.id.clone(), max_iter);
+
+        let app = self.app_name.as_deref().unwrap_or("default");
+        let uid = self.user_id.as_deref().unwrap_or("default");
+
+        // Load session state from backing store if configured.
+        if let (Some(sid), Some(store)) = (&self.session_id, &self.session_store) {
+            if let Some(snapshot) = store.load(app, uid, sid).await? {
+                session.merge(snapshot.0);
+            }
+        }
+
+        // Load user-level state if configured.
+        if let Some(store) = &self.user_state_store {
+            if let Some(snapshot) = store.load(app, uid).await? {
+                session.merge(snapshot.0);
+            }
+        }
+
+        // Load app-level state if configured.
+        if let Some(store) = &self.app_state_store {
+            if let Some(snapshot) = store.load(app).await? {
+                session.merge(snapshot.0);
+            }
+        }
+
+        // Build the prompt from the input string
+        let mut prompt = self.build_input_prompt(input)?;
+
+        // Hydrate PersistentMemory from the backing store (lazy, idempotent).
+        if let Some(mem_lock) = &self.memory {
+            let mut mem = mem_lock.lock().await;
+            if let Some(pm) = mem
+                .as_any_mut()
+                .and_then(|a| a.downcast_mut::<PersistentMemory>())
+            {
+                pm.hydrate().await?;
+            }
+        }
+
+        // Inject memory history
+        if let Some(mem_lock) = &self.memory {
+            let mem = mem_lock.lock().await;
+            let history = mem.messages();
+            for msg in history {
+                prompt.request.insert_message(msg, Some(0));
+            }
+        }
+
+        // Attach tool definitions
+        {
+            let registry = self.tools.read().unwrap();
+            let defs = registry.get_all_definitions();
+            if !defs.is_empty() {
+                prompt.request.add_tools(defs)?;
+            }
+        }
+
+        let mut last_user_msg: Option<MessageNum> = None;
+        // Capture the user message for memory storage later
+        if let Some(msg) = prompt.request.messages().last().cloned() {
+            last_user_msg = Some(msg);
+        }
+
+        loop {
+            // Check max iterations
+            if run_ctx.iteration >= max_iter {
+                break;
+            }
+
+            // Before-model callbacks
+            self.fire_before_model(&run_ctx, &prompt)?;
+
+            // Call the LLM
+            let chat_response = self.client.generate_content(&prompt).await?;
+            let agent_response = AgentResponse::new(chat_response.id(), chat_response.clone());
+
+            // After-model callbacks
+            if let Some(_override_text) = self.fire_after_model(&run_ctx, &agent_response)? {
+                // Callback override — treat as final answer
+                run_ctx.push_response(_override_text);
+                break;
+            }
+
+            // Check for tool calls
+            if let Some(tool_calls) = chat_response.extract_tool_calls() {
+                // Append assistant message with tool calls to the prompt
+                let assistant_msgs = chat_response.to_message_num(&self.provider)?;
+                for msg in assistant_msgs {
+                    prompt.request.push_message(msg);
+                }
+
+                for call in &tool_calls {
+                    self.fire_before_tool(&run_ctx, call)?;
+
+                    // Try async tool first, then sync
+                    let result = {
+                        let async_tool = {
+                            let registry = self.tools.read().unwrap();
+                            registry.get_async_tool(&call.tool_name)
+                        };
+                        if let Some(tool) = async_tool {
+                            tool.execute(call.arguments.clone()).await.map_err(|e| {
+                                AgentError::Error(format!(
+                                    "Tool '{}' failed: {}",
+                                    call.tool_name, e
+                                ))
+                            })?
+                        } else {
+                            let registry = self.tools.read().unwrap();
+                            registry.execute(call).map_err(|e| {
+                                AgentError::Error(format!(
+                                    "Tool '{}' failed: {}",
+                                    call.tool_name, e
+                                ))
+                            })?
+                        }
+                    };
+
+                    self.fire_after_tool(&run_ctx, call, &result)?;
+                    prompt.request.add_tool_result(call, &result)?;
+                }
+
+                run_ctx.increment();
+                continue;
+            }
+
+            // No tool calls — this is a candidate final response
+            let text = chat_response.response_text();
+
+            // Check for ask_user tool pattern (special built-in)
+            if text.trim().starts_with("__ask_user__:") {
+                let question = text.trim_start_matches("__ask_user__:").trim().to_string();
+                let resume_ctx = ResumeContext {
+                    agent_id: self.id.clone(),
+                    iteration: run_ctx.iteration,
+                    session_snapshot: session.snapshot(),
+                };
+                return Ok(AgentRunOutcome::NeedsInput {
+                    question,
+                    resume_context: resume_ctx,
+                });
+            }
+
+            run_ctx.push_response(text);
+
+            // Check completion criteria (any = stop)
+            let met = self.criteria.iter().any(|c| c.is_complete(&run_ctx));
+            let reason = if met {
+                self.criteria
+                    .iter()
+                    .find(|c| c.is_complete(&run_ctx))
+                    .map(|c| c.completion_reason(&run_ctx))
+                    .unwrap_or_else(|| "criteria met".into())
+            } else {
+                String::new()
+            };
+
+            if met || run_ctx.iteration + 1 >= max_iter {
+                // Store memory turn
+                if let Some(mem_lock) = &self.memory {
+                    let mut mem = mem_lock.lock().await;
+                    if let Some(user_msg) = last_user_msg.take() {
+                        let assistant_msgs = chat_response.to_message_num(&self.provider)?;
+                        if let Some(asst_msg) = assistant_msgs.into_iter().next() {
+                            let turn = MemoryTurn {
+                                user: user_msg,
+                                assistant: asst_msg,
+                            };
+                            // Use write-through async path for PersistentMemory.
+                            if let Some(pm) = mem
+                                .as_any_mut()
+                                .and_then(|a| a.downcast_mut::<PersistentMemory>())
+                            {
+                                pm.push_turn_async(turn).await?;
+                            } else {
+                                mem.push_turn(turn);
+                            }
+                        }
+                    }
+                }
+
+                // Persist session state to backing store.
+                if let (Some(sid), Some(store)) = (&self.session_id, &self.session_store) {
+                    let snapshot = SessionSnapshot::from(&*session);
+                    store.save(app, uid, sid, &snapshot).await?;
+                }
+
+                return Ok(AgentRunOutcome::complete(AgentRunResult {
+                    final_response: agent_response,
+                    iterations: run_ctx.iteration,
+                    completion_reason: if met {
+                        reason
+                    } else {
+                        format!("max iterations ({}) reached", max_iter)
+                    },
+                }));
+            }
+
+            // Not complete yet — append assistant message and continue
+            let assistant_msgs = chat_response.to_message_num(&self.provider)?;
+            for msg in assistant_msgs {
+                prompt.request.push_message(msg);
+            }
+
+            run_ctx.increment();
+        }
+
+        // Fell out of the loop — final response is the last one we pushed
+        let chat_response = self.client.generate_content(&prompt).await?;
+        let agent_response = AgentResponse::new(chat_response.id(), chat_response);
+
+        Ok(AgentRunOutcome::complete(AgentRunResult {
+            final_response: agent_response,
+            iterations: run_ctx.iteration,
+            completion_reason: format!("max iterations ({}) reached", max_iter),
+        }))
+    }
+
+    async fn resume(
+        &self,
+        user_answer: &str,
+        ctx: ResumeContext,
+        session: &mut SessionState,
+    ) -> Result<AgentRunOutcome, AgentError> {
+        // Restore session from the snapshot in ResumeContext
+        session.merge(ctx.session_snapshot);
+        // Re-run with the user's answer as new input
+        self.run(user_answer, session).await
+    }
+}
+
+/// Manual Clone: clones the provider-level fields; criteria/callbacks/memory are NOT cloned.
+/// This preserves backward compatibility with the workflow layer which stores `Arc<Agent>`.
+impl Clone for Agent {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id.clone(),
+            client: self.client.clone(),
+            provider: self.provider.clone(),
+            system_instruction: self.system_instruction.clone(),
+            tools: self.tools.clone(),
+            max_iterations: self.max_iterations,
+            run_config: self.run_config.clone(),
+            model_override: self.model_override.clone(),
+            // Non-clonable fields — intentionally reset on clone
+            criteria: Vec::new(),
+            callbacks: Vec::new(),
+            memory: None,
+            app_name: None,
+            user_id: None,
+            session_id: None,
+            session_store: None,
+            user_state_store: None,
+            app_state_store: None,
+        }
+    }
 }
 
 impl PartialEq for Agent {
@@ -358,6 +798,7 @@ impl PartialEq for Agent {
             && self.system_instruction == other.system_instruction
             && self.max_iterations == other.max_iterations
             && self.client == other.client
+        // criteria / callbacks / memory intentionally excluded
     }
 }
 
@@ -434,6 +875,17 @@ impl<'de> Deserialize<'de> for Agent {
                     provider,
                     tools: Arc::new(RwLock::new(ToolRegistry::new())),
                     max_iterations: 10,
+                    run_config: None,
+                    model_override: None,
+                    criteria: Vec::new(),
+                    callbacks: Vec::new(),
+                    memory: None,
+                    app_name: None,
+                    user_id: None,
+                    session_id: None,
+                    session_store: None,
+                    user_state_store: None,
+                    app_state_store: None,
                 })
             }
         }
