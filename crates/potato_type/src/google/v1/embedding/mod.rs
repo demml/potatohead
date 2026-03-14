@@ -161,7 +161,7 @@ impl ResponseAdapter for PredictResponse {
         Some(&self.model)
     }
 
-    fn finished_reason(&self) -> Option<&str> {
+    fn finish_reason(&self) -> Option<&str> {
         None
     }
 

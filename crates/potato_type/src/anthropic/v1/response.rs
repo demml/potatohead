@@ -477,7 +477,7 @@ impl ResponseAdapter for AnthropicMessageResponse {
         Some(&self.model)
     }
 
-    fn finished_reason(&self) -> Option<&str> {
+    fn finish_reason(&self) -> Option<&str> {
         self.stop_reason.as_ref().map(|reason| match reason {
             StopReason::EndTurn => "end_turn",
             StopReason::MaxTokens => "max_tokens",

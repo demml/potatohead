@@ -355,7 +355,7 @@ impl ResponseAdapter for OpenAIChatResponse {
         Some(&self.model)
     }
 
-    fn finished_reason(&self) -> Option<&str> {
+    fn finish_reason(&self) -> Option<&str> {
         self.choices.first().map(|c| c.finish_reason.as_str())
     }
 

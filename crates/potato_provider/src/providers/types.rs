@@ -4,6 +4,7 @@ use potato_type::google::v1::generate::GenerateContentResponse;
 use potato_type::google::PredictResponse;
 use potato_type::openai::v1::OpenAIChatResponse;
 use potato_type::prompt::MessageNum;
+use potato_type::tools::ToolCallInfo;
 use potato_type::traits::ResponseAdapter;
 use potato_type::Provider;
 use potato_util::utils::TokenLogProbs;
@@ -213,5 +214,26 @@ impl ChatResponse {
         } else {
             Err(ProviderError::DeserializationError)
         }
+    }
+
+    pub fn model_name(&self) -> Option<String> {
+        dispatch_response_trait_method!(self, ResponseAdapter, model_name()).map(|s| s.to_string())
+    }
+    pub fn finish_reason_str(&self) -> Option<String> {
+        dispatch_response_trait_method!(self, ResponseAdapter, finish_reason())
+            .map(|s| s.to_string())
+    }
+    pub fn input_tokens(&self) -> Option<i64> {
+        dispatch_response_trait_method!(self, ResponseAdapter, input_tokens())
+    }
+    pub fn output_tokens(&self) -> Option<i64> {
+        dispatch_response_trait_method!(self, ResponseAdapter, output_tokens())
+    }
+    pub fn total_tokens(&self) -> Option<i64> {
+        dispatch_response_trait_method!(self, ResponseAdapter, total_tokens())
+    }
+
+    pub fn get_tool_calls(&self) -> Vec<ToolCallInfo> {
+        dispatch_response_trait_method!(self, ResponseAdapter, get_tool_calls())
     }
 }

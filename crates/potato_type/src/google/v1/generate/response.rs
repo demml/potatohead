@@ -680,7 +680,7 @@ impl ResponseAdapter for GenerateContentResponse {
         Some(&self.model_version.as_deref().unwrap_or(""))
     }
 
-    fn finished_reason(&self) -> Option<&str> {
+    fn finish_reason(&self) -> Option<&str> {
         self.candidates
             .first()
             .and_then(|candidate| candidate.finish_reason.as_ref())

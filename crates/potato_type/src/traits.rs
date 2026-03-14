@@ -144,7 +144,7 @@ pub trait ResponseAdapter {
 
     fn model_name(&self) -> Option<&str>;
 
-    fn finished_reason(&self) -> Option<&str>;
+    fn finish_reason(&self) -> Option<&str>;
 
     fn input_tokens(&self) -> Option<i64>;
 
