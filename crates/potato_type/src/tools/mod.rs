@@ -75,8 +75,8 @@ impl Default for ToolRegistry {
 }
 
 pub struct ToolCallInfo {
-    name: String,
-    arguments: serde_json::Value,
-    call_id: Option<String>,
-    result: Option<serde_json::Value>,
+    pub name: String,
+    pub arguments: serde_json::Value,
+    pub call_id: Option<String>,
+    pub result: Option<serde_json::Value>,
 }

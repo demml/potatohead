@@ -472,4 +472,44 @@ impl ResponseAdapter for AnthropicMessageResponse {
             _ => String::new(),
         }
     }
+
+    fn model_name(&self) -> Option<&str> {
+        Some(&self.model)
+    }
+
+    fn finished_reason(&self) -> Option<&str> {
+        self.stop_reason.as_ref().map(|reason| match reason {
+            StopReason::EndTurn => "end_turn",
+            StopReason::MaxTokens => "max_tokens",
+            StopReason::StopSequence => "stop_sequence",
+            StopReason::ToolUse => "tool_use",
+        })
+    }
+
+    fn input_tokens(&self) -> Option<i64> {
+        Some(self.usage.input_tokens as i64)
+    }
+
+    fn output_tokens(&self) -> Option<i64> {
+        Some(self.usage.output_tokens as i64)
+    }
+
+    fn total_tokens(&self) -> Option<i64> {
+        Some(self.usage.input_tokens as i64 + self.usage.output_tokens as i64)
+    }
+
+    fn get_tool_calls(&self) -> Vec<crate::tools::ToolCallInfo> {
+        let mut tool_calls = Vec::new();
+        for block in &self.content {
+            if let ResponseContentBlockInner::ToolUse(tool_use_block) = &block.inner {
+                tool_calls.push(crate::tools::ToolCallInfo {
+                    name: tool_use_block.name.clone(),
+                    arguments: tool_use_block.input.clone(),
+                    call_id: Some(tool_use_block.id.clone()),
+                    result: None,
+                });
+            }
+        }
+        tool_calls
+    }
 }
