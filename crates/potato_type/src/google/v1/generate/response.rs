@@ -10,6 +10,9 @@ use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::fmt;
+use std::fmt::Display;
+
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -365,6 +368,55 @@ pub enum FinishReason {
     NoImage,
 }
 
+impl Display for FinishReason {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let reason_str = match self {
+            FinishReason::FinishReasonUnspecified => "FINISH_REASON_UNSPECIFIED",
+            FinishReason::Stop => "STOP",
+            FinishReason::MaxTokens => "MAX_TOKENS",
+            FinishReason::Safety => "SAFETY",
+            FinishReason::Recitation => "RECITATION",
+            FinishReason::Other => "OTHER",
+            FinishReason::Blocklist => "BLOCKLIST",
+            FinishReason::ProhibitedContent => "PROHIBITED_CONTENT",
+            FinishReason::Spii => "SPII",
+            FinishReason::MalformedFunctionCall => "MALFORMED_FUNCTION_CALL",
+            FinishReason::ModelArmor => "MODEL_ARMOR",
+            FinishReason::ImageSafety => "IMAGE_SAFETY",
+            FinishReason::ImageProhibitedContent => "IMAGE_PROHIBITED_CONTENT",
+            FinishReason::ImageRecitation => "IMAGE_RECITATION",
+            FinishReason::ImageOther => "IMAGE_OTHER",
+            FinishReason::UnexpectedToolCall => "UNEXPECTED_TOOL_CALL",
+            FinishReason::NoImage => "NO_IMAGE",
+        };
+        write!(f, "{}", reason_str)
+    }
+}
+
+impl FinishReason {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::FinishReasonUnspecified => "FINISH_REASON_UNSPECIFIED",
+            Self::Stop => "STOP",
+            Self::MaxTokens => "MAX_TOKENS",
+            Self::Safety => "SAFETY",
+            Self::Recitation => "RECITATION",
+            Self::Other => "OTHER",
+            Self::Blocklist => "BLOCKLIST",
+            Self::ProhibitedContent => "PROHIBITED_CONTENT",
+            Self::Spii => "SPII",
+            Self::MalformedFunctionCall => "MALFORMED_FUNCTION_CALL",
+            Self::ModelArmor => "MODEL_ARMOR",
+            Self::ImageSafety => "IMAGE_SAFETY",
+            Self::ImageProhibitedContent => "IMAGE_PROHIBITED_CONTENT",
+            Self::ImageRecitation => "IMAGE_RECITATION",
+            Self::ImageOther => "IMAGE_OTHER",
+            Self::UnexpectedToolCall => "UNEXPECTED_TOOL_CALL",
+            Self::NoImage => "NO_IMAGE",
+        }
+    }
+}
+
 #[pyclass]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -622,5 +674,471 @@ impl ResponseAdapter for GenerateContentResponse {
             DataNum::Text(text) => text,
             _ => String::new(),
         }
+    }
+
+    fn model_name(&self) -> Option<&str> {
+        self.model_version.as_deref()
+    }
+
+    fn finish_reason(&self) -> Option<&str> {
+        self.candidates
+            .first()
+            .and_then(|candidate| candidate.finish_reason.as_ref())
+            .map(|reason| reason.as_str())
+    }
+
+    fn input_tokens(&self) -> Option<i64> {
+        Some(
+            self.usage_metadata
+                .as_ref()?
+                .prompt_token_count
+                .unwrap_or(0) as i64,
+        )
+    }
+
+    fn output_tokens(&self) -> Option<i64> {
+        Some(
+            self.usage_metadata
+                .as_ref()?
+                .candidates_token_count
+                .unwrap_or(0) as i64,
+        )
+    }
+
+    fn total_tokens(&self) -> Option<i64> {
+        Some(self.usage_metadata.as_ref()?.total_token_count.unwrap_or(0) as i64)
+    }
+
+    fn get_tool_calls(&self) -> Vec<crate::tools::ToolCallInfo> {
+        let mut tool_calls = Vec::new();
+        for candidate in &self.candidates {
+            for part in &candidate.content.parts {
+                if let DataNum::FunctionCall(call) = &part.data {
+                    tool_calls.push(crate::tools::ToolCallInfo {
+                        name: call.name.clone(),
+                        arguments: call
+                            .args
+                            .as_ref()
+                            .map(|a| serde_json::Value::Object(a.clone()))
+                            .unwrap_or_default(),
+                        call_id: call.id.clone(),
+                        result: None,
+                    });
+                }
+            }
+        }
+        tool_calls
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::google::v1::generate::request::{FunctionCall, Part};
+    use crate::traits::ResponseAdapter;
+    use serde_json::Map;
+
+    fn make_text_candidate(text: &str, finish: Option<FinishReason>) -> Candidate {
+        Candidate {
+            index: Some(0),
+            content: GeminiContent {
+                role: "model".to_string(),
+                parts: vec![Part::from_text(text.to_string())],
+            },
+            avg_logprobs: None,
+            logprobs_result: None,
+            finish_reason: finish,
+            safety_ratings: None,
+            citation_metadata: None,
+            grounding_metadata: None,
+            url_context_metadata: None,
+            finish_message: None,
+        }
+    }
+
+    fn make_text_response(text: &str) -> GenerateContentResponse {
+        GenerateContentResponse {
+            candidates: vec![make_text_candidate(text, Some(FinishReason::Stop))],
+            model_version: Some("gemini-2.0-flash".to_string()),
+            create_time: None,
+            response_id: Some("resp-123".to_string()),
+            prompt_feedback: None,
+            usage_metadata: Some(UsageMetadata {
+                prompt_token_count: Some(20),
+                candidates_token_count: Some(10),
+                tool_use_prompt_token_count: None,
+                thoughts_token_count: None,
+                total_token_count: Some(30),
+                cached_content_token_count: None,
+                prompt_tokens_details: None,
+                cache_tokens_details: None,
+                candidates_tokens_details: None,
+                tool_use_prompt_tokens_details: None,
+                traffic_type: None,
+            }),
+        }
+    }
+
+    fn make_function_call_response() -> GenerateContentResponse {
+        let mut args = Map::new();
+        args.insert("location".to_string(), serde_json::json!("NYC"));
+
+        let fc_part = Part {
+            data: DataNum::FunctionCall(FunctionCall {
+                name: "get_weather".to_string(),
+                id: Some("fc_01".to_string()),
+                args: Some(args),
+                will_continue: None,
+                partial_args: None,
+            }),
+            ..Default::default()
+        };
+
+        GenerateContentResponse {
+            candidates: vec![Candidate {
+                index: Some(0),
+                content: GeminiContent {
+                    role: "model".to_string(),
+                    parts: vec![fc_part],
+                },
+                avg_logprobs: None,
+                logprobs_result: None,
+                finish_reason: Some(FinishReason::Stop),
+                safety_ratings: None,
+                citation_metadata: None,
+                grounding_metadata: None,
+                url_context_metadata: None,
+                finish_message: None,
+            }],
+            model_version: Some("gemini-2.0-flash".to_string()),
+            create_time: None,
+            response_id: Some("resp-fc".to_string()),
+            prompt_feedback: None,
+            usage_metadata: Some(UsageMetadata {
+                prompt_token_count: Some(15),
+                candidates_token_count: Some(5),
+                tool_use_prompt_token_count: None,
+                thoughts_token_count: None,
+                total_token_count: Some(20),
+                cached_content_token_count: None,
+                prompt_tokens_details: None,
+                cache_tokens_details: None,
+                candidates_tokens_details: None,
+                tool_use_prompt_tokens_details: None,
+                traffic_type: None,
+            }),
+        }
+    }
+
+    fn make_empty_response() -> GenerateContentResponse {
+        GenerateContentResponse {
+            candidates: vec![],
+            model_version: Some("gemini-2.0-flash".to_string()),
+            create_time: None,
+            response_id: None,
+            prompt_feedback: None,
+            usage_metadata: None,
+        }
+    }
+
+    #[test]
+    fn test_id() {
+        assert_eq!(make_text_response("hi").id(), "resp-123");
+        assert_eq!(make_empty_response().id(), "");
+    }
+
+    #[test]
+    fn test_is_empty() {
+        assert!(!make_text_response("hi").is_empty());
+        assert!(make_empty_response().is_empty());
+    }
+
+    #[test]
+    fn test_response_text() {
+        assert_eq!(
+            make_text_response("hello world").response_text(),
+            "hello world"
+        );
+        assert_eq!(make_empty_response().response_text(), "");
+    }
+
+    #[test]
+    fn test_response_text_function_call() {
+        assert_eq!(make_function_call_response().response_text(), "");
+    }
+
+    #[test]
+    fn test_model_name() {
+        assert_eq!(
+            make_text_response("x").model_name(),
+            Some("gemini-2.0-flash")
+        );
+    }
+
+    #[test]
+    fn test_finish_reason() {
+        assert_eq!(make_text_response("x").finish_reason(), Some("STOP"));
+        assert_eq!(make_empty_response().finish_reason(), None);
+    }
+
+    #[test]
+    fn test_finish_reason_variants() {
+        let mut resp = make_text_response("x");
+        resp.candidates[0].finish_reason = Some(FinishReason::MaxTokens);
+        assert_eq!(resp.finish_reason(), Some("MAX_TOKENS"));
+        resp.candidates[0].finish_reason = Some(FinishReason::Safety);
+        assert_eq!(resp.finish_reason(), Some("SAFETY"));
+        resp.candidates[0].finish_reason = Some(FinishReason::MalformedFunctionCall);
+        assert_eq!(resp.finish_reason(), Some("MALFORMED_FUNCTION_CALL"));
+    }
+
+    #[test]
+    fn test_token_counts() {
+        let resp = make_text_response("x");
+        assert_eq!(resp.input_tokens(), Some(20));
+        assert_eq!(resp.output_tokens(), Some(10));
+        assert_eq!(resp.total_tokens(), Some(30));
+    }
+
+    #[test]
+    fn test_token_counts_no_metadata() {
+        let resp = make_empty_response();
+        assert_eq!(resp.input_tokens(), None);
+        assert_eq!(resp.output_tokens(), None);
+        assert_eq!(resp.total_tokens(), None);
+    }
+
+    #[test]
+    fn test_get_tool_calls() {
+        let calls = make_function_call_response().get_tool_calls();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "get_weather");
+        assert_eq!(calls[0].call_id, Some("fc_01".to_string()));
+        assert_eq!(calls[0].arguments, serde_json::json!({"location": "NYC"}));
+    }
+
+    #[test]
+    fn test_get_tool_calls_empty() {
+        assert!(make_text_response("hello").get_tool_calls().is_empty());
+        assert!(make_empty_response().get_tool_calls().is_empty());
+    }
+
+    #[test]
+    fn test_tool_call_output() {
+        let resp = make_function_call_response();
+        let output = resp.tool_call_output();
+        assert!(output.is_some());
+    }
+
+    #[test]
+    fn test_tool_call_output_none_for_text() {
+        assert!(make_text_response("hello").tool_call_output().is_none());
+    }
+
+    #[test]
+    fn test_structured_output_value_valid_json() {
+        let resp = make_text_response(r#"{"key":"value"}"#);
+        let val = resp.structured_output_value();
+        assert!(val.is_some());
+        assert_eq!(val.unwrap()["key"], "value");
+    }
+
+    #[test]
+    fn test_structured_output_value_plain_text() {
+        assert!(make_text_response("not json")
+            .structured_output_value()
+            .is_none());
+    }
+
+    #[test]
+    fn test_structured_output_value_empty() {
+        assert!(make_empty_response().structured_output_value().is_none());
+    }
+
+    #[test]
+    fn test_to_message_num() {
+        let resp = make_text_response("hello");
+        let msgs = resp.to_message_num().unwrap();
+        assert_eq!(msgs.len(), 1);
+    }
+
+    #[test]
+    fn test_to_message_num_empty() {
+        let resp = make_empty_response();
+        let msgs = resp.to_message_num().unwrap();
+        assert!(msgs.is_empty());
+    }
+
+    #[test]
+    fn test_get_log_probs_with_digits() {
+        let resp = GenerateContentResponse {
+            candidates: vec![Candidate {
+                index: Some(0),
+                content: GeminiContent {
+                    role: "model".to_string(),
+                    parts: vec![Part::from_text("text".to_string())],
+                },
+                avg_logprobs: None,
+                logprobs_result: Some(LogprobsResult {
+                    top_candidates: None,
+                    chosen_candidates: Some(vec![
+                        LogprobsCandidate {
+                            token: Some("4".to_string()),
+                            token_id: Some(1),
+                            log_probability: Some(-0.3),
+                        },
+                        LogprobsCandidate {
+                            token: Some("hello".to_string()),
+                            token_id: Some(2),
+                            log_probability: Some(-1.5),
+                        },
+                    ]),
+                }),
+                finish_reason: Some(FinishReason::Stop),
+                safety_ratings: None,
+                citation_metadata: None,
+                grounding_metadata: None,
+                url_context_metadata: None,
+                finish_message: None,
+            }],
+            model_version: None,
+            create_time: None,
+            response_id: None,
+            prompt_feedback: None,
+            usage_metadata: None,
+        };
+        let probs = resp.get_log_probs();
+        assert_eq!(probs.len(), 1);
+        assert_eq!(probs[0].token, "4");
+        assert!((probs[0].logprob - (-0.3)).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_get_log_probs_empty() {
+        assert!(make_text_response("x").get_log_probs().is_empty());
+    }
+
+    #[test]
+    fn test_deserialize_from_json() {
+        let json = serde_json::json!({
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [{"text": "Hello from Gemini!"}]
+                },
+                "finishReason": "STOP"
+            }],
+            "modelVersion": "gemini-2.0-flash",
+            "responseId": "resp-test",
+            "usageMetadata": {
+                "promptTokenCount": 12,
+                "candidatesTokenCount": 8,
+                "totalTokenCount": 20
+            }
+        });
+        let resp: GenerateContentResponse = serde_json::from_value(json).unwrap();
+        assert_eq!(resp.response_text(), "Hello from Gemini!");
+        assert_eq!(resp.model_name(), Some("gemini-2.0-flash"));
+        assert_eq!(resp.finish_reason(), Some("STOP"));
+        assert_eq!(resp.input_tokens(), Some(12));
+        assert_eq!(resp.output_tokens(), Some(8));
+        assert_eq!(resp.total_tokens(), Some(20));
+    }
+
+    #[test]
+    fn test_deserialize_tool_calls_from_json() {
+        let raw = r#"{
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "functionCall": {
+                                "name": "get_weather",
+                                "id": "fc_001",
+                                "args": {"location": "San Francisco", "unit": "celsius"}
+                            }
+                        },
+                        {
+                            "functionCall": {
+                                "name": "get_stock_price",
+                                "id": "fc_002",
+                                "args": {"ticker": "AAPL"}
+                            }
+                        }
+                    ]
+                },
+                "finishReason": "STOP"
+            }],
+            "modelVersion": "gemini-2.0-flash",
+            "responseId": "resp-fc-test",
+            "usageMetadata": {
+                "promptTokenCount": 50,
+                "candidatesTokenCount": 30,
+                "totalTokenCount": 80
+            }
+        }"#;
+
+        let resp: GenerateContentResponse = serde_json::from_str(raw).unwrap();
+        let tool_calls = resp.get_tool_calls();
+
+        assert_eq!(tool_calls.len(), 2);
+
+        assert_eq!(tool_calls[0].name, "get_weather");
+        assert_eq!(tool_calls[0].call_id, Some("fc_001".to_string()));
+        assert_eq!(
+            tool_calls[0].arguments,
+            serde_json::json!({"location": "San Francisco", "unit": "celsius"})
+        );
+        assert!(tool_calls[0].result.is_none());
+
+        assert_eq!(tool_calls[1].name, "get_stock_price");
+        assert_eq!(tool_calls[1].call_id, Some("fc_002".to_string()));
+        assert_eq!(
+            tool_calls[1].arguments,
+            serde_json::json!({"ticker": "AAPL"})
+        );
+        assert!(tool_calls[1].result.is_none());
+    }
+
+    #[test]
+    fn test_function_call_no_args() {
+        let fc_part = Part {
+            data: DataNum::FunctionCall(FunctionCall {
+                name: "no_args_fn".to_string(),
+                id: None,
+                args: None,
+                will_continue: None,
+                partial_args: None,
+            }),
+            ..Default::default()
+        };
+        let resp = GenerateContentResponse {
+            candidates: vec![Candidate {
+                index: Some(0),
+                content: GeminiContent {
+                    role: "model".to_string(),
+                    parts: vec![fc_part],
+                },
+                avg_logprobs: None,
+                logprobs_result: None,
+                finish_reason: Some(FinishReason::Stop),
+                safety_ratings: None,
+                citation_metadata: None,
+                grounding_metadata: None,
+                url_context_metadata: None,
+                finish_message: None,
+            }],
+            model_version: None,
+            create_time: None,
+            response_id: None,
+            prompt_feedback: None,
+            usage_metadata: None,
+        };
+        let calls = resp.get_tool_calls();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "no_args_fn");
+        assert_eq!(calls[0].call_id, None);
+        assert_eq!(calls[0].arguments, serde_json::Value::Null);
     }
 }

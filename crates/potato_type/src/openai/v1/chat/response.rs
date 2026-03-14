@@ -350,4 +350,381 @@ impl ResponseAdapter for OpenAIChatResponse {
 
         content.message.content.unwrap_or_default()
     }
+
+    fn model_name(&self) -> Option<&str> {
+        Some(&self.model)
+    }
+
+    fn finish_reason(&self) -> Option<&str> {
+        self.choices.first().map(|c| c.finish_reason.as_str())
+    }
+
+    fn input_tokens(&self) -> Option<i64> {
+        Some(self.usage.prompt_tokens as i64)
+    }
+
+    fn output_tokens(&self) -> Option<i64> {
+        Some(self.usage.completion_tokens as i64)
+    }
+
+    fn total_tokens(&self) -> Option<i64> {
+        Some(self.usage.total_tokens as i64)
+    }
+
+    fn get_tool_calls(&self) -> Vec<crate::tools::ToolCallInfo> {
+        let mut tool_calls = Vec::new();
+        for choice in &self.choices {
+            for call in &choice.message.tool_calls {
+                tool_calls.push(crate::tools::ToolCallInfo {
+                    name: call.function.name.clone(),
+                    arguments: serde_json::from_str(&call.function.arguments).unwrap_or_default(),
+                    call_id: Some(call.id.clone()),
+                    result: None,
+                });
+            }
+        }
+        tool_calls
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::traits::ResponseAdapter;
+
+    fn make_text_response(text: &str) -> OpenAIChatResponse {
+        OpenAIChatResponse {
+            id: "chatcmpl-abc123".to_string(),
+            object: "chat.completion".to_string(),
+            created: 1700000000,
+            model: "gpt-4o".to_string(),
+            choices: vec![Choice {
+                message: ChatCompletionMessage {
+                    content: Some(text.to_string()),
+                    refusal: None,
+                    role: "assistant".to_string(),
+                    annotations: vec![],
+                    tool_calls: vec![],
+                    audio: None,
+                },
+                finish_reason: "stop".to_string(),
+                logprobs: None,
+            }],
+            usage: Usage {
+                completion_tokens: 10,
+                prompt_tokens: 20,
+                total_tokens: 30,
+                completion_tokens_details: CompletionTokenDetails::default(),
+                prompt_tokens_details: PromptTokenDetails::default(),
+                finish_reason: None,
+            },
+            service_tier: None,
+            system_fingerprint: Some("fp_abc123".to_string()),
+        }
+    }
+
+    fn make_tool_call_response() -> OpenAIChatResponse {
+        OpenAIChatResponse {
+            id: "chatcmpl-tool456".to_string(),
+            object: "chat.completion".to_string(),
+            created: 1700000000,
+            model: "gpt-4o".to_string(),
+            choices: vec![Choice {
+                message: ChatCompletionMessage {
+                    content: None,
+                    refusal: None,
+                    role: "assistant".to_string(),
+                    annotations: vec![],
+                    tool_calls: vec![
+                        ToolCall {
+                            id: "call_1".to_string(),
+                            r#type: "function".to_string(),
+                            function: Function {
+                                name: "get_weather".to_string(),
+                                arguments: r#"{"location":"NYC"}"#.to_string(),
+                            },
+                        },
+                        ToolCall {
+                            id: "call_2".to_string(),
+                            r#type: "function".to_string(),
+                            function: Function {
+                                name: "get_time".to_string(),
+                                arguments: r#"{"timezone":"EST"}"#.to_string(),
+                            },
+                        },
+                    ],
+                    audio: None,
+                },
+                finish_reason: "tool_calls".to_string(),
+                logprobs: None,
+            }],
+            usage: Usage {
+                completion_tokens: 5,
+                prompt_tokens: 15,
+                total_tokens: 20,
+                completion_tokens_details: CompletionTokenDetails::default(),
+                prompt_tokens_details: PromptTokenDetails::default(),
+                finish_reason: None,
+            },
+            service_tier: None,
+            system_fingerprint: None,
+        }
+    }
+
+    fn make_empty_response() -> OpenAIChatResponse {
+        OpenAIChatResponse {
+            id: "chatcmpl-empty".to_string(),
+            object: "chat.completion".to_string(),
+            created: 1700000000,
+            model: "gpt-4o".to_string(),
+            choices: vec![],
+            usage: Usage::default(),
+            service_tier: None,
+            system_fingerprint: None,
+        }
+    }
+
+    #[test]
+    fn test_id() {
+        let resp = make_text_response("hello");
+        assert_eq!(resp.id(), "chatcmpl-abc123");
+    }
+
+    #[test]
+    fn test_is_empty() {
+        assert!(!make_text_response("hello").is_empty());
+        assert!(make_empty_response().is_empty());
+    }
+
+    #[test]
+    fn test_response_text() {
+        assert_eq!(
+            make_text_response("hello world").response_text(),
+            "hello world"
+        );
+        assert_eq!(make_empty_response().response_text(), "");
+    }
+
+    #[test]
+    fn test_response_text_with_no_content() {
+        let resp = make_tool_call_response();
+        assert_eq!(resp.response_text(), "");
+    }
+
+    #[test]
+    fn test_model_name() {
+        assert_eq!(make_text_response("x").model_name(), Some("gpt-4o"));
+    }
+
+    #[test]
+    fn test_finish_reason() {
+        assert_eq!(make_text_response("x").finish_reason(), Some("stop"));
+        assert_eq!(
+            make_tool_call_response().finish_reason(),
+            Some("tool_calls")
+        );
+        assert_eq!(make_empty_response().finish_reason(), None);
+    }
+
+    #[test]
+    fn test_token_counts() {
+        let resp = make_text_response("hello");
+        assert_eq!(resp.input_tokens(), Some(20));
+        assert_eq!(resp.output_tokens(), Some(10));
+        assert_eq!(resp.total_tokens(), Some(30));
+    }
+
+    #[test]
+    fn test_get_tool_calls() {
+        let calls = make_tool_call_response().get_tool_calls();
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].name, "get_weather");
+        assert_eq!(calls[0].call_id, Some("call_1".to_string()));
+        assert_eq!(calls[1].name, "get_time");
+        assert_eq!(calls[1].call_id, Some("call_2".to_string()));
+    }
+
+    #[test]
+    fn test_get_tool_calls_empty() {
+        assert!(make_text_response("hello").get_tool_calls().is_empty());
+        assert!(make_empty_response().get_tool_calls().is_empty());
+    }
+
+    #[test]
+    fn test_tool_call_output() {
+        let resp = make_tool_call_response();
+        let output = resp.tool_call_output();
+        assert!(output.is_some());
+        let arr = output.unwrap();
+        assert!(arr.is_array());
+        assert_eq!(arr.as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_tool_call_output_none_for_text() {
+        assert!(make_text_response("hello").tool_call_output().is_none());
+        assert!(make_empty_response().tool_call_output().is_none());
+    }
+
+    #[test]
+    fn test_structured_output_value_valid_json() {
+        let resp = make_text_response(r#"{"name":"Alice","age":30}"#);
+        let val = resp.structured_output_value();
+        assert!(val.is_some());
+        let obj = val.unwrap();
+        assert_eq!(obj["name"], "Alice");
+        assert_eq!(obj["age"], 30);
+    }
+
+    #[test]
+    fn test_structured_output_value_plain_text() {
+        let resp = make_text_response("just plain text");
+        assert!(resp.structured_output_value().is_none());
+    }
+
+    #[test]
+    fn test_structured_output_value_empty() {
+        assert!(make_empty_response().structured_output_value().is_none());
+    }
+
+    #[test]
+    fn test_to_message_num() {
+        let resp = make_text_response("hello");
+        let msgs = resp.to_message_num().unwrap();
+        assert_eq!(msgs.len(), 1);
+    }
+
+    #[test]
+    fn test_to_message_num_empty() {
+        let resp = make_empty_response();
+        let msgs = resp.to_message_num().unwrap();
+        assert!(msgs.is_empty());
+    }
+
+    #[test]
+    fn test_get_log_probs_with_digits() {
+        let resp = OpenAIChatResponse {
+            choices: vec![Choice {
+                message: ChatCompletionMessage::default(),
+                finish_reason: "stop".to_string(),
+                logprobs: Some(LogProbs {
+                    content: Some(vec![
+                        LogContent {
+                            bytes: None,
+                            logprob: -0.5,
+                            token: "3".to_string(),
+                            top_logprobs: None,
+                        },
+                        LogContent {
+                            bytes: None,
+                            logprob: -1.0,
+                            token: "hello".to_string(),
+                            top_logprobs: None,
+                        },
+                        LogContent {
+                            bytes: None,
+                            logprob: -0.2,
+                            token: "5".to_string(),
+                            top_logprobs: None,
+                        },
+                    ]),
+                    refusal: None,
+                }),
+            }],
+            ..Default::default()
+        };
+        let probs = resp.get_log_probs();
+        assert_eq!(probs.len(), 2);
+        assert_eq!(probs[0].token, "3");
+        assert!((probs[0].logprob - (-0.5)).abs() < f64::EPSILON);
+        assert_eq!(probs[1].token, "5");
+    }
+
+    #[test]
+    fn test_get_log_probs_empty() {
+        assert!(make_text_response("hello").get_log_probs().is_empty());
+        assert!(make_empty_response().get_log_probs().is_empty());
+    }
+
+    #[test]
+    fn test_deserialize_from_json() {
+        let json = serde_json::json!({
+            "id": "chatcmpl-test",
+            "object": "chat.completion",
+            "created": 1700000000,
+            "model": "gpt-4o",
+            "choices": [{
+                "message": {
+                    "content": "Hello!",
+                    "role": "assistant"
+                },
+                "finish_reason": "stop"
+            }],
+            "usage": {
+                "completion_tokens": 5,
+                "prompt_tokens": 10,
+                "total_tokens": 15
+            }
+        });
+        let resp: OpenAIChatResponse = serde_json::from_value(json).unwrap();
+        assert_eq!(resp.response_text(), "Hello!");
+        assert_eq!(resp.model_name(), Some("gpt-4o"));
+        assert_eq!(resp.finish_reason(), Some("stop"));
+        assert_eq!(resp.input_tokens(), Some(10));
+        assert_eq!(resp.output_tokens(), Some(5));
+        assert_eq!(resp.total_tokens(), Some(15));
+    }
+
+    #[test]
+    fn test_deserialize_tool_calls_from_json() {
+        let raw = r#"{
+            "id": "chatcmpl-abc123",
+            "object": "chat.completion",
+            "created": 1700000000,
+            "model": "gpt-4o",
+            "choices": [{
+                "message": {
+                    "content": null,
+                    "role": "assistant",
+                    "tool_calls": [
+                        {
+                            "id": "call_abc",
+                            "type": "function",
+                            "function": {
+                                "name": "get_weather",
+                                "arguments": "{\"location\":\"San Francisco\",\"unit\":\"celsius\"}"
+                            }
+                        },
+                        {
+                            "id": "call_def",
+                            "type": "function",
+                            "function": {
+                                "name": "get_stock_price",
+                                "arguments": "{\"ticker\":\"AAPL\"}"
+                            }
+                        }
+                    ]
+                },
+                "finish_reason": "tool_calls"
+            }],
+            "usage": {
+                "completion_tokens": 50,
+                "prompt_tokens": 100,
+                "total_tokens": 150
+            }
+        }"#;
+
+        let resp: OpenAIChatResponse = serde_json::from_str(raw).unwrap();
+        let tool_calls = resp.get_tool_calls();
+
+        assert_eq!(tool_calls.len(), 2);
+
+        assert_eq!(tool_calls[0].name, "get_weather");
+        assert_eq!(tool_calls[0].call_id, Some("call_abc".to_string()));
+        assert!(tool_calls[0].result.is_none());
+
+        assert_eq!(tool_calls[1].name, "get_stock_price");
+        assert_eq!(tool_calls[1].call_id, Some("call_def".to_string()));
+        assert!(tool_calls[1].result.is_none());
+    }
 }

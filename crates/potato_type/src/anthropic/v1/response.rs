@@ -472,4 +472,362 @@ impl ResponseAdapter for AnthropicMessageResponse {
             _ => String::new(),
         }
     }
+
+    fn model_name(&self) -> Option<&str> {
+        Some(&self.model)
+    }
+
+    fn finish_reason(&self) -> Option<&str> {
+        self.stop_reason.as_ref().map(|reason| match reason {
+            StopReason::EndTurn => "end_turn",
+            StopReason::MaxTokens => "max_tokens",
+            StopReason::StopSequence => "stop_sequence",
+            StopReason::ToolUse => "tool_use",
+        })
+    }
+
+    fn input_tokens(&self) -> Option<i64> {
+        Some(self.usage.input_tokens as i64)
+    }
+
+    fn output_tokens(&self) -> Option<i64> {
+        Some(self.usage.output_tokens as i64)
+    }
+
+    fn total_tokens(&self) -> Option<i64> {
+        Some(self.usage.input_tokens as i64 + self.usage.output_tokens as i64)
+    }
+
+    fn get_tool_calls(&self) -> Vec<crate::tools::ToolCallInfo> {
+        let mut tool_calls = Vec::new();
+        for block in &self.content {
+            if let ResponseContentBlockInner::ToolUse(tool_use_block) = &block.inner {
+                tool_calls.push(crate::tools::ToolCallInfo {
+                    name: tool_use_block.name.clone(),
+                    arguments: tool_use_block.input.clone(),
+                    call_id: Some(tool_use_block.id.clone()),
+                    result: None,
+                });
+            }
+        }
+        tool_calls
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::traits::ResponseAdapter;
+
+    fn make_text_block(text: &str) -> ResponseContentBlock {
+        ResponseContentBlock {
+            inner: ResponseContentBlockInner::Text(TextBlock {
+                text: text.to_string(),
+                citations: None,
+                r#type: "text".to_string(),
+            }),
+        }
+    }
+
+    fn make_tool_use_block(id: &str, name: &str, input: Value) -> ResponseContentBlock {
+        ResponseContentBlock {
+            inner: ResponseContentBlockInner::ToolUse(ToolUseBlock {
+                id: id.to_string(),
+                name: name.to_string(),
+                input,
+                r#type: "tool_use".to_string(),
+            }),
+        }
+    }
+
+    fn make_usage() -> Usage {
+        Usage {
+            input_tokens: 100,
+            output_tokens: 50,
+            cache_creation_input_tokens: Some(10),
+            cache_read_input_tokens: Some(5),
+            service_tier: None,
+        }
+    }
+
+    fn make_text_response(text: &str) -> AnthropicMessageResponse {
+        AnthropicMessageResponse {
+            id: "msg_abc123".to_string(),
+            model: "claude-sonnet-4-20250514".to_string(),
+            role: "assistant".to_string(),
+            stop_reason: Some(StopReason::EndTurn),
+            stop_sequence: None,
+            r#type: "message".to_string(),
+            usage: make_usage(),
+            content: vec![make_text_block(text)],
+        }
+    }
+
+    fn make_tool_use_response() -> AnthropicMessageResponse {
+        AnthropicMessageResponse {
+            id: "msg_tool456".to_string(),
+            model: "claude-sonnet-4-20250514".to_string(),
+            role: "assistant".to_string(),
+            stop_reason: Some(StopReason::ToolUse),
+            stop_sequence: None,
+            r#type: "message".to_string(),
+            usage: make_usage(),
+            content: vec![
+                make_text_block("I'll look up the weather for you."),
+                make_tool_use_block(
+                    "toolu_01",
+                    "get_weather",
+                    serde_json::json!({"location": "NYC"}),
+                ),
+            ],
+        }
+    }
+
+    fn make_empty_response() -> AnthropicMessageResponse {
+        AnthropicMessageResponse {
+            id: "msg_empty".to_string(),
+            model: "claude-sonnet-4-20250514".to_string(),
+            role: "assistant".to_string(),
+            stop_reason: None,
+            stop_sequence: None,
+            r#type: "message".to_string(),
+            usage: make_usage(),
+            content: vec![],
+        }
+    }
+
+    #[test]
+    fn test_id() {
+        assert_eq!(make_text_response("hi").id(), "msg_abc123");
+    }
+
+    #[test]
+    fn test_is_empty() {
+        assert!(!make_text_response("hi").is_empty());
+        assert!(make_empty_response().is_empty());
+    }
+
+    #[test]
+    fn test_response_text() {
+        assert_eq!(
+            make_text_response("hello world").response_text(),
+            "hello world"
+        );
+        assert_eq!(make_empty_response().response_text(), "");
+    }
+
+    #[test]
+    fn test_response_text_tool_use_first_block() {
+        let resp = make_tool_use_response();
+        assert_eq!(resp.response_text(), "I'll look up the weather for you.");
+    }
+
+    #[test]
+    fn test_model_name() {
+        assert_eq!(
+            make_text_response("x").model_name(),
+            Some("claude-sonnet-4-20250514")
+        );
+    }
+
+    #[test]
+    fn test_finish_reason() {
+        assert_eq!(make_text_response("x").finish_reason(), Some("end_turn"));
+        assert_eq!(make_tool_use_response().finish_reason(), Some("tool_use"));
+        assert_eq!(make_empty_response().finish_reason(), None);
+    }
+
+    #[test]
+    fn test_finish_reason_all_variants() {
+        let mut resp = make_text_response("x");
+        resp.stop_reason = Some(StopReason::MaxTokens);
+        assert_eq!(resp.finish_reason(), Some("max_tokens"));
+        resp.stop_reason = Some(StopReason::StopSequence);
+        assert_eq!(resp.finish_reason(), Some("stop_sequence"));
+    }
+
+    #[test]
+    fn test_token_counts() {
+        let resp = make_text_response("x");
+        assert_eq!(resp.input_tokens(), Some(100));
+        assert_eq!(resp.output_tokens(), Some(50));
+        assert_eq!(resp.total_tokens(), Some(150));
+    }
+
+    #[test]
+    fn test_get_tool_calls() {
+        let calls = make_tool_use_response().get_tool_calls();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "get_weather");
+        assert_eq!(calls[0].call_id, Some("toolu_01".to_string()));
+        assert_eq!(calls[0].arguments, serde_json::json!({"location": "NYC"}));
+    }
+
+    #[test]
+    fn test_get_tool_calls_empty() {
+        assert!(make_text_response("hello").get_tool_calls().is_empty());
+        assert!(make_empty_response().get_tool_calls().is_empty());
+    }
+
+    #[test]
+    fn test_tool_call_output() {
+        let resp = make_tool_use_response();
+        let output = resp.tool_call_output();
+        assert!(output.is_some());
+    }
+
+    #[test]
+    fn test_tool_call_output_none_for_text() {
+        assert!(make_text_response("hello").tool_call_output().is_none());
+    }
+
+    #[test]
+    fn test_structured_output_value_valid_json() {
+        let resp = make_text_response(r#"{"name":"Bob","score":95}"#);
+        let val = resp.structured_output_value();
+        assert!(val.is_some());
+        let obj = val.unwrap();
+        assert_eq!(obj["name"], "Bob");
+        assert_eq!(obj["score"], 95);
+    }
+
+    #[test]
+    fn test_structured_output_value_plain_text() {
+        assert!(make_text_response("not json")
+            .structured_output_value()
+            .is_none());
+    }
+
+    #[test]
+    fn test_structured_output_value_empty() {
+        assert!(make_empty_response().structured_output_value().is_none());
+    }
+
+    #[test]
+    fn test_get_log_probs_always_empty() {
+        assert!(make_text_response("x").get_log_probs().is_empty());
+    }
+
+    #[test]
+    fn test_to_message_num() {
+        let resp = make_text_response("hello");
+        let msgs = resp.to_message_num().unwrap();
+        assert_eq!(msgs.len(), 1);
+    }
+
+    #[test]
+    fn test_to_message_num_empty() {
+        let resp = make_empty_response();
+        let msgs = resp.to_message_num().unwrap();
+        assert!(msgs.is_empty());
+    }
+
+    #[test]
+    fn test_deserialize_from_json() {
+        let json = serde_json::json!({
+            "id": "msg_test",
+            "model": "claude-sonnet-4-20250514",
+            "role": "assistant",
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "type": "message",
+            "usage": {
+                "input_tokens": 25,
+                "output_tokens": 10
+            },
+            "content": [{
+                "type": "text",
+                "text": "Hello from Anthropic!"
+            }]
+        });
+        let resp: AnthropicMessageResponse = serde_json::from_value(json).unwrap();
+        assert_eq!(resp.response_text(), "Hello from Anthropic!");
+        assert_eq!(resp.model_name(), Some("claude-sonnet-4-20250514"));
+        assert_eq!(resp.finish_reason(), Some("end_turn"));
+        assert_eq!(resp.input_tokens(), Some(25));
+        assert_eq!(resp.output_tokens(), Some(10));
+        assert_eq!(resp.total_tokens(), Some(35));
+    }
+
+    #[test]
+    fn test_multiple_tool_use_blocks() {
+        let resp = AnthropicMessageResponse {
+            id: "msg_multi".to_string(),
+            model: "claude-sonnet-4-20250514".to_string(),
+            role: "assistant".to_string(),
+            stop_reason: Some(StopReason::ToolUse),
+            stop_sequence: None,
+            r#type: "message".to_string(),
+            usage: make_usage(),
+            content: vec![
+                make_tool_use_block("toolu_01", "search", serde_json::json!({"q": "rust"})),
+                make_tool_use_block("toolu_02", "read_file", serde_json::json!({"path": "/tmp"})),
+            ],
+        };
+        let calls = resp.get_tool_calls();
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].name, "search");
+        assert_eq!(calls[1].name, "read_file");
+    }
+
+    #[test]
+    fn test_deserialize_tool_calls_from_json() {
+        let raw = r#"{
+            "id": "msg_01XFDUDYJgAACzvnptvVoYEL",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-sonnet-4-20250514",
+            "stop_reason": "tool_use",
+            "stop_sequence": null,
+            "usage": {
+                "input_tokens": 384,
+                "output_tokens": 120
+            },
+            "content": [
+                {
+                    "type": "text",
+                    "text": "I'll check the weather and stock price for you."
+                },
+                {
+                    "type": "tool_use",
+                    "id": "toolu_01A09q90qw90lq917835lq9",
+                    "name": "get_weather",
+                    "input": {"location": "San Francisco", "unit": "celsius"}
+                },
+                {
+                    "type": "tool_use",
+                    "id": "toolu_02B19r91rw91mr928946mr0",
+                    "name": "get_stock_price",
+                    "input": {"ticker": "AAPL"}
+                }
+            ]
+        }"#;
+
+        let resp: AnthropicMessageResponse = serde_json::from_str(raw).unwrap();
+        let tool_calls = resp.get_tool_calls();
+
+        assert_eq!(tool_calls.len(), 2);
+
+        assert_eq!(tool_calls[0].name, "get_weather");
+        assert_eq!(
+            tool_calls[0].call_id,
+            Some("toolu_01A09q90qw90lq917835lq9".to_string())
+        );
+        assert_eq!(
+            tool_calls[0].arguments,
+            serde_json::json!({"location": "San Francisco", "unit": "celsius"})
+        );
+        assert!(tool_calls[0].result.is_none());
+
+        assert_eq!(tool_calls[1].name, "get_stock_price");
+        assert_eq!(
+            tool_calls[1].call_id,
+            Some("toolu_02B19r91rw91mr928946mr0".to_string())
+        );
+        assert_eq!(
+            tool_calls[1].arguments,
+            serde_json::json!({"ticker": "AAPL"})
+        );
+        assert!(tool_calls[1].result.is_none());
+    }
 }

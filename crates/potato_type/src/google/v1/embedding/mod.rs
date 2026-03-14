@@ -156,6 +156,148 @@ impl ResponseAdapter for PredictResponse {
     fn response_text(&self) -> String {
         String::new()
     }
+
+    fn model_name(&self) -> Option<&str> {
+        Some(&self.model)
+    }
+
+    fn finish_reason(&self) -> Option<&str> {
+        None
+    }
+
+    fn input_tokens(&self) -> Option<i64> {
+        None
+    }
+
+    fn output_tokens(&self) -> Option<i64> {
+        None
+    }
+
+    fn total_tokens(&self) -> Option<i64> {
+        None
+    }
+
+    fn get_tool_calls(&self) -> Vec<crate::tools::ToolCallInfo> {
+        vec![]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::traits::ResponseAdapter;
+
+    fn make_predict_response() -> PredictResponse {
+        PredictResponse {
+            predictions: serde_json::json!([
+                {"embeddings": {"values": [0.1, 0.2, 0.3]}}
+            ]),
+            metadata: serde_json::json!({}),
+            deployed_model_id: "model-deploy-123".to_string(),
+            model: "textembedding-gecko@003".to_string(),
+            model_version_id: "1".to_string(),
+            model_display_name: "Text Embedding Gecko".to_string(),
+        }
+    }
+
+    fn make_empty_predict_response() -> PredictResponse {
+        PredictResponse {
+            predictions: serde_json::json!([]),
+            metadata: serde_json::Value::Null,
+            deployed_model_id: "model-deploy-456".to_string(),
+            model: "textembedding-gecko@003".to_string(),
+            model_version_id: "1".to_string(),
+            model_display_name: "".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_id() {
+        assert_eq!(make_predict_response().id(), "model-deploy-123");
+    }
+
+    #[test]
+    fn test_is_empty() {
+        assert!(!make_predict_response().is_empty());
+        assert!(make_empty_predict_response().is_empty());
+    }
+
+    #[test]
+    fn test_is_empty_non_array() {
+        let resp = PredictResponse {
+            predictions: serde_json::json!({"key": "value"}),
+            ..Default::default()
+        };
+        assert!(!resp.is_empty());
+    }
+
+    #[test]
+    fn test_response_text_always_empty() {
+        assert_eq!(make_predict_response().response_text(), "");
+    }
+
+    #[test]
+    fn test_model_name() {
+        assert_eq!(
+            make_predict_response().model_name(),
+            Some("textembedding-gecko@003")
+        );
+    }
+
+    #[test]
+    fn test_finish_reason_always_none() {
+        assert_eq!(make_predict_response().finish_reason(), None);
+    }
+
+    #[test]
+    fn test_token_counts_always_none() {
+        let resp = make_predict_response();
+        assert_eq!(resp.input_tokens(), None);
+        assert_eq!(resp.output_tokens(), None);
+        assert_eq!(resp.total_tokens(), None);
+    }
+
+    #[test]
+    fn test_get_tool_calls_always_empty() {
+        assert!(make_predict_response().get_tool_calls().is_empty());
+    }
+
+    #[test]
+    fn test_tool_call_output_always_none() {
+        assert!(make_predict_response().tool_call_output().is_none());
+    }
+
+    #[test]
+    fn test_structured_output_value_always_none() {
+        assert!(make_predict_response().structured_output_value().is_none());
+    }
+
+    #[test]
+    fn test_get_log_probs_always_empty() {
+        assert!(make_predict_response().get_log_probs().is_empty());
+    }
+
+    #[test]
+    fn test_to_message_num_errors() {
+        let resp = make_predict_response();
+        assert!(resp.to_message_num().is_err());
+    }
+
+    #[test]
+    fn test_deserialize_from_json() {
+        let json = serde_json::json!({
+            "predictions": [{"embeddings": {"values": [0.5, 0.6]}}],
+            "metadata": {},
+            "deployedModelId": "dm-1",
+            "model": "gecko@003",
+            "modelVersionId": "2",
+            "modelDisplayName": "Gecko"
+        });
+        let resp: PredictResponse = serde_json::from_value(json).unwrap();
+        assert_eq!(resp.id(), "dm-1");
+        assert_eq!(resp.model_name(), Some("gecko@003"));
+        assert!(!resp.is_empty());
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
