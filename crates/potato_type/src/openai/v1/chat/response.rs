@@ -377,7 +377,7 @@ impl ResponseAdapter for OpenAIChatResponse {
             for call in &choice.message.tool_calls {
                 tool_calls.push(crate::tools::ToolCallInfo {
                     name: call.function.name.clone(),
-                    arguments: serde_json::to_value(&call.function.arguments).unwrap_or_default(),
+                    arguments: serde_json::from_str(&call.function.arguments).unwrap_or_default(),
                     call_id: Some(call.id.clone()),
                     result: None,
                 });
