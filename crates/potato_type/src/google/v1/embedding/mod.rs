@@ -156,6 +156,30 @@ impl ResponseAdapter for PredictResponse {
     fn response_text(&self) -> String {
         String::new()
     }
+
+    fn model_name(&self) -> Option<&str> {
+        Some(&self.model)
+    }
+
+    fn finished_reason(&self) -> Option<&str> {
+        None
+    }
+
+    fn input_tokens(&self) -> Option<i64> {
+        None
+    }
+
+    fn output_tokens(&self) -> Option<i64> {
+        None
+    }
+
+    fn total_tokens(&self) -> Option<i64> {
+        None
+    }
+
+    fn get_tool_calls(&self) -> Vec<crate::tools::ToolCallInfo> {
+        vec![]
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

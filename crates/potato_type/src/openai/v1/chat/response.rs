@@ -350,4 +350,39 @@ impl ResponseAdapter for OpenAIChatResponse {
 
         content.message.content.unwrap_or_default()
     }
+
+    fn model_name(&self) -> Option<&str> {
+        Some(&self.model)
+    }
+
+    fn finished_reason(&self) -> Option<&str> {
+        self.choices.first().map(|c| c.finish_reason.as_str())
+    }
+
+    fn input_tokens(&self) -> Option<i64> {
+        Some(self.usage.prompt_tokens as i64)
+    }
+
+    fn output_tokens(&self) -> Option<i64> {
+        Some(self.usage.completion_tokens as i64)
+    }
+
+    fn total_tokens(&self) -> Option<i64> {
+        Some(self.usage.total_tokens as i64)
+    }
+
+    fn get_tool_calls(&self) -> Vec<crate::tools::ToolCallInfo> {
+        let mut tool_calls = Vec::new();
+        for choice in &self.choices {
+            for call in &choice.message.tool_calls {
+                tool_calls.push(crate::tools::ToolCallInfo {
+                    name: call.function.name.clone(),
+                    arguments: serde_json::to_value(&call.function.arguments).unwrap_or_default(),
+                    call_id: Some(call.id.clone()),
+                    result: None,
+                });
+            }
+        }
+        tool_calls
+    }
 }

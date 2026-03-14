@@ -10,6 +10,9 @@ use pyo3::prelude::*;
 use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::fmt;
+use std::fmt::Display;
+
 #[pyclass]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -365,6 +368,55 @@ pub enum FinishReason {
     NoImage,
 }
 
+impl Display for FinishReason {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let reason_str = match self {
+            FinishReason::FinishReasonUnspecified => "FINISH_REASON_UNSPECIFIED",
+            FinishReason::Stop => "STOP",
+            FinishReason::MaxTokens => "MAX_TOKENS",
+            FinishReason::Safety => "SAFETY",
+            FinishReason::Recitation => "RECITATION",
+            FinishReason::Other => "OTHER",
+            FinishReason::Blocklist => "BLOCKLIST",
+            FinishReason::ProhibitedContent => "PROHIBITED_CONTENT",
+            FinishReason::Spii => "SPII",
+            FinishReason::MalformedFunctionCall => "MALFORMED_FUNCTION_CALL",
+            FinishReason::ModelArmor => "MODEL_ARMOR",
+            FinishReason::ImageSafety => "IMAGE_SAFETY",
+            FinishReason::ImageProhibitedContent => "IMAGE_PROHIBITED_CONTENT",
+            FinishReason::ImageRecitation => "IMAGE_RECITATION",
+            FinishReason::ImageOther => "IMAGE_OTHER",
+            FinishReason::UnexpectedToolCall => "UNEXPECTED_TOOL_CALL",
+            FinishReason::NoImage => "NO_IMAGE",
+        };
+        write!(f, "{}", reason_str)
+    }
+}
+
+impl FinishReason {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::FinishReasonUnspecified => "FINISH_REASON_UNSPECIFIED",
+            Self::Stop => "STOP",
+            Self::MaxTokens => "MAX_TOKENS",
+            Self::Safety => "SAFETY",
+            Self::Recitation => "RECITATION",
+            Self::Other => "OTHER",
+            Self::Blocklist => "BLOCKLIST",
+            Self::ProhibitedContent => "PROHIBITED_CONTENT",
+            Self::Spii => "SPII",
+            Self::MalformedFunctionCall => "MALFORMED_FUNCTION_CALL",
+            Self::ModelArmor => "MODEL_ARMOR",
+            Self::ImageSafety => "IMAGE_SAFETY",
+            Self::ImageProhibitedContent => "IMAGE_PROHIBITED_CONTENT",
+            Self::ImageRecitation => "IMAGE_RECITATION",
+            Self::ImageOther => "IMAGE_OTHER",
+            Self::UnexpectedToolCall => "UNEXPECTED_TOOL_CALL",
+            Self::NoImage => "NO_IMAGE",
+        }
+    }
+}
+
 #[pyclass]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -622,5 +674,59 @@ impl ResponseAdapter for GenerateContentResponse {
             DataNum::Text(text) => text,
             _ => String::new(),
         }
+    }
+
+    fn model_name(&self) -> Option<&str> {
+        Some(&self.model_version.as_deref().unwrap_or(""))
+    }
+
+    fn finished_reason(&self) -> Option<&str> {
+        self.candidates
+            .first()
+            .and_then(|candidate| candidate.finish_reason.as_ref())
+            .map(|reason| reason.as_str())
+    }
+
+    fn input_tokens(&self) -> Option<i64> {
+        Some(
+            self.usage_metadata
+                .as_ref()?
+                .prompt_token_count
+                .unwrap_or(0) as i64,
+        )
+    }
+
+    fn output_tokens(&self) -> Option<i64> {
+        Some(
+            self.usage_metadata
+                .as_ref()?
+                .candidates_token_count
+                .unwrap_or(0) as i64,
+        )
+    }
+
+    fn total_tokens(&self) -> Option<i64> {
+        Some(self.usage_metadata.as_ref()?.total_token_count.unwrap_or(0) as i64)
+    }
+
+    fn get_tool_calls(&self) -> Vec<crate::tools::ToolCallInfo> {
+        let mut tool_calls = Vec::new();
+        for candidate in &self.candidates {
+            for part in &candidate.content.parts {
+                if let DataNum::FunctionCall(call) = &part.data {
+                    tool_calls.push(crate::tools::ToolCallInfo {
+                        name: call.name.clone(),
+                        arguments: call
+                            .args
+                            .as_ref()
+                            .map(|a| serde_json::Value::Object(a.clone()))
+                            .unwrap_or_default(),
+                        call_id: call.id.clone(),
+                        result: None,
+                    });
+                }
+            }
+        }
+        tool_calls
     }
 }
