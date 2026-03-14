@@ -677,7 +677,7 @@ impl ResponseAdapter for GenerateContentResponse {
     }
 
     fn model_name(&self) -> Option<&str> {
-        Some(&self.model_version.as_deref().unwrap_or(""))
+        self.model_version.as_deref()
     }
 
     fn finish_reason(&self) -> Option<&str> {
