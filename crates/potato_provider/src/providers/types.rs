@@ -185,4 +185,33 @@ impl ChatResponse {
     pub fn response_text(&self) -> String {
         dispatch_response_trait_method!(self, ResponseAdapter, response_text())
     }
+
+    /// Helper for deserializing a JSON value into the appropriate ChatResponse variant based on its structure.
+    /// We won't always know which provider response type we're getting back, so we need to inspect the JSON to determine how to deserialize it.
+    pub fn from_response_value(value: Value) -> Result<Self, ProviderError> {
+        let obj = value
+            .as_object()
+            .ok_or(ProviderError::DeserializationError)?;
+
+        if obj.contains_key("choices") {
+            serde_json::from_value::<OpenAIChatResponse>(value)
+                .map(ChatResponse::OpenAIV1)
+                .map_err(|_| ProviderError::DeserializationError)
+        } else if obj.contains_key("predictions") {
+            serde_json::from_value::<PredictResponse>(value)
+                .map(ChatResponse::VertexPredictV1)
+                .map_err(|_| ProviderError::DeserializationError)
+        } else if obj.contains_key("candidates") {
+            // Can't distinguish Gemini vs VertexGenerate from JSON alone
+            serde_json::from_value::<GenerateContentResponse>(value)
+                .map(ChatResponse::GeminiV1)
+                .map_err(|_| ProviderError::DeserializationError)
+        } else if obj.contains_key("stop_reason") && obj.contains_key("content") {
+            serde_json::from_value::<AnthropicMessageResponse>(value)
+                .map(ChatResponse::AnthropicMessageV1)
+                .map_err(|_| ProviderError::DeserializationError)
+        } else {
+            Err(ProviderError::DeserializationError)
+        }
+    }
 }

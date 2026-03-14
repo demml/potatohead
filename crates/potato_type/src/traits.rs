@@ -140,6 +140,16 @@ pub trait ResponseAdapter {
 
     /// Returns the output text of the response if available
     fn response_text(&self) -> String;
+
+    fn model_name(&self) -> Option<&str>;
+
+    fn finished_reason(&self) -> Option<&str>;
+
+    fn input_tokens(&self) -> Option<i64>;
+
+    fn output_tokens(&self) -> Option<i64>;
+
+    fn total_tokens(&self) -> Option<i64>;
 }
 
 pub trait MessageResponseExt {
