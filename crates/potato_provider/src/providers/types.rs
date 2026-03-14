@@ -237,3 +237,209 @@ impl ChatResponse {
         dispatch_response_trait_method!(self, ResponseAdapter, get_tool_calls())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn openai_json() -> Value {
+        serde_json::json!({
+            "id": "chatcmpl-test",
+            "object": "chat.completion",
+            "created": 1700000000,
+            "model": "gpt-4o",
+            "choices": [{
+                "message": {"content": "Hello!", "role": "assistant"},
+                "finish_reason": "stop"
+            }],
+            "usage": {
+                "completion_tokens": 5,
+                "prompt_tokens": 10,
+                "total_tokens": 15
+            }
+        })
+    }
+
+    fn anthropic_json() -> Value {
+        serde_json::json!({
+            "id": "msg_test",
+            "model": "claude-sonnet-4-20250514",
+            "role": "assistant",
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "type": "message",
+            "usage": {"input_tokens": 25, "output_tokens": 10},
+            "content": [{"type": "text", "text": "Hello from Claude!"}]
+        })
+    }
+
+    fn gemini_json() -> Value {
+        serde_json::json!({
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [{"text": "Hello from Gemini!"}]
+                },
+                "finishReason": "STOP"
+            }],
+            "modelVersion": "gemini-2.0-flash",
+            "usageMetadata": {
+                "promptTokenCount": 12,
+                "candidatesTokenCount": 8,
+                "totalTokenCount": 20
+            }
+        })
+    }
+
+    fn predict_json() -> Value {
+        serde_json::json!({
+            "predictions": [{"embeddings": {"values": [0.1, 0.2]}}],
+            "metadata": {},
+            "deployedModelId": "dm-1",
+            "model": "gecko@003",
+            "modelVersionId": "1",
+            "modelDisplayName": "Gecko"
+        })
+    }
+
+    #[test]
+    fn test_from_response_value_openai() {
+        let resp = ChatResponse::from_response_value(openai_json()).unwrap();
+        assert!(matches!(resp, ChatResponse::OpenAIV1(_)));
+        assert_eq!(resp.response_text(), "Hello!");
+        assert_eq!(resp.model_name(), Some("gpt-4o".to_string()));
+        assert_eq!(resp.finish_reason_str(), Some("stop".to_string()));
+        assert_eq!(resp.input_tokens(), Some(10));
+        assert_eq!(resp.output_tokens(), Some(5));
+        assert_eq!(resp.total_tokens(), Some(15));
+    }
+
+    #[test]
+    fn test_from_response_value_anthropic() {
+        let resp = ChatResponse::from_response_value(anthropic_json()).unwrap();
+        assert!(matches!(resp, ChatResponse::AnthropicMessageV1(_)));
+        assert_eq!(resp.response_text(), "Hello from Claude!");
+        assert_eq!(
+            resp.model_name(),
+            Some("claude-sonnet-4-20250514".to_string())
+        );
+        assert_eq!(resp.finish_reason_str(), Some("end_turn".to_string()));
+        assert_eq!(resp.input_tokens(), Some(25));
+        assert_eq!(resp.output_tokens(), Some(10));
+        assert_eq!(resp.total_tokens(), Some(35));
+    }
+
+    #[test]
+    fn test_from_response_value_gemini() {
+        let resp = ChatResponse::from_response_value(gemini_json()).unwrap();
+        assert!(matches!(resp, ChatResponse::GeminiV1(_)));
+        assert_eq!(resp.response_text(), "Hello from Gemini!");
+        assert_eq!(resp.model_name(), Some("gemini-2.0-flash".to_string()));
+        assert_eq!(resp.finish_reason_str(), Some("STOP".to_string()));
+        assert_eq!(resp.input_tokens(), Some(12));
+        assert_eq!(resp.output_tokens(), Some(8));
+        assert_eq!(resp.total_tokens(), Some(20));
+    }
+
+    #[test]
+    fn test_from_response_value_predict() {
+        let resp = ChatResponse::from_response_value(predict_json()).unwrap();
+        assert!(matches!(resp, ChatResponse::VertexPredictV1(_)));
+        assert_eq!(resp.model_name(), Some("gecko@003".to_string()));
+        assert!(!resp.is_empty());
+    }
+
+    #[test]
+    fn test_from_response_value_unknown() {
+        let unknown = serde_json::json!({"unknown_field": true});
+        assert!(ChatResponse::from_response_value(unknown).is_err());
+    }
+
+    #[test]
+    fn test_from_response_value_not_object() {
+        assert!(ChatResponse::from_response_value(serde_json::json!("string")).is_err());
+        assert!(ChatResponse::from_response_value(serde_json::json!(42)).is_err());
+    }
+
+    #[test]
+    fn test_is_empty_dispatch() {
+        let resp = ChatResponse::from_response_value(openai_json()).unwrap();
+        assert!(!resp.is_empty());
+    }
+
+    #[test]
+    fn test_id_dispatch() {
+        let resp = ChatResponse::from_response_value(openai_json()).unwrap();
+        assert_eq!(resp.id(), "chatcmpl-test");
+    }
+
+    #[test]
+    fn test_extract_structured_data_json() {
+        let json = serde_json::json!({
+            "id": "chatcmpl-json",
+            "object": "chat.completion",
+            "created": 1700000000,
+            "model": "gpt-4o",
+            "choices": [{
+                "message": {"content": "{\"name\":\"Alice\"}", "role": "assistant"},
+                "finish_reason": "stop"
+            }],
+            "usage": {"completion_tokens": 5, "prompt_tokens": 10, "total_tokens": 15}
+        });
+        let resp = ChatResponse::from_response_value(json).unwrap();
+        let data = resp.extract_structured_data();
+        assert!(data.is_some());
+        assert_eq!(data.unwrap()["name"], "Alice");
+    }
+
+    #[test]
+    fn test_extract_structured_data_tool_call() {
+        let json = serde_json::json!({
+            "id": "chatcmpl-tc",
+            "object": "chat.completion",
+            "created": 1700000000,
+            "model": "gpt-4o",
+            "choices": [{
+                "message": {
+                    "content": null,
+                    "role": "assistant",
+                    "tool_calls": [{
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {"name": "search", "arguments": "{\"q\":\"rust\"}"}
+                    }]
+                },
+                "finish_reason": "tool_calls"
+            }],
+            "usage": {"completion_tokens": 5, "prompt_tokens": 10, "total_tokens": 15}
+        });
+        let resp = ChatResponse::from_response_value(json).unwrap();
+        let data = resp.extract_structured_data();
+        assert!(data.is_some());
+    }
+
+    #[test]
+    fn test_get_tool_calls_dispatch() {
+        let json = serde_json::json!({
+            "id": "msg_tools",
+            "model": "claude-sonnet-4-20250514",
+            "role": "assistant",
+            "stop_reason": "tool_use",
+            "type": "message",
+            "usage": {"input_tokens": 10, "output_tokens": 5},
+            "content": [
+                {"type": "tool_use", "id": "toolu_01", "name": "search", "input": {"q": "test"}}
+            ]
+        });
+        let resp = ChatResponse::from_response_value(json).unwrap();
+        let calls = resp.get_tool_calls();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "search");
+    }
+
+    #[test]
+    fn test_get_log_probs_dispatch() {
+        let resp = ChatResponse::from_response_value(openai_json()).unwrap();
+        assert!(resp.get_log_probs().is_empty());
+    }
+}
