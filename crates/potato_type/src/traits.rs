@@ -1,3 +1,4 @@
+use crate::tools::ToolCallInfo;
 use crate::{
     error::TypeError,
     prompt::{MessageNum, ModelSettings, ResponseContent},
@@ -150,6 +151,8 @@ pub trait ResponseAdapter {
     fn output_tokens(&self) -> Option<i64>;
 
     fn total_tokens(&self) -> Option<i64>;
+
+    fn get_tool_calls(&self) -> Vec<ToolCallInfo>;
 }
 
 pub trait MessageResponseExt {

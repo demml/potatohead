@@ -73,3 +73,10 @@ impl Default for ToolRegistry {
         Self::new()
     }
 }
+
+pub struct ToolCallInfo {
+    name: String,
+    arguments: serde_json::Value,
+    call_id: Option<String>,
+    result: Option<serde_json::Value>,
+}
