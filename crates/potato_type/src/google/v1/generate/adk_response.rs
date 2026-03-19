@@ -775,6 +775,29 @@ mod tests {
     }
 
     #[test]
+    fn test_get_log_probs_snake_case_wire_format() {
+        // ADK sends snake_case keys — verify they deserialize correctly into
+        // camelCase-annotated shared types via serde aliases.
+        let json = r#"{
+            "model_version": "google/gemini-3-flash-preview",
+            "content": {"role": "model", "parts": [{"text": "4"}]},
+            "partial": false,
+            "logprobs_result": {
+                "chosen_candidates": [
+                    {"token": "4", "token_id": 52, "log_probability": -0.1},
+                    {"token": "hello", "token_id": 9, "log_probability": -2.5}
+                ]
+            }
+        }"#;
+        let resp: AdkLlmResponse = serde_json::from_str(json).unwrap();
+        let probs = resp.get_log_probs();
+        // Only digit tokens are kept
+        assert_eq!(probs.len(), 1);
+        assert_eq!(probs[0].token, "4");
+        assert!((probs[0].logprob - (-0.1)).abs() < f64::EPSILON);
+    }
+
+    #[test]
     fn test_get_log_probs_digits_only() {
         use crate::google::v1::generate::response::{LogprobsCandidate, LogprobsResult};
         let mut resp = make_text_adk_response("x");

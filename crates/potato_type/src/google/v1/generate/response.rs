@@ -283,25 +283,28 @@ pub struct GroundingChunk {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct GroundingMetadata {
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "web_search_queries", skip_serializing_if = "Option::is_none")]
     pub web_search_queries: Option<Vec<String>>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "grounding_chunks", skip_serializing_if = "Option::is_none")]
     pub grounding_chunks: Option<Vec<GroundingChunk>>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "grounding_supports", skip_serializing_if = "Option::is_none")]
     pub grounding_supports: Option<Vec<GroundingSupport>>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "search_entry_point", skip_serializing_if = "Option::is_none")]
     pub search_entry_point: Option<SearchEntryPoint>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "retrieval_metadata", skip_serializing_if = "Option::is_none")]
     pub retrieval_metadata: Option<RetrievalMetadata>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "source_flagging_uris", skip_serializing_if = "Option::is_none")]
     pub source_flagging_uris: Option<Vec<SourceFlaggingUri>>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        alias = "google_maps_widget_context_token",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub google_maps_widget_context_token: Option<String>,
 }
 
@@ -425,8 +428,10 @@ pub struct LogprobsCandidate {
     /// The candidate's token string value.
     pub token: Option<String>,
     /// The candidate's token id value.
+    #[serde(alias = "token_id")]
     pub token_id: Option<i32>,
     /// The candidate's log probability.
+    #[serde(alias = "log_probability")]
     pub log_probability: Option<f64>,
 }
 
@@ -443,8 +448,9 @@ pub struct TopCandidates {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct LogprobsResult {
+    #[serde(alias = "top_candidates")]
     pub top_candidates: Option<Vec<TopCandidates>>,
-
+    #[serde(alias = "chosen_candidates")]
     pub chosen_candidates: Option<Vec<LogprobsCandidate>>,
 }
 
@@ -464,9 +470,9 @@ pub struct GoogleDate {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Citation {
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "start_index", skip_serializing_if = "Option::is_none")]
     pub start_index: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "end_index", skip_serializing_if = "Option::is_none")]
     pub end_index: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uri: Option<String>,
@@ -474,7 +480,7 @@ pub struct Citation {
     pub title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub license: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "publication_date", skip_serializing_if = "Option::is_none")]
     pub publication_date: Option<GoogleDate>,
 }
 
