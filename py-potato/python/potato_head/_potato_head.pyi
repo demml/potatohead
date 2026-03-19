@@ -3832,6 +3832,9 @@ class FinishReason:
     NoImage = "FinishReason"
     """Expected image but none generated"""
 
+    Language = "FinishReason"
+    """Stopped due to unsupported language"""
+
 class EmbeddingTaskType:
     """Task type for embedding generation.
 
@@ -7174,6 +7177,14 @@ class GroundingMetadata:
     def google_maps_widget_context_token(self) -> Optional[str]:
         """Maps widget context token."""
 
+    @property
+    def retrieval_queries(self) -> Optional[List[str]]:
+        """Retrieval queries used."""
+
+    @property
+    def image_search_queries(self) -> Optional[List[str]]:
+        """Image search queries used."""
+
 class SafetyRating:
     """Safety rating for content.
 
@@ -7536,6 +7547,26 @@ class AdkUsageMetadata:
     @property
     def tool_use_prompt_token_count(self) -> Optional[int]:
         """Tool use prompt tokens."""
+
+    @property
+    def cache_tokens_details(self) -> Optional[List[ModalityTokenCount]]:
+        """Cache token breakdown by modality."""
+
+    @property
+    def candidates_tokens_details(self) -> Optional[List[ModalityTokenCount]]:
+        """Candidate token breakdown by modality."""
+
+    @property
+    def prompt_tokens_details(self) -> Optional[List[ModalityTokenCount]]:
+        """Prompt token breakdown by modality."""
+
+    @property
+    def tool_use_prompt_tokens_details(self) -> Optional[List[ModalityTokenCount]]:
+        """Tool use prompt token breakdown by modality."""
+
+    @property
+    def traffic_type(self) -> Optional[TrafficType]:
+        """Traffic type for the request."""
 
 class AdkTranscription:
     """Input or output transcription from an ADK live session."""

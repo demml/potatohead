@@ -29,7 +29,7 @@ pub enum TrafficType {
 pub struct ModalityTokenCount {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub modality: Option<Modality>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "token_count", skip_serializing_if = "Option::is_none")]
     pub token_count: Option<i32>,
 }
 
@@ -126,7 +126,9 @@ pub struct UrlContextMetadata {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceFlaggingUri {
+    #[serde(alias = "source_id")]
     pub source_id: String,
+    #[serde(alias = "flag_content_uri")]
     pub flag_content_uri: String,
 }
 
@@ -136,7 +138,10 @@ pub struct SourceFlaggingUri {
 #[serde(rename_all = "camelCase")]
 pub struct RetrievalMetadata {
     /// Score indicating how likely information from Google Search could help answer the prompt.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        alias = "google_search_dynamic_retrieval_score",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub google_search_dynamic_retrieval_score: Option<f64>,
 }
 
@@ -146,10 +151,10 @@ pub struct RetrievalMetadata {
 #[serde(rename_all = "camelCase")]
 pub struct SearchEntryPoint {
     /// Optional. Web content snippet that can be embedded in a web page or an app webview.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "rendered_content", skip_serializing_if = "Option::is_none")]
     pub rendered_content: Option<String>,
     /// Optional. Base64 encoded JSON representing array of <search term, search url> tuple.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "sdk_blob", skip_serializing_if = "Option::is_none")]
     pub sdk_blob: Option<String>,
 }
 
@@ -159,13 +164,13 @@ pub struct SearchEntryPoint {
 #[serde(rename_all = "camelCase")]
 pub struct Segment {
     /// Output only. The index of a Part object within its parent Content object.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "part_index", skip_serializing_if = "Option::is_none")]
     pub part_index: Option<i32>,
     /// Output only. Start index in the given Part, measured in bytes.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "start_index", skip_serializing_if = "Option::is_none")]
     pub start_index: Option<i32>,
     /// Output only. End index in the given Part, measured in bytes.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "end_index", skip_serializing_if = "Option::is_none")]
     pub end_index: Option<i32>,
     /// Output only. The text corresponding to the segment from the response.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -178,10 +183,13 @@ pub struct Segment {
 #[serde(rename_all = "camelCase")]
 pub struct GroundingSupport {
     /// A list of indices into 'grounding_chunk' specifying the citations associated with the claim.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        alias = "grounding_chunk_indices",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub grounding_chunk_indices: Option<Vec<i32>>,
     /// confidence score of the support references.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "confidence_scores", skip_serializing_if = "Option::is_none")]
     pub confidence_scores: Option<Vec<f32>>,
     /// Segment of the content this support belongs to.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -209,7 +217,9 @@ pub struct Web {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PageSpan {
+    #[serde(alias = "first_page")]
     pub first_page: i32,
+    #[serde(alias = "last_page")]
     pub last_page: i32,
 }
 
@@ -219,7 +229,7 @@ pub struct PageSpan {
 #[serde(rename_all = "camelCase")]
 pub struct RagChunk {
     pub text: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "page_span", skip_serializing_if = "Option::is_none")]
     pub page_span: Option<PageSpan>,
 }
 
@@ -237,7 +247,7 @@ pub struct RetrievedContext {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "rag_chunk", skip_serializing_if = "Option::is_none")]
     pub rag_chunk: Option<RagChunk>,
 }
 
@@ -255,7 +265,7 @@ pub struct Maps {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "place_id", skip_serializing_if = "Option::is_none")]
     pub place_id: Option<String>,
 }
 
@@ -298,7 +308,10 @@ pub struct GroundingMetadata {
     #[serde(alias = "retrieval_metadata", skip_serializing_if = "Option::is_none")]
     pub retrieval_metadata: Option<RetrievalMetadata>,
 
-    #[serde(alias = "source_flagging_uris", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        alias = "source_flagging_uris",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub source_flagging_uris: Option<Vec<SourceFlaggingUri>>,
 
     #[serde(
@@ -306,6 +319,15 @@ pub struct GroundingMetadata {
         skip_serializing_if = "Option::is_none"
     )]
     pub google_maps_widget_context_token: Option<String>,
+
+    #[serde(alias = "retrieval_queries", skip_serializing_if = "Option::is_none")]
+    pub retrieval_queries: Option<Vec<String>>,
+
+    #[serde(
+        alias = "image_search_queries",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub image_search_queries: Option<Vec<String>>,
 }
 
 #[pyclass]
@@ -369,6 +391,7 @@ pub enum FinishReason {
     ImageOther,
     UnexpectedToolCall,
     NoImage,
+    Language,
 }
 
 impl Display for FinishReason {
@@ -391,6 +414,7 @@ impl Display for FinishReason {
             FinishReason::ImageOther => "IMAGE_OTHER",
             FinishReason::UnexpectedToolCall => "UNEXPECTED_TOOL_CALL",
             FinishReason::NoImage => "NO_IMAGE",
+            FinishReason::Language => "LANGUAGE",
         };
         write!(f, "{}", reason_str)
     }
@@ -416,6 +440,7 @@ impl FinishReason {
             Self::ImageOther => "IMAGE_OTHER",
             Self::UnexpectedToolCall => "UNEXPECTED_TOOL_CALL",
             Self::NoImage => "NO_IMAGE",
+            Self::Language => "LANGUAGE",
         }
     }
 }

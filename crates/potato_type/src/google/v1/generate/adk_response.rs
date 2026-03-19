@@ -3,7 +3,8 @@ use crate::google::v1::generate::request::{
     GeminiContent, Part,
 };
 use crate::google::v1::generate::response::{
-    CitationMetadata, FinishReason, GroundingMetadata, LogprobsResult,
+    CitationMetadata, FinishReason, GroundingMetadata, LogprobsResult, ModalityTokenCount,
+    TrafficType,
 };
 use crate::google::v1::generate::DataNum;
 use crate::prompt::{MessageNum, ResponseContent};
@@ -86,6 +87,16 @@ pub struct AdkUsageMetadata {
     pub cached_content_token_count: Option<i32>,
     pub thoughts_token_count: Option<i32>,
     pub tool_use_prompt_token_count: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_tokens_details: Option<Vec<ModalityTokenCount>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub candidates_tokens_details: Option<Vec<ModalityTokenCount>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_tokens_details: Option<Vec<ModalityTokenCount>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_use_prompt_tokens_details: Option<Vec<ModalityTokenCount>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub traffic_type: Option<TrafficType>,
 }
 
 #[pyclass]
@@ -472,6 +483,11 @@ mod tests {
                 cached_content_token_count: None,
                 thoughts_token_count: None,
                 tool_use_prompt_token_count: None,
+                cache_tokens_details: None,
+                candidates_tokens_details: None,
+                prompt_tokens_details: None,
+                tool_use_prompt_tokens_details: None,
+                traffic_type: None,
             }),
             avg_logprobs: None,
             logprobs_result: None,
@@ -521,6 +537,11 @@ mod tests {
                 cached_content_token_count: None,
                 thoughts_token_count: None,
                 tool_use_prompt_token_count: None,
+                cache_tokens_details: None,
+                candidates_tokens_details: None,
+                prompt_tokens_details: None,
+                tool_use_prompt_tokens_details: None,
+                traffic_type: None,
             }),
             avg_logprobs: None,
             logprobs_result: None,
@@ -852,5 +873,45 @@ mod tests {
             ..Default::default()
         };
         assert!(matches!(part.to_data_num(), DataNum::Text(_)));
+    }
+
+    #[test]
+    fn test_deserialize_usage_metadata_with_modality_details() {
+        let json = r#"{
+            "model_version": "google/gemini-3-flash-preview",
+            "content": {"role": "model", "parts": [{"text": "hi"}]},
+            "partial": false,
+            "finish_reason": "STOP",
+            "usage_metadata": {
+                "prompt_token_count": 100,
+                "candidates_token_count": 50,
+                "total_token_count": 150,
+                "prompt_tokens_details": [
+                    {"modality": "TEXT", "token_count": 80},
+                    {"modality": "IMAGE", "token_count": 20}
+                ],
+                "candidates_tokens_details": [
+                    {"modality": "TEXT", "token_count": 50}
+                ],
+                "traffic_type": "ON_DEMAND"
+            }
+        }"#;
+        let resp: AdkLlmResponse = serde_json::from_str(json).unwrap();
+        let usage = resp.usage_metadata.unwrap();
+        assert_eq!(usage.prompt_token_count, Some(100));
+
+        let prompt_details = usage.prompt_tokens_details.unwrap();
+        assert_eq!(prompt_details.len(), 2);
+        assert_eq!(prompt_details[0].token_count, Some(80));
+        assert_eq!(prompt_details[1].token_count, Some(20));
+
+        let cand_details = usage.candidates_tokens_details.unwrap();
+        assert_eq!(cand_details.len(), 1);
+        assert_eq!(cand_details[0].token_count, Some(50));
+
+        assert_eq!(
+            usage.traffic_type,
+            Some(crate::google::v1::generate::response::TrafficType::OnDemand)
+        );
     }
 }
