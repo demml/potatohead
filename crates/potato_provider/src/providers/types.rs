@@ -1,5 +1,6 @@
 use crate::error::ProviderError;
 use potato_type::anthropic::v1::response::AnthropicMessageResponse;
+use potato_type::google::v1::generate::adk_response::AdkLlmResponse;
 use potato_type::google::v1::generate::GenerateContentResponse;
 use potato_type::google::PredictResponse;
 use potato_type::openai::v1::OpenAIChatResponse;
@@ -100,6 +101,7 @@ pub enum ChatResponse {
     VertexGenerateV1(GenerateContentResponse),
     VertexPredictV1(PredictResponse),
     AnthropicMessageV1(AnthropicMessageResponse),
+    AdkLlmV1(Box<AdkLlmResponse>),
 }
 
 impl ChatResponse {
@@ -197,20 +199,42 @@ impl ChatResponse {
         if obj.contains_key("choices") {
             serde_json::from_value::<OpenAIChatResponse>(value)
                 .map(ChatResponse::OpenAIV1)
-                .map_err(|_| ProviderError::DeserializationError)
+                .map_err(|e| {
+                    tracing::warn!("Failed to deserialize OpenAIChatResponse: {e}");
+                    ProviderError::DeserializationError
+                })
         } else if obj.contains_key("predictions") {
             serde_json::from_value::<PredictResponse>(value)
                 .map(ChatResponse::VertexPredictV1)
-                .map_err(|_| ProviderError::DeserializationError)
+                .map_err(|e| {
+                    tracing::warn!("Failed to deserialize PredictResponse: {e}");
+                    ProviderError::DeserializationError
+                })
+        } else if obj.contains_key("partial")
+            && (obj.contains_key("model_version") || obj.contains_key("turn_complete"))
+        {
+            // ADK LlmResponse: "partial" key plus at least one other ADK-specific field
+            serde_json::from_value::<AdkLlmResponse>(value)
+                .map(|r| ChatResponse::AdkLlmV1(Box::new(r)))
+                .map_err(|e| {
+                    tracing::warn!("Failed to deserialize AdkLlmResponse: {e}");
+                    ProviderError::DeserializationError
+                })
         } else if obj.contains_key("candidates") {
             // Can't distinguish Gemini vs VertexGenerate from JSON alone
             serde_json::from_value::<GenerateContentResponse>(value)
                 .map(ChatResponse::GeminiV1)
-                .map_err(|_| ProviderError::DeserializationError)
+                .map_err(|e| {
+                    tracing::warn!("Failed to deserialize GenerateContentResponse: {e}");
+                    ProviderError::DeserializationError
+                })
         } else if obj.contains_key("stop_reason") && obj.contains_key("content") {
             serde_json::from_value::<AnthropicMessageResponse>(value)
                 .map(ChatResponse::AnthropicMessageV1)
-                .map_err(|_| ProviderError::DeserializationError)
+                .map_err(|e| {
+                    tracing::warn!("Failed to deserialize AnthropicMessageResponse: {e}");
+                    ProviderError::DeserializationError
+                })
         } else {
             Err(ProviderError::DeserializationError)
         }
@@ -339,6 +363,74 @@ mod tests {
         assert_eq!(resp.input_tokens(), Some(12));
         assert_eq!(resp.output_tokens(), Some(8));
         assert_eq!(resp.total_tokens(), Some(20));
+    }
+
+    fn adk_json() -> Value {
+        serde_json::json!({
+            "model_version": "google/gemini-3-flash-preview",
+            "content": {
+                "role": "model",
+                "parts": [{"text": "Hello from ADK!"}]
+            },
+            "partial": false,
+            "turn_complete": true,
+            "finish_reason": "STOP",
+            "usage_metadata": {
+                "prompt_token_count": 20,
+                "candidates_token_count": 10,
+                "total_token_count": 30
+            }
+        })
+    }
+
+    #[test]
+    fn test_from_response_value_adk() {
+        let resp = ChatResponse::from_response_value(adk_json()).unwrap();
+        assert!(matches!(resp, ChatResponse::AdkLlmV1(_)));
+        assert_eq!(resp.response_text(), "Hello from ADK!");
+        assert_eq!(
+            resp.model_name(),
+            Some("google/gemini-3-flash-preview".to_string())
+        );
+        assert_eq!(resp.finish_reason_str(), Some("STOP".to_string()));
+        assert_eq!(resp.input_tokens(), Some(20));
+        assert_eq!(resp.output_tokens(), Some(10));
+        assert_eq!(resp.total_tokens(), Some(30));
+    }
+
+    #[test]
+    fn test_from_response_value_adk_partial_null() {
+        // Pydantic wire format: "partial" key present but null value
+        let json = serde_json::json!({
+            "model_version": "google/gemini-3-flash-preview",
+            "content": {
+                "role": "model",
+                "parts": [{"text": "Hello from ADK!"}]
+            },
+            "partial": null,
+            "turn_complete": true,
+            "finish_reason": "STOP",
+            "usage_metadata": {
+                "prompt_token_count": 20,
+                "candidates_token_count": 10,
+                "total_token_count": 30
+            }
+        });
+        let resp = ChatResponse::from_response_value(json).unwrap();
+        assert!(matches!(resp, ChatResponse::AdkLlmV1(_)));
+        assert_eq!(resp.response_text(), "Hello from ADK!");
+    }
+
+    #[test]
+    fn test_from_response_value_partial_only_not_adk() {
+        // "partial" alone without model_version or turn_complete should not match ADK
+        let json = serde_json::json!({
+            "candidates": [{"content": {"role": "model", "parts": [{"text": "hi"}]}}],
+            "partial": false
+        });
+        // Should match GeminiV1 (has "candidates"), not ADK
+        let resp = ChatResponse::from_response_value(json).unwrap();
+        assert!(matches!(resp, ChatResponse::GeminiV1(_)));
     }
 
     #[test]

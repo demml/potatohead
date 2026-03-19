@@ -570,65 +570,79 @@ impl ResponseAdapter for GenerateContentResponse {
     }
 
     fn get_content(&self) -> ResponseContent {
-        ResponseContent::Google(self.candidates.first().cloned().unwrap())
+        ResponseContent::Google(
+            self.candidates
+                .first()
+                .cloned()
+                .unwrap_or_else(|| Candidate {
+                    index: Some(0),
+                    content: GeminiContent {
+                        role: "model".to_string(),
+                        parts: vec![],
+                    },
+                    avg_logprobs: None,
+                    logprobs_result: None,
+                    finish_reason: None,
+                    safety_ratings: None,
+                    citation_metadata: None,
+                    grounding_metadata: None,
+                    url_context_metadata: None,
+                    finish_message: None,
+                }),
+        )
     }
 
     fn tool_call_output(&self) -> Option<Value> {
-        let parts = match self.candidates.first().cloned() {
-            Some(candidate) => candidate.content.parts,
-            None => return None,
-        };
-
-        if parts.is_empty() {
-            return None;
-        }
-        let data = parts.first().cloned().unwrap_or_default().data;
-
-        // match on function call data
-        match data {
-            DataNum::FunctionCall(func_call) => serde_json::to_value(&func_call).ok(),
-            _ => None,
-        }
+        let candidate = self.candidates.first()?;
+        candidate.content.parts.iter().find_map(|part| {
+            if let DataNum::FunctionCall(fc) = &part.data {
+                serde_json::to_value(fc).ok()
+            } else {
+                None
+            }
+        })
     }
+
     fn structured_output<'py>(
         &self,
         py: Python<'py>,
         output_model: Option<&Bound<'py, PyAny>>,
     ) -> Result<Bound<'py, PyAny>, TypeError> {
-        let parts = match self.candidates.first().cloned() {
-            Some(candidate) => candidate.content.parts,
+        let candidate = match self.candidates.first() {
+            Some(c) => c,
             None => return Ok(py.None().into_bound_py_any(py)?),
         };
 
-        if parts.is_empty() {
+        let text = candidate
+            .content
+            .parts
+            .iter()
+            .rev()
+            .find_map(|part| {
+                if let DataNum::Text(text) = &part.data {
+                    Some(text.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
+
+        if text.is_empty() {
             return Ok(py.None().into_bound_py_any(py)?);
         }
-
-        let data = parts.first().cloned().unwrap_or_default().data;
-
-        match data {
-            DataNum::Text(text) => Ok(construct_structured_response(py, text, output_model)?),
-            _ => {
-                // Non-text content types can't be converted to structured output
-                Ok(py.None().into_bound_py_any(py)?)
-            }
-        }
+        Ok(construct_structured_response(py, text, output_model)?)
     }
 
     fn structured_output_value(&self) -> Option<Value> {
-        let parts = match self.candidates.first().cloned() {
-            Some(candidate) => candidate.content.parts,
-            None => return None,
-        };
-
-        if parts.is_empty() {
-            return None;
-        }
-        let data = parts.first().cloned().unwrap_or_default().data;
-        match data {
-            DataNum::Text(text) => serde_json::from_str(&text).ok(),
-            _ => None,
-        }
+        let candidate = self.candidates.first()?;
+        let text = candidate.content.parts.iter().rev().find_map(|part| {
+            if let DataNum::Text(text) = &part.data {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })?;
+        serde_json::from_str(&text).ok()
     }
 
     /// Returns the total token count across all modalities.
@@ -644,11 +658,13 @@ impl ResponseAdapter for GenerateContentResponse {
                     for log_content in chosen_candidates {
                         // Look for single digit tokens (1, 2, 3, 4, 5)
                         if let Some(token) = &log_content.token {
-                            if token.len() == 1 && token.chars().next().unwrap().is_ascii_digit() {
-                                probabilities.push(TokenLogProbs {
-                                    token: token.clone(),
-                                    logprob: log_content.log_probability.unwrap_or(0.0),
-                                });
+                            if let Some(ch) = token.chars().next() {
+                                if token.len() == 1 && ch.is_ascii_digit() {
+                                    probabilities.push(TokenLogProbs {
+                                        token: token.clone(),
+                                        logprob: log_content.log_probability.unwrap_or(0.0),
+                                    });
+                                }
                             }
                         }
                     }
@@ -660,20 +676,23 @@ impl ResponseAdapter for GenerateContentResponse {
     }
 
     fn response_text(&self) -> String {
-        let parts = match self.candidates.first().cloned() {
-            Some(candidate) => candidate.content.parts,
+        let candidate = match self.candidates.first() {
+            Some(c) => c,
             None => return String::new(),
         };
-
-        if parts.is_empty() {
-            return String::new();
-        }
-        let data = parts.first().cloned().unwrap_or_default().data;
-
-        match data {
-            DataNum::Text(text) => text,
-            _ => String::new(),
-        }
+        candidate
+            .content
+            .parts
+            .iter()
+            .rev()
+            .find_map(|part| {
+                if let DataNum::Text(text) = &part.data {
+                    Some(text.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default()
     }
 
     fn model_name(&self) -> Option<&str> {
@@ -956,6 +975,56 @@ mod tests {
     }
 
     #[test]
+    fn test_structured_output_text_after_function_call() {
+        let mut args = Map::new();
+        args.insert("location".to_string(), serde_json::json!("NYC"));
+
+        let fc_part = Part {
+            data: DataNum::FunctionCall(FunctionCall {
+                name: "get_weather".to_string(),
+                id: Some("fc_01".to_string()),
+                args: Some(args),
+                will_continue: None,
+                partial_args: None,
+            }),
+            ..Default::default()
+        };
+
+        let resp = GenerateContentResponse {
+            candidates: vec![Candidate {
+                index: Some(0),
+                content: GeminiContent {
+                    role: "model".to_string(),
+                    parts: vec![fc_part, Part::from_text(r#"{"city":"NYC"}"#.to_string())],
+                },
+                avg_logprobs: None,
+                logprobs_result: None,
+                finish_reason: Some(FinishReason::Stop),
+                safety_ratings: None,
+                citation_metadata: None,
+                grounding_metadata: None,
+                url_context_metadata: None,
+                finish_message: None,
+            }],
+            model_version: None,
+            create_time: None,
+            response_id: None,
+            prompt_feedback: None,
+            usage_metadata: None,
+        };
+        let val = resp.structured_output_value();
+        assert!(val.is_some());
+        assert_eq!(val.unwrap()["city"], "NYC");
+    }
+
+    #[test]
+    fn test_get_content_empty_no_panic() {
+        let resp = make_empty_response();
+        let content = resp.get_content();
+        matches!(content, ResponseContent::Google(_));
+    }
+
+    #[test]
     fn test_to_message_num() {
         let resp = make_text_response("hello");
         let msgs = resp.to_message_num().unwrap();
@@ -1140,5 +1209,81 @@ mod tests {
         assert_eq!(calls[0].name, "no_args_fn");
         assert_eq!(calls[0].call_id, None);
         assert_eq!(calls[0].arguments, serde_json::Value::Null);
+    }
+
+    #[test]
+    fn test_response_text_text_after_function_call() {
+        let mut args = Map::new();
+        args.insert("location".to_string(), serde_json::json!("NYC"));
+
+        let fc_part = Part {
+            data: DataNum::FunctionCall(FunctionCall {
+                name: "get_weather".to_string(),
+                id: Some("fc_01".to_string()),
+                args: Some(args),
+                will_continue: None,
+                partial_args: None,
+            }),
+            ..Default::default()
+        };
+
+        let resp = GenerateContentResponse {
+            candidates: vec![Candidate {
+                index: Some(0),
+                content: GeminiContent {
+                    role: "model".to_string(),
+                    parts: vec![fc_part, Part::from_text("final".to_string())],
+                },
+                avg_logprobs: None,
+                logprobs_result: None,
+                finish_reason: Some(FinishReason::Stop),
+                safety_ratings: None,
+                citation_metadata: None,
+                grounding_metadata: None,
+                url_context_metadata: None,
+                finish_message: None,
+            }],
+            model_version: Some("gemini-2.0-flash".to_string()),
+            create_time: None,
+            response_id: None,
+            prompt_feedback: None,
+            usage_metadata: None,
+        };
+        assert_eq!(resp.response_text(), "final");
+    }
+
+    #[test]
+    fn test_response_text_multiple_text_parts() {
+        let resp = GenerateContentResponse {
+            candidates: vec![Candidate {
+                index: Some(0),
+                content: GeminiContent {
+                    role: "model".to_string(),
+                    parts: vec![
+                        Part::from_text("first".to_string()),
+                        Part::from_text("last".to_string()),
+                    ],
+                },
+                avg_logprobs: None,
+                logprobs_result: None,
+                finish_reason: Some(FinishReason::Stop),
+                safety_ratings: None,
+                citation_metadata: None,
+                grounding_metadata: None,
+                url_context_metadata: None,
+                finish_message: None,
+            }],
+            model_version: Some("gemini-2.0-flash".to_string()),
+            create_time: None,
+            response_id: None,
+            prompt_feedback: None,
+            usage_metadata: None,
+        };
+        assert_eq!(resp.response_text(), "last");
+    }
+
+    #[test]
+    fn test_response_text_only_function_call() {
+        assert_eq!(make_function_call_response().response_text(), "");
     }
 }

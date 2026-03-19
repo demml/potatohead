@@ -128,9 +128,8 @@ macro_rules! dispatch_response_trait_method {
             Self::GeminiV1(inner) => <_ as $trait>::$method(inner, $($args),*),
             Self::VertexGenerateV1(inner) => <_ as $trait>::$method(inner, $($args),*),
             Self::AnthropicMessageV1(inner) => <_ as $trait>::$method(inner, $($args),*),
-            Self::VertexPredictV1(inner) => <_ as $trait>::$method(inner, $($args),*)
+            Self::VertexPredictV1(inner) => <_ as $trait>::$method(inner, $($args),*),
+            Self::AdkLlmV1(inner) => <_ as $trait>::$method(&**inner, $($args),*),
         }
     };
-
-
 }
