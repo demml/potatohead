@@ -408,7 +408,15 @@ impl ResponseAdapter for AnthropicMessageResponse {
     }
 
     fn get_content(&self) -> ResponseContent {
-        ResponseContent::Anthropic(self.content.first().cloned().unwrap())
+        ResponseContent::Anthropic(self.content.first().cloned().unwrap_or_else(|| {
+            ResponseContentBlock {
+                inner: ResponseContentBlockInner::Text(TextBlock {
+                    text: String::new(),
+                    citations: None,
+                    r#type: "text".to_string(),
+                }),
+            }
+        }))
     }
 
     fn tool_call_output(&self) -> Option<Value> {
@@ -429,26 +437,34 @@ impl ResponseAdapter for AnthropicMessageResponse {
             return Ok(py.None().into_bound_py_any(py)?);
         }
 
-        let inner = self.content.first().cloned().unwrap().inner;
+        let text = self
+            .content
+            .iter()
+            .rev()
+            .find_map(|block| {
+                if let ResponseContentBlockInner::Text(text_block) = &block.inner {
+                    Some(text_block.text.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
 
-        match inner {
-            ResponseContentBlockInner::Text(block) => {
-                return Ok(construct_structured_response(py, block.text, output_model)?)
-            }
-            _ => return Ok(py.None().into_bound_py_any(py)?),
-        };
+        if text.is_empty() {
+            return Ok(py.None().into_bound_py_any(py)?);
+        }
+        Ok(construct_structured_response(py, text, output_model)?)
     }
 
     fn structured_output_value(&self) -> Option<Value> {
-        if self.content.is_empty() {
-            return None;
-        }
-
-        let inner = self.content.first().cloned().unwrap().inner;
-        match inner {
-            ResponseContentBlockInner::Text(block) => serde_json::from_str(&block.text).ok(),
-            _ => None,
-        }
+        let text = self.content.iter().rev().find_map(|block| {
+            if let ResponseContentBlockInner::Text(text_block) = &block.inner {
+                Some(text_block.text.clone())
+            } else {
+                None
+            }
+        })?;
+        serde_json::from_str(&text).ok()
     }
 
     fn usage<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
@@ -461,16 +477,17 @@ impl ResponseAdapter for AnthropicMessageResponse {
     }
 
     fn response_text(&self) -> String {
-        if self.content.is_empty() {
-            return String::new();
-        }
-
-        let inner = self.content.first().cloned().unwrap().inner;
-
-        match inner {
-            ResponseContentBlockInner::Text(block) => block.text,
-            _ => String::new(),
-        }
+        self.content
+            .iter()
+            .rev()
+            .find_map(|block| {
+                if let ResponseContentBlockInner::Text(text_block) = &block.inner {
+                    Some(text_block.text.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default()
     }
 
     fn model_name(&self) -> Option<&str> {
@@ -525,6 +542,16 @@ mod tests {
                 text: text.to_string(),
                 citations: None,
                 r#type: "text".to_string(),
+            }),
+        }
+    }
+
+    fn make_thinking_block(thinking: &str) -> ResponseContentBlock {
+        ResponseContentBlock {
+            inner: ResponseContentBlockInner::Thinking(ThinkingBlock {
+                thinking: thinking.to_string(),
+                signature: None,
+                r#type: "thinking".to_string(),
             }),
         }
     }
@@ -623,6 +650,57 @@ mod tests {
     }
 
     #[test]
+    fn test_response_text_thinking_block_first() {
+        let resp = AnthropicMessageResponse {
+            id: "msg_think".to_string(),
+            model: "claude-sonnet-4-20250514".to_string(),
+            role: "assistant".to_string(),
+            stop_reason: Some(StopReason::EndTurn),
+            stop_sequence: None,
+            r#type: "message".to_string(),
+            usage: make_usage(),
+            content: vec![
+                make_thinking_block("let me think..."),
+                make_text_block("final"),
+            ],
+        };
+        assert_eq!(resp.response_text(), "final");
+    }
+
+    #[test]
+    fn test_response_text_only_thinking_block() {
+        let resp = AnthropicMessageResponse {
+            id: "msg_think_only".to_string(),
+            model: "claude-sonnet-4-20250514".to_string(),
+            role: "assistant".to_string(),
+            stop_reason: Some(StopReason::EndTurn),
+            stop_sequence: None,
+            r#type: "message".to_string(),
+            usage: make_usage(),
+            content: vec![make_thinking_block("only thinking, no text")],
+        };
+        assert_eq!(resp.response_text(), "");
+    }
+
+    #[test]
+    fn test_response_text_tool_use_then_text() {
+        let resp = AnthropicMessageResponse {
+            id: "msg_reversed".to_string(),
+            model: "claude-sonnet-4-20250514".to_string(),
+            role: "assistant".to_string(),
+            stop_reason: Some(StopReason::EndTurn),
+            stop_sequence: None,
+            r#type: "message".to_string(),
+            usage: make_usage(),
+            content: vec![
+                make_tool_use_block("toolu_01", "get_weather", serde_json::json!({})),
+                make_text_block("final answer"),
+            ],
+        };
+        assert_eq!(resp.response_text(), "final answer");
+    }
+
+    #[test]
     fn test_model_name() {
         assert_eq!(
             make_text_response("x").model_name(),
@@ -701,6 +779,36 @@ mod tests {
     #[test]
     fn test_structured_output_value_empty() {
         assert!(make_empty_response().structured_output_value().is_none());
+    }
+
+    #[test]
+    fn test_get_content_empty_response_no_panic() {
+        let resp = make_empty_response();
+        let content = resp.get_content();
+        // Should return an empty text block rather than panic
+        matches!(content, ResponseContent::Anthropic(_));
+    }
+
+    #[test]
+    fn test_structured_output_thinking_block_first() {
+        let resp = AnthropicMessageResponse {
+            id: "msg_think_struct".to_string(),
+            model: "claude-sonnet-4-20250514".to_string(),
+            role: "assistant".to_string(),
+            stop_reason: Some(StopReason::EndTurn),
+            stop_sequence: None,
+            r#type: "message".to_string(),
+            usage: make_usage(),
+            content: vec![
+                make_thinking_block("let me think..."),
+                make_text_block(r#"{"name":"Alice","score":99}"#),
+            ],
+        };
+        let val = resp.structured_output_value();
+        assert!(val.is_some());
+        let obj = val.unwrap();
+        assert_eq!(obj["name"], "Alice");
+        assert_eq!(obj["score"], 99);
     }
 
     #[test]

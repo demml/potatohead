@@ -29,7 +29,7 @@ pub enum TrafficType {
 pub struct ModalityTokenCount {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub modality: Option<Modality>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "token_count", skip_serializing_if = "Option::is_none")]
     pub token_count: Option<i32>,
 }
 
@@ -126,7 +126,9 @@ pub struct UrlContextMetadata {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceFlaggingUri {
+    #[serde(alias = "source_id")]
     pub source_id: String,
+    #[serde(alias = "flag_content_uri")]
     pub flag_content_uri: String,
 }
 
@@ -136,7 +138,10 @@ pub struct SourceFlaggingUri {
 #[serde(rename_all = "camelCase")]
 pub struct RetrievalMetadata {
     /// Score indicating how likely information from Google Search could help answer the prompt.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        alias = "google_search_dynamic_retrieval_score",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub google_search_dynamic_retrieval_score: Option<f64>,
 }
 
@@ -146,10 +151,10 @@ pub struct RetrievalMetadata {
 #[serde(rename_all = "camelCase")]
 pub struct SearchEntryPoint {
     /// Optional. Web content snippet that can be embedded in a web page or an app webview.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "rendered_content", skip_serializing_if = "Option::is_none")]
     pub rendered_content: Option<String>,
     /// Optional. Base64 encoded JSON representing array of <search term, search url> tuple.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "sdk_blob", skip_serializing_if = "Option::is_none")]
     pub sdk_blob: Option<String>,
 }
 
@@ -159,13 +164,13 @@ pub struct SearchEntryPoint {
 #[serde(rename_all = "camelCase")]
 pub struct Segment {
     /// Output only. The index of a Part object within its parent Content object.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "part_index", skip_serializing_if = "Option::is_none")]
     pub part_index: Option<i32>,
     /// Output only. Start index in the given Part, measured in bytes.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "start_index", skip_serializing_if = "Option::is_none")]
     pub start_index: Option<i32>,
     /// Output only. End index in the given Part, measured in bytes.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "end_index", skip_serializing_if = "Option::is_none")]
     pub end_index: Option<i32>,
     /// Output only. The text corresponding to the segment from the response.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -178,10 +183,13 @@ pub struct Segment {
 #[serde(rename_all = "camelCase")]
 pub struct GroundingSupport {
     /// A list of indices into 'grounding_chunk' specifying the citations associated with the claim.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        alias = "grounding_chunk_indices",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub grounding_chunk_indices: Option<Vec<i32>>,
     /// confidence score of the support references.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "confidence_scores", skip_serializing_if = "Option::is_none")]
     pub confidence_scores: Option<Vec<f32>>,
     /// Segment of the content this support belongs to.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -209,7 +217,9 @@ pub struct Web {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PageSpan {
+    #[serde(alias = "first_page")]
     pub first_page: i32,
+    #[serde(alias = "last_page")]
     pub last_page: i32,
 }
 
@@ -219,7 +229,7 @@ pub struct PageSpan {
 #[serde(rename_all = "camelCase")]
 pub struct RagChunk {
     pub text: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "page_span", skip_serializing_if = "Option::is_none")]
     pub page_span: Option<PageSpan>,
 }
 
@@ -237,7 +247,7 @@ pub struct RetrievedContext {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "rag_chunk", skip_serializing_if = "Option::is_none")]
     pub rag_chunk: Option<RagChunk>,
 }
 
@@ -255,7 +265,7 @@ pub struct Maps {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "place_id", skip_serializing_if = "Option::is_none")]
     pub place_id: Option<String>,
 }
 
@@ -283,26 +293,41 @@ pub struct GroundingChunk {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct GroundingMetadata {
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "web_search_queries", skip_serializing_if = "Option::is_none")]
     pub web_search_queries: Option<Vec<String>>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "grounding_chunks", skip_serializing_if = "Option::is_none")]
     pub grounding_chunks: Option<Vec<GroundingChunk>>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "grounding_supports", skip_serializing_if = "Option::is_none")]
     pub grounding_supports: Option<Vec<GroundingSupport>>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "search_entry_point", skip_serializing_if = "Option::is_none")]
     pub search_entry_point: Option<SearchEntryPoint>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "retrieval_metadata", skip_serializing_if = "Option::is_none")]
     pub retrieval_metadata: Option<RetrievalMetadata>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        alias = "source_flagging_uris",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub source_flagging_uris: Option<Vec<SourceFlaggingUri>>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        alias = "google_maps_widget_context_token",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub google_maps_widget_context_token: Option<String>,
+
+    #[serde(alias = "retrieval_queries", skip_serializing_if = "Option::is_none")]
+    pub retrieval_queries: Option<Vec<String>>,
+
+    #[serde(
+        alias = "image_search_queries",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub image_search_queries: Option<Vec<String>>,
 }
 
 #[pyclass]
@@ -366,6 +391,7 @@ pub enum FinishReason {
     ImageOther,
     UnexpectedToolCall,
     NoImage,
+    Language,
 }
 
 impl Display for FinishReason {
@@ -388,6 +414,7 @@ impl Display for FinishReason {
             FinishReason::ImageOther => "IMAGE_OTHER",
             FinishReason::UnexpectedToolCall => "UNEXPECTED_TOOL_CALL",
             FinishReason::NoImage => "NO_IMAGE",
+            FinishReason::Language => "LANGUAGE",
         };
         write!(f, "{}", reason_str)
     }
@@ -413,6 +440,7 @@ impl FinishReason {
             Self::ImageOther => "IMAGE_OTHER",
             Self::UnexpectedToolCall => "UNEXPECTED_TOOL_CALL",
             Self::NoImage => "NO_IMAGE",
+            Self::Language => "LANGUAGE",
         }
     }
 }
@@ -425,8 +453,10 @@ pub struct LogprobsCandidate {
     /// The candidate's token string value.
     pub token: Option<String>,
     /// The candidate's token id value.
+    #[serde(alias = "token_id")]
     pub token_id: Option<i32>,
     /// The candidate's log probability.
+    #[serde(alias = "log_probability")]
     pub log_probability: Option<f64>,
 }
 
@@ -443,8 +473,9 @@ pub struct TopCandidates {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct LogprobsResult {
+    #[serde(alias = "top_candidates")]
     pub top_candidates: Option<Vec<TopCandidates>>,
-
+    #[serde(alias = "chosen_candidates")]
     pub chosen_candidates: Option<Vec<LogprobsCandidate>>,
 }
 
@@ -464,9 +495,9 @@ pub struct GoogleDate {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Citation {
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "start_index", skip_serializing_if = "Option::is_none")]
     pub start_index: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "end_index", skip_serializing_if = "Option::is_none")]
     pub end_index: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uri: Option<String>,
@@ -474,7 +505,7 @@ pub struct Citation {
     pub title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub license: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "publication_date", skip_serializing_if = "Option::is_none")]
     pub publication_date: Option<GoogleDate>,
 }
 
@@ -570,65 +601,79 @@ impl ResponseAdapter for GenerateContentResponse {
     }
 
     fn get_content(&self) -> ResponseContent {
-        ResponseContent::Google(self.candidates.first().cloned().unwrap())
+        ResponseContent::Google(
+            self.candidates
+                .first()
+                .cloned()
+                .unwrap_or_else(|| Candidate {
+                    index: Some(0),
+                    content: GeminiContent {
+                        role: "model".to_string(),
+                        parts: vec![],
+                    },
+                    avg_logprobs: None,
+                    logprobs_result: None,
+                    finish_reason: None,
+                    safety_ratings: None,
+                    citation_metadata: None,
+                    grounding_metadata: None,
+                    url_context_metadata: None,
+                    finish_message: None,
+                }),
+        )
     }
 
     fn tool_call_output(&self) -> Option<Value> {
-        let parts = match self.candidates.first().cloned() {
-            Some(candidate) => candidate.content.parts,
-            None => return None,
-        };
-
-        if parts.is_empty() {
-            return None;
-        }
-        let data = parts.first().cloned().unwrap_or_default().data;
-
-        // match on function call data
-        match data {
-            DataNum::FunctionCall(func_call) => serde_json::to_value(&func_call).ok(),
-            _ => None,
-        }
+        let candidate = self.candidates.first()?;
+        candidate.content.parts.iter().find_map(|part| {
+            if let DataNum::FunctionCall(fc) = &part.data {
+                serde_json::to_value(fc).ok()
+            } else {
+                None
+            }
+        })
     }
+
     fn structured_output<'py>(
         &self,
         py: Python<'py>,
         output_model: Option<&Bound<'py, PyAny>>,
     ) -> Result<Bound<'py, PyAny>, TypeError> {
-        let parts = match self.candidates.first().cloned() {
-            Some(candidate) => candidate.content.parts,
+        let candidate = match self.candidates.first() {
+            Some(c) => c,
             None => return Ok(py.None().into_bound_py_any(py)?),
         };
 
-        if parts.is_empty() {
+        let text = candidate
+            .content
+            .parts
+            .iter()
+            .rev()
+            .find_map(|part| {
+                if let DataNum::Text(text) = &part.data {
+                    Some(text.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
+
+        if text.is_empty() {
             return Ok(py.None().into_bound_py_any(py)?);
         }
-
-        let data = parts.first().cloned().unwrap_or_default().data;
-
-        match data {
-            DataNum::Text(text) => Ok(construct_structured_response(py, text, output_model)?),
-            _ => {
-                // Non-text content types can't be converted to structured output
-                Ok(py.None().into_bound_py_any(py)?)
-            }
-        }
+        Ok(construct_structured_response(py, text, output_model)?)
     }
 
     fn structured_output_value(&self) -> Option<Value> {
-        let parts = match self.candidates.first().cloned() {
-            Some(candidate) => candidate.content.parts,
-            None => return None,
-        };
-
-        if parts.is_empty() {
-            return None;
-        }
-        let data = parts.first().cloned().unwrap_or_default().data;
-        match data {
-            DataNum::Text(text) => serde_json::from_str(&text).ok(),
-            _ => None,
-        }
+        let candidate = self.candidates.first()?;
+        let text = candidate.content.parts.iter().rev().find_map(|part| {
+            if let DataNum::Text(text) = &part.data {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })?;
+        serde_json::from_str(&text).ok()
     }
 
     /// Returns the total token count across all modalities.
@@ -644,11 +689,13 @@ impl ResponseAdapter for GenerateContentResponse {
                     for log_content in chosen_candidates {
                         // Look for single digit tokens (1, 2, 3, 4, 5)
                         if let Some(token) = &log_content.token {
-                            if token.len() == 1 && token.chars().next().unwrap().is_ascii_digit() {
-                                probabilities.push(TokenLogProbs {
-                                    token: token.clone(),
-                                    logprob: log_content.log_probability.unwrap_or(0.0),
-                                });
+                            if let Some(ch) = token.chars().next() {
+                                if token.len() == 1 && ch.is_ascii_digit() {
+                                    probabilities.push(TokenLogProbs {
+                                        token: token.clone(),
+                                        logprob: log_content.log_probability.unwrap_or(0.0),
+                                    });
+                                }
                             }
                         }
                     }
@@ -660,20 +707,23 @@ impl ResponseAdapter for GenerateContentResponse {
     }
 
     fn response_text(&self) -> String {
-        let parts = match self.candidates.first().cloned() {
-            Some(candidate) => candidate.content.parts,
+        let candidate = match self.candidates.first() {
+            Some(c) => c,
             None => return String::new(),
         };
-
-        if parts.is_empty() {
-            return String::new();
-        }
-        let data = parts.first().cloned().unwrap_or_default().data;
-
-        match data {
-            DataNum::Text(text) => text,
-            _ => String::new(),
-        }
+        candidate
+            .content
+            .parts
+            .iter()
+            .rev()
+            .find_map(|part| {
+                if let DataNum::Text(text) = &part.data {
+                    Some(text.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default()
     }
 
     fn model_name(&self) -> Option<&str> {
@@ -956,6 +1006,56 @@ mod tests {
     }
 
     #[test]
+    fn test_structured_output_text_after_function_call() {
+        let mut args = Map::new();
+        args.insert("location".to_string(), serde_json::json!("NYC"));
+
+        let fc_part = Part {
+            data: DataNum::FunctionCall(FunctionCall {
+                name: "get_weather".to_string(),
+                id: Some("fc_01".to_string()),
+                args: Some(args),
+                will_continue: None,
+                partial_args: None,
+            }),
+            ..Default::default()
+        };
+
+        let resp = GenerateContentResponse {
+            candidates: vec![Candidate {
+                index: Some(0),
+                content: GeminiContent {
+                    role: "model".to_string(),
+                    parts: vec![fc_part, Part::from_text(r#"{"city":"NYC"}"#.to_string())],
+                },
+                avg_logprobs: None,
+                logprobs_result: None,
+                finish_reason: Some(FinishReason::Stop),
+                safety_ratings: None,
+                citation_metadata: None,
+                grounding_metadata: None,
+                url_context_metadata: None,
+                finish_message: None,
+            }],
+            model_version: None,
+            create_time: None,
+            response_id: None,
+            prompt_feedback: None,
+            usage_metadata: None,
+        };
+        let val = resp.structured_output_value();
+        assert!(val.is_some());
+        assert_eq!(val.unwrap()["city"], "NYC");
+    }
+
+    #[test]
+    fn test_get_content_empty_no_panic() {
+        let resp = make_empty_response();
+        let content = resp.get_content();
+        matches!(content, ResponseContent::Google(_));
+    }
+
+    #[test]
     fn test_to_message_num() {
         let resp = make_text_response("hello");
         let msgs = resp.to_message_num().unwrap();
@@ -1140,5 +1240,81 @@ mod tests {
         assert_eq!(calls[0].name, "no_args_fn");
         assert_eq!(calls[0].call_id, None);
         assert_eq!(calls[0].arguments, serde_json::Value::Null);
+    }
+
+    #[test]
+    fn test_response_text_text_after_function_call() {
+        let mut args = Map::new();
+        args.insert("location".to_string(), serde_json::json!("NYC"));
+
+        let fc_part = Part {
+            data: DataNum::FunctionCall(FunctionCall {
+                name: "get_weather".to_string(),
+                id: Some("fc_01".to_string()),
+                args: Some(args),
+                will_continue: None,
+                partial_args: None,
+            }),
+            ..Default::default()
+        };
+
+        let resp = GenerateContentResponse {
+            candidates: vec![Candidate {
+                index: Some(0),
+                content: GeminiContent {
+                    role: "model".to_string(),
+                    parts: vec![fc_part, Part::from_text("final".to_string())],
+                },
+                avg_logprobs: None,
+                logprobs_result: None,
+                finish_reason: Some(FinishReason::Stop),
+                safety_ratings: None,
+                citation_metadata: None,
+                grounding_metadata: None,
+                url_context_metadata: None,
+                finish_message: None,
+            }],
+            model_version: Some("gemini-2.0-flash".to_string()),
+            create_time: None,
+            response_id: None,
+            prompt_feedback: None,
+            usage_metadata: None,
+        };
+        assert_eq!(resp.response_text(), "final");
+    }
+
+    #[test]
+    fn test_response_text_multiple_text_parts() {
+        let resp = GenerateContentResponse {
+            candidates: vec![Candidate {
+                index: Some(0),
+                content: GeminiContent {
+                    role: "model".to_string(),
+                    parts: vec![
+                        Part::from_text("first".to_string()),
+                        Part::from_text("last".to_string()),
+                    ],
+                },
+                avg_logprobs: None,
+                logprobs_result: None,
+                finish_reason: Some(FinishReason::Stop),
+                safety_ratings: None,
+                citation_metadata: None,
+                grounding_metadata: None,
+                url_context_metadata: None,
+                finish_message: None,
+            }],
+            model_version: Some("gemini-2.0-flash".to_string()),
+            create_time: None,
+            response_id: None,
+            prompt_feedback: None,
+            usage_metadata: None,
+        };
+        assert_eq!(resp.response_text(), "last");
+    }
+
+    #[test]
+    fn test_response_text_only_function_call() {
+        assert_eq!(make_function_call_response().response_text(), "");
     }
 }
