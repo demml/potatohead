@@ -33,6 +33,9 @@ class Provider:
     Anthropic: "Provider"
     """Anthropic provider"""
 
+    GoogleAdk: "Provider"
+    """Google ADK (Agent Development Kit) provider"""
+
     Undefined: "Provider"
     """Undefined provider"""
 
