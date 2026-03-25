@@ -11,6 +11,7 @@ use crate::agents::{
         session_store::SessionStore, user_state_store::UserStateStore,
     },
     task::Task,
+    tool_ext::AgentTool,
     types::{AgentResponse, PyAgentResponse},
 };
 use async_trait::async_trait;
@@ -541,23 +542,23 @@ impl AgentRunner for Agent {
         let app = self.app_name.as_deref().unwrap_or("default");
         let uid = self.user_id.as_deref().unwrap_or("default");
 
-        // Load session state from backing store if configured.
-        if let (Some(sid), Some(store)) = (&self.session_id, &self.session_store) {
-            if let Some(snapshot) = store.load(app, uid, sid).await? {
+        // Load app-level state (lowest precedence — overwritten by later loads).
+        if let Some(store) = &self.app_state_store {
+            if let Some(snapshot) = store.load(app).await? {
                 session.merge(snapshot.0);
             }
         }
 
-        // Load user-level state if configured.
+        // Load user-level state (medium precedence).
         if let Some(store) = &self.user_state_store {
             if let Some(snapshot) = store.load(app, uid).await? {
                 session.merge(snapshot.0);
             }
         }
 
-        // Load app-level state if configured.
-        if let Some(store) = &self.app_state_store {
-            if let Some(snapshot) = store.load(app).await? {
+        // Load session state (highest precedence — wins over user and app).
+        if let (Some(sid), Some(store)) = (&self.session_id, &self.session_store) {
+            if let Some(snapshot) = store.load(app, uid, sid).await? {
                 session.merge(snapshot.0);
             }
         }
@@ -624,9 +625,13 @@ impl AgentRunner for Agent {
 
             // After-model callbacks
             if let Some(override_text) = self.fire_after_model(&run_ctx, &agent_response)? {
-                // Callback override — treat as final answer
-                run_ctx.push_response(override_text);
-                break;
+                run_ctx.push_response(override_text.clone());
+                return Ok(AgentRunOutcome::complete(AgentRunResult {
+                    final_response: agent_response,
+                    iterations: run_ctx.iteration,
+                    completion_reason: format!("callback override: {}", override_text),
+                    combined_text: None,
+                }));
             }
 
             // Check for tool calls
@@ -647,12 +652,23 @@ impl AgentRunner for Agent {
                             registry.get_async_tool(&call.tool_name)
                         };
                         if let Some(tool) = async_tool {
-                            tool.execute(call.arguments.clone()).await.map_err(|e| {
-                                AgentError::Error(format!(
-                                    "Tool '{}' failed: {}",
-                                    call.tool_name, e
-                                ))
-                            })?
+                            if let Some(agent_tool) = tool
+                                .as_any()
+                                .and_then(|a| a.downcast_ref::<AgentTool>())
+                            {
+                                // Route AgentTool through dispatch() to propagate ancestor tracking.
+                                agent_tool
+                                    .dispatch(call.arguments.clone(), session)
+                                    .await
+                                    .map_err(|e| AgentError::Error(format!("Tool '{}' failed: {}", call.tool_name, e)))?
+                            } else {
+                                tool.execute(call.arguments.clone()).await.map_err(|e| {
+                                    AgentError::Error(format!(
+                                        "Tool '{}' failed: {}",
+                                        call.tool_name, e
+                                    ))
+                                })?
+                            }
                         } else {
                             let registry = self.tools.read().unwrap_or_else(|e| e.into_inner());
                             registry.execute(call).map_err(|e| {

@@ -11,4 +11,9 @@ pub trait AsyncTool: Send + Sync + Debug {
     fn description(&self) -> &str;
     fn parameter_schema(&self) -> Value;
     async fn execute(&self, args: Value) -> Result<Value, TypeError>;
+
+    /// Optional downcast hook. Override in concrete types that need session-aware dispatch.
+    fn as_any(&self) -> Option<&dyn std::any::Any> {
+        None
+    }
 }

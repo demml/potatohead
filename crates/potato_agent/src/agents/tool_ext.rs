@@ -64,7 +64,7 @@ impl AgentTool {
     }
 
     /// Extract the `input` field from args and run the sub-agent.
-    async fn dispatch(&self, args: Value, session: &mut SessionState) -> Result<Value, AgentError> {
+    pub(crate) async fn dispatch(&self, args: Value, session: &mut SessionState) -> Result<Value, AgentError> {
         // Check circular call
         if session.is_ancestor(self.runner.id()) {
             return Err(AgentError::CircularAgentCall(self.runner.id().to_string()));
@@ -115,6 +115,10 @@ impl AsyncTool for AgentTool {
         self.dispatch(args, &mut session)
             .await
             .map_err(|e| TypeError::Error(e.to_string()))
+    }
+
+    fn as_any(&self) -> Option<&dyn std::any::Any> {
+        Some(self)
     }
 }
 
