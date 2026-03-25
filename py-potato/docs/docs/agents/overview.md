@@ -32,49 +32,64 @@ An `Agent` is a struct that wraps an LLM provider client together with configura
 
 ## Execution Flow
 
-The following diagram shows the complete execution path for a single `agent.run()` call.
+`agent.run(input, &mut session)` executes in two phases: **setup** (runs once) and the **agentic loop** (repeats until done).
 
 ```mermaid
 flowchart TD
-    A["agent.run(input, session)"] --> B["Build prompt from input string"]
-    B --> C["Load state from stores\n(SessionStore, UserStateStore, AppStateStore)"]
-    C --> D["Hydrate memory\n(PersistentMemory: async DB read; in-memory: no-op)"]
-    D --> E["Inject conversation history\nafter system messages, before user turn"]
-    E --> F["Attach tool definitions\nto prompt if registry non-empty"]
-    F --> LOOP
-
-    subgraph LOOP ["Agentic Loop (max_iterations)"]
-        G{"iteration ≥ max_iterations?"}
-        G -- yes --> ERR["Err(MaxIterationsExceeded)"]
-        G -- no --> H["fire before_model_call()"]
-        H --> H2{"CallbackAction::Abort?"}
-        H2 -- yes --> ERR2["Err(CallbackAbort)"]
-        H2 -- no --> I["LLM call via GenAiClient"]
-        I --> J["fire after_model_call()"]
-        J --> J2{"OverrideResponse?"}
-        J2 -- yes --> K["Replace response text"]
-        J2 -- no --> K
-        K --> L{"Tool calls in response?"}
-
-        L -- yes --> M["Append assistant message to prompt"]
-        M --> N["For each tool call:"]
-        N --> N1["fire before_tool_call()"]
-        N1 --> N2["Execute tool\n(async tool first, sync fallback)"]
-        N2 --> N3["fire after_tool_call()"]
-        N3 --> N4["Append tool result to prompt"]
-        N4 --> INC["iteration += 1"]
-        INC --> G
-
-        L -- no --> P{"Response starts\n'__ask_user__:'?"}
-        P -- yes --> Q["return NeedsInput { question, resume_context }"]
-        P -- no --> R{"Any CompletionCriteria met?"}
-        R -- no --> S["Append assistant message\ncontinue loop"]
-        S --> G
-        R -- yes --> T["Save memory turn"]
-        T --> U["Persist session to SessionStore"]
-        U --> V["return Complete(AgentRunResult)"]
-    end
+    A([run]) --> B[Setup]
+    B --> C[Call LLM]
+    C --> D{tool calls?}
+    D -- yes --> E[execute tools<br/>iteration += 1]
+    E -- below limit --> C
+    E -- at limit --> MAXERR([MaxIterationsExceeded])
+    D -- no --> F{__ask_user__?}
+    F -- yes --> NI([NeedsInput])
+    F -- no --> G{criteria met?}
+    G -- no --> C
+    G -- yes --> DONE([Complete])
 ```
+
+Callbacks fire at `before_model_call`, `after_model_call`, `before_tool_call`, and `after_tool_call`. Any callback can abort the loop or override the model response. See [Callbacks](callbacks.md) for details.
+
+---
+
+### Phase 1 — Setup
+
+These steps run once at the start of every `run()` call, before any LLM call:
+
+1. **Build the prompt** from the `input` string.
+2. **Load state from stores** — if `SessionStore`, `UserStateStore`, or `AppStateStore` are configured, their snapshots are merged into `session`. Session-level data overwrites user-level, which overwrites app-level on key conflicts.
+3. **Hydrate memory** — if `PersistentMemory` is configured, load all stored turns from the database (idempotent; only reads once per agent instance).
+4. **Inject conversation history** — flatten stored turns into `[user, assistant, ...]` pairs and insert them after system messages, before the current user turn.
+5. **Attach tool definitions** — if the tool registry is non-empty, add all tool schemas to the prompt.
+
+### Phase 2 — The Agentic Loop
+
+The loop runs until a stopping condition is reached. Each iteration:
+
+1. **Check iteration limit** — if `iteration >= max_iterations`, return `Err(MaxIterationsExceeded)`.
+2. **`before_model_call`** callback fires. If any callback returns `Abort`, return `Err(CallbackAbort)`.
+3. **LLM call** via the configured provider client.
+4. **`after_model_call`** callback fires. A callback may return `OverrideResponse(text)` to replace the model's output and stop the loop.
+
+**If the response contains tool calls:**
+
+5. Append the assistant message to the prompt.
+6. For each tool call:
+    - **`before_tool_call`** callback fires.
+    - Execute the tool (async tools are preferred; sync tools are the fallback).
+    - **`after_tool_call`** callback fires with the result.
+    - Append the tool result to the prompt.
+7. Increment `iteration`. Go to step 1.
+
+**If the response is plain text:**
+
+5. If the response starts with `__ask_user__:`, return `NeedsInput { question, resume_context }`.
+6. Evaluate all [completion criteria](criteria.md). If none are met, append the assistant message and go to step 1.
+7. If any criterion is met:
+    - Save the completed turn to memory (write-through for `PersistentMemory`).
+    - Persist the session snapshot to `SessionStore` (if configured).
+    - Return `Complete(AgentRunResult)`.
 
 ### Iteration semantics
 
