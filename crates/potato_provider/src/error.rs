@@ -32,6 +32,9 @@ pub enum ProviderError {
     #[error("Failed to serialize chat request: {0}")]
     SerializationError(#[from] serde_json::Error),
 
+    #[error("Failed to deserialize response into provider type")]
+    DeserializationError,
+
     #[error("Failed to extract embedding config. Check provider and config compatibility: {0}")]
     EmbeddingConfigExtractionError(String),
 

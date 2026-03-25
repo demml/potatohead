@@ -113,6 +113,68 @@ def test_bind_prompt_brackets():
     assert bound_prompt.messages[1].parts[0].data == "This is Foo"
 
 
+def test_adk_llm_response_text():
+    try:
+        from google.adk.models.llm_response import LlmResponse
+        from google.genai import types
+    except ImportError:
+        import pytest
+
+        pytest.skip("google-adk not installed")
+
+    from potato_head.google import AdkLlmResponse
+
+    llm_resp = LlmResponse(
+        model_version="google/gemini-3-flash-preview",
+        content=types.Content(
+            role="model",
+            parts=[types.Part(text="hello from adk")],
+        ),
+        partial=False,
+        finish_reason=types.FinishReason.STOP,
+    )
+    resp = AdkLlmResponse.model_validate_json(llm_resp.model_dump_json())
+    assert resp.response_text() == "hello from adk"
+    assert resp.model_name_str() == "google/gemini-3-flash-preview"
+    assert resp.finish_reason_str() == "STOP"
+
+
+def test_adk_llm_response_function_call():
+    try:
+        from google.adk.models.llm_response import LlmResponse
+        from google.genai import types
+    except ImportError:
+        import pytest
+
+        pytest.skip("google-adk not installed")
+
+    from potato_head.google import AdkLlmResponse
+
+    llm_resp = LlmResponse(
+        model_version="google/gemini-3-flash-preview",
+        content=types.Content(
+            role="model",
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name="transfer_to_agent",
+                        args={"agent_name": "MeatRecipeAgent"},
+                    )
+                )
+            ],
+        ),
+        partial=False,
+        finish_reason=types.FinishReason.STOP,
+    )
+    resp = AdkLlmResponse.model_validate_json(llm_resp.model_dump_json())
+    assert resp.response_text() == ""
+    assert resp.model_name_str() == "google/gemini-3-flash-preview"
+    assert resp.finish_reason_str() == "STOP"
+    calls = resp.get_tool_calls()
+    assert len(calls) == 1
+    assert calls[0].name == "transfer_to_agent"
+
+
 def test_prompt_structured_output():
     # test string prompt
     prompt = Prompt(

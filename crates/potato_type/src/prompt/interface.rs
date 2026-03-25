@@ -82,7 +82,7 @@ fn create_message_for_provider(
         Provider::Anthropic => {
             AnthropicMessage::from_text(content, role).map(MessageNum::AnthropicMessageV1)
         }
-        Provider::Gemini | Provider::Google | Provider::Vertex => {
+        Provider::Gemini | Provider::Google | Provider::Vertex | Provider::GoogleAdk => {
             GeminiContent::from_text(content, role).map(MessageNum::GeminiContentV1)
         }
         _ => Err(TypeError::Error(format!(
@@ -154,7 +154,9 @@ fn parse_messages(
 fn get_system_role(provider: &Provider) -> &'static str {
     match provider {
         Provider::OpenAI => Role::Developer.into(),
-        Provider::Gemini | Provider::Vertex | Provider::Google => Role::Model.into(),
+        Provider::Gemini | Provider::Vertex | Provider::Google | Provider::GoogleAdk => {
+            Role::Model.into()
+        }
         Provider::Anthropic => Role::System.into(),
         _ => Role::System.into(),
     }
@@ -702,7 +704,7 @@ impl Prompt {
                 let settings: AnthropicSettings = serde_json::from_value(value)?;
                 Ok(ModelSettings::AnthropicChat(settings))
             }
-            Provider::Gemini | Provider::Google | Provider::Vertex => {
+            Provider::Gemini | Provider::Google | Provider::Vertex | Provider::GoogleAdk => {
                 let settings: GeminiSettings = serde_json::from_value(value)?;
                 Ok(ModelSettings::GoogleChat(settings))
             }
@@ -764,7 +766,7 @@ impl Prompt {
     fn is_google_provider(&self) -> bool {
         matches!(
             self.provider,
-            Provider::Google | Provider::Gemini | Provider::Vertex
+            Provider::Google | Provider::Gemini | Provider::Vertex | Provider::GoogleAdk
         )
     }
 

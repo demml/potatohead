@@ -66,6 +66,7 @@ pub enum Provider {
     Google,
     Vertex,
     Anthropic,
+    GoogleAdk,
     Undefined, // Added Undefined for better error handling
 }
 
@@ -77,6 +78,7 @@ impl Provider {
             "google" => Ok(Provider::Google),
             "vertex" => Ok(Provider::Vertex),
             "anthropic" => Ok(Provider::Anthropic),
+            "google_adk" => Ok(Provider::GoogleAdk),
             "undefined" => Ok(Provider::Undefined), // Handle undefined case
             _ => Err(TypeError::UnknownProviderError(s.to_string())),
         }
@@ -113,6 +115,7 @@ impl Provider {
             Provider::Vertex => "vertex",
             Provider::Google => "google",
             Provider::Anthropic => "anthropic",
+            Provider::GoogleAdk => "google_adk",
             Provider::Undefined => "undefined", // Added Undefined case
         }
     }
@@ -239,4 +242,38 @@ pub enum SettingsType {
     OpenAIChat,
     ModelSettings,
     Anthropic,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_provider_google_adk_round_trip() {
+        let p = Provider::from_string("google_adk").unwrap();
+        assert_eq!(p, Provider::GoogleAdk);
+        assert_eq!(p.as_str(), "google_adk");
+    }
+
+    #[test]
+    fn test_provider_all_variants_round_trip() {
+        for (s, variant) in [
+            ("openai", Provider::OpenAI),
+            ("gemini", Provider::Gemini),
+            ("google", Provider::Google),
+            ("vertex", Provider::Vertex),
+            ("anthropic", Provider::Anthropic),
+            ("google_adk", Provider::GoogleAdk),
+            ("undefined", Provider::Undefined),
+        ] {
+            let parsed = Provider::from_string(s).unwrap();
+            assert_eq!(parsed, variant);
+            assert_eq!(parsed.as_str(), s);
+        }
+    }
+
+    #[test]
+    fn test_provider_unknown_string_errors() {
+        assert!(Provider::from_string("not_a_provider").is_err());
+    }
 }

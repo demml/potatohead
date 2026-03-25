@@ -100,6 +100,10 @@ impl ModelSettings {
                 ModelSettings::AnthropicChat(_) => Ok(()),
                 _ => Err(TypeError::InvalidModelSettings),
             },
+            Provider::GoogleAdk => match self {
+                ModelSettings::GoogleChat(_) => Ok(()),
+                _ => Err(TypeError::InvalidModelSettings),
+            },
             Provider::Undefined => match self {
                 ModelSettings::OpenAIChat(_) => Ok(()),
                 ModelSettings::GoogleChat(_) => Ok(()),
@@ -111,7 +115,9 @@ impl ModelSettings {
     pub fn provider_default_settings(provider: &Provider) -> Self {
         match provider {
             Provider::OpenAI => ModelSettings::OpenAIChat(OpenAIChatSettings::default()),
-            Provider::Gemini => ModelSettings::GoogleChat(GeminiSettings::default()),
+            Provider::Gemini | Provider::Google | Provider::Vertex | Provider::GoogleAdk => {
+                ModelSettings::GoogleChat(GeminiSettings::default())
+            }
             _ => ModelSettings::OpenAIChat(OpenAIChatSettings::default()), // Fallback to OpenAI settings
         }
     }
@@ -166,5 +172,36 @@ impl ModelSettings {
             ModelSettings::GoogleChat(_) => Provider::Gemini,
             ModelSettings::AnthropicChat(_) => Provider::Anthropic,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_provider_google_adk_accepts_google_chat() {
+        let settings = ModelSettings::GoogleChat(GeminiSettings::default());
+        assert!(settings.validate_provider(&Provider::GoogleAdk).is_ok());
+    }
+
+    #[test]
+    fn test_validate_provider_google_adk_rejects_openai_chat() {
+        let settings = ModelSettings::OpenAIChat(OpenAIChatSettings::default());
+        assert!(settings.validate_provider(&Provider::GoogleAdk).is_err());
+    }
+
+    #[test]
+    fn test_provider_default_settings_google_adk_returns_google_chat() {
+        let settings = ModelSettings::provider_default_settings(&Provider::GoogleAdk);
+        assert!(matches!(settings, ModelSettings::GoogleChat(_)));
+    }
+
+    #[test]
+    fn test_provider_default_settings_google_adk_passes_own_validation() {
+        // Ensures the default settings returned for GoogleAdk are compatible with its
+        // validate_provider check — previously this would return Err(InvalidModelSettings).
+        let settings = ModelSettings::provider_default_settings(&Provider::GoogleAdk);
+        assert!(settings.validate_provider(&Provider::GoogleAdk).is_ok());
     }
 }
