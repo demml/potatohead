@@ -79,6 +79,12 @@ pub enum AgentError {
 
     #[error("Callback aborted run: {0}")]
     CallbackAbort(String),
+
+    #[error("agent exceeded maximum iterations ({0})")]
+    MaxIterationsExceeded(u32),
+
+    #[error("internal lock was poisoned")]
+    LockPoisoned,
 }
 
 impl<'a, 'py> From<pyo3::CastError<'a, 'py>> for AgentError {

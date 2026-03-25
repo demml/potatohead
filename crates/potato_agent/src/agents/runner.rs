@@ -10,6 +10,8 @@ pub struct AgentRunResult {
     pub final_response: AgentResponse,
     pub iterations: u32,
     pub completion_reason: String,
+    /// Combined text from all parallel agents (set by `CollectAll` merge strategy).
+    pub combined_text: Option<String>,
 }
 
 /// Outcome of calling `AgentRunner::run()`.

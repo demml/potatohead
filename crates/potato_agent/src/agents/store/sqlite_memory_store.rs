@@ -1,4 +1,4 @@
-use super::{MemoryStore, StoreError, StoredMemoryTurn};
+use super::{validate_db_path, MemoryStore, StoreError, StoredMemoryTurn};
 use async_trait::async_trait;
 use sqlx::{Pool, Sqlite, SqlitePool};
 use std::sync::Arc;
@@ -11,7 +11,7 @@ pub struct SqliteMemoryStore {
 impl SqliteMemoryStore {
     /// File-backed SQLite store.
     pub async fn new(path: &str) -> Result<Self, StoreError> {
-        let url = format!("sqlite:{}?mode=rwc", path);
+        let url = validate_db_path(path)?;
         let pool = SqlitePool::connect(&url)
             .await
             .map_err(|e| StoreError::Connection(e.to_string()))?;
@@ -88,7 +88,7 @@ impl MemoryStore for SqliteMemoryStore {
                     user_json, assistant_json, event_data, created_at
              FROM memory_turns
              WHERE app_name = ? AND user_id = ? AND session_id = ?
-             ORDER BY id",
+             ORDER BY created_at, id",
         )
         .bind(app_name)
         .bind(user_id)

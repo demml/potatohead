@@ -121,6 +121,7 @@ impl Default for ToolRegistry {
     }
 }
 
+#[derive(Debug)]
 pub struct ToolCallInfo {
     pub name: String,
     pub arguments: serde_json::Value,

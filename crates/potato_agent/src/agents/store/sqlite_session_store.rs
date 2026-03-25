@@ -1,4 +1,4 @@
-use super::{session_store::SessionStore, StoreError};
+use super::{session_store::SessionStore, validate_db_path, StoreError};
 use crate::agents::session::SessionSnapshot;
 use async_trait::async_trait;
 use sqlx::{Pool, Sqlite, SqlitePool};
@@ -11,7 +11,7 @@ pub struct SqliteSessionStore {
 
 impl SqliteSessionStore {
     pub async fn new(path: &str) -> Result<Self, StoreError> {
-        let url = format!("sqlite:{}?mode=rwc", path);
+        let url = validate_db_path(path)?;
         let pool = SqlitePool::connect(&url)
             .await
             .map_err(|e| StoreError::Connection(e.to_string()))?;

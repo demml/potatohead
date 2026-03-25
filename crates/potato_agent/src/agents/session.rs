@@ -24,26 +24,51 @@ impl SessionState {
     }
 
     pub fn get(&self, key: &str) -> Option<Value> {
-        self.inner.read().unwrap().get(key).cloned()
+        self.inner
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(key)
+            .cloned()
     }
 
     pub fn set(&self, key: impl Into<String>, value: Value) {
-        self.inner.write().unwrap().insert(key.into(), value);
+        self.inner
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(key.into(), value);
     }
 
     pub fn remove(&self, key: &str) -> Option<Value> {
-        self.inner.write().unwrap().remove(key)
+        self.inner
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(key)
     }
 
     pub fn snapshot(&self) -> HashMap<String, Value> {
-        self.inner.read().unwrap().clone()
+        self.inner
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Merge another snapshot into this session (later values win).
     pub fn merge(&self, other: HashMap<String, Value>) {
-        let mut lock = self.inner.write().unwrap();
+        let mut lock = self.inner.write().unwrap_or_else(|e| e.into_inner());
         for (k, v) in other {
             lock.insert(k, v);
+        }
+    }
+
+    /// Merge a child snapshot into this session, skipping `__`-prefixed system keys.
+    /// Use this when merging child-agent sessions to prevent children from overwriting
+    /// system keys such as `__ancestor_ids`.
+    pub fn merge_user_data(&self, other: HashMap<String, Value>) {
+        let mut lock = self.inner.write().unwrap_or_else(|e| e.into_inner());
+        for (k, v) in other {
+            if !k.starts_with("__") {
+                lock.insert(k, v);
+            }
         }
     }
 
@@ -52,7 +77,7 @@ impl SessionState {
     const ANCESTOR_KEY: &'static str = "__ancestor_ids";
 
     pub fn push_ancestor(&self, agent_id: &str) {
-        let mut lock = self.inner.write().unwrap();
+        let mut lock = self.inner.write().unwrap_or_else(|e| e.into_inner());
         let entry = lock
             .entry(Self::ANCESTOR_KEY.to_string())
             .or_insert_with(|| Value::Array(vec![]));
@@ -62,14 +87,14 @@ impl SessionState {
     }
 
     pub fn pop_ancestor(&self) {
-        let mut lock = self.inner.write().unwrap();
+        let mut lock = self.inner.write().unwrap_or_else(|e| e.into_inner());
         if let Some(Value::Array(arr)) = lock.get_mut(Self::ANCESTOR_KEY) {
             arr.pop();
         }
     }
 
     pub fn is_ancestor(&self, agent_id: &str) -> bool {
-        let lock = self.inner.read().unwrap();
+        let lock = self.inner.read().unwrap_or_else(|e| e.into_inner());
         if let Some(Value::Array(arr)) = lock.get(Self::ANCESTOR_KEY) {
             arr.iter().any(|v| v.as_str() == Some(agent_id))
         } else {

@@ -426,6 +426,8 @@ impl LLMApiMock {
             serde_json::from_str(OPENAI_CHAT_TOOL_CALL_RESPONSE).unwrap();
         let gemini_tool_response: GenerateContentResponse =
             serde_json::from_str(GEMINI_CHAT_TOOL_CALL_RESPONSE).unwrap();
+        let gemini_text_response: GenerateContentResponse =
+            serde_json::from_str(GEMINI_CHAT_COMPLETION_RESPONSE).unwrap();
         let anthropic_tool_response: AnthropicMessageResponse =
             serde_json::from_str(ANTHROPIC_MESSAGE_TOOL_USE_RESPONSE).unwrap();
 
@@ -438,7 +440,22 @@ impl LLMApiMock {
             .with_body(serde_json::to_string(&openai_tool_response).unwrap())
             .create();
 
-        // Gemini tool call mock — fires once
+        // Gemini catch-all text response — lower priority (registered before the tool call mock),
+        // fires for any Gemini request once the one-shot tool call mock is consumed.
+        self.server
+            .mock(
+                "POST",
+                mockito::Matcher::Regex(r".*/.*:generateContent$".to_string()),
+            )
+            .match_header("x-goog-api-key", mockito::Matcher::Any)
+            .match_header("content-type", "application/json")
+            .expect(usize::MAX)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(serde_json::to_string(&gemini_text_response).unwrap())
+            .create();
+
+        // Gemini tool call mock — fires once (registered last = highest priority)
         self.server
             .mock(
                 "POST",

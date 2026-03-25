@@ -4,6 +4,7 @@ use potato_type::prompt::MessageNum;
 use potato_util::create_uuid7;
 use std::fmt::Debug;
 use std::sync::Arc;
+use tracing::warn;
 
 /// Write-through memory that persists turns to a `MemoryStore` and caches them in-process.
 pub struct PersistentMemory {
@@ -130,8 +131,10 @@ impl Memory for PersistentMemory {
     }
 
     /// Synchronous push — appends to the in-process cache only.
-    /// Prefer `push_turn_async` in async contexts for write-through persistence.
+    /// **Note**: this does not persist to the backing store. Use `push_turn_async` in async
+    /// contexts to ensure write-through persistence.
     fn push_turn(&mut self, turn: MemoryTurn) {
+        warn!("PersistentMemory::push_turn called synchronously — turn will not be persisted to the backing store. Use push_turn_async in async contexts.");
         self.cache.push(turn);
         if let Some(n) = self.max_turns {
             if self.cache.len() > n {

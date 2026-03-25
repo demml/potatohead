@@ -20,7 +20,10 @@ impl WindowedMemory {
 
 impl Memory for WindowedMemory {
     fn push_turn(&mut self, turn: MemoryTurn) {
-        if self.turns.len() == self.capacity {
+        if self.capacity == 0 {
+            return;
+        }
+        while self.turns.len() >= self.capacity {
             self.turns.pop_front();
         }
         self.turns.push_back(turn);

@@ -779,6 +779,36 @@ impl ResponseAdapter for GenerateContentResponse {
         }
         tool_calls
     }
+
+    fn extract_tool_calls(&self) -> Option<Vec<crate::tools::ToolCall>> {
+        let candidate = self.candidates.first()?;
+        let calls: Vec<crate::tools::ToolCall> = candidate
+            .content
+            .parts
+            .iter()
+            .filter_map(|part| {
+                if let crate::google::v1::generate::DataNum::FunctionCall(fc) = &part.data {
+                    let args = fc
+                        .args
+                        .as_ref()
+                        .map(|m| serde_json::Value::Object(m.clone()))
+                        .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+                    Some(crate::tools::ToolCall {
+                        tool_name: fc.name.clone(),
+                        call_id: fc.id.clone(),
+                        arguments: args,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if calls.is_empty() {
+            None
+        } else {
+            Some(calls)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1316,35 +1346,5 @@ mod tests {
     #[test]
     fn test_response_text_only_function_call() {
         assert_eq!(make_function_call_response().response_text(), "");
-    }
-
-    fn extract_tool_calls(&self) -> Option<Vec<crate::tools::ToolCall>> {
-        let candidate = self.candidates.first()?;
-        let calls: Vec<crate::tools::ToolCall> = candidate
-            .content
-            .parts
-            .iter()
-            .filter_map(|part| {
-                if let crate::google::v1::generate::DataNum::FunctionCall(fc) = &part.data {
-                    let args = fc
-                        .args
-                        .as_ref()
-                        .map(|m| serde_json::Value::Object(m.clone()))
-                        .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
-                    Some(crate::tools::ToolCall {
-                        tool_name: fc.name.clone(),
-                        call_id: fc.id.clone(),
-                        arguments: args,
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if calls.is_empty() {
-            None
-        } else {
-            Some(calls)
-        }
     }
 }

@@ -1,9 +1,32 @@
 use potato_agent::{
-    AppStateStore, MemoryStore, SessionSnapshot, SessionStore, SqliteAppStateStore,
-    SqliteMemoryStore, SqliteSessionStore, SqliteUserStateStore, StoredMemoryTurn, UserStateStore,
+    validate_db_path, AppStateStore, MemoryStore, SessionSnapshot, SessionStore,
+    SqliteAppStateStore, SqliteMemoryStore, SqliteSessionStore, SqliteUserStateStore,
+    StoredMemoryTurn, UserStateStore,
 };
 use serde_json::json;
 use std::collections::HashMap;
+
+// ── Path validation ───────────────────────────────────────────────────────────
+
+#[test]
+fn validate_db_path_accepts_simple_path() {
+    assert!(validate_db_path("my_db.sqlite").is_ok());
+}
+
+#[test]
+fn validate_db_path_rejects_query_string() {
+    assert!(validate_db_path("db?mode=delete").is_err());
+}
+
+#[test]
+fn validate_db_path_rejects_fragment() {
+    assert!(validate_db_path("db#section").is_err());
+}
+
+#[test]
+fn validate_db_path_rejects_parent_dir() {
+    assert!(validate_db_path("../etc/passwd").is_err());
+}
 
 fn dummy_msg() -> potato_type::prompt::MessageNum {
     potato_type::prompt::MessageNum::RawV1(json!({"role": "user", "content": "test"}))

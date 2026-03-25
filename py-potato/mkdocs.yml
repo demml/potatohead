@@ -57,6 +57,14 @@ nav:
   - Embeddings: "embeddings.md"
   - Providers: "providers.md"
   - Workflows: "workflow.md"
+  - Rust Agents:
+      - Overview: "docs/agents/overview.md"
+      - Tools: "docs/agents/tools.md"
+      - Memory: "docs/agents/memory.md"
+      - Callbacks: "docs/agents/callbacks.md"
+      - Completion Criteria: "docs/agents/criteria.md"
+      - Session State & Stores: "docs/agents/session-state.md"
+      - Orchestration: "docs/agents/orchestration.md"
   - API Documentation:
       - API: "docs/api/stubs.md"
 

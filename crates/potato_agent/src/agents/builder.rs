@@ -213,7 +213,6 @@ impl AgentBuilder {
         store: Arc<dyn SessionStore>,
     ) -> Self {
         let sid = session_id.into();
-        self.session_id.get_or_insert(sid.clone());
         self.session_store = Some(store);
         self.session_id = Some(sid);
         self
@@ -259,7 +258,7 @@ impl AgentBuilder {
 
         // Register tools
         {
-            let mut registry = agent.tools.write().unwrap();
+            let mut registry = agent.tools.write().unwrap_or_else(|e| e.into_inner());
             for tool in self.tools {
                 registry.register_tool(tool);
             }

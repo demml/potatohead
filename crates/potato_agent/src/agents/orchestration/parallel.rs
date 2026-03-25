@@ -57,15 +57,14 @@ impl AgentRunner for ParallelAgent {
         }
 
         let mut outcomes: Vec<AgentRunResult> = Vec::new();
-        let mut any_needs_input: Option<(String, ResumeContext)> = None;
 
         for handle in handles {
             let (outcome, child_snapshot) = handle
                 .await
                 .map_err(|e| AgentError::Error(format!("Parallel join error: {}", e)))?;
 
-            // Merge child session back into parent
-            session.merge(child_snapshot);
+            // Merge child session back into parent, skipping system keys like __ancestor_ids
+            session.merge_user_data(child_snapshot);
 
             match outcome? {
                 AgentRunOutcome::Complete(result) => {
@@ -75,17 +74,13 @@ impl AgentRunner for ParallelAgent {
                     question,
                     resume_context,
                 } => {
-                    any_needs_input = Some((question, resume_context));
+                    // Abort on first NeedsInput — cannot continue without user input
+                    return Ok(AgentRunOutcome::NeedsInput {
+                        question,
+                        resume_context,
+                    });
                 }
             }
-        }
-
-        // If any child needed input, propagate it
-        if let Some((question, resume_context)) = any_needs_input {
-            return Ok(AgentRunOutcome::NeedsInput {
-                question,
-                resume_context,
-            });
         }
 
         if outcomes.is_empty() {
@@ -95,9 +90,11 @@ impl AgentRunner for ParallelAgent {
         }
 
         match self.strategy {
-            MergeStrategy::First => Ok(AgentRunOutcome::complete(
-                outcomes.into_iter().next().unwrap(),
-            )),
+            MergeStrategy::First => {
+                let mut result = outcomes.into_iter().next().unwrap();
+                result.combined_text = None;
+                Ok(AgentRunOutcome::complete(result))
+            }
             MergeStrategy::CollectAll => {
                 // Combine all text responses into a JSON array
                 let texts: Vec<Value> = outcomes
@@ -105,14 +102,12 @@ impl AgentRunner for ParallelAgent {
                     .map(|r| Value::String(r.final_response.response_text()))
                     .collect();
                 let combined = Value::Array(texts).to_string();
-                // Build a synthetic AgentRunResult wrapping the last agent's response with combined text
                 let last = outcomes.into_iter().last().unwrap();
-                // We can't mutate ChatResponse easily, so we store the combined text in session
-                session.set("__parallel_combined", Value::String(combined));
                 Ok(AgentRunOutcome::complete(AgentRunResult {
                     final_response: last.final_response,
                     iterations: last.iterations,
                     completion_reason: "all parallel agents completed".into(),
+                    combined_text: Some(combined),
                 }))
             }
         }

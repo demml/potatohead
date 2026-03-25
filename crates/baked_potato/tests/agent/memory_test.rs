@@ -74,6 +74,15 @@ fn windowed_memory_clear() {
     assert_eq!(mem.len(), 0);
 }
 
+#[test]
+fn windowed_memory_capacity_zero_stays_empty() {
+    let mut mem = WindowedMemory::new(0);
+    mem.push_turn(turn());
+    mem.push_turn(turn());
+    assert_eq!(mem.len(), 0, "capacity-0 WindowedMemory must stay empty");
+    assert!(mem.messages().is_empty());
+}
+
 // ── PersistentMemory + SqliteMemoryStore ─────────────────────────────────────
 
 #[tokio::test]

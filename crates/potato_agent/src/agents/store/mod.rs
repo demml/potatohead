@@ -43,4 +43,22 @@ pub enum StoreError {
 
     #[error("connection error: {0}")]
     Connection(String),
+
+    #[error("invalid database path: {0}")]
+    InvalidPath(String),
+}
+
+/// Validates a SQLite file path, rejecting path traversal and URL injection attempts.
+/// Returns the formatted connection URL on success.
+pub fn validate_db_path(path: &str) -> Result<String, StoreError> {
+    if path.contains('?') || path.contains('#') {
+        return Err(StoreError::InvalidPath(path.to_string()));
+    }
+    let p = std::path::Path::new(path);
+    if p.components()
+        .any(|c| c == std::path::Component::ParentDir)
+    {
+        return Err(StoreError::InvalidPath(path.to_string()));
+    }
+    Ok(format!("sqlite:{}?mode=rwc", path))
 }

@@ -109,8 +109,8 @@ fn parallel_collect_all() {
     match outcome {
         AgentRunOutcome::Complete(result) => {
             assert!(result.completion_reason.contains("parallel"));
-            // __parallel_combined should be set in session
-            assert!(session.get("__parallel_combined").is_some());
+            // combined_text should be populated on the result
+            assert!(result.combined_text.is_some());
         }
         _ => panic!("Expected Complete outcome"),
     }
@@ -176,9 +176,9 @@ fn sequential_with_parallel_step() {
     let outcome = runtime.block_on(async { seq.run("Start", &mut session).await.unwrap() });
 
     match outcome {
-        AgentRunOutcome::Complete(_) => {
-            // B and C should have written combined output
-            assert!(session.get("__parallel_combined").is_some());
+        AgentRunOutcome::Complete(result) => {
+            // B and C should have combined output in the result
+            assert!(result.combined_text.is_some());
         }
         _ => panic!("Expected Complete outcome"),
     }
@@ -255,4 +255,15 @@ fn session_state_shared_across_sequential() {
     assert_eq!(session.get("shared").unwrap(), serde_json::json!("before"));
 
     mock.stop_server().unwrap();
+}
+
+#[test]
+fn parallel_empty_errors() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let par = ParallelAgentBuilder::new().build();
+
+    let mut session = SessionState::new();
+    let result = runtime.block_on(async { par.run("Start", &mut session).await });
+
+    assert!(result.is_err(), "Empty ParallelAgent should return an error");
 }

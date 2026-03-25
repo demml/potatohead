@@ -16,8 +16,8 @@ pub use agents::{
     runner::{AgentRunOutcome, AgentRunResult, AgentRunner},
     session::{SessionSnapshot, SessionState},
     store::{
-        AppStateStore, MemoryStore, PersistentMemory, SessionStore, StoreError, StoredMemoryTurn,
-        UserStateStore,
+        validate_db_path, AppStateStore, MemoryStore, PersistentMemory, SessionStore, StoreError,
+        StoredMemoryTurn, UserStateStore,
     },
     task::{Task, TaskStatus},
     tool_ext::{AgentTool, AgentToolPolicy},

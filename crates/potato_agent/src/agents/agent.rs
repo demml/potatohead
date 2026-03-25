@@ -159,7 +159,10 @@ impl Agent {
     }
 
     pub fn register_tool(&self, tool: Box<dyn Tool + Send + Sync>) {
-        self.tools.write().unwrap().register_tool(tool);
+        self.tools
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .register_tool(tool);
     }
 
     //TODO: add back later
@@ -320,19 +323,20 @@ impl Agent {
     /// If system instructions are set on the agent, prepend them to the prompt.
     /// Agent system instructions take precedence over task system instructions.
     /// If a user wishes to be more dynamic based on the task, they should set system instructions on the task/prompt
-    fn prepend_system_instructions(&self, prompt: &mut Prompt) {
+    fn prepend_system_instructions(&self, prompt: &mut Prompt) -> Result<(), AgentError> {
         if !self.system_instruction.is_empty() {
             prompt
                 .request
                 .prepend_system_instructions(self.system_instruction.clone())
-                .unwrap();
+                .map_err(|e| AgentError::Error(e.to_string()))?;
         }
+        Ok(())
     }
     pub async fn execute_task(&self, task: &Task) -> Result<AgentResponse, AgentError> {
         // Extract the prompt from the task
         debug!("Executing task: {}, count: {}", task.id, task.retry_count);
         let mut prompt = task.prompt.clone();
-        self.prepend_system_instructions(&mut prompt);
+        self.prepend_system_instructions(&mut prompt)?;
 
         // Use the client to execute the task
         let chat_response = self.client.generate_content(&prompt).await?;
@@ -345,7 +349,7 @@ impl Agent {
         // Extract the prompt from the task
         debug!("Executing prompt");
         let mut prompt = prompt.clone();
-        self.prepend_system_instructions(&mut prompt);
+        self.prepend_system_instructions(&mut prompt)?;
 
         // Use the client to execute the task
         let chat_response = self.client.generate_content(&prompt).await?;
@@ -368,7 +372,7 @@ impl Agent {
         };
 
         self.bind_context(&mut prompt, context, &None)?;
-        self.prepend_system_instructions(&mut prompt);
+        self.prepend_system_instructions(&mut prompt)?;
 
         let chat_response = self.client.generate_content(&prompt).await?;
         Ok(AgentResponse::new(task_id, chat_response))
@@ -389,7 +393,7 @@ impl Agent {
             // 2. Bind parameters
             self.bind_context(&mut task.prompt, &parameter_context, &global_context)?;
             // 3. Prepend agent system instructions (add to front)
-            self.prepend_system_instructions(&mut task.prompt);
+            self.prepend_system_instructions(&mut task.prompt)?;
             (task.prompt.clone(), task.id.clone())
         };
 
@@ -437,7 +441,7 @@ impl Agent {
         let model = self
             .model_override
             .clone()
-            .unwrap_or_else(|| "gpt-4o".to_string());
+            .ok_or_else(|| AgentError::Error("model must be set explicitly via AgentBuilder::model()".into()))?;
 
         let settings = ModelSettings::provider_default_settings(&self.provider);
 
@@ -572,18 +576,27 @@ impl AgentRunner for Agent {
             }
         }
 
-        // Inject memory history
+        // Inject memory history in chronological order, after any system messages
         if let Some(mem_lock) = &self.memory {
             let mem = mem_lock.lock().await;
             let history = mem.messages();
-            for msg in history {
-                prompt.request.insert_message(msg, Some(0));
+            if !history.is_empty() {
+                // Find the first non-system message position; insert history before it
+                let insert_at = prompt
+                    .request
+                    .messages()
+                    .iter()
+                    .position(|m| !m.is_system_message())
+                    .unwrap_or(0);
+                for (i, msg) in history.into_iter().enumerate() {
+                    prompt.request.insert_message(msg, Some(insert_at + i));
+                }
             }
         }
 
         // Attach tool definitions
         {
-            let registry = self.tools.read().unwrap();
+            let registry = self.tools.read().unwrap_or_else(|e| e.into_inner());
             let defs = registry.get_all_definitions();
             if !defs.is_empty() {
                 prompt.request.add_tools(defs)?;
@@ -610,9 +623,9 @@ impl AgentRunner for Agent {
             let agent_response = AgentResponse::new(chat_response.id(), chat_response.clone());
 
             // After-model callbacks
-            if let Some(_override_text) = self.fire_after_model(&run_ctx, &agent_response)? {
+            if let Some(override_text) = self.fire_after_model(&run_ctx, &agent_response)? {
                 // Callback override — treat as final answer
-                run_ctx.push_response(_override_text);
+                run_ctx.push_response(override_text);
                 break;
             }
 
@@ -630,7 +643,7 @@ impl AgentRunner for Agent {
                     // Try async tool first, then sync
                     let result = {
                         let async_tool = {
-                            let registry = self.tools.read().unwrap();
+                            let registry = self.tools.read().unwrap_or_else(|e| e.into_inner());
                             registry.get_async_tool(&call.tool_name)
                         };
                         if let Some(tool) = async_tool {
@@ -641,7 +654,7 @@ impl AgentRunner for Agent {
                                 ))
                             })?
                         } else {
-                            let registry = self.tools.read().unwrap();
+                            let registry = self.tools.read().unwrap_or_else(|e| e.into_inner());
                             registry.execute(call).map_err(|e| {
                                 AgentError::Error(format!(
                                     "Tool '{}' failed: {}",
@@ -728,6 +741,7 @@ impl AgentRunner for Agent {
                     } else {
                         format!("max iterations ({}) reached", max_iter)
                     },
+                    combined_text: None,
                 }));
             }
 
@@ -740,15 +754,8 @@ impl AgentRunner for Agent {
             run_ctx.increment();
         }
 
-        // Fell out of the loop — final response is the last one we pushed
-        let chat_response = self.client.generate_content(&prompt).await?;
-        let agent_response = AgentResponse::new(chat_response.id(), chat_response);
-
-        Ok(AgentRunOutcome::complete(AgentRunResult {
-            final_response: agent_response,
-            iterations: run_ctx.iteration,
-            completion_reason: format!("max iterations ({}) reached", max_iter),
-        }))
+        // Fell out of the loop without a final response — max iterations were all spent on tool calls
+        Err(AgentError::MaxIterationsExceeded(max_iter))
     }
 
     async fn resume(

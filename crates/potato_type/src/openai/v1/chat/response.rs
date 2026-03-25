@@ -372,6 +372,8 @@ impl ResponseAdapter for OpenAIChatResponse {
             })
             .collect();
         Some(calls)
+    }
+
     fn model_name(&self) -> Option<&str> {
         Some(&self.model)
     }
