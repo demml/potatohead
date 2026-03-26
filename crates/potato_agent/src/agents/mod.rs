@@ -1,4 +1,14 @@
 pub mod agent;
+pub mod builder;
+pub mod callbacks;
+pub mod criteria;
 pub mod error;
+pub mod memory;
+pub mod orchestration;
+pub mod run_context;
+pub mod runner;
+pub mod session;
+pub mod store;
 pub mod task;
+pub mod tool_ext;
 pub mod types;

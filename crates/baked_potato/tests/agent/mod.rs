@@ -1,2 +1,11 @@
 pub mod agent_test;
+pub mod agentic_loop_test;
+pub mod builder_test;
+pub mod callbacks_test;
+pub mod criteria_test;
 pub mod embedding_test;
+pub mod memory_test;
+pub mod orchestration_test;
+pub mod session_test;
+pub mod store_test;
+pub mod tool_ext_test;

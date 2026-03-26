@@ -6,7 +6,7 @@ description = "Test module for all potato crates"
 license = "MIT"
 
 [dependencies]
-potato-agent = { workspace = true }
+potato-agent = { workspace = true, features = ["sqlite"] }
 potato-provider = { workspace = true }
 potato-type = { workspace = true }
 potato-workflow = { workspace = true }
@@ -20,6 +20,8 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
 
 [[test]]
 name = "integration"

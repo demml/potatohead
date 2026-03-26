@@ -189,6 +189,10 @@ impl ChatResponse {
         dispatch_response_trait_method!(self, ResponseAdapter, response_text())
     }
 
+    /// Extracts tool calls from the response, if any.
+    pub fn extract_tool_calls(&self) -> Option<Vec<potato_type::tools::ToolCall>> {
+        dispatch_response_trait_method!(self, ResponseAdapter, extract_tool_calls())
+    }
     /// Helper for deserializing a JSON value into the appropriate ChatResponse variant.
     ///
     /// When a `provider` hint is given, deserialization is attempted directly for that provider's
@@ -750,30 +754,30 @@ mod tests {
     #[test]
     fn test_provider_hint_error_on_non_object_openai() {
         // A non-object value cannot deserialize into any struct — error path is exercised.
-        assert!(
-            ChatResponse::from_response_value(serde_json::json!("string"), Some(&Provider::OpenAI))
-                .is_err()
-        );
+        assert!(ChatResponse::from_response_value(
+            serde_json::json!("string"),
+            Some(&Provider::OpenAI)
+        )
+        .is_err());
     }
 
     #[test]
     fn test_provider_hint_error_on_non_object_anthropic() {
-        assert!(
-            ChatResponse::from_response_value(serde_json::json!(42), Some(&Provider::Anthropic))
-                .is_err()
-        );
+        assert!(ChatResponse::from_response_value(
+            serde_json::json!(42),
+            Some(&Provider::Anthropic)
+        )
+        .is_err());
     }
 
     #[test]
     fn test_provider_hint_error_on_non_object_adk() {
         // AdkLlmResponse has all-optional fields so a bare `{}` deserializes successfully;
         // a non-object input must still return Err.
-        assert!(
-            ChatResponse::from_response_value(
-                serde_json::json!("not an object"),
-                Some(&Provider::GoogleAdk)
-            )
-            .is_err()
-        );
+        assert!(ChatResponse::from_response_value(
+            serde_json::json!("not an object"),
+            Some(&Provider::GoogleAdk)
+        )
+        .is_err());
     }
 }

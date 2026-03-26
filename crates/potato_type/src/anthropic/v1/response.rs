@@ -529,6 +529,29 @@ impl ResponseAdapter for AnthropicMessageResponse {
         }
         tool_calls
     }
+
+    fn extract_tool_calls(&self) -> Option<Vec<crate::tools::ToolCall>> {
+        let calls: Vec<crate::tools::ToolCall> = self
+            .content
+            .iter()
+            .filter_map(|block| {
+                if let ResponseContentBlockInner::ToolUse(tu) = &block.inner {
+                    Some(crate::tools::ToolCall {
+                        tool_name: tu.name.clone(),
+                        call_id: Some(tu.id.clone()),
+                        arguments: tu.input.clone(),
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if calls.is_empty() {
+            None
+        } else {
+            Some(calls)
+        }
+    }
 }
 
 #[cfg(test)]

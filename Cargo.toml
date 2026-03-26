@@ -27,6 +27,7 @@ potato-head = { path = "crates/potato_head", version = "0.19.0" }
 potato-state = { path = "crates/potato_state", version = "0.19.0" }
 
 anyhow = "1.0.93"
+async-trait = "0.*"
 base64 = "0.*"
 chrono = { version = "0.*", features = ["serde"] }
 colored_json = "5.*"
@@ -49,6 +50,7 @@ tokio = { version = ">1.13.0", features = ["rt", "rt-multi-thread", "macros"] }
 token-source = "1.*"
 tracing = "0.*"
 uuid = { version = "1.*", features = ["v7"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
 walkdir = "2.*"
 
 

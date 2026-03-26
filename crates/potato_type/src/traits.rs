@@ -142,6 +142,11 @@ pub trait ResponseAdapter {
     /// Returns the output text of the response if available
     fn response_text(&self) -> String;
 
+    /// Extracts tool calls from the response, if any.
+    /// Returns None if the response contains no tool calls.
+    fn extract_tool_calls(&self) -> Option<Vec<crate::tools::ToolCall>> {
+        None
+    }
     fn model_name(&self) -> Option<&str>;
 
     fn finish_reason(&self) -> Option<&str>;

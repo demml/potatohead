@@ -351,6 +351,29 @@ impl ResponseAdapter for OpenAIChatResponse {
         content.message.content.unwrap_or_default()
     }
 
+    fn extract_tool_calls(&self) -> Option<Vec<crate::tools::ToolCall>> {
+        if self.choices.is_empty() {
+            return None;
+        }
+        let tool_calls = &self.choices[0].message.tool_calls;
+        if tool_calls.is_empty() {
+            return None;
+        }
+        let calls: Vec<crate::tools::ToolCall> = tool_calls
+            .iter()
+            .map(|tc| {
+                let args = serde_json::from_str(&tc.function.arguments)
+                    .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+                crate::tools::ToolCall {
+                    tool_name: tc.function.name.clone(),
+                    call_id: Some(tc.id.clone()),
+                    arguments: args,
+                }
+            })
+            .collect();
+        Some(calls)
+    }
+
     fn model_name(&self) -> Option<&str> {
         Some(&self.model)
     }

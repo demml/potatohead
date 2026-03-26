@@ -277,6 +277,11 @@ pub enum MessageNum {
 
     // this is a special case for Anthropic system messages
     AnthropicSystemMessageV1(TextBlockParam),
+
+    // Raw JSON message - used internally in the agentic loop for provider-specific
+    // messages that don't fit the typed variants (e.g., OpenAI tool-call assistant messages).
+    // Must be LAST so serde tries typed variants first when deserializing.
+    RawV1(serde_json::Value),
 }
 
 impl MessageNum {
@@ -350,6 +355,10 @@ impl MessageNum {
     }
 
     pub fn convert_message(&mut self, provider: &Provider) -> Result<(), TypeError> {
+        // RawV1 is provider-specific raw JSON — skip conversion
+        if matches!(self, MessageNum::RawV1(_)) {
+            return Ok(());
+        }
         // if message already matches provider, return Ok
         if self.matches_provider(provider) {
             return Ok(());
@@ -434,6 +443,7 @@ impl MessageNum {
                 let bound_msg = anthropic_msg.into_bound_py_any(py)?;
                 Ok(bound_msg)
             }
+            MessageNum::RawV1(v) => Ok(pythonize(py, v)?),
         }
     }
 
@@ -487,6 +497,11 @@ impl MessageNum {
             MessageNum::AnthropicMessageV1(msg) => msg.role == Role::System.to_string(),
             MessageNum::GeminiContentV1(msg) => msg.role == Role::Model.to_string(),
             MessageNum::AnthropicSystemMessageV1(_) => true,
+            MessageNum::RawV1(v) => v
+                .get("role")
+                .and_then(|r| r.as_str())
+                .map(|r| r == "system" || r == "developer")
+                .unwrap_or(false),
         }
     }
 
@@ -496,6 +511,11 @@ impl MessageNum {
             MessageNum::AnthropicMessageV1(msg) => msg.role == Role::User.to_string(),
             MessageNum::GeminiContentV1(msg) => msg.role == Role::User.to_string(),
             MessageNum::AnthropicSystemMessageV1(_) => false,
+            MessageNum::RawV1(v) => v
+                .get("role")
+                .and_then(|r| r.as_str())
+                .map(|r| r == "user")
+                .unwrap_or(false),
         }
     }
 }

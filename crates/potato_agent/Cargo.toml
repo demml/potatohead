@@ -26,3 +26,10 @@ thiserror = { workspace = true }
 token-source = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+sqlx = { workspace = true, optional = true }
+
+[features]
+default = []
+sqlite = ["sqlx"]
