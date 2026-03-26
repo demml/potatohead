@@ -1,0 +1,32 @@
+agents:
+  - id: summarizer
+    provider: anthropic
+    model: claude-haiku-4-5
+    system_prompt: |
+      You are a summarization assistant.
+    max_iterations: 3
+    memory:
+      type: windowed
+      window_size: 5
+    criteria:
+      - type: max_iterations
+        max: 3
+      - type: keyword
+        keyword: "DONE"
+    callbacks:
+      - type: logging
+    tools: []
+
+workflows:
+  - id: simple_pipeline
+    type: sequential
+    pass_output: true
+    steps:
+      - ref: summarizer
+      - id: analyzer
+        provider: anthropic
+        model: claude-haiku-4-5
+        system_prompt: Analyze the text.
+        criteria: []
+        callbacks: []
+        tools: []

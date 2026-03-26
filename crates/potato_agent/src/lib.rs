@@ -3,7 +3,7 @@ pub mod agents;
 pub use agents::{
     agent::{Agent, PyAgent},
     builder::AgentBuilder,
-    callbacks::{AgentCallback, CallbackAction},
+    callbacks::{AgentCallback, CallbackAction, LoggingCallback},
     criteria::{
         CompletionCriteria, KeywordCriteria, MaxIterationsCriteria, StructuredOutputCriteria,
     },

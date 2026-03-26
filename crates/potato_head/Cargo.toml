@@ -15,6 +15,7 @@ potato-util = { workspace = true }
 potato-agent = { workspace = true }
 potato-provider = { workspace = true }
 potato-workflow = { workspace = true }
+potato-spec = { workspace = true }
 baked-potato = { workspace = true, optional = true }
 
 
