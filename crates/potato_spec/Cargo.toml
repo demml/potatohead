@@ -11,6 +11,7 @@ doctest = false
 
 [dependencies]
 potato-agent = { workspace = true }
+potato-type = { workspace = true }
 potato-workflow = { workspace = true }
 serde = { workspace = true }
 serde_yaml = { workspace = true }

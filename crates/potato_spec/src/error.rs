@@ -17,4 +17,6 @@ pub enum SpecError {
     AgentBuild(#[from] AgentError),
     #[error("invalid provider '{value}': {reason}")]
     InvalidProvider { value: String, reason: String },
+    #[error("workflow build error for '{id}': {reason}")]
+    WorkflowBuild { id: String, reason: String },
 }

@@ -17,7 +17,7 @@ pub use potato_provider::{
 
 pub use potato_workflow::*;
 
-pub use potato_spec::{SpecError, PotatoSpec};
+pub use potato_spec::{LoadedSpec, PotatoSpec, SpecError, SpecLoader};
 
 #[cfg(feature = "mock")]
 pub use baked_potato::mock;

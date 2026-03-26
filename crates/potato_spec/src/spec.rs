@@ -46,7 +46,9 @@ pub enum CallbackSpec {
         #[serde(rename = "type")]
         kind: String,
     },
-    Named { name: String },
+    Named {
+        name: String,
+    },
 }
 
 #[derive(Debug, Deserialize, Clone)]

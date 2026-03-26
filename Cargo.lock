@@ -1817,6 +1817,7 @@ name = "potato-spec"
 version = "0.19.0"
 dependencies = [
  "potato-agent",
+ "potato-type",
  "potato-workflow",
  "serde",
  "serde_json",
