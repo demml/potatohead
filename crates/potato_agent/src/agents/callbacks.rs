@@ -44,3 +44,38 @@ pub trait AgentCallback: Send + Sync + Debug {
         CallbackAction::Continue
     }
 }
+
+#[derive(Debug)]
+pub struct LoggingCallback;
+
+impl AgentCallback for LoggingCallback {
+    fn before_model_call(&self, ctx: &AgentRunContext, _prompt: &Prompt) -> CallbackAction {
+        tracing::info!(agent_id = %ctx.agent_id, iteration = ctx.iteration, "before model call");
+        CallbackAction::Continue
+    }
+
+    fn after_model_call(&self, ctx: &AgentRunContext, response: &AgentResponse) -> CallbackAction {
+        tracing::info!(
+            agent_id = %ctx.agent_id,
+            iteration = ctx.iteration,
+            response_len = response.response_text().len(),
+            "after model call"
+        );
+        CallbackAction::Continue
+    }
+
+    fn before_tool_call(&self, ctx: &AgentRunContext, call: &ToolCall) -> CallbackAction {
+        tracing::info!(agent_id = %ctx.agent_id, tool = %call.tool_name, "before tool call");
+        CallbackAction::Continue
+    }
+
+    fn after_tool_call(
+        &self,
+        ctx: &AgentRunContext,
+        call: &ToolCall,
+        _result: &Value,
+    ) -> CallbackAction {
+        tracing::info!(agent_id = %ctx.agent_id, tool = %call.tool_name, "after tool call");
+        CallbackAction::Continue
+    }
+}

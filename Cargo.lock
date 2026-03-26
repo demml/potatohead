@@ -1785,6 +1785,7 @@ dependencies = [
  "baked-potato",
  "potato-agent",
  "potato-provider",
+ "potato-spec",
  "potato-type",
  "potato-util",
  "potato-workflow",
@@ -1807,6 +1808,20 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "token-source",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "potato-spec"
+version = "0.19.0"
+dependencies = [
+ "potato-agent",
+ "potato-workflow",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
 ]
