@@ -55,9 +55,7 @@ pub fn validate_db_path(path: &str) -> Result<String, StoreError> {
         return Err(StoreError::InvalidPath(path.to_string()));
     }
     let p = std::path::Path::new(path);
-    if p.components()
-        .any(|c| c == std::path::Component::ParentDir)
-    {
+    if p.components().any(|c| c == std::path::Component::ParentDir) {
         return Err(StoreError::InvalidPath(path.to_string()));
     }
     Ok(format!("sqlite:{}?mode=rwc", path))

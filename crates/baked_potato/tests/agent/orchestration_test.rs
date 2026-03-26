@@ -265,5 +265,8 @@ fn parallel_empty_errors() {
     let mut session = SessionState::new();
     let result = runtime.block_on(async { par.run("Start", &mut session).await });
 
-    assert!(result.is_err(), "Empty ParallelAgent should return an error");
+    assert!(
+        result.is_err(),
+        "Empty ParallelAgent should return an error"
+    );
 }

@@ -46,10 +46,7 @@ impl SessionState {
     }
 
     pub fn snapshot(&self) -> HashMap<String, Value> {
-        self.inner
-            .read()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
+        self.inner.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Merge another snapshot into this session (later values win).

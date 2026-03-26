@@ -1,6 +1,6 @@
 # Callbacks
 
-Callbacks hook into the agentic loop at four points. Each hook receives a read-only `AgentRunContext` and returns a `CallbackAction` that controls whether execution continues, is overridden, or is aborted.
+Callbacks hook into the agentic loop at four points. Each hook receives a read-only `AgentRunContext` and returns a `CallbackAction`: proceed normally, override the model response, or abort the loop.
 
 ---
 

@@ -207,7 +207,6 @@ match agent.run("Plan a trip to Paris", &mut session).await? {
 | `DisallowedAgentCall(String)` | Tool policy blocked the sub-agent call |
 | `ProviderError(...)` | LLM API returned an error |
 | `StoreError(...)` | Persistence layer error |
-| `MaxIterationsExceeded(n)` | Increase `max_iterations` or reduce recursive tool call depth |
 
 ---
 

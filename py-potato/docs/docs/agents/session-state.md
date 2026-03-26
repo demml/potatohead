@@ -70,7 +70,7 @@ agent.run("Remember that I prefer metric units.", &mut session).await?;
 
 On the next `run()` call (even in a new process), the agent loads the session before executing. Any keys you set during the prior run are available.
 
-Session state is keyed by `(app_name, user_id, session_id)`. This is distinct from memory, which stores conversation turns. Session state stores arbitrary key-value data; memory stores messages.
+Session state is keyed by `(app_name, user_id, session_id)` and stores arbitrary key-value data. Memory stores conversation turns. The two are independent.
 
 ### Path validation
 
@@ -129,7 +129,7 @@ let agent = AgentBuilder::new()
 
 ## Store Load Order at run() Start
 
-At the beginning of every `agent.run()` call, stores are loaded in this order:
+At the start of every `agent.run()` call, stores are loaded in this order:
 
 1. `AppStateStore` — loads `(app_name)` snapshot, merges into `session`
 2. `UserStateStore` — loads `(app_name, user_id)` snapshot, merges into `session`

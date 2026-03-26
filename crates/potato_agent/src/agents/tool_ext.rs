@@ -64,7 +64,11 @@ impl AgentTool {
     }
 
     /// Extract the `input` field from args and run the sub-agent.
-    pub(crate) async fn dispatch(&self, args: Value, session: &mut SessionState) -> Result<Value, AgentError> {
+    pub(crate) async fn dispatch(
+        &self,
+        args: Value,
+        session: &mut SessionState,
+    ) -> Result<Value, AgentError> {
         // Check circular call
         if session.is_ancestor(self.runner.id()) {
             return Err(AgentError::CircularAgentCall(self.runner.id().to_string()));

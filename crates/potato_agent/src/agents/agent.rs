@@ -439,10 +439,9 @@ impl Agent {
             }
         };
 
-        let model = self
-            .model_override
-            .clone()
-            .ok_or_else(|| AgentError::Error("model must be set explicitly via AgentBuilder::model()".into()))?;
+        let model = self.model_override.clone().ok_or_else(|| {
+            AgentError::Error("model must be set explicitly via AgentBuilder::model()".into())
+        })?;
 
         let settings = ModelSettings::provider_default_settings(&self.provider);
 
@@ -652,15 +651,19 @@ impl AgentRunner for Agent {
                             registry.get_async_tool(&call.tool_name)
                         };
                         if let Some(tool) = async_tool {
-                            if let Some(agent_tool) = tool
-                                .as_any()
-                                .and_then(|a| a.downcast_ref::<AgentTool>())
+                            if let Some(agent_tool) =
+                                tool.as_any().and_then(|a| a.downcast_ref::<AgentTool>())
                             {
                                 // Route AgentTool through dispatch() to propagate ancestor tracking.
                                 agent_tool
                                     .dispatch(call.arguments.clone(), session)
                                     .await
-                                    .map_err(|e| AgentError::Error(format!("Tool '{}' failed: {}", call.tool_name, e)))?
+                                    .map_err(|e| {
+                                        AgentError::Error(format!(
+                                            "Tool '{}' failed: {}",
+                                            call.tool_name, e
+                                        ))
+                                    })?
                             } else {
                                 tool.execute(call.arguments.clone()).await.map_err(|e| {
                                     AgentError::Error(format!(

@@ -249,9 +249,7 @@ class Prompt(Generic[OutputType]):
         model: str,
         provider: Provider | str,
         system_instructions: Optional[PromptMessage] = ...,
-        model_settings: Optional[
-            ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings
-        ] = ...,
+        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = ...,
         *,
         output_type: Type[OutputType],
     ) -> "Prompt[OutputType]": ...
@@ -262,9 +260,7 @@ class Prompt(Generic[OutputType]):
         model: str,
         provider: Provider | str,
         system_instructions: Optional[PromptMessage] = ...,
-        model_settings: Optional[
-            ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings
-        ] = ...,
+        model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = ...,
         output_type: None = ...,
     ) -> "Prompt[None]": ...
     @property
@@ -2565,9 +2561,7 @@ class ChatMessage:
     @property
     def content(
         self,
-    ) -> List[
-        Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]
-    ]:
+    ) -> List[Union[TextContentPart, ImageContentPart, InputAudioContentPart, FileContentPart]]:
         """The message content parts."""
 
     @property
