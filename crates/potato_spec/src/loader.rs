@@ -71,6 +71,16 @@ impl SpecLoader {
         self
     }
 
+    /// Load from a YAML string with a default (no-registry) loader.
+    pub async fn from_spec(yaml: &str) -> Result<LoadedSpec, SpecError> {
+        Self::new().load_str(yaml).await
+    }
+
+    /// Load from a YAML file with a default (no-registry) loader.
+    pub async fn from_spec_path(path: impl AsRef<Path>) -> Result<LoadedSpec, SpecError> {
+        Self::new().load_file(path).await
+    }
+
     pub async fn load_file(&self, path: impl AsRef<Path>) -> Result<LoadedSpec, SpecError> {
         let content = tokio::fs::read_to_string(path).await?;
         self.load_str(&content).await
