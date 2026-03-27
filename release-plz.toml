@@ -44,3 +44,7 @@ publish = true
 [[package]]
 name = "potato-workflow"
 publish = true
+
+[[package]]
+name = "potato-spec"
+publish = true
