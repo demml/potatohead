@@ -1,4 +1,5 @@
 pub mod agent_test;
+pub mod spec_test;
 pub mod agentic_loop_test;
 pub mod builder_test;
 pub mod callbacks_test;

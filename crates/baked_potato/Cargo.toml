@@ -11,6 +11,7 @@ potato-provider = { workspace = true }
 potato-type = { workspace = true }
 potato-workflow = { workspace = true }
 potato-util = { workspace = true }
+potato-spec = { workspace = true }
 mockito = { workspace = true }
 pyo3 = { workspace = true }
 rand = { workspace = true }
