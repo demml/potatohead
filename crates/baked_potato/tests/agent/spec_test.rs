@@ -36,6 +36,47 @@ workflows:
       - ref: step_two
 "#;
 
+const PARALLEL_YAML: &str = r#"
+agents:
+  - id: agent_a
+    provider: openai
+    model: gpt-4o
+    max_iterations: 1
+  - id: agent_b
+    provider: openai
+    model: gpt-4o
+    max_iterations: 1
+workflows:
+  - id: par
+    type: parallel
+    merge_strategy: collect_all
+    steps:
+      - ref: agent_a
+      - ref: agent_b
+"#;
+
+const DAG_YAML: &str = r#"
+agents:
+  - id: worker
+    provider: openai
+    model: gpt-4o
+    max_iterations: 1
+workflows:
+  - id: dag
+    type: workflow
+    tasks:
+      - id: t1
+        agent: worker
+        prompt: "Hello"
+        dependencies: []
+      - id: t2
+        agent: worker
+        prompt: "Follow up"
+        dependencies: [t1]
+"#;
+
+/// This test is performed in a sync context in order to maintain compatibility with python (LLMTestServer can be used in rust and python)
+/// Because of this, we need to use a tokio runtime to run the async code within the test.
 #[test]
 fn spec_loader_builds_openai_agent_and_runs() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
@@ -101,20 +142,113 @@ fn spec_loader_builds_sequential_workflow_and_runs() {
 }
 
 #[test]
-fn spec_loader_invalid_provider_returns_error() {
+fn spec_loader_builds_parallel_workflow_and_runs() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let mut mock = LLMTestServer::new();
+    mock.start_server().unwrap();
+
+    let loaded = runtime
+        .block_on(async { SpecLoader::from_spec(PARALLEL_YAML).await })
+        .unwrap();
+
+    let par = loaded.parallel("par").expect("parallel 'par' not found");
+
+    let mut session = SessionState::new();
+    let outcome = runtime
+        .block_on(async { par.run("Start", &mut session).await })
+        .unwrap();
+
+    match outcome {
+        AgentRunOutcome::Complete(result) => {
+            assert!(!result.final_response.response_text().is_empty());
+        }
+        _ => panic!("expected Complete outcome"),
+    }
+
+    mock.stop_server().unwrap();
+}
+
+#[test]
+fn spec_loader_builds_dag_workflow_and_runs() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let mut mock = LLMTestServer::new();
+    mock.start_server().unwrap();
+
+    let loaded = runtime
+        .block_on(async { SpecLoader::from_spec(DAG_YAML).await })
+        .unwrap();
+
+    let wf = loaded.workflow("dag").expect("workflow 'dag' not found");
+    let result = runtime.block_on(async { wf.run(None).await });
+    assert!(result.is_ok());
+
+    mock.stop_server().unwrap();
+}
+
+#[test]
+fn spec_loader_dag_agent_missing_model_returns_error() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
     let yaml = r#"
 agents:
-  - id: bad
-    provider: not_a_real_provider
-workflows: []
+  - id: no_model_agent
+    provider: openai
+workflows:
+  - id: dag_bad
+    type: workflow
+    tasks:
+      - id: t1
+        agent: no_model_agent
+        prompt: "Hello"
+        dependencies: []
 "#;
 
     let result = runtime.block_on(async { SpecLoader::from_spec(yaml).await });
+    assert!(
+        matches!(result, Err(SpecError::WorkflowBuild { .. })),
+        "expected WorkflowBuild error for dag agent with no model"
+    );
+}
+
+#[test]
+fn spec_loader_loads_agent_from_file() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+
+    let path = format!(
+        "{}/tests/agent/fixtures/spec.yaml",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let loaded = runtime
+        .block_on(async { SpecLoader::from_spec_path(&path).await })
+        .unwrap();
+
+    assert!(loaded.agent("file_agent").is_some());
+}
+
+#[test]
+fn spec_loader_file_not_found_returns_io_error() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+
+    let result = runtime.block_on(async {
+        SpecLoader::from_spec_path("/nonexistent/path/spec.yaml").await
+    });
 
     assert!(
-        matches!(result, Err(SpecError::InvalidProvider { ref value, .. }) if value == "not_a_real_provider"),
-        "expected InvalidProvider error"
+        matches!(result, Err(SpecError::Io(_))),
+        "expected Io error for nonexistent path"
     );
+}
+
+#[test]
+fn spec_loader_accessor_returns_none_for_unknown_id() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+
+    let loaded = runtime
+        .block_on(async { SpecLoader::from_spec(SINGLE_AGENT_YAML).await })
+        .unwrap();
+
+    assert!(loaded.agent("nonexistent").is_none());
+    assert!(loaded.sequential("nonexistent").is_none());
+    assert!(loaded.parallel("nonexistent").is_none());
+    assert!(loaded.workflow("nonexistent").is_none());
 }

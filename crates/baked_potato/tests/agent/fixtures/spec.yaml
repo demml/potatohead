@@ -1,0 +1,7 @@
+agents:
+  - id: file_agent
+    provider: openai
+    model: gpt-4o
+    system_prompt: "You are a helpful assistant."
+    max_iterations: 1
+workflows: []
