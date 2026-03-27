@@ -12,8 +12,8 @@ The `potato-agent` crate implements an agentic loop in Rust. It calls an LLM, ex
 
 ```toml
 [dependencies]
-potato-agent = { version = "0.19" }
-potato-type  = { version = "0.19" }
+potato-agent = { version = "0.20" }
+potato-type  = { version = "0.20" }
 tokio        = { version = "1", features = ["full"] }
 serde_json   = "1"
 ```
@@ -222,3 +222,4 @@ Each component is covered in detail on its own page. The table below describes w
 | [Completion Criteria](criteria.md) | Define when the loop stops | Stopping on a keyword, structured output, or custom logic |
 | [Session State](session-state.md) | Pass key-value data between agents; persist state across runs | Multi-agent orchestrations, stateful agents |
 | [Orchestration](orchestration.md) | Chain agents sequentially or run them in parallel | Complex multi-step workflows |
+| [From Spec](from-spec.md) | Define agents and workflows in YAML, load at runtime | Declarative config, environment-specific overrides |

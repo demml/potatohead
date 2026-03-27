@@ -65,6 +65,7 @@ nav:
       - Completion Criteria: "docs/agents/criteria.md"
       - Session State & Stores: "docs/agents/session-state.md"
       - Orchestration: "docs/agents/orchestration.md"
+      - From Spec: "docs/agents/from-spec.md"
   - API Documentation:
       - API: "docs/api/stubs.md"
 

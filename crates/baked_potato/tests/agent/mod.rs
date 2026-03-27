@@ -7,5 +7,6 @@ pub mod embedding_test;
 pub mod memory_test;
 pub mod orchestration_test;
 pub mod session_test;
+pub mod spec_test;
 pub mod store_test;
 pub mod tool_ext_test;
