@@ -5,8 +5,8 @@ pub use potato_type::{
     prompt as prompt_types, Provider, SaveName, StructuredOutput,
 };
 pub use potato_util::{
-    calculate_weighted_score, create_uuid7, error::UtilError, utils::ResponseLogProbs,
-    utils::TokenLogProbs, version, PyHelperFuncs,
+    calculate_weighted_score, create_uuid7, depythonize_object_to_value, error::UtilError,
+    utils::ResponseLogProbs, utils::TokenLogProbs, version, PyHelperFuncs,
 };
 
 pub use potato_provider::{
