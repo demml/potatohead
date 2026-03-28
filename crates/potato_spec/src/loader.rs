@@ -273,11 +273,12 @@ impl SpecLoader {
                         "provider": provider.as_str(),
                         "messages": [text],
                     });
-                    let prompt_config =
-                        serde_json::from_value(config_value).map_err(|e| SpecError::WorkflowBuild {
+                    let prompt_config = serde_json::from_value(config_value).map_err(|e| {
+                        SpecError::WorkflowBuild {
                             id: task_spec.id.clone(),
                             reason: e.to_string(),
-                        })?;
+                        }
+                    })?;
                     Prompt::from_generic_config(prompt_config).map_err(|e| {
                         SpecError::WorkflowBuild {
                             id: task_spec.id.clone(),
@@ -286,7 +287,10 @@ impl SpecLoader {
                     })?
                 }
                 PromptRef::File(path) => {
-                    if Path::new(path).components().any(|c| c == Component::ParentDir) {
+                    if Path::new(path)
+                        .components()
+                        .any(|c| c == Component::ParentDir)
+                    {
                         return Err(SpecError::PromptLoad {
                             path: path.clone(),
                             reason: "path must not contain '..' components".into(),
@@ -390,10 +394,7 @@ mod tests {
 
     #[test]
     fn test_topo_sort_out_of_order() {
-        let tasks = vec![
-            make_task("t2", vec!["t1"]),
-            make_task("t1", vec![]),
-        ];
+        let tasks = vec![make_task("t2", vec!["t1"]), make_task("t1", vec![])];
         let sorted = topo_sort_tasks(&tasks).unwrap();
         assert_eq!(sorted.len(), 2);
         assert_eq!(sorted[0].id, "t1");
@@ -402,10 +403,7 @@ mod tests {
 
     #[test]
     fn test_topo_sort_cycle_returns_error() {
-        let tasks = vec![
-            make_task("a", vec!["b"]),
-            make_task("b", vec!["a"]),
-        ];
+        let tasks = vec![make_task("a", vec!["b"]), make_task("b", vec!["a"])];
         let result = topo_sort_tasks(&tasks);
         assert!(result.is_err());
         match result.unwrap_err() {

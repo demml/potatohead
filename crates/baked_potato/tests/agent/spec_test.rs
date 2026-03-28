@@ -87,11 +87,15 @@ fn spec_loader_builds_openai_agent_and_runs() {
         .block_on(async { SpecLoader::from_spec(SINGLE_AGENT_YAML).await })
         .unwrap();
 
-    let agent = loaded.agent("assistant").expect("agent 'assistant' not found");
+    let agent = loaded
+        .agent("assistant")
+        .expect("agent 'assistant' not found");
 
     let prompt_msg = OpenAIChatMessage {
         role: "user".to_string(),
-        content: vec![ContentPart::Text(TextContentPart::new("Hello!".to_string()))],
+        content: vec![ContentPart::Text(TextContentPart::new(
+            "Hello!".to_string(),
+        ))],
         name: None,
     };
     let prompt = Prompt::new_rs(
@@ -124,7 +128,9 @@ fn spec_loader_builds_sequential_workflow_and_runs() {
         .block_on(async { SpecLoader::from_spec(SEQUENTIAL_YAML).await })
         .unwrap();
 
-    let seq = loaded.sequential("pipeline").expect("sequential 'pipeline' not found");
+    let seq = loaded
+        .sequential("pipeline")
+        .expect("sequential 'pipeline' not found");
 
     let mut session = SessionState::new();
     let outcome = runtime
@@ -304,9 +310,8 @@ fn spec_loader_loads_agent_from_file() {
 fn spec_loader_file_not_found_returns_io_error() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
-    let result = runtime.block_on(async {
-        SpecLoader::from_spec_path("/nonexistent/path/spec.yaml").await
-    });
+    let result =
+        runtime.block_on(async { SpecLoader::from_spec_path("/nonexistent/path/spec.yaml").await });
 
     assert!(
         matches!(result, Err(SpecError::Io(_))),
