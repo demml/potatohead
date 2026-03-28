@@ -1,5 +1,40 @@
 use serde::Deserialize;
 
+#[derive(Debug, Clone)]
+pub enum PromptRef {
+    Inline(String),
+    File(String),
+}
+
+impl<'de> Deserialize<'de> for PromptRef {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        use serde::de::{self, Visitor};
+        struct V;
+        impl<'de> Visitor<'de> for V {
+            type Value = PromptRef;
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "a string or a map with a 'path' key")
+            }
+            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                Ok(PromptRef::Inline(v.to_owned()))
+            }
+            fn visit_map<A: de::MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                let mut path: Option<String> = None;
+                while let Some(key) = map.next_key::<String>()? {
+                    if key == "path" {
+                        path = Some(map.next_value()?);
+                    } else {
+                        map.next_value::<serde::de::IgnoredAny>()?;
+                    }
+                }
+                path.map(PromptRef::File)
+                    .ok_or_else(|| de::Error::missing_field("path"))
+            }
+        }
+        d.deserialize_any(V)
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct PotatoSpec {
     #[serde(default)]
@@ -107,7 +142,7 @@ pub enum MergeStrategySpec {
 pub struct TaskSpec {
     pub id: String,
     pub agent: String,
-    pub prompt: String,
+    pub prompt: PromptRef,
     #[serde(default)]
     pub dependencies: Vec<String>,
     pub max_retries: Option<u32>,

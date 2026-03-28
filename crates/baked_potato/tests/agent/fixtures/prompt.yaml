@@ -1,0 +1,4 @@
+model: gpt-4o
+provider: OpenAI
+messages:
+  - "You are processing a DAG task from a prompt file."

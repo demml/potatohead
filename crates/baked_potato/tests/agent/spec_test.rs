@@ -186,6 +186,53 @@ fn spec_loader_builds_dag_workflow_and_runs() {
 }
 
 #[test]
+fn spec_loader_dag_task_with_prompt_file_runs() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let mut mock = LLMTestServer::new();
+    mock.start_server().unwrap();
+
+    let prompt_path = format!(
+        "{}/tests/agent/fixtures/prompt.yaml",
+        env!("CARGO_MANIFEST_DIR")
+    );
+
+    let yaml = format!(
+        r#"
+agents:
+  - id: worker
+    provider: openai
+    model: gpt-4o
+    max_iterations: 1
+workflows:
+  - id: dag
+    type: workflow
+    tasks:
+      - id: t1
+        agent: worker
+        prompt:
+          path: "{}"
+        dependencies: []
+"#,
+        prompt_path
+    );
+
+    let loaded = runtime
+        .block_on(async { SpecLoader::from_spec(&yaml).await })
+        .unwrap();
+
+    let prompt = Prompt::from_path(std::path::PathBuf::from(&prompt_path)).unwrap();
+    assert_eq!(prompt.model, "gpt-4o");
+    assert_eq!(prompt.provider, Provider::OpenAI);
+    assert!(!prompt.openai_messages().unwrap().messages.is_empty());
+
+    let wf = loaded.workflow("dag").expect("workflow 'dag' not found");
+    let result = runtime.block_on(async { wf.run(None).await });
+    assert!(result.is_ok());
+
+    mock.stop_server().unwrap();
+}
+
+#[test]
 fn spec_loader_dag_agent_missing_model_returns_error() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
 

@@ -19,4 +19,6 @@ pub enum SpecError {
     InvalidProvider { value: String, reason: String },
     #[error("workflow build error for '{id}': {reason}")]
     WorkflowBuild { id: String, reason: String },
+    #[error("failed to load prompt from '{path}': {reason}")]
+    PromptLoad { path: String, reason: String },
 }

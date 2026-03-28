@@ -1,5 +1,5 @@
 use crate::error::SpecError;
-use crate::spec::*;
+use crate::spec::{PromptRef, *};
 use potato_agent::agents::{agent::Agent, runner::AgentRunner};
 use potato_agent::{
     AgentBuilder, AgentCallback, LoggingCallback, MergeStrategy, ParallelAgent,
@@ -266,23 +266,34 @@ impl SpecLoader {
                     ),
                 })?;
 
-            let config_value = serde_json::json!({
-                "model": model,
-                "provider": provider.as_str(),
-                "messages": [task_spec.prompt.clone()],
-            });
-            let prompt_config =
-                serde_json::from_value(config_value).map_err(|e| SpecError::WorkflowBuild {
-                    id: task_spec.id.clone(),
-                    reason: e.to_string(),
-                })?;
-
-            let prompt = Prompt::from_generic_config(prompt_config).map_err(|e| {
-                SpecError::WorkflowBuild {
-                    id: task_spec.id.clone(),
-                    reason: e.to_string(),
+            let prompt = match &task_spec.prompt {
+                PromptRef::Inline(text) => {
+                    let config_value = serde_json::json!({
+                        "model": model,
+                        "provider": provider.as_str(),
+                        "messages": [text],
+                    });
+                    let prompt_config =
+                        serde_json::from_value(config_value).map_err(|e| SpecError::WorkflowBuild {
+                            id: task_spec.id.clone(),
+                            reason: e.to_string(),
+                        })?;
+                    Prompt::from_generic_config(prompt_config).map_err(|e| {
+                        SpecError::WorkflowBuild {
+                            id: task_spec.id.clone(),
+                            reason: e.to_string(),
+                        }
+                    })?
                 }
-            })?;
+                PromptRef::File(path) => {
+                    Prompt::from_path(std::path::PathBuf::from(path)).map_err(|e| {
+                        SpecError::PromptLoad {
+                            path: path.clone(),
+                            reason: e.to_string(),
+                        }
+                    })?
+                }
+            };
 
             let task = Task::new(
                 &agent.id,
@@ -356,7 +367,7 @@ mod tests {
         TaskSpec {
             id: id.to_string(),
             agent: "x".to_string(),
-            prompt: "p".to_string(),
+            prompt: PromptRef::Inline("p".to_string()),
             dependencies: deps.into_iter().map(|s| s.to_string()).collect(),
             max_retries: None,
         }
