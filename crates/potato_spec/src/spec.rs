@@ -147,3 +147,29 @@ pub struct TaskSpec {
     pub dependencies: Vec<String>,
     pub max_retries: Option<u32>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prompt_ref_deserializes_from_string() {
+        let yaml = "\"hello world\"";
+        let p: PromptRef = serde_yaml::from_str(yaml).unwrap();
+        assert!(matches!(p, PromptRef::Inline(s) if s == "hello world"));
+    }
+
+    #[test]
+    fn prompt_ref_deserializes_from_path_map() {
+        let yaml = "path: ./prompts/foo.yaml";
+        let p: PromptRef = serde_yaml::from_str(yaml).unwrap();
+        assert!(matches!(p, PromptRef::File(s) if s == "./prompts/foo.yaml"));
+    }
+
+    #[test]
+    fn prompt_ref_map_missing_path_returns_error() {
+        let yaml = "other_key: value";
+        let result: Result<PromptRef, _> = serde_yaml::from_str(yaml);
+        assert!(result.is_err());
+    }
+}

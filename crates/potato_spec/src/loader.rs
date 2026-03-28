@@ -1,5 +1,5 @@
 use crate::error::SpecError;
-use crate::spec::{PromptRef, *};
+use crate::spec::*;
 use potato_agent::agents::{agent::Agent, runner::AgentRunner};
 use potato_agent::{
     AgentBuilder, AgentCallback, LoggingCallback, MergeStrategy, ParallelAgent,
@@ -8,7 +8,7 @@ use potato_agent::{
 use potato_type::{prompt::Prompt, tools::AsyncTool, Provider};
 use potato_workflow::{Task, Workflow};
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 pub(crate) fn topo_sort_tasks(tasks: &[TaskSpec]) -> Result<Vec<&TaskSpec>, SpecError> {
@@ -286,12 +286,27 @@ impl SpecLoader {
                     })?
                 }
                 PromptRef::File(path) => {
-                    Prompt::from_path(std::path::PathBuf::from(path)).map_err(|e| {
-                        SpecError::PromptLoad {
+                    if Path::new(path).components().any(|c| c == Component::ParentDir) {
+                        return Err(SpecError::PromptLoad {
                             path: path.clone(),
-                            reason: e.to_string(),
-                        }
-                    })?
+                            reason: "path must not contain '..' components".into(),
+                        });
+                    }
+                    let path_owned = path.clone();
+                    let task_id = task_spec.id.clone();
+                    tokio::task::spawn_blocking(move || {
+                        Prompt::from_path(PathBuf::from(&path_owned)).map_err(|e| {
+                            SpecError::PromptLoad {
+                                path: path_owned,
+                                reason: e.to_string(),
+                            }
+                        })
+                    })
+                    .await
+                    .map_err(|e| SpecError::WorkflowBuild {
+                        id: task_id,
+                        reason: format!("spawn_blocking failed: {e}"),
+                    })??
                 }
             };
 

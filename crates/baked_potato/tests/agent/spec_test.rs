@@ -233,6 +233,34 @@ workflows:
 }
 
 #[test]
+fn spec_loader_dag_task_prompt_file_not_found_returns_error() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+
+    let yaml = r#"
+agents:
+  - id: worker
+    provider: openai
+    model: gpt-4o
+    max_iterations: 1
+workflows:
+  - id: dag
+    type: workflow
+    tasks:
+      - id: t1
+        agent: worker
+        prompt:
+          path: "/nonexistent/path/prompt.yaml"
+        dependencies: []
+"#;
+
+    let result = runtime.block_on(async { SpecLoader::from_spec(yaml).await });
+    assert!(
+        matches!(result, Err(SpecError::PromptLoad { .. })),
+        "expected PromptLoad error for nonexistent prompt file"
+    );
+}
+
+#[test]
 fn spec_loader_dag_agent_missing_model_returns_error() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
