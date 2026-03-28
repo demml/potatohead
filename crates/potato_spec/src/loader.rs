@@ -8,7 +8,7 @@ use potato_agent::{
 use potato_type::{prompt::Prompt, tools::AsyncTool, Provider};
 use potato_workflow::{Task, Workflow};
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 pub(crate) fn topo_sort_tasks(tasks: &[TaskSpec]) -> Result<Vec<&TaskSpec>, SpecError> {
@@ -254,35 +254,80 @@ impl SpecLoader {
                     id: task_spec.agent.clone(),
                 })?;
 
-            let provider = agent.provider.clone();
-            let model = agent
-                .model_override
-                .clone()
-                .ok_or_else(|| SpecError::WorkflowBuild {
-                    id: task_spec.id.clone(),
-                    reason: format!(
-                        "agent '{}' used in task '{}' has no model set",
-                        task_spec.agent, task_spec.id
-                    ),
-                })?;
+            let prompt =
+                match &task_spec.prompt {
+                    PromptRef::Inline(text) => {
+                        let provider = agent.provider.clone();
+                        let model = agent.model_override.clone().ok_or_else(|| {
+                            SpecError::WorkflowBuild {
+                                id: task_spec.id.clone(),
+                                reason: format!(
+                                    "agent '{}' used in task '{}' has no model set",
+                                    task_spec.agent, task_spec.id
+                                ),
+                            }
+                        })?;
+                        let config_value = serde_json::json!({
+                            "model": model,
+                            "provider": provider.as_str(),
+                            "messages": [text],
+                        });
+                        let prompt_config = serde_json::from_value(config_value).map_err(|e| {
+                            SpecError::WorkflowBuild {
+                                id: task_spec.id.clone(),
+                                reason: e.to_string(),
+                            }
+                        })?;
+                        Prompt::from_generic_config(prompt_config).map_err(|e| {
+                            SpecError::WorkflowBuild {
+                                id: task_spec.id.clone(),
+                                reason: e.to_string(),
+                            }
+                        })?
+                    }
+                    PromptRef::File(path) => {
+                        if Path::new(path)
+                            .components()
+                            .any(|c| c == Component::ParentDir)
+                        {
+                            return Err(SpecError::PromptLoad {
+                                path: path.clone(),
+                                reason: "path must not contain '..' components".into(),
+                            });
+                        }
+                        let path_owned = path.clone();
+                        let task_id = task_spec.id.clone();
+                        let agent_provider = agent.provider.clone();
+                        let prompt = tokio::task::spawn_blocking(move || {
+                            Prompt::from_path(PathBuf::from(&path_owned)).map_err(|e| {
+                                SpecError::PromptLoad {
+                                    path: path_owned,
+                                    reason: e.to_string(),
+                                }
+                            })
+                        })
+                        .await
+                        .map_err(|e| SpecError::WorkflowBuild {
+                            id: task_id,
+                            reason: format!("spawn_blocking failed: {e}"),
+                        })??;
 
-            let config_value = serde_json::json!({
-                "model": model,
-                "provider": provider.as_str(),
-                "messages": [task_spec.prompt.clone()],
-            });
-            let prompt_config =
-                serde_json::from_value(config_value).map_err(|e| SpecError::WorkflowBuild {
-                    id: task_spec.id.clone(),
-                    reason: e.to_string(),
-                })?;
+                        if prompt.provider != agent_provider {
+                            return Err(SpecError::WorkflowBuild {
+                                id: task_spec.id.clone(),
+                                reason: format!(
+                                "prompt file '{}' specifies provider '{}' but agent '{}' uses '{}'",
+                                path,
+                                prompt.provider.as_str(),
+                                task_spec.agent,
+                                agent_provider.as_str(),
+                            ),
+                            });
+                        }
 
-            let prompt = Prompt::from_generic_config(prompt_config).map_err(|e| {
-                SpecError::WorkflowBuild {
-                    id: task_spec.id.clone(),
-                    reason: e.to_string(),
-                }
-            })?;
+                        prompt
+                    }
+                };
 
             let task = Task::new(
                 &agent.id,
@@ -356,7 +401,7 @@ mod tests {
         TaskSpec {
             id: id.to_string(),
             agent: "x".to_string(),
-            prompt: "p".to_string(),
+            prompt: PromptRef::Inline("p".to_string()),
             dependencies: deps.into_iter().map(|s| s.to_string()).collect(),
             max_retries: None,
         }
@@ -364,10 +409,7 @@ mod tests {
 
     #[test]
     fn test_topo_sort_out_of_order() {
-        let tasks = vec![
-            make_task("t2", vec!["t1"]),
-            make_task("t1", vec![]),
-        ];
+        let tasks = vec![make_task("t2", vec!["t1"]), make_task("t1", vec![])];
         let sorted = topo_sort_tasks(&tasks).unwrap();
         assert_eq!(sorted.len(), 2);
         assert_eq!(sorted[0].id, "t1");
@@ -376,10 +418,7 @@ mod tests {
 
     #[test]
     fn test_topo_sort_cycle_returns_error() {
-        let tasks = vec![
-            make_task("a", vec!["b"]),
-            make_task("b", vec!["a"]),
-        ];
+        let tasks = vec![make_task("a", vec!["b"]), make_task("b", vec!["a"])];
         let result = topo_sort_tasks(&tasks);
         assert!(result.is_err());
         match result.unwrap_err() {

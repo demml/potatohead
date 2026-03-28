@@ -87,11 +87,15 @@ fn spec_loader_builds_openai_agent_and_runs() {
         .block_on(async { SpecLoader::from_spec(SINGLE_AGENT_YAML).await })
         .unwrap();
 
-    let agent = loaded.agent("assistant").expect("agent 'assistant' not found");
+    let agent = loaded
+        .agent("assistant")
+        .expect("agent 'assistant' not found");
 
     let prompt_msg = OpenAIChatMessage {
         role: "user".to_string(),
-        content: vec![ContentPart::Text(TextContentPart::new("Hello!".to_string()))],
+        content: vec![ContentPart::Text(TextContentPart::new(
+            "Hello!".to_string(),
+        ))],
         name: None,
     };
     let prompt = Prompt::new_rs(
@@ -124,7 +128,9 @@ fn spec_loader_builds_sequential_workflow_and_runs() {
         .block_on(async { SpecLoader::from_spec(SEQUENTIAL_YAML).await })
         .unwrap();
 
-    let seq = loaded.sequential("pipeline").expect("sequential 'pipeline' not found");
+    let seq = loaded
+        .sequential("pipeline")
+        .expect("sequential 'pipeline' not found");
 
     let mut session = SessionState::new();
     let outcome = runtime
@@ -186,6 +192,81 @@ fn spec_loader_builds_dag_workflow_and_runs() {
 }
 
 #[test]
+fn spec_loader_dag_task_with_prompt_file_runs() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let mut mock = LLMTestServer::new();
+    mock.start_server().unwrap();
+
+    let prompt_path = format!(
+        "{}/tests/agent/fixtures/prompt.yaml",
+        env!("CARGO_MANIFEST_DIR")
+    );
+
+    let yaml = format!(
+        r#"
+agents:
+  - id: worker
+    provider: openai
+    model: gpt-4o
+    max_iterations: 1
+workflows:
+  - id: dag
+    type: workflow
+    tasks:
+      - id: t1
+        agent: worker
+        prompt:
+          path: "{}"
+        dependencies: []
+"#,
+        prompt_path
+    );
+
+    let loaded = runtime
+        .block_on(async { SpecLoader::from_spec(&yaml).await })
+        .unwrap();
+
+    let prompt = Prompt::from_path(std::path::PathBuf::from(&prompt_path)).unwrap();
+    assert_eq!(prompt.model, "gpt-4o");
+    assert_eq!(prompt.provider, Provider::OpenAI);
+    assert!(!prompt.openai_messages().unwrap().messages.is_empty());
+
+    let wf = loaded.workflow("dag").expect("workflow 'dag' not found");
+    let result = runtime.block_on(async { wf.run(None).await });
+    assert!(result.is_ok());
+
+    mock.stop_server().unwrap();
+}
+
+#[test]
+fn spec_loader_dag_task_prompt_file_not_found_returns_error() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+
+    let yaml = r#"
+agents:
+  - id: worker
+    provider: openai
+    model: gpt-4o
+    max_iterations: 1
+workflows:
+  - id: dag
+    type: workflow
+    tasks:
+      - id: t1
+        agent: worker
+        prompt:
+          path: "/nonexistent/path/prompt.yaml"
+        dependencies: []
+"#;
+
+    let result = runtime.block_on(async { SpecLoader::from_spec(yaml).await });
+    assert!(
+        matches!(result, Err(SpecError::PromptLoad { .. })),
+        "expected PromptLoad error for nonexistent prompt file"
+    );
+}
+
+#[test]
 fn spec_loader_dag_agent_missing_model_returns_error() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
@@ -211,6 +292,84 @@ workflows:
 }
 
 #[test]
+fn spec_loader_dag_file_prompt_agent_without_model_succeeds() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let mut mock = LLMTestServer::new();
+    mock.start_server().unwrap();
+
+    let prompt_path = format!(
+        "{}/tests/agent/fixtures/prompt.yaml",
+        env!("CARGO_MANIFEST_DIR")
+    );
+
+    let yaml = format!(
+        r#"
+agents:
+  - id: no_model_agent
+    provider: openai
+    max_iterations: 1
+workflows:
+  - id: dag
+    type: workflow
+    tasks:
+      - id: t1
+        agent: no_model_agent
+        prompt:
+          path: "{}"
+        dependencies: []
+"#,
+        prompt_path
+    );
+
+    let loaded = runtime
+        .block_on(async { SpecLoader::from_spec(&yaml).await })
+        .unwrap();
+
+    let wf = loaded.workflow("dag").expect("workflow 'dag' not found");
+    let result = runtime.block_on(async { wf.run(None).await });
+    assert!(result.is_ok());
+
+    mock.stop_server().unwrap();
+}
+
+#[test]
+fn spec_loader_dag_file_prompt_provider_mismatch_returns_error() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+
+    let prompt_path = format!(
+        "{}/tests/agent/fixtures/prompt.yaml",
+        env!("CARGO_MANIFEST_DIR")
+    );
+
+    // prompt.yaml specifies provider: OpenAI, but agent uses gemini
+    let yaml = format!(
+        r#"
+agents:
+  - id: gemini_agent
+    provider: gemini
+    model: gemini-2.0-flash
+    max_iterations: 1
+workflows:
+  - id: dag
+    type: workflow
+    tasks:
+      - id: t1
+        agent: gemini_agent
+        prompt:
+          path: "{}"
+        dependencies: []
+"#,
+        prompt_path
+    );
+
+    let result = runtime.block_on(async { SpecLoader::from_spec(&yaml).await });
+    assert!(
+        matches!(result, Err(SpecError::WorkflowBuild { .. })),
+        "expected WorkflowBuild error for provider mismatch"
+    );
+}
+
+#[test]
 fn spec_loader_loads_agent_from_file() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
@@ -229,9 +388,8 @@ fn spec_loader_loads_agent_from_file() {
 fn spec_loader_file_not_found_returns_io_error() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
-    let result = runtime.block_on(async {
-        SpecLoader::from_spec_path("/nonexistent/path/spec.yaml").await
-    });
+    let result =
+        runtime.block_on(async { SpecLoader::from_spec_path("/nonexistent/path/spec.yaml").await });
 
     assert!(
         matches!(result, Err(SpecError::Io(_))),
