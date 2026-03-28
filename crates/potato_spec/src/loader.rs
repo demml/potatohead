@@ -254,65 +254,80 @@ impl SpecLoader {
                     id: task_spec.agent.clone(),
                 })?;
 
-            let provider = agent.provider.clone();
-            let model = agent
-                .model_override
-                .clone()
-                .ok_or_else(|| SpecError::WorkflowBuild {
-                    id: task_spec.id.clone(),
-                    reason: format!(
-                        "agent '{}' used in task '{}' has no model set",
-                        task_spec.agent, task_spec.id
-                    ),
-                })?;
-
-            let prompt = match &task_spec.prompt {
-                PromptRef::Inline(text) => {
-                    let config_value = serde_json::json!({
-                        "model": model,
-                        "provider": provider.as_str(),
-                        "messages": [text],
-                    });
-                    let prompt_config = serde_json::from_value(config_value).map_err(|e| {
-                        SpecError::WorkflowBuild {
-                            id: task_spec.id.clone(),
-                            reason: e.to_string(),
-                        }
-                    })?;
-                    Prompt::from_generic_config(prompt_config).map_err(|e| {
-                        SpecError::WorkflowBuild {
-                            id: task_spec.id.clone(),
-                            reason: e.to_string(),
-                        }
-                    })?
-                }
-                PromptRef::File(path) => {
-                    if Path::new(path)
-                        .components()
-                        .any(|c| c == Component::ParentDir)
-                    {
-                        return Err(SpecError::PromptLoad {
-                            path: path.clone(),
-                            reason: "path must not contain '..' components".into(),
+            let prompt =
+                match &task_spec.prompt {
+                    PromptRef::Inline(text) => {
+                        let provider = agent.provider.clone();
+                        let model = agent.model_override.clone().ok_or_else(|| {
+                            SpecError::WorkflowBuild {
+                                id: task_spec.id.clone(),
+                                reason: format!(
+                                    "agent '{}' used in task '{}' has no model set",
+                                    task_spec.agent, task_spec.id
+                                ),
+                            }
+                        })?;
+                        let config_value = serde_json::json!({
+                            "model": model,
+                            "provider": provider.as_str(),
+                            "messages": [text],
                         });
-                    }
-                    let path_owned = path.clone();
-                    let task_id = task_spec.id.clone();
-                    tokio::task::spawn_blocking(move || {
-                        Prompt::from_path(PathBuf::from(&path_owned)).map_err(|e| {
-                            SpecError::PromptLoad {
-                                path: path_owned,
+                        let prompt_config = serde_json::from_value(config_value).map_err(|e| {
+                            SpecError::WorkflowBuild {
+                                id: task_spec.id.clone(),
                                 reason: e.to_string(),
                             }
+                        })?;
+                        Prompt::from_generic_config(prompt_config).map_err(|e| {
+                            SpecError::WorkflowBuild {
+                                id: task_spec.id.clone(),
+                                reason: e.to_string(),
+                            }
+                        })?
+                    }
+                    PromptRef::File(path) => {
+                        if Path::new(path)
+                            .components()
+                            .any(|c| c == Component::ParentDir)
+                        {
+                            return Err(SpecError::PromptLoad {
+                                path: path.clone(),
+                                reason: "path must not contain '..' components".into(),
+                            });
+                        }
+                        let path_owned = path.clone();
+                        let task_id = task_spec.id.clone();
+                        let agent_provider = agent.provider.clone();
+                        let prompt = tokio::task::spawn_blocking(move || {
+                            Prompt::from_path(PathBuf::from(&path_owned)).map_err(|e| {
+                                SpecError::PromptLoad {
+                                    path: path_owned,
+                                    reason: e.to_string(),
+                                }
+                            })
                         })
-                    })
-                    .await
-                    .map_err(|e| SpecError::WorkflowBuild {
-                        id: task_id,
-                        reason: format!("spawn_blocking failed: {e}"),
-                    })??
-                }
-            };
+                        .await
+                        .map_err(|e| SpecError::WorkflowBuild {
+                            id: task_id,
+                            reason: format!("spawn_blocking failed: {e}"),
+                        })??;
+
+                        if prompt.provider != agent_provider {
+                            return Err(SpecError::WorkflowBuild {
+                                id: task_spec.id.clone(),
+                                reason: format!(
+                                "prompt file '{}' specifies provider '{}' but agent '{}' uses '{}'",
+                                path,
+                                prompt.provider.as_str(),
+                                task_spec.agent,
+                                agent_provider.as_str(),
+                            ),
+                            });
+                        }
+
+                        prompt
+                    }
+                };
 
             let task = Task::new(
                 &agent.id,

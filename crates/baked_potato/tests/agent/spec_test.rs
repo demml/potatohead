@@ -292,6 +292,84 @@ workflows:
 }
 
 #[test]
+fn spec_loader_dag_file_prompt_agent_without_model_succeeds() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let mut mock = LLMTestServer::new();
+    mock.start_server().unwrap();
+
+    let prompt_path = format!(
+        "{}/tests/agent/fixtures/prompt.yaml",
+        env!("CARGO_MANIFEST_DIR")
+    );
+
+    let yaml = format!(
+        r#"
+agents:
+  - id: no_model_agent
+    provider: openai
+    max_iterations: 1
+workflows:
+  - id: dag
+    type: workflow
+    tasks:
+      - id: t1
+        agent: no_model_agent
+        prompt:
+          path: "{}"
+        dependencies: []
+"#,
+        prompt_path
+    );
+
+    let loaded = runtime
+        .block_on(async { SpecLoader::from_spec(&yaml).await })
+        .unwrap();
+
+    let wf = loaded.workflow("dag").expect("workflow 'dag' not found");
+    let result = runtime.block_on(async { wf.run(None).await });
+    assert!(result.is_ok());
+
+    mock.stop_server().unwrap();
+}
+
+#[test]
+fn spec_loader_dag_file_prompt_provider_mismatch_returns_error() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+
+    let prompt_path = format!(
+        "{}/tests/agent/fixtures/prompt.yaml",
+        env!("CARGO_MANIFEST_DIR")
+    );
+
+    // prompt.yaml specifies provider: OpenAI, but agent uses gemini
+    let yaml = format!(
+        r#"
+agents:
+  - id: gemini_agent
+    provider: gemini
+    model: gemini-2.0-flash
+    max_iterations: 1
+workflows:
+  - id: dag
+    type: workflow
+    tasks:
+      - id: t1
+        agent: gemini_agent
+        prompt:
+          path: "{}"
+        dependencies: []
+"#,
+        prompt_path
+    );
+
+    let result = runtime.block_on(async { SpecLoader::from_spec(&yaml).await });
+    assert!(
+        matches!(result, Err(SpecError::WorkflowBuild { .. })),
+        "expected WorkflowBuild error for provider mismatch"
+    );
+}
+
+#[test]
 fn spec_loader_loads_agent_from_file() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
