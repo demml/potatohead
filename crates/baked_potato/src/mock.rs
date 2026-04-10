@@ -487,7 +487,7 @@ impl Default for LLMApiMock {
     }
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[allow(dead_code)]
 pub struct LLMTestServer {
     openai_server: Option<LLMApiMock>,

@@ -195,7 +195,7 @@ pub fn extract_system_instructions(
     Ok(system_instructions)
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct Prompt {
     pub request: ProviderRequest,

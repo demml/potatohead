@@ -35,7 +35,7 @@ use pyo3::types::PyDict;
 pub type Context = (HashMap<String, Vec<MessageNum>>, Value, Option<Arc<Value>>);
 
 #[derive(Debug)]
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 pub struct WorkflowResult {
     #[pyo3(get)]
     pub tasks: HashMap<String, Py<WorkflowTask>>,
@@ -882,7 +882,7 @@ impl<'de> Deserialize<'de> for Workflow {
     }
 }
 
-#[pyclass(name = "Workflow")]
+#[pyclass(skip_from_py_object, name = "Workflow")]
 #[derive(Debug, Clone)]
 pub struct PyWorkflow {
     workflow: Workflow,

@@ -3,7 +3,7 @@ use pyo3::{prelude::*, IntoPyObjectExt};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct OpenAIEmbeddingConfig {
     #[pyo3(get)]
     pub model: String,
@@ -41,7 +41,7 @@ impl OpenAIEmbeddingConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct EmbeddingObject {
     #[pyo3(get)]
     pub object: String,
@@ -59,7 +59,7 @@ impl EmbeddingObject {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct UsageObject {
     #[pyo3(get)]
     pub prompt_tokens: u32,
@@ -68,7 +68,7 @@ pub struct UsageObject {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct OpenAIEmbeddingResponse {
     #[pyo3(get)]
     pub object: String,

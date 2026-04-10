@@ -251,7 +251,7 @@ impl EmbeddingResponse {
     }
 }
 
-#[pyclass(name = "Embedder")]
+#[pyclass(from_py_object, name = "Embedder")]
 #[derive(Debug, Clone)]
 pub struct PyEmbedder {
     pub embedder: Arc<Embedder>,

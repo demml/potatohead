@@ -33,7 +33,7 @@ use pythonize::depythonize;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum SchemaType {
     TypeUnspecified,
     String,
@@ -47,7 +47,7 @@ pub enum SchemaType {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Schema {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "type")]
@@ -184,7 +184,7 @@ impl Schema {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum HarmCategory {
@@ -203,7 +203,7 @@ pub enum HarmCategory {
 }
 
 /// Probability-based threshold levels for blocking.
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum HarmBlockThreshold {
@@ -219,7 +219,7 @@ pub enum HarmBlockThreshold {
 /// Specifies whether the threshold is used for probability or severity score.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum HarmBlockMethod {
     HarmBlockMethodUnspecified,
     Severity,
@@ -229,7 +229,7 @@ pub enum HarmBlockMethod {
 /// Safety settings for harm blocking.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct SafetySetting {
     /// Required. The harm category.
     #[pyo3(get)]
@@ -251,7 +251,7 @@ impl SafetySetting {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Modality {
@@ -265,7 +265,7 @@ pub enum Modality {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum MediaResolution {
     MediaResolutionUnspecified,
     MediaResolutionLow,
@@ -275,7 +275,7 @@ pub enum MediaResolution {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum ModelRoutingPreference {
     Unknown,
     PrioritizeQuality,
@@ -285,7 +285,7 @@ pub enum ModelRoutingPreference {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum ThinkingLevel {
     ThinkingLevelUnspecified,
     Low,
@@ -294,7 +294,7 @@ pub enum ThinkingLevel {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass(name = "GeminiThinkingConfig")]
+#[pyclass(from_py_object, name = "GeminiThinkingConfig")]
 pub struct ThinkingConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub include_thoughts: Option<bool>,
@@ -323,7 +323,7 @@ impl ThinkingConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass(name = "ImageConfig")]
+#[pyclass(from_py_object, name = "ImageConfig")]
 pub struct ImageConfig {
     pub aspect_ratio: Option<String>,
     pub image_size: Option<String>,
@@ -343,7 +343,7 @@ impl ImageConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct AutoRoutingMode {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_routing_preference: Option<ModelRoutingPreference>,
@@ -362,7 +362,7 @@ impl AutoRoutingMode {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ManualRoutingMode {
     pub model_name: String,
 }
@@ -378,7 +378,7 @@ impl ManualRoutingMode {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum RoutingConfigMode {
     AutoMode(AutoRoutingMode),
     ManualMode(ManualRoutingMode),
@@ -402,7 +402,7 @@ impl RoutingConfigMode {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct RoutingConfig {
     #[serde(flatten)]
     pub routing_config: RoutingConfigMode,
@@ -418,7 +418,7 @@ impl RoutingConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct PrebuiltVoiceConfig {
     pub voice_name: String,
 }
@@ -433,7 +433,7 @@ impl PrebuiltVoiceConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct VoiceConfig {
     pub prebuilt_voice_config: PrebuiltVoiceConfig,
 }
@@ -450,7 +450,7 @@ impl VoiceConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct SpeakerVoiceConfig {
     pub speaker: String,
     pub voice_config: VoiceConfig,
@@ -469,7 +469,7 @@ impl SpeakerVoiceConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct MultiSpeakerVoiceConfig {
     pub speaker_voice_configs: Vec<SpeakerVoiceConfig>,
 }
@@ -486,7 +486,7 @@ impl MultiSpeakerVoiceConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct SpeechConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub voice_config: Option<VoiceConfig>,
@@ -515,7 +515,7 @@ impl SpeechConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct GenerationConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[pyo3(get)]
@@ -660,7 +660,7 @@ impl GenerationConfig {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ModelArmorConfig {
@@ -685,7 +685,7 @@ impl ModelArmorConfig {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Mode {
@@ -698,7 +698,7 @@ pub enum Mode {
     None,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct FunctionCallingConfig {
@@ -720,7 +720,7 @@ impl FunctionCallingConfig {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct LatLng {
@@ -741,7 +741,7 @@ impl LatLng {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct RetrievalConfig {
@@ -763,7 +763,7 @@ impl RetrievalConfig {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ToolConfig {
@@ -788,7 +788,7 @@ impl ToolConfig {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct GeminiSettings {
     #[pyo3(get)]
@@ -908,7 +908,7 @@ impl GeminiSettings {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Language {
@@ -916,7 +916,7 @@ pub enum Language {
     Python,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Outcome {
@@ -926,7 +926,7 @@ pub enum Outcome {
     OutcomeDeadlineExceeded,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct FileData {
@@ -939,7 +939,7 @@ pub struct FileData {
     pub display_name: Option<String>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct PartialArgs {
     pub json_path: String,
@@ -978,7 +978,7 @@ impl PartialArgs {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct FunctionCall {
     /// Required. The name of the function to call.
@@ -1026,7 +1026,7 @@ impl FunctionCall {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct Blob {
@@ -1038,7 +1038,7 @@ pub struct Blob {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
 }
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct FunctionResponse {
     /// Required. The name of the function that was called.
@@ -1047,7 +1047,7 @@ pub struct FunctionResponse {
     pub response: HashMap<String, Value>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -1058,7 +1058,7 @@ pub struct ExecutableCode {
     pub code: String,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -1070,7 +1070,7 @@ pub struct CodeExecutionResult {
     pub output: Option<String>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -1083,7 +1083,7 @@ pub struct VideoMetadata {
     pub end_offset: Option<String>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct PartMetadata {
@@ -1176,7 +1176,7 @@ fn extract_data_from_py_object(data: &Bound<'_, PyAny>) -> Result<DataNum, TypeE
     ))
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Part {
@@ -1257,7 +1257,7 @@ impl Part {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct GeminiContent {
@@ -1545,7 +1545,7 @@ impl MessageConversion for GeminiContent {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Behavior {
     #[default]
@@ -1555,7 +1555,7 @@ pub enum Behavior {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 #[serde(rename_all = "camelCase", default)]
 pub struct FunctionDeclaration {
     pub name: String,
@@ -1574,7 +1574,7 @@ pub struct FunctionDeclaration {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct DataStoreSpec {
     pub data_store: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1591,7 +1591,7 @@ impl DataStoreSpec {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct VertexAISearch {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub datastore: Option<String>,
@@ -1629,7 +1629,7 @@ impl VertexAISearch {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct VertexRagStore {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rag_resources: Option<Vec<RagResource>>,
@@ -1643,7 +1643,7 @@ pub struct VertexRagStore {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct RagResource {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rag_corpus: Option<String>,
@@ -1665,7 +1665,7 @@ impl RagResource {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct RagRetrievalConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_k: Option<i32>,
@@ -1690,7 +1690,7 @@ impl RagRetrievalConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Filter {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata_filter: Option<String>,
@@ -1719,7 +1719,7 @@ impl Filter {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct RankService {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_name: Option<String>,
@@ -1736,7 +1736,7 @@ impl RankService {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct LlmRanker {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_name: Option<String>,
@@ -1753,7 +1753,7 @@ impl LlmRanker {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum RankingConfig {
     RankService(RankService),
     LlmRanker(LlmRanker),
@@ -1761,7 +1761,7 @@ pub enum RankingConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Ranking {
     #[serde(flatten)]
     pub ranking_config: RankingConfig,
@@ -1789,7 +1789,7 @@ impl Ranking {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum ApiSpecType {
     ApiSpecUnspecified,
     SimpleSearch,
@@ -1797,7 +1797,7 @@ pub enum ApiSpecType {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct SimpleSearchParams {}
 
 #[pymethods]
@@ -1810,7 +1810,7 @@ impl SimpleSearchParams {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ElasticSearchParams {
     pub index: String,
     pub search_template: String,
@@ -1841,7 +1841,7 @@ pub enum ExternalApiParams {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum AuthType {
     AuthTypeUnspecified,
     NoAuth,
@@ -1854,7 +1854,7 @@ pub enum AuthType {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum HttpElementLocation {
     HttpInUnspecified,
     HttpInQuery,
@@ -1866,7 +1866,7 @@ pub enum HttpElementLocation {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ApiKeyConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -1900,7 +1900,7 @@ impl ApiKeyConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct HttpBasicAuthConfig {
     pub credential_secret: String,
 }
@@ -1915,7 +1915,7 @@ impl HttpBasicAuthConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct GoogleServiceAccountConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub service_account: Option<String>,
@@ -1933,7 +1933,7 @@ impl GoogleServiceAccountConfig {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum OauthConfigValue {
     AccessToken(String),
     ServiceAccount(String),
@@ -1957,7 +1957,7 @@ impl OauthConfigValue {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct OauthConfig {
     #[serde(flatten)]
     pub oauth_config: OauthConfigValue,
@@ -1988,7 +1988,7 @@ pub enum OidcConfigValue {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct OidcConfig {
     #[serde(flatten)]
     pub oidc_config: OidcConfigValue,
@@ -2017,7 +2017,7 @@ impl OidcConfig {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum AuthConfigValue {
     ApiKeyConfig(ApiKeyConfig),
     HttpBasicAuthConfig(HttpBasicAuthConfig),
@@ -2076,7 +2076,7 @@ impl AuthConfigValue {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct AuthConfig {
     pub auth_type: AuthType,
     #[serde(flatten)]
@@ -2085,7 +2085,7 @@ pub struct AuthConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ExternalApi {
     pub api_spec: ApiSpecType,
     pub endpoint: String,
@@ -2122,7 +2122,7 @@ impl ExternalApi {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum RetrievalSource {
     VertexAiSearch(VertexAISearch),
     VertexRagStore(VertexRagStore),
@@ -2149,7 +2149,7 @@ impl RetrievalSource {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Retrieval {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub disable_attribution: Option<bool>,
@@ -2171,7 +2171,7 @@ impl Retrieval {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Interval {
     #[pyo3(get)]
     pub start_time: String,
@@ -2181,7 +2181,7 @@ pub struct Interval {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct GoogleSearch {
     #[pyo3(get)]
     pub time_range_filter: Interval,
@@ -2189,7 +2189,7 @@ pub struct GoogleSearch {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum PhishBlockThreshold {
     PhishBlockThresholdUnspecified,
     BlockLowAndAbove,
@@ -2202,7 +2202,7 @@ pub enum PhishBlockThreshold {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct VertexGoogleSearch {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exclude_domains: Option<Vec<String>>,
@@ -2228,7 +2228,7 @@ impl VertexGoogleSearch {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct EnterpriseWebSearch {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exclude_domains: Option<Vec<String>>,
@@ -2254,7 +2254,7 @@ impl EnterpriseWebSearch {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ParallelAiSearch {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
@@ -2292,7 +2292,7 @@ impl ParallelAiSearch {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum GoogleSearchNum {
     GeminiSearch(GoogleSearch),
     VertexSearch(VertexGoogleSearch),
@@ -2316,7 +2316,7 @@ impl GoogleSearchNum {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum DynamicRetrievalMode {
     ModeUnspecified,
     ModeDynamic,
@@ -2324,7 +2324,7 @@ pub enum DynamicRetrievalMode {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct DynamicRetrievalConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<DynamicRetrievalMode>,
@@ -2346,7 +2346,7 @@ impl DynamicRetrievalConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct GoogleSearchRetrieval {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dynamic_retrieval_config: Option<DynamicRetrievalConfig>,
@@ -2365,7 +2365,7 @@ impl GoogleSearchRetrieval {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct GoogleMaps {
     pub enable_widget: bool,
 }
@@ -2381,7 +2381,7 @@ impl GoogleMaps {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct CodeExecution {}
 
 #[pymethods]
@@ -2394,7 +2394,7 @@ impl CodeExecution {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum ComputerUseEnvironment {
     EnvironmentUnspecified,
     EnvironmentBrowser,
@@ -2402,7 +2402,7 @@ pub enum ComputerUseEnvironment {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ComputerUse {
     pub environment: ComputerUseEnvironment,
     pub excluded_predefined_functions: Vec<String>,
@@ -2424,7 +2424,7 @@ impl ComputerUse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct UrlContext {}
 
 #[pymethods]
@@ -2437,7 +2437,7 @@ impl UrlContext {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct FileSearch {
     pub file_search_store_names: Vec<String>,
     pub metadata_filter: String,
@@ -2459,7 +2459,7 @@ impl FileSearch {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
-#[pyclass(name = "GeminiTool")]
+#[pyclass(from_py_object, name = "GeminiTool")]
 #[pyo3(get_all)]
 pub struct Tool {
     #[serde(skip_serializing_if = "Option::is_none")]

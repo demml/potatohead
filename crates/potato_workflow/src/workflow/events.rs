@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TaskEvent {
     #[pyo3(get)]
@@ -37,7 +37,7 @@ impl TaskEvent {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct EventDetails {
     #[serde(skip_serializing_if = "Option::is_none")]

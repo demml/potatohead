@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Python-accessible tool call info — returned from `AdkLlmResponse.get_tool_calls()`.
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Clone)]
 pub struct AdkToolCallInfo {
@@ -30,7 +30,7 @@ pub struct AdkToolCallInfo {
 /// ADK Part — uses individual Option fields to handle Pydantic's wire format which
 /// serializes ALL fields including null values (e.g. `"function_call": null`).
 /// A flattened enum cannot handle this; individual Option<T> fields can.
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(rename_all = "snake_case", default)]
@@ -68,7 +68,7 @@ impl AdkPart {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct AdkContent {
@@ -76,7 +76,7 @@ pub struct AdkContent {
     pub role: String,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -99,7 +99,7 @@ pub struct AdkUsageMetadata {
     pub traffic_type: Option<TrafficType>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -108,7 +108,7 @@ pub struct AdkTranscription {
     pub finished: Option<bool>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -121,7 +121,7 @@ pub struct AdkCacheMetadata {
     pub created_at: Option<f64>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -133,7 +133,7 @@ pub struct AdkLiveSessionResumptionUpdate {
 
 /// Google ADK `LlmResponse` — flat, snake_case structure.
 /// Discriminator: presence of the `"partial"` key (ADK-specific).
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct AdkLlmResponse {

@@ -13,7 +13,7 @@ use serde_json::Value;
 use std::fmt;
 use std::fmt::Display;
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TrafficType {
@@ -22,7 +22,7 @@ pub enum TrafficType {
     ProvisionedThroughput,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -33,7 +33,7 @@ pub struct ModalityTokenCount {
     pub token_count: Option<i32>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -62,7 +62,7 @@ pub struct UsageMetadata {
     pub traffic_type: Option<TrafficType>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BlockedReason {
@@ -76,7 +76,7 @@ pub enum BlockedReason {
     Jailbreak,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -89,7 +89,7 @@ pub struct PromptFeedback {
     pub block_reason_message: Option<String>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum UrlRetrievalStatus {
@@ -98,7 +98,7 @@ pub enum UrlRetrievalStatus {
     UrlRetrievalStatusError,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -111,7 +111,7 @@ pub struct UrlMetadata {
     pub url_retrieval_status: Option<UrlRetrievalStatus>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -121,7 +121,7 @@ pub struct UrlContextMetadata {
     pub url_metadata: Option<Vec<UrlMetadata>>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -132,7 +132,7 @@ pub struct SourceFlaggingUri {
     pub flag_content_uri: String,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -145,7 +145,7 @@ pub struct RetrievalMetadata {
     pub google_search_dynamic_retrieval_score: Option<f64>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -158,7 +158,7 @@ pub struct SearchEntryPoint {
     pub sdk_blob: Option<String>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -177,7 +177,7 @@ pub struct Segment {
     pub text: Option<String>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -196,7 +196,7 @@ pub struct GroundingSupport {
     pub segment: Option<Segment>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -212,7 +212,7 @@ pub struct Web {
     pub domain: Option<String>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -223,7 +223,7 @@ pub struct PageSpan {
     pub last_page: i32,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -233,7 +233,7 @@ pub struct RagChunk {
     pub page_span: Option<PageSpan>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -251,7 +251,7 @@ pub struct RetrievedContext {
     pub rag_chunk: Option<RagChunk>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -269,7 +269,7 @@ pub struct Maps {
     pub place_id: Option<String>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
@@ -279,7 +279,7 @@ pub enum GroundingChunkType {
     Maps(Maps),
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -288,7 +288,7 @@ pub struct GroundingChunk {
     pub chunk_type: GroundingChunkType,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -330,7 +330,7 @@ pub struct GroundingMetadata {
     pub image_search_queries: Option<Vec<String>>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum HarmProbability {
@@ -341,7 +341,7 @@ pub enum HarmProbability {
     High,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum HarmSeverity {
@@ -352,7 +352,7 @@ pub enum HarmSeverity {
     HarmSeverityHigh,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -370,7 +370,7 @@ pub struct SafetyRating {
     pub overwritten_threshold: Option<HarmBlockThreshold>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FinishReason {
@@ -445,7 +445,7 @@ impl FinishReason {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -460,7 +460,7 @@ pub struct LogprobsCandidate {
     pub log_probability: Option<f64>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -468,7 +468,7 @@ pub struct TopCandidates {
     pub candidates: Option<Vec<LogprobsCandidate>>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -479,7 +479,7 @@ pub struct LogprobsResult {
     pub chosen_candidates: Option<Vec<LogprobsCandidate>>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -490,7 +490,7 @@ pub struct GoogleDate {
 }
 
 /// Source attributions for content.
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -510,7 +510,7 @@ pub struct Citation {
 }
 
 /// A collection of source attributions for a piece of content.
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -520,7 +520,7 @@ pub struct CitationMetadata {
 }
 
 /// A response candidate generated from the model.
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -554,7 +554,7 @@ impl MessageResponseExt for Candidate {
 }
 
 /// Response message for GenerateContent.
-#[pyclass]
+#[pyclass(from_py_object)]
 #[pyo3(get_all)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]

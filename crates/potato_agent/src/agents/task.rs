@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{error, instrument};
-#[pyclass(eq)]
+#[pyclass(from_py_object, eq)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TaskStatus {
     Pending,
@@ -15,7 +15,7 @@ pub enum TaskStatus {
     Failed,
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Debug, Serialize)]
 pub struct WorkflowTask {
     #[pyo3(get)]
@@ -51,7 +51,7 @@ impl WorkflowTask {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
     #[pyo3(get)]

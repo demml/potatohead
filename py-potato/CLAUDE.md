@@ -44,7 +44,7 @@ uv run maturin develop
 Nine crates under `crates/`:
 
 - **potato_head** — Public API aggregator; re-exports from other crates
-- **potato_type** — Type definitions for all providers (OpenAI, Gemini, Anthropic). PyO3 `#[pyclass]` annotations live here.
+- **potato_type** — Type definitions for all providers (OpenAI, Gemini, Anthropic). PyO3 `#[pyclass(from_py_object)]` annotations live here.
 - **potato_provider** — LLM provider HTTP clients
 - **potato_agent** — Agent execution engine
 - **potato_workflow** — Workflow/task orchestration
@@ -63,7 +63,7 @@ Thin wrappers and re-exports from the compiled `_potato_head` native module. Pro
 
 ### Adding a New Type (end-to-end)
 
-1. Define the Rust struct with `#[pyclass]` in the appropriate `potato_type` submodule
+1. Define the Rust struct with `#[pyclass(from_py_object)]` in the appropriate `potato_type` submodule
 2. Register it in the PyO3 module (`py-potato/src/<provider>.rs`)
 3. Export from the Python `__init__.py` for that provider
 4. Regenerate stubs: `uv run python scripts/create_stubs.py`

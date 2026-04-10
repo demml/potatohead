@@ -10,7 +10,7 @@ use pyo3::IntoPyObjectExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct CitationCharLocation {
     #[pyo3(get, set)]
     pub cited_text: String,
@@ -30,7 +30,7 @@ pub struct CitationCharLocation {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct CitationPageLocation {
     #[pyo3(get, set)]
     pub cited_text: String,
@@ -50,7 +50,7 @@ pub struct CitationPageLocation {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct CitationContentBlockLocation {
     #[pyo3(get, set)]
     pub cited_text: String,
@@ -70,7 +70,7 @@ pub struct CitationContentBlockLocation {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct CitationsWebSearchResultLocation {
     #[pyo3(get, set)]
     pub cited_text: String,
@@ -86,7 +86,7 @@ pub struct CitationsWebSearchResultLocation {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct CitationsSearchResultLocation {
     #[pyo3(get, set)]
     pub cited_text: String,
@@ -118,7 +118,7 @@ pub enum TextCitation {
 
 /// Text block in response content with citations
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct TextBlock {
     #[pyo3(get, set)]
     pub text: String,
@@ -156,7 +156,7 @@ impl TextBlock {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ThinkingBlock {
     #[pyo3(get, set)]
     pub thinking: String,
@@ -168,7 +168,7 @@ pub struct ThinkingBlock {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct RedactedThinkingBlock {
     #[pyo3(get, set)]
     pub data: String,
@@ -178,7 +178,7 @@ pub struct RedactedThinkingBlock {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ToolUseBlock {
     #[pyo3(get, set)]
     pub id: String,
@@ -191,7 +191,7 @@ pub struct ToolUseBlock {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ServerToolUseBlock {
     #[pyo3(get, set)]
     pub id: String,
@@ -204,7 +204,7 @@ pub struct ServerToolUseBlock {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct WebSearchResultBlock {
     #[pyo3(get, set)]
     pub encrypted_content: String,
@@ -220,7 +220,7 @@ pub struct WebSearchResultBlock {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct WebSearchToolResultError {
     #[pyo3(get, set)]
     pub error_code: String,
@@ -238,7 +238,7 @@ pub enum WebSearchToolResultBlockContent {
 
 /// Web search tool result block
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct WebSearchToolResultBlock {
     pub content: WebSearchToolResultBlockContent,
     #[pyo3(get, set)]
@@ -322,7 +322,7 @@ impl MessageResponseExt for ResponseContentBlock {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum StopReason {
     EndTurn,
     MaxTokens,
@@ -331,7 +331,7 @@ pub enum StopReason {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass(name = "AnthropicUsage")]
+#[pyclass(skip_from_py_object, name = "AnthropicUsage")]
 pub struct Usage {
     #[pyo3(get)]
     pub input_tokens: i32,
@@ -348,7 +348,7 @@ pub struct Usage {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct AnthropicMessageResponse {
     #[pyo3(get)]
     pub id: String,

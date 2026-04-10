@@ -921,7 +921,7 @@ impl<'de> Deserialize<'de> for Agent {
     }
 }
 
-#[pyclass(name = "Agent")]
+#[pyclass(from_py_object, name = "Agent")]
 #[derive(Debug, Clone)]
 pub struct PyAgent {
     pub agent: Arc<Agent>,
