@@ -29,7 +29,7 @@ pub const OPENAI_CONTENT_PART_INPUT_AUDIO: &str = "input_audio";
 pub const OPENAI_CONTENT_PART_FILE: &str = "file";
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct File {
     #[pyo3(get, set)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -60,7 +60,7 @@ impl File {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct FileContentPart {
     #[pyo3(get, set)]
     pub file: File,
@@ -89,7 +89,7 @@ impl FileContentPart {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct InputAudioData {
     #[pyo3(get, set)]
     pub data: String,
@@ -106,7 +106,7 @@ impl InputAudioData {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct InputAudioContentPart {
     #[pyo3(get, set)]
     pub input_audio: InputAudioData,
@@ -127,7 +127,7 @@ impl InputAudioContentPart {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ImageUrl {
     #[pyo3(get, set)]
     pub url: String,
@@ -146,7 +146,7 @@ impl ImageUrl {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ImageContentPart {
     #[pyo3(get, set)]
     pub image_url: ImageUrl,
@@ -168,7 +168,7 @@ impl ImageContentPart {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct TextContentPart {
     #[pyo3(get, set)]
     pub text: String,
@@ -240,7 +240,7 @@ fn extract_content_from_py_object(content: &Bound<'_, PyAny>) -> PyResult<Vec<Co
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ChatMessage {
     #[pyo3(get, set)]
     pub role: String,

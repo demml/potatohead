@@ -52,7 +52,7 @@ impl AgentResponse {
     }
 }
 
-#[pyclass(name = "AgentResponse")]
+#[pyclass(skip_from_py_object, name = "AgentResponse")]
 #[derive(Debug, Serialize)]
 pub struct PyAgentResponse {
     pub inner: AgentResponse,

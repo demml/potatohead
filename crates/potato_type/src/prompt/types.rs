@@ -20,7 +20,7 @@ use serde_json::Value;
 use std::fmt::Display;
 use tracing::error;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum Role {
     User,
     Assistant,
@@ -211,7 +211,7 @@ pub fn parse_response_to_json<'py>(
     Ok((ResponseType::Null, None))
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)] // ensure strict validation
 pub struct Score {
@@ -247,7 +247,7 @@ impl Score {
 
 impl StructuredOutput for Score {}
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum ResponseType {
     Score,
@@ -528,7 +528,7 @@ pub enum ResponseContent {
     PredictResponse(PredictResponse),
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 pub struct OpenAIMessageList {
     pub messages: Vec<OpenAIChatMessage>,
 }
@@ -569,7 +569,7 @@ impl OpenAIMessageList {
     }
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 pub struct OpenAIMessageIterator {
     inner: std::vec::IntoIter<OpenAIChatMessage>,
 }
@@ -585,7 +585,7 @@ impl OpenAIMessageIterator {
     }
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 pub struct AnthropicMessageList {
     pub messages: Vec<AnthropicMessage>,
 }
@@ -626,7 +626,7 @@ impl AnthropicMessageList {
     }
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 pub struct AnthropicMessageIterator {
     inner: std::vec::IntoIter<AnthropicMessage>,
 }
@@ -642,7 +642,7 @@ impl AnthropicMessageIterator {
     }
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 pub struct GeminiContentList {
     pub messages: Vec<GeminiContent>,
 }
@@ -683,7 +683,7 @@ impl GeminiContentList {
     }
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 pub struct GeminiContentIterator {
     inner: std::vec::IntoIter<GeminiContent>,
 }

@@ -16,7 +16,7 @@ use serde_json::Value;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Function {
     #[pyo3(get)]
     pub arguments: String,
@@ -26,7 +26,7 @@ pub struct Function {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ToolCall {
     #[pyo3(get)]
     pub id: String,
@@ -39,7 +39,7 @@ pub struct ToolCall {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct UrlCitation {
     #[pyo3(get)]
     pub end_index: u64,
@@ -53,7 +53,7 @@ pub struct UrlCitation {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Annotations {
     #[pyo3(get)]
     pub r#type: String,
@@ -63,7 +63,7 @@ pub struct Annotations {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Audio {
     #[pyo3(get)]
     pub data: String,
@@ -77,7 +77,7 @@ pub struct Audio {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ChatCompletionMessage {
     #[pyo3(get)]
     pub content: Option<String>,
@@ -97,7 +97,7 @@ pub struct ChatCompletionMessage {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct TopLogProbs {
     #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -110,7 +110,7 @@ pub struct TopLogProbs {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct LogContent {
     #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -126,7 +126,7 @@ pub struct LogContent {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct LogProbs {
     #[pyo3(get)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -138,7 +138,7 @@ pub struct LogProbs {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Choice {
     #[pyo3(get)]
     pub message: ChatCompletionMessage,
@@ -162,7 +162,7 @@ impl MessageResponseExt for Choice {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct CompletionTokenDetails {
@@ -176,7 +176,7 @@ pub struct CompletionTokenDetails {
     pub rejected_prediction_tokens: u64,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct PromptTokenDetails {
@@ -186,7 +186,7 @@ pub struct PromptTokenDetails {
     pub cached_tokens: u64,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Usage {
@@ -205,7 +205,7 @@ pub struct Usage {
     pub finish_reason: Option<String>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct OpenAIChatResponse {

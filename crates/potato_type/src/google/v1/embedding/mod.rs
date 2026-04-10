@@ -12,7 +12,7 @@ use pythonize::{depythonize, pythonize};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 #[serde(rename_all = "camelCase", default)]
 pub struct PredictRequest {
     pub instances: Value,
@@ -52,7 +52,7 @@ impl PredictRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 #[serde(rename_all = "camelCase", default)]
 pub struct PredictResponse {
     pub predictions: Value,
@@ -301,7 +301,7 @@ mod tests {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[pyclass(eq, eq_int)]
+#[pyclass(from_py_object, eq, eq_int)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum EmbeddingTaskType {
     TaskTypeUnspecified,
@@ -316,7 +316,7 @@ pub enum EmbeddingTaskType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct GeminiEmbeddingConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
@@ -385,7 +385,7 @@ impl EmbeddingConfigTrait for GeminiEmbeddingConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ContentEmbedding {
     pub values: Vec<f32>,
 }
@@ -399,7 +399,7 @@ impl ContentEmbedding {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct GeminiEmbeddingResponse {
     #[pyo3(get)]
     pub embedding: ContentEmbedding,

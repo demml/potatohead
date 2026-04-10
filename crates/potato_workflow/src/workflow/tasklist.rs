@@ -16,7 +16,7 @@ use tracing::instrument;
 use tracing::{debug, warn};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct TaskList {
     pub tasks: HashMap<String, Arc<RwLock<Task>>>,
     pub execution_order: Vec<String>,

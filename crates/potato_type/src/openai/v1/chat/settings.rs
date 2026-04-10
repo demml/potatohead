@@ -10,7 +10,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct AudioParam {
     #[pyo3(get, set)]
     pub format: String,
@@ -35,7 +35,7 @@ impl AudioParam {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct PredictionContentPart {
     #[pyo3(get, set)]
     #[serde(rename = "type")]
@@ -63,7 +63,7 @@ impl PredictionContentPart {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum Content {
     Text(String),
     Array(Vec<PredictionContentPart>),
@@ -88,7 +88,7 @@ impl Content {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Prediction {
     #[pyo3(get, set)]
     pub r#type: String,
@@ -105,7 +105,7 @@ impl Prediction {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct StreamOptions {
     #[pyo3(get, set)]
     pub include_obfuscation: Option<bool>,
@@ -124,7 +124,7 @@ impl StreamOptions {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ToolChoiceMode {
@@ -142,7 +142,7 @@ impl ToolChoiceMode {
 }
 
 /// Function specification for function tool choice
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct FunctionChoice {
     #[pyo3(get, set)]
@@ -163,7 +163,7 @@ impl FunctionChoice {
 }
 
 /// Function tool choice specification
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct FunctionToolChoice {
     #[pyo3(get)]
@@ -189,7 +189,7 @@ impl FunctionToolChoice {
 }
 
 /// Custom tool specification
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct CustomChoice {
     #[pyo3(get, set)]
@@ -210,7 +210,7 @@ impl CustomChoice {
 }
 
 /// Custom tool choice specification
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct CustomToolChoice {
     #[pyo3(get)]
@@ -235,7 +235,7 @@ impl CustomToolChoice {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ToolDefinition {
     #[pyo3(get)]
@@ -261,7 +261,7 @@ impl ToolDefinition {
 }
 
 /// Mode for allowed tools constraint
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum AllowedToolsMode {
@@ -278,7 +278,7 @@ impl AllowedToolsMode {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct InnerAllowedTools {
     #[pyo3(get)]
@@ -287,7 +287,7 @@ pub struct InnerAllowedTools {
     pub tools: Vec<ToolDefinition>,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct AllowedTools {
     #[pyo3(get)]
@@ -325,7 +325,7 @@ impl AllowedTools {
 }
 
 /// Tool choice configuration - can be a mode string or specific tool object
-#[pyclass(name = "OpenAIToolChoice")]
+#[pyclass(from_py_object, name = "OpenAIToolChoice")]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum ToolChoice {
@@ -380,7 +380,7 @@ impl Default for ToolChoice {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct FunctionDefinition {
     #[pyo3(get, set)]
@@ -437,7 +437,7 @@ impl FunctionDefinition {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct FunctionTool {
     #[pyo3(get, set)]
@@ -456,7 +456,7 @@ impl FunctionTool {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct TextFormat {
     #[pyo3(get, set)]
@@ -472,7 +472,7 @@ impl TextFormat {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Grammar {
     /// The grammar definition
@@ -497,7 +497,7 @@ impl Grammar {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct GrammarFormat {
     #[pyo3(get, set)]
@@ -515,7 +515,7 @@ impl GrammarFormat {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum CustomToolFormat {
@@ -540,7 +540,7 @@ impl CustomToolFormat {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct CustomDefinition {
     #[pyo3(get, set)]
@@ -572,7 +572,7 @@ impl CustomDefinition {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct CustomTool {
     #[pyo3(get, set)]
@@ -591,7 +591,7 @@ impl CustomTool {
     }
 }
 
-#[pyclass(name = "OpenAITool")]
+#[pyclass(from_py_object, name = "OpenAITool")]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum Tool {
@@ -617,7 +617,7 @@ impl Tool {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct OpenAIChatSettings {
     #[pyo3(get, set)]
     #[serde(skip_serializing_if = "Option::is_none")]

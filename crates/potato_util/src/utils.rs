@@ -191,7 +191,7 @@ pub fn extract_string_value(py_value: &Bound<'_, PyAny>) -> Result<String, UtilE
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Clone)]
 pub struct TokenLogProbs {
     #[pyo3(get)]
@@ -201,7 +201,7 @@ pub struct TokenLogProbs {
     pub logprob: f64,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Serialize, Clone)]
 pub struct ResponseLogProbs {
     #[pyo3(get)]

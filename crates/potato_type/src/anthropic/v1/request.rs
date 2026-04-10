@@ -48,7 +48,7 @@ pub const SEARCH_RESULT_LOCATION_TYPE: &str = "search_result_location";
 pub const WEB_SEARCH_TOOL_RESULT_ERROR_TYPE: &str = "web_search_tool_result_error";
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct CitationCharLocationParam {
     #[pyo3(get, set)]
     pub cited_text: String,
@@ -87,7 +87,7 @@ impl CitationCharLocationParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct CitationPageLocationParam {
     #[pyo3(get, set)]
     pub cited_text: String,
@@ -126,7 +126,7 @@ impl CitationPageLocationParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct CitationContentBlockLocationParam {
     #[pyo3(get, set)]
     pub cited_text: String,
@@ -165,7 +165,7 @@ impl CitationContentBlockLocationParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct CitationWebSearchResultLocationParam {
     #[pyo3(get, set)]
     pub cited_text: String,
@@ -195,7 +195,7 @@ impl CitationWebSearchResultLocationParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct CitationSearchResultLocationParam {
     #[pyo3(get, set)]
     pub cited_text: String,
@@ -249,7 +249,7 @@ pub enum TextCitationParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct TextBlockParam {
     #[pyo3(get, set)]
     pub text: String,
@@ -329,7 +329,7 @@ impl TextBlockParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Base64ImageSource {
     #[pyo3(get, set)]
     pub media_type: String,
@@ -357,7 +357,7 @@ impl Base64ImageSource {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct UrlImageSource {
     #[pyo3(get, set)]
     pub url: String,
@@ -385,7 +385,7 @@ pub enum ImageSource {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ImageBlockParam {
     pub source: ImageSource,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -432,7 +432,7 @@ impl ImageBlockParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Base64PDFSource {
     #[pyo3(get, set)]
     pub media_type: String,
@@ -456,7 +456,7 @@ impl Base64PDFSource {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct UrlPDFSource {
     #[pyo3(get, set)]
     pub url: String,
@@ -477,7 +477,7 @@ impl UrlPDFSource {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct PlainTextSource {
     #[pyo3(get, set)]
     pub media_type: String,
@@ -501,7 +501,7 @@ impl PlainTextSource {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct CitationsConfigParams {
     #[pyo3(get, set)]
     pub enabled: Option<bool>,
@@ -516,7 +516,7 @@ pub enum DocumentSource {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct DocumentBlockParam {
     pub source: DocumentSource,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -567,7 +567,7 @@ impl DocumentBlockParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct SearchResultBlockParam {
     #[pyo3(get, set)]
     pub content: Vec<TextBlockParam>,
@@ -607,7 +607,7 @@ impl SearchResultBlockParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ThinkingBlockParam {
     #[pyo3(get, set)]
     pub thinking: String,
@@ -632,7 +632,7 @@ impl ThinkingBlockParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct RedactedThinkingBlockParam {
     #[pyo3(get, set)]
     pub data: String,
@@ -653,7 +653,7 @@ impl RedactedThinkingBlockParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ToolUseBlockParam {
     #[pyo3(get, set)]
     pub id: String,
@@ -705,7 +705,7 @@ pub enum ToolResultContentEnum {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ToolResultBlockParam {
     #[pyo3(get, set)]
     pub tool_use_id: String,
@@ -822,7 +822,7 @@ impl ToolResultBlockParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct ServerToolUseBlockParam {
     #[pyo3(get, set)]
     pub id: String,
@@ -863,7 +863,7 @@ impl ServerToolUseBlockParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct WebSearchResultBlockParam {
     #[pyo3(get, set)]
     pub encrypted_content: String,
@@ -899,7 +899,7 @@ impl WebSearchResultBlockParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct WebSearchToolResultBlockParam {
     #[pyo3(get, set)]
     pub tool_use_id: String,
@@ -1156,7 +1156,7 @@ impl ContentBlockParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct MessageParam {
     pub content: Vec<ContentBlockParam>,
     #[pyo3(get)]
@@ -1417,7 +1417,7 @@ impl MessageConversion for MessageParam {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Metadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<String>,
@@ -1433,7 +1433,7 @@ impl Metadata {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct CacheControl {
     #[serde(rename = "type")]
     pub cache_type: String, // "ephemeral"
@@ -1451,7 +1451,7 @@ impl CacheControl {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass(name = "AnthropicTool")]
+#[pyclass(from_py_object, name = "AnthropicTool")]
 pub struct Tool {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1497,7 +1497,7 @@ impl Tool {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass(name = "AnthropicThinkingConfig")]
+#[pyclass(from_py_object, name = "AnthropicThinkingConfig")]
 pub struct ThinkingConfig {
     #[pyo3(get)]
     pub r#type: String,
@@ -1520,7 +1520,7 @@ impl ThinkingConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass(name = "AnthropicToolChoice")]
+#[pyclass(from_py_object, name = "AnthropicToolChoice")]
 pub struct ToolChoice {
     #[pyo3(get)]
     pub r#type: String, // "auto", "any", "tool", "none"
@@ -1566,7 +1566,7 @@ impl ToolChoice {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 #[serde(default)]
 pub struct AnthropicSettings {
     #[pyo3(get)]
@@ -1829,7 +1829,7 @@ impl RequestAdapter for AnthropicMessageRequestV1 {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct SystemPrompt {
     #[pyo3(get)]
     #[serde(flatten)]

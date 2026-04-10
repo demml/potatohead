@@ -20,7 +20,7 @@ pub mod tools;
 pub mod traits;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum Model {
     Undefined,
 }
@@ -59,7 +59,7 @@ impl Display for Common {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[pyclass(eq, eq_int)]
+#[pyclass(from_py_object, eq, eq_int)]
 pub enum Provider {
     OpenAI,
     Gemini,
@@ -127,7 +127,7 @@ impl Display for Provider {
     }
 }
 
-#[pyclass(eq, eq_int)]
+#[pyclass(from_py_object, eq, eq_int)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum SaveName {
     Prompt,
@@ -236,7 +236,7 @@ pub trait StructuredOutput: for<'de> serde::Deserialize<'de> + JsonSchema {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum SettingsType {
     GoogleChat,
     OpenAIChat,
