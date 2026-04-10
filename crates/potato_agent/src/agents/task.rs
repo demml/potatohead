@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{error, instrument};
-#[pyclass(from_py_object)]
+#[pyclass(from_py_object, eq)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TaskStatus {
     Pending,
