@@ -597,6 +597,7 @@ impl PortableSpec {
 #[pymethods]
 impl PromptSpec {
     #[new]
+    #[clippy::allow(clippy::too_many_arguments)]
     #[pyo3(signature = (id, version, title=None, description=None, instructions=None, variables=None, input_schema=None, output_schema=None, tags=None, metadata=None, extensions=None))]
     pub fn new(
         id: String,
@@ -657,6 +658,7 @@ impl PromptSpec {
 #[pymethods]
 impl AgentSpec {
     #[new]
+    #[clippy::allow(clippy::too_many_arguments)]
     #[pyo3(signature = (id, version, name=None, description=None, primary_prompt=None, prompt_refs=None, input_schema=None, output_schema=None, tool_refs=None, agent_refs=None, capabilities=None, provider_hints=None, framework_hints=None, tags=None, metadata=None, extensions=None))]
     pub fn new(
         id: String,
