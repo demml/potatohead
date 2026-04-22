@@ -301,7 +301,7 @@ impl Workflow {
                         warn!(
                             "Task validation failed (attempt {}/{}), retrying...",
                             attempt + 1,
-                            max_retries
+                            max_retries + 1
                         );
                         continue;
                     }
@@ -314,7 +314,7 @@ impl Workflow {
                         "Task {} execution failed (attempt {}/{}): {}",
                         task_id,
                         attempt + 1,
-                        max_retries,
+                        max_retries + 1,
                         e
                     );
 

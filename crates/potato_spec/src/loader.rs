@@ -82,16 +82,30 @@ impl SpecLoader {
     }
 
     pub async fn load_file(&self, path: impl AsRef<Path>) -> Result<LoadedSpec, SpecError> {
-        let content = tokio::fs::read_to_string(path).await?;
-        self.load_str(&content).await
+        let spec_path = path.as_ref().to_path_buf();
+        let content = tokio::fs::read_to_string(&spec_path).await?;
+        let base_dir = spec_path.parent().map(Path::to_path_buf);
+        self.load_str_with_base(&content, base_dir.as_deref()).await
     }
 
     pub async fn load_str(&self, yaml: &str) -> Result<LoadedSpec, SpecError> {
-        let spec: PotatoSpec = serde_yaml::from_str(yaml)?;
-        self.build_spec(spec).await
+        self.load_str_with_base(yaml, None).await
     }
 
-    async fn build_spec(&self, spec: PotatoSpec) -> Result<LoadedSpec, SpecError> {
+    async fn load_str_with_base(
+        &self,
+        yaml: &str,
+        base_dir: Option<&Path>,
+    ) -> Result<LoadedSpec, SpecError> {
+        let spec: PotatoSpec = serde_yaml::from_str(yaml)?;
+        self.build_spec(spec, base_dir).await
+    }
+
+    async fn build_spec(
+        &self,
+        spec: PotatoSpec,
+        base_dir: Option<&Path>,
+    ) -> Result<LoadedSpec, SpecError> {
         let mut agents: HashMap<String, Arc<Agent>> = HashMap::new();
         for agent_spec in &spec.agents {
             let agent = self.build_agent(agent_spec).await?;
@@ -121,7 +135,7 @@ impl SpecLoader {
                     parallel.insert(id.clone(), pa);
                 }
                 WorkflowSpec::Workflow { id, tasks } => {
-                    let wf = self.build_workflow(id, tasks, &agents).await?;
+                    let wf = self.build_workflow(id, tasks, &agents, base_dir).await?;
                     workflows.insert(id.clone(), wf);
                 }
             }
@@ -243,6 +257,7 @@ impl SpecLoader {
         name: &str,
         tasks: &[TaskSpec],
         agents: &HashMap<String, Arc<Agent>>,
+        base_dir: Option<&Path>,
     ) -> Result<Workflow, SpecError> {
         let mut wf = Workflow::new(name);
         let sorted = topo_sort_tasks(tasks)?;
@@ -254,80 +269,87 @@ impl SpecLoader {
                     id: task_spec.agent.clone(),
                 })?;
 
-            let prompt =
-                match &task_spec.prompt {
-                    PromptRef::Inline(text) => {
-                        let provider = agent.provider.clone();
-                        let model = agent.model_override.clone().ok_or_else(|| {
-                            SpecError::WorkflowBuild {
+            let prompt = match &task_spec.prompt {
+                PromptRef::Inline(text) => {
+                    let provider = agent.provider.clone();
+                    let model =
+                        agent
+                            .model_override
+                            .clone()
+                            .ok_or_else(|| SpecError::WorkflowBuild {
                                 id: task_spec.id.clone(),
                                 reason: format!(
                                     "agent '{}' used in task '{}' has no model set",
                                     task_spec.agent, task_spec.id
                                 ),
-                            }
-                        })?;
-                        let config_value = serde_json::json!({
-                            "model": model,
-                            "provider": provider.as_str(),
-                            "messages": [text],
-                        });
-                        let prompt_config = serde_json::from_value(config_value).map_err(|e| {
-                            SpecError::WorkflowBuild {
-                                id: task_spec.id.clone(),
-                                reason: e.to_string(),
-                            }
-                        })?;
-                        Prompt::from_generic_config(prompt_config).map_err(|e| {
-                            SpecError::WorkflowBuild {
-                                id: task_spec.id.clone(),
-                                reason: e.to_string(),
-                            }
-                        })?
-                    }
-                    PromptRef::File(path) => {
-                        if Path::new(path)
-                            .components()
-                            .any(|c| c == Component::ParentDir)
-                        {
-                            return Err(SpecError::PromptLoad {
-                                path: path.clone(),
-                                reason: "path must not contain '..' components".into(),
-                            });
+                            })?;
+                    let config_value = serde_json::json!({
+                        "model": model,
+                        "provider": provider.as_str(),
+                        "messages": [text],
+                    });
+                    let prompt_config = serde_json::from_value(config_value).map_err(|e| {
+                        SpecError::WorkflowBuild {
+                            id: task_spec.id.clone(),
+                            reason: e.to_string(),
                         }
-                        let path_owned = path.clone();
-                        let task_id = task_spec.id.clone();
-                        let agent_provider = agent.provider.clone();
-                        let prompt = tokio::task::spawn_blocking(move || {
-                            Prompt::from_path(PathBuf::from(&path_owned)).map_err(|e| {
-                                SpecError::PromptLoad {
-                                    path: path_owned,
-                                    reason: e.to_string(),
-                                }
-                            })
-                        })
-                        .await
-                        .map_err(|e| SpecError::WorkflowBuild {
-                            id: task_id,
-                            reason: format!("spawn_blocking failed: {e}"),
-                        })??;
+                    })?;
+                    Prompt::from_generic_config(prompt_config).map_err(|e| {
+                        SpecError::WorkflowBuild {
+                            id: task_spec.id.clone(),
+                            reason: e.to_string(),
+                        }
+                    })?
+                }
+                PromptRef::File(path) => {
+                    if Path::new(path)
+                        .components()
+                        .any(|c| c == Component::ParentDir)
+                    {
+                        return Err(SpecError::PromptLoad {
+                            path: path.clone(),
+                            reason: "path must not contain '..' components".into(),
+                        });
+                    }
+                    let path_owned = path.clone();
+                    let base_dir_owned = base_dir.map(Path::to_path_buf);
+                    let task_id = task_spec.id.clone();
+                    let agent_provider = agent.provider.clone();
+                    let prompt = tokio::task::spawn_blocking(move || {
+                        let prompt_result = match &base_dir_owned {
+                            Some(base_dir) => {
+                                Prompt::from_path_with_base(PathBuf::from(&path_owned), base_dir)
+                            }
+                            None => Prompt::from_path(PathBuf::from(&path_owned)),
+                        };
 
-                        if prompt.provider != agent_provider {
-                            return Err(SpecError::WorkflowBuild {
-                                id: task_spec.id.clone(),
-                                reason: format!(
+                        prompt_result.map_err(|e| SpecError::PromptLoad {
+                            path: path_owned,
+                            reason: e.to_string(),
+                        })
+                    })
+                    .await
+                    .map_err(|e| SpecError::WorkflowBuild {
+                        id: task_id,
+                        reason: format!("spawn_blocking failed: {e}"),
+                    })??;
+
+                    if prompt.provider != agent_provider {
+                        return Err(SpecError::WorkflowBuild {
+                            id: task_spec.id.clone(),
+                            reason: format!(
                                 "prompt file '{}' specifies provider '{}' but agent '{}' uses '{}'",
                                 path,
                                 prompt.provider.as_str(),
                                 task_spec.agent,
                                 agent_provider.as_str(),
                             ),
-                            });
-                        }
-
-                        prompt
+                        });
                     }
-                };
+
+                    prompt
+                }
+            };
 
             let task = Task::new(
                 &agent.id,
@@ -396,6 +418,22 @@ impl LoadedSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn create_temp_spec_dir() -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "potatohead-spec-tests-{}-{}",
+            std::process::id(),
+            nanos
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
 
     fn make_task(id: &str, deps: Vec<&str>) -> TaskSpec {
         TaskSpec {
@@ -427,6 +465,80 @@ mod tests {
                 assert!(reason.contains("a") || reason.contains("b"));
             }
             other => panic!("expected WorkflowBuild, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_from_spec_path_resolves_prompt_relative_to_spec_file() {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let temp_dir = create_temp_spec_dir();
+        let prompt_path = temp_dir.join("prompt.yaml");
+        let spec_path = temp_dir.join("workflow.yaml");
+
+        fs::write(
+            &prompt_path,
+            "model: gpt-4o\nprovider: openai\nmessages:\n  - \"Hello ${name}\"\n",
+        )
+        .unwrap();
+        fs::write(
+            &spec_path,
+            r#"
+agents:
+  - id: worker
+    provider: openai
+    max_iterations: 1
+workflows:
+  - id: dag
+    type: workflow
+    tasks:
+      - id: t1
+        agent: worker
+        prompt:
+          path: "prompt"
+        dependencies: []
+"#,
+        )
+        .unwrap();
+
+        let loaded = runtime
+            .block_on(async { SpecLoader::from_spec_path(&spec_path).await })
+            .unwrap();
+
+        assert!(loaded.workflow("dag").is_some());
+
+        fs::remove_dir_all(temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_load_str_without_base_does_not_resolve_relative_prompt_path() {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+
+        let yaml = r#"
+agents:
+  - id: worker
+    provider: openai
+    model: gpt-4o
+    max_iterations: 1
+workflows:
+  - id: dag
+    type: workflow
+    tasks:
+      - id: t1
+        agent: worker
+        prompt:
+          path: "definitely_missing_prompt"
+        dependencies: []
+"#;
+
+        let result = runtime.block_on(async { SpecLoader::from_spec(yaml).await });
+
+        match result {
+            Err(SpecError::PromptLoad { path, reason }) => {
+                assert_eq!(path, "definitely_missing_prompt");
+                assert!(reason.contains("definitely_missing_prompt"));
+            }
+            Ok(_) => panic!("expected PromptLoad, got Ok(..)"),
+            Err(other) => panic!("expected PromptLoad, got {other}"),
         }
     }
 }

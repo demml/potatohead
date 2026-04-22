@@ -22,7 +22,7 @@ use pythonize::pythonize;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::collections::BTreeSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Deserializes `messages` from either a single string or a list of strings.
 /// This allows YAML block scalars (`|`) to be used for multi-line prompts.
@@ -68,6 +68,22 @@ pub struct GenericPromptConfig {
     #[serde(default)]
     settings: Option<Value>,
     response_format: Option<Value>,
+}
+
+const PROMPT_FILE_EXTENSIONS: [&str; 3] = ["yaml", "yml", "json"];
+
+fn push_attempted_path(attempted_paths: &mut Vec<PathBuf>, path: PathBuf) {
+    if !attempted_paths.iter().any(|existing| existing == &path) {
+        attempted_paths.push(path);
+    }
+}
+
+fn format_candidate_paths(paths: &[PathBuf]) -> String {
+    paths
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn create_message_for_provider(
@@ -358,42 +374,12 @@ impl Prompt {
     pub fn save_prompt(&self, path: Option<PathBuf>) -> Result<PathBuf, TypeError> {
         let save_path = path.unwrap_or_else(|| PathBuf::from(SaveName::Prompt));
         PyHelperFuncs::save_to_json(self, &save_path)?;
-        Ok(save_path)
+        Ok(save_path.with_extension("json"))
     }
 
     #[staticmethod]
     pub fn from_path(path: PathBuf) -> Result<Self, TypeError> {
-        let content = std::fs::read_to_string(&path)?;
-
-        let extension = path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .ok_or_else(|| TypeError::Error(format!("Invalid file path: {:?}", path)))?;
-
-        let mut prompt: Prompt = match extension.to_lowercase().as_str() {
-            "json" => serde_json::from_str(&content)?,
-            "yaml" | "yml" => serde_yaml::from_str(&content)?,
-            _ => {
-                return Err(TypeError::Error(format!(
-                    "Unsupported file extension '{}'. Expected .json, .yaml, or .yml",
-                    extension
-                )))
-            }
-        };
-
-        if prompt.parameters.is_empty() {
-            let system_instructions: Vec<MessageNum> = prompt
-                .request
-                .system_instructions()
-                .iter()
-                .map(|msg| (*msg).clone())
-                .collect();
-            let parameters =
-                Self::extract_variables(prompt.request.messages(), &system_instructions);
-            prompt.parameters = parameters;
-        }
-
-        Ok(prompt)
+        Self::load_prompt_from_path(path.as_path(), None)
     }
 
     #[staticmethod]
@@ -642,6 +628,124 @@ impl Prompt {
 }
 
 impl Prompt {
+    fn read_prompt_file(path: &Path) -> Result<Self, TypeError> {
+        let content = std::fs::read_to_string(path)?;
+
+        let extension = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .ok_or_else(|| TypeError::Error(format!("Invalid file path: {:?}", path)))?;
+
+        let mut prompt: Prompt = match extension.to_lowercase().as_str() {
+            "json" => serde_json::from_str(&content)?,
+            "yaml" | "yml" => serde_yaml::from_str(&content)?,
+            _ => {
+                return Err(TypeError::Error(format!(
+                    "Unsupported file extension '{}'. Expected .json, .yaml, or .yml",
+                    extension
+                )))
+            }
+        };
+
+        if prompt.parameters.is_empty() {
+            let system_instructions: Vec<MessageNum> = prompt
+                .request
+                .system_instructions()
+                .iter()
+                .map(|msg| (*msg).clone())
+                .collect();
+            let parameters =
+                Self::extract_variables(prompt.request.messages(), &system_instructions);
+            prompt.parameters = parameters;
+        }
+
+        Ok(prompt)
+    }
+
+    fn resolve_prompt_candidate(
+        requested_path: &Path,
+        candidate_path: PathBuf,
+        attempted_paths: &mut Vec<PathBuf>,
+    ) -> Result<Option<PathBuf>, TypeError> {
+        push_attempted_path(attempted_paths, candidate_path.clone());
+
+        if candidate_path.is_file() {
+            return Ok(Some(candidate_path));
+        }
+
+        if requested_path.extension().is_some() {
+            return Ok(None);
+        }
+
+        let mut matches = Vec::new();
+
+        for extension in PROMPT_FILE_EXTENSIONS {
+            let extension_candidate = candidate_path.with_extension(extension);
+            push_attempted_path(attempted_paths, extension_candidate.clone());
+
+            if extension_candidate.is_file() {
+                matches.push(extension_candidate);
+            }
+        }
+
+        match matches.len() {
+            0 => Ok(None),
+            1 => Ok(matches.into_iter().next()),
+            _ => Err(TypeError::AmbiguousPromptPath {
+                requested_path: requested_path.display().to_string(),
+                candidate_paths: format_candidate_paths(&matches),
+            }),
+        }
+    }
+
+    fn resolve_prompt_path(path: &Path, base_dir: Option<&Path>) -> Result<PathBuf, TypeError> {
+        let mut attempted_paths = Vec::new();
+
+        if path.is_absolute() {
+            return Self::resolve_prompt_candidate(path, path.to_path_buf(), &mut attempted_paths)?
+                .ok_or_else(|| TypeError::PromptPathNotFound {
+                    requested_path: path.display().to_string(),
+                    attempted_paths: format_candidate_paths(&attempted_paths),
+                });
+        }
+
+        let mut candidate_roots = Vec::new();
+        if let Some(base_dir) = base_dir {
+            candidate_roots.push(base_dir.to_path_buf());
+        }
+
+        let current_dir = std::env::current_dir()?;
+        if !candidate_roots.iter().any(|root| root == &current_dir) {
+            candidate_roots.push(current_dir);
+        }
+
+        for root in candidate_roots {
+            let candidate_path = root.join(path);
+            if let Some(resolved_path) =
+                Self::resolve_prompt_candidate(path, candidate_path, &mut attempted_paths)?
+            {
+                return Ok(resolved_path);
+            }
+        }
+
+        Err(TypeError::PromptPathNotFound {
+            requested_path: path.display().to_string(),
+            attempted_paths: format_candidate_paths(&attempted_paths),
+        })
+    }
+
+    fn load_prompt_from_path(path: &Path, base_dir: Option<&Path>) -> Result<Self, TypeError> {
+        let resolved_path = Self::resolve_prompt_path(path, base_dir)?;
+        Self::read_prompt_file(&resolved_path)
+    }
+
+    pub fn from_path_with_base(
+        path: impl AsRef<Path>,
+        base_dir: impl AsRef<Path>,
+    ) -> Result<Self, TypeError> {
+        Self::load_prompt_from_path(path.as_ref(), Some(base_dir.as_ref()))
+    }
+
     /// Converts a generic prompt configuration to a Prompt instance.
     /// This handles the user-friendly YAML/JSON format parsing.
     pub fn from_generic_config(config: GenericPromptConfig) -> Result<Self, TypeError> {
@@ -830,6 +934,23 @@ mod tests {
     };
     use crate::prompt::types::Score;
     use crate::StructuredOutput;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
+    fn create_temp_prompt_dir() -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "potatohead-prompt-tests-{}",
+            potato_util::create_uuid7()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn write_generic_prompt(path: &Path, provider: &str, model: &str, message: &str) {
+        let content =
+            format!("model: {model}\nprovider: {provider}\nmessages:\n  - \"{message}\"\n");
+        fs::write(path, content).unwrap();
+    }
 
     fn create_openai_chat_message() -> OpenAIChatMessage {
         let text_part = TextContentPart::new("What company is this logo from?".to_string());
@@ -1483,5 +1604,108 @@ mod tests {
             }
             _ => panic!("Expected GeminiContentV1"),
         }
+    }
+
+    #[test]
+    fn test_from_path_with_base_resolves_missing_extension() {
+        let temp_dir = create_temp_prompt_dir();
+        let prompt_path = temp_dir.join("prompt.yaml");
+        write_generic_prompt(&prompt_path, "openai", "gpt-4o", "Hello ${name}");
+
+        let prompt = Prompt::from_path_with_base("prompt", &temp_dir).unwrap();
+
+        assert_eq!(prompt.model, "gpt-4o");
+        assert_eq!(prompt.provider, Provider::OpenAI);
+        assert_eq!(prompt.parameters, vec!["name".to_string()]);
+
+        fs::remove_dir_all(temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_from_path_reports_ambiguous_matches() {
+        let temp_dir = create_temp_prompt_dir();
+        write_generic_prompt(&temp_dir.join("prompt.yaml"), "openai", "gpt-4o", "Hello");
+        fs::write(
+            temp_dir.join("prompt.json"),
+            r#"{"model":"gpt-4o","provider":"openai","messages":["Hello"]}"#,
+        )
+        .unwrap();
+
+        let error = Prompt::from_path_with_base("prompt", &temp_dir).unwrap_err();
+
+        match error {
+            TypeError::AmbiguousPromptPath {
+                requested_path,
+                candidate_paths,
+            } => {
+                assert_eq!(requested_path, "prompt");
+                assert!(candidate_paths.contains("prompt.yaml"));
+                assert!(candidate_paths.contains("prompt.json"));
+            }
+            other => panic!("expected AmbiguousPromptPath, got {other:?}"),
+        }
+
+        fs::remove_dir_all(temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_from_path_reports_attempted_paths_when_missing() {
+        let temp_dir = create_temp_prompt_dir();
+        let missing_path = temp_dir.join("missing_prompt");
+
+        let error = Prompt::from_path(missing_path.clone()).unwrap_err();
+
+        match error {
+            TypeError::PromptPathNotFound {
+                requested_path,
+                attempted_paths,
+            } => {
+                assert_eq!(requested_path, missing_path.display().to_string());
+                assert!(attempted_paths.contains("missing_prompt"));
+                assert!(attempted_paths.contains("missing_prompt.yaml"));
+                assert!(attempted_paths.contains("missing_prompt.yml"));
+                assert!(attempted_paths.contains("missing_prompt.json"));
+            }
+            other => panic!("expected PromptPathNotFound, got {other:?}"),
+        }
+
+        fs::remove_dir_all(temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_save_prompt_returns_written_json_path() {
+        let temp_dir = create_temp_prompt_dir();
+        let text_part = TextContentPart::new("Hello ${name}".to_string());
+        let content_part = ContentPart::Text(text_part);
+        let message = OpenAIChatMessage {
+            role: "user".to_string(),
+            content: vec![content_part],
+            name: None,
+        };
+        let prompt = Prompt::new_rs(
+            vec![MessageNum::OpenAIMessageV1(message)],
+            "gpt-4o",
+            Provider::OpenAI,
+            vec![],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap();
+
+        let saved_path = prompt
+            .save_prompt(Some(temp_dir.join("saved_prompt")))
+            .unwrap();
+        let loaded_prompt = Prompt::from_path(saved_path.clone()).unwrap();
+
+        assert_eq!(
+            saved_path.extension().and_then(|ext| ext.to_str()),
+            Some("json")
+        );
+        assert!(saved_path.is_file());
+        assert_eq!(loaded_prompt.model, "gpt-4o");
+        assert_eq!(loaded_prompt.provider, Provider::OpenAI);
+
+        fs::remove_dir_all(temp_dir).unwrap();
     }
 }

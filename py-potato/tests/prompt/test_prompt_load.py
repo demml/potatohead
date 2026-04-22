@@ -1,4 +1,5 @@
 from pathlib import Path
+from shutil import copyfile
 
 from potato_head import Prompt, Provider
 
@@ -59,3 +60,15 @@ def test_load_simple_anthropic_prompt_from_path():
     system_instructions = prompt.system_instructions
 
     assert system_instructions[0].text == "You are an expert analyst"
+
+
+def test_load_prompt_from_path_without_extension_in_cwd(tmp_path, monkeypatch):
+    source_path = Path(__file__).parent / "assets" / "simple_openai.yaml"
+    target_path = tmp_path / "simple_openai.yaml"
+    copyfile(source_path, target_path)
+    monkeypatch.chdir(tmp_path)
+
+    prompt = Prompt.from_path("simple_openai")
+
+    assert prompt.model == "gpt-4"
+    assert prompt.provider == Provider.OpenAI

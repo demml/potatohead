@@ -118,6 +118,18 @@ pub enum TypeError {
     #[error("Message is not an Anthropic MessageParam")]
     MessageIsNotAnthropicMessageParam,
 
+    #[error("Failed to resolve prompt path '{requested_path}'. Tried: {attempted_paths}")]
+    PromptPathNotFound {
+        requested_path: String,
+        attempted_paths: String,
+    },
+
+    #[error("Prompt path '{requested_path}' is ambiguous. Matches: {candidate_paths}")]
+    AmbiguousPromptPath {
+        requested_path: String,
+        candidate_paths: String,
+    },
+
     #[error(transparent)]
     SerdeYamlError(#[from] serde_yaml::Error),
 }
