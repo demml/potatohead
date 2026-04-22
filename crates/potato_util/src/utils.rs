@@ -91,8 +91,10 @@ impl PyHelperFuncs {
         if !path.exists() {
             // ensure path exists, create if not
             let parent_path = path.parent().ok_or(UtilError::GetParentPathError)?;
-
-            std::fs::create_dir_all(parent_path).map_err(|_| UtilError::CreateDirectoryError)?;
+            if !parent_path.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent_path)
+                    .map_err(|_| UtilError::CreateDirectoryError)?;
+            }
         }
 
         std::fs::write(path, json).map_err(|_| UtilError::WriteError)?;

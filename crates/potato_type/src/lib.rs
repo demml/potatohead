@@ -16,6 +16,7 @@ pub mod common;
 pub mod google;
 pub mod openai;
 pub mod prompt;
+pub mod spec;
 pub mod tools;
 pub mod traits;
 

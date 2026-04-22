@@ -3,7 +3,8 @@ pub mod prelude {
 
     pub use potato_type::{
         anthropic as anthropic_types, error::TypeError, google as google_types,
-        openai as openai_types, prompt as prompt_types, Provider, SaveName, StructuredOutput,
+        openai as openai_types, prompt as prompt_types, spec as spec_types, Provider, SaveName,
+        StructuredOutput,
     };
     pub use potato_util::{
         calculate_weighted_score, create_uuid7, depythonize_object_to_value, error::UtilError,

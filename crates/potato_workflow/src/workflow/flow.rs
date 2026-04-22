@@ -260,7 +260,7 @@ impl Workflow {
 
         let max_retries = {
             let task_guard = task.read().map_err(|_| WorkflowError::TaskLockError)?;
-            task_guard.retry_count
+            task_guard.max_retries
         };
 
         for attempt in 0..=max_retries {
@@ -289,7 +289,7 @@ impl Workflow {
                             error!(
                                 "Task {} response validation failed after {} attempts",
                                 task_id,
-                                max_retries + 1
+                                attempt + 1
                             );
 
                             return Err(WorkflowError::ResponseValidationFailed {
