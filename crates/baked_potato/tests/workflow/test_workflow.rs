@@ -455,7 +455,10 @@ fn test_vendor_switching() {
     assert!(workflow_result.is_complete());
 
     // Get task references
-    let openai_task = workflow_result.task_list.get_task("openai_task").unwrap();
+    let openai_task = workflow_result
+        .task_list
+        .get_task("openai_task")
+        .unwrap();
     let anthropic_task = workflow_result
         .task_list
         .get_task("anthropic_task")
@@ -567,6 +570,43 @@ fn test_vendor_switching() {
             }
         }
     }
+
+    mock.stop_server().unwrap();
+}
+
+#[test]
+fn test_workflow_execute_task_plaintext_fallback() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let mut mock = LLMTestServer::new();
+    mock.start_server().unwrap();
+
+    let prompt = create_openai_prompt(None);
+    let mut workflow = Workflow::new("Plaintext Workflow");
+
+    let agent = runtime
+        .block_on(async { Agent::new(Provider::OpenAI, None).await })
+        .unwrap();
+    workflow.add_agent(&agent);
+    workflow
+        .add_task(Task::new(&agent.id, prompt, "task1", None, None).unwrap())
+        .unwrap();
+
+    let result = runtime.block_on(async {
+        workflow
+            .execute_task("task1", &serde_json::Value::Null)
+            .await
+            .unwrap()
+    });
+
+    assert!(
+        result.is_string(),
+        "plain-text task should return Value::String, got: {:?}",
+        result
+    );
+    assert!(
+        !result.as_str().unwrap_or("").is_empty(),
+        "plain-text task response should be non-empty"
+    );
 
     mock.stop_server().unwrap();
 }

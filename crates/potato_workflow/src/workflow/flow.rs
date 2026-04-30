@@ -306,7 +306,11 @@ impl Workflow {
                         continue;
                     }
 
-                    return Ok(response.response_value().unwrap_or(Value::Null));
+                    let value = match response.response_value() {
+                        Some(v) => v,
+                        None => Value::String(response.response_text()),
+                    };
+                    return Ok(value);
                 }
                 Err(e) => {
                     let task_id = { task.read().unwrap().id.clone() };
