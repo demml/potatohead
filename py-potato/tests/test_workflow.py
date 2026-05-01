@@ -469,3 +469,28 @@ def test_potato_head_workflow_structured_output_execute_task():
         )
         result = workflow.execute_task("task1")
         StructuredTaskOutput(**result)
+
+
+def test_potato_head_workflow_plaintext_execute_task():
+    with LLMTestServer():
+        prompt = Prompt(
+            messages="Hello, how are you?",
+            system_instructions="You are a helpful assistant.",
+            model="gpt-4o",
+            provider="openai",
+        )
+
+        agent = Agent(Provider.OpenAI)
+
+        workflow = Workflow(name="test_plaintext_workflow")
+        workflow.add_agent(agent)
+        workflow.add_task(
+            Task(
+                prompt=prompt,
+                agent_id=agent.id,
+                id="task1",
+            ),
+        )
+        result = workflow.execute_task("task1")
+        assert isinstance(result, str), f"Expected str, got {type(result)}"
+        assert len(result) > 0, "Plain-text response should be non-empty"
