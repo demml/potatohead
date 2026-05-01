@@ -7,16 +7,16 @@ from ._potato_head import AgentResponse  # PyAgentResponse
 from ._potato_head import Embedder  # PyEmbedder
 from ._potato_head import Workflow  # PyWorkflow
 from ._potato_head import (  # Prompt interface types; Workflow types; Agent types; Python-exposed classes (Py prefix in Rust)
+    AgentSpec,
     EventDetails,
     ModelSettings,
+    PortableSpec,
     Prompt,
     PromptSpec,
     Provider,
     ResponseType,
     Role,
     Score,
-    AgentSpec,
-    PortableSpec,
     Task,
     TaskEvent,
     TaskList,
