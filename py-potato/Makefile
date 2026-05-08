@@ -14,10 +14,12 @@ lints.format_check:
 	uv run black --check ${SOURCE_OBJECTS}
 lints.ruff:
 	uv run ruff check ${SOURCE_OBJECTS}
-lints.mypy:
-	uv run mypy ${SOURCE_OBJECTS}
-lints: lints.ruff lints.mypy
-lints.ci: lints.format_check lints.ruff lints.mypy
+lints.ty:
+	uv run ty check ${SOURCE_OBJECTS}
+lints.pylint:
+	uv run pylint ${SOURCE_OBJECTS}
+lints: lints.ruff lints.pylint lints.ty
+lints.ci: lints.format_check lints.ruff lints.pylint lints.ty
 
 setup.project:
 	uv sync --all-extras --group dev --group docs
@@ -70,5 +72,3 @@ serve.docs:
 publish.docs:
 	uv run python scripts/create_stubs.py
 	uv run mkdocs gh-deploy --force
-
-

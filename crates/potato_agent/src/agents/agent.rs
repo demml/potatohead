@@ -459,6 +459,7 @@ impl Agent {
             provider: self.provider.clone(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             parameters: Vec::new(),
+            media_parameters: Vec::new(),
             response_type: ResponseType::Null,
         })
     }

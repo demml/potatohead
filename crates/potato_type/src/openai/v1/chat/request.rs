@@ -401,6 +401,92 @@ impl PromptMessageExt for ChatMessage {
             name: None,
         })
     }
+
+    fn extract_media_variables(&self) -> Vec<String> {
+        let mut out = HashSet::new();
+        let regex = crate::traits::get_media_regex();
+        for part in &self.content {
+            if let ContentPart::Text(t) = part {
+                for cap in regex.captures_iter(&t.text) {
+                    if let Some(name) = cap.get(1) {
+                        out.insert(name.as_str().to_string());
+                    }
+                }
+            }
+        }
+        out.into_iter().collect()
+    }
+
+    fn split_media_placeholders(&mut self) -> Result<(), TypeError> {
+        let regex = crate::traits::get_media_regex();
+        let mut new_content: Vec<ContentPart> = Vec::with_capacity(self.content.len());
+        for part in self.content.drain(..) {
+            match part {
+                ContentPart::Text(t) if regex.is_match(&t.text) => {
+                    let split_texts = crate::traits::split_text_on_media(&t.text, regex);
+                    for s in split_texts {
+                        if !s.is_empty() {
+                            new_content.push(ContentPart::Text(TextContentPart::new(s)));
+                        }
+                    }
+                }
+                other => new_content.push(other),
+            }
+        }
+        self.content = new_content;
+        Ok(())
+    }
+
+    fn bind_media_mut(
+        &mut self,
+        token: &str,
+        media: &crate::prompt::media::MediaRef,
+        _provider: &crate::Provider,
+    ) -> Result<bool, TypeError> {
+        use crate::prompt::media::{MediaKind, MediaSource};
+
+        let mut new_content: Vec<ContentPart> = Vec::with_capacity(self.content.len());
+        let mut replaced = false;
+        for part in self.content.drain(..) {
+            match part {
+                ContentPart::Text(t) if t.text.trim() == token => {
+                    let replacement = match (media.kind, &media.source) {
+                        (MediaKind::Image, MediaSource::Url { url, .. }) => {
+                            ContentPart::ImageUrl(ImageContentPart::new(url.clone(), None))
+                        }
+                        (MediaKind::Image, MediaSource::Base64 { mime_type, data }) => {
+                            let data_url = format!("data:{mime_type};base64,{data}");
+                            ContentPart::ImageUrl(ImageContentPart::new(data_url, None))
+                        }
+                        (MediaKind::Document, MediaSource::Base64 { mime_type, data }) => {
+                            let data_url = format!("data:{mime_type};base64,{data}");
+                            ContentPart::FileContent(FileContentPart::new(
+                                Some(data_url),
+                                None,
+                                None,
+                            ))
+                        }
+                        (MediaKind::Document, MediaSource::Url { .. }) => {
+                            return Err(TypeError::UnsupportedMediaForProvider {
+                                provider: "openai".into(),
+                                kind: MediaKind::Document,
+                            });
+                        }
+                    };
+                    new_content.push(replacement);
+                    replaced = true;
+                }
+                ContentPart::Text(t) if t.text.contains(token) => {
+                    return Err(TypeError::MediaPlaceholderNotIsolated {
+                        name: crate::traits::extract_token_name(token),
+                    });
+                }
+                other => new_content.push(other),
+            }
+        }
+        self.content = new_content;
+        Ok(replaced)
+    }
 }
 
 impl MessageFactory for ChatMessage {

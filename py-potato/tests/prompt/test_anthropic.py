@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, cast
 
 from potato_head import Prompt, Provider, Role
 from potato_head.anthropic import (
@@ -44,7 +44,7 @@ def test_prompt():
         system_instructions="system_prompt",
     )
 
-    assert prompt.anthropic_message.content[0].text == "My prompt"
+    assert cast(TextBlockParam, prompt.anthropic_message.content[0]).text == "My prompt"
 
     prompt = Prompt(
         model="claude-4.5-sonnet",
@@ -59,8 +59,8 @@ def test_prompt():
         system_instructions="system_prompt",
     )
 
-    assert prompt.anthropic_message.content[0].text == "My prompt"
-    assert prompt.anthropic_message.content[1].text == "My prompt 2"
+    assert cast(TextBlockParam, prompt.anthropic_message.content[0]).text == "My prompt"
+    assert cast(TextBlockParam, prompt.anthropic_message.content[1]).text == "My prompt 2"
 
 
 def test_bind_prompt():

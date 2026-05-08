@@ -1,5 +1,6 @@
-from typing import List
+from typing import List, cast
 
+import pytest
 from potato_head import Prompt, Provider, Role
 from potato_head.google import (
     GeminiContent,
@@ -45,7 +46,7 @@ def test_prompt():
     )
 
     assert prompt.gemini_message.parts[0].data == "My prompt"
-    assert prompt.system_instructions[0].parts[0].data == "system_prompt"
+    assert cast(GeminiContent, prompt.system_instructions[0]).parts[0].data == "system_prompt"
 
     # test string message
     prompt = Prompt(
@@ -90,9 +91,9 @@ def test_bind_prompt():
     )
 
     bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
-    messages = bound_prompt.messages
+    messages = bound_prompt.gemini_messages
     assert messages[0].parts[0].data == "Hello world"
-    assert bound_prompt.messages[1].parts[0].data == "This is Foo"
+    assert bound_prompt.gemini_messages[1].parts[0].data == "This is Foo"
 
 
 def test_bind_prompt_brackets():
@@ -108,9 +109,9 @@ def test_bind_prompt_brackets():
     )
 
     bound_prompt = prompt.bind("variable1", "world").bind("variable2", "Foo")
-    messages = bound_prompt.messages
+    messages = bound_prompt.gemini_messages
     assert messages[0].parts[0].data == "Hello world"
-    assert bound_prompt.messages[1].parts[0].data == "This is Foo"
+    assert bound_prompt.gemini_messages[1].parts[0].data == "This is Foo"
 
 
 def test_adk_llm_response_text():
@@ -118,9 +119,7 @@ def test_adk_llm_response_text():
         from google.adk.models.llm_response import LlmResponse
         from google.genai import types
     except ImportError:
-        import pytest
-
-        pytest.skip("google-adk not installed")
+        pytest.skip()
 
     from potato_head.google import AdkLlmResponse
 
@@ -144,9 +143,7 @@ def test_adk_llm_response_function_call():
         from google.adk.models.llm_response import LlmResponse
         from google.genai import types
     except ImportError:
-        import pytest
-
-        pytest.skip("google-adk not installed")
+        pytest.skip()
 
     from potato_head.google import AdkLlmResponse
 

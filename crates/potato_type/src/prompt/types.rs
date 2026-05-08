@@ -423,6 +423,63 @@ impl MessageNum {
         }
     }
 
+    pub(crate) fn extract_media_variables(&self) -> Vec<String> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => msg.extract_media_variables(),
+            MessageNum::AnthropicMessageV1(msg) => msg.extract_media_variables(),
+            MessageNum::GeminiContentV1(msg) => msg.extract_media_variables(),
+            MessageNum::AnthropicSystemMessageV1(t) => {
+                let mut out = Vec::new();
+                let regex = crate::traits::get_media_regex();
+                for cap in regex.captures_iter(&t.text) {
+                    if let Some(name) = cap.get(1) {
+                        out.push(name.as_str().to_string());
+                    }
+                }
+                out
+            }
+            _ => vec![],
+        }
+    }
+
+    pub fn split_media_placeholders(&mut self) -> Result<(), TypeError> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => msg.split_media_placeholders(),
+            MessageNum::AnthropicMessageV1(msg) => msg.split_media_placeholders(),
+            MessageNum::GeminiContentV1(msg) => msg.split_media_placeholders(),
+            MessageNum::AnthropicSystemMessageV1(t) => {
+                let regex = crate::traits::get_media_regex();
+                if regex.is_match(&t.text) {
+                    Err(TypeError::MediaInSystemMessage)
+                } else {
+                    Ok(())
+                }
+            }
+            MessageNum::RawV1(_) => Ok(()),
+        }
+    }
+
+    pub fn bind_media_mut(
+        &mut self,
+        token: &str,
+        media: &crate::prompt::media::MediaRef,
+        provider: &crate::Provider,
+    ) -> Result<bool, TypeError> {
+        match self {
+            MessageNum::OpenAIMessageV1(msg) => msg.bind_media_mut(token, media, provider),
+            MessageNum::AnthropicMessageV1(msg) => msg.bind_media_mut(token, media, provider),
+            MessageNum::GeminiContentV1(msg) => msg.bind_media_mut(token, media, provider),
+            MessageNum::AnthropicSystemMessageV1(t) => {
+                if t.text.contains(token) {
+                    Err(TypeError::MediaInSystemMessage)
+                } else {
+                    Ok(false)
+                }
+            }
+            MessageNum::RawV1(_) => Ok(false),
+        }
+    }
+
     pub fn to_bound_py_object<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyAny>, TypeError> {
         match self {
             MessageNum::OpenAIMessageV1(msg) => {

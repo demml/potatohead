@@ -1,7 +1,9 @@
 pub mod builder;
 pub mod interface;
+pub mod media;
 pub mod settings;
 pub mod types;
 pub use interface::*;
+pub use media::*;
 pub use settings::*;
 pub use types::*;

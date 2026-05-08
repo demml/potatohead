@@ -14,7 +14,7 @@ PotatoHead is a Rust-Python agentic framework for building AI-powered workflows.
 |---------|---------|
 | `make setup.project` | Install deps + build Rust → Python bindings (`uv sync` + `maturin develop`) |
 | `make format` | Run isort, ruff, black |
-| `make lints` | Run ruff + mypy |
+| `make lints` | Run ruff + pylint + ty |
 | `make test.unit` | Run pytest (ignores integration tests) |
 | `make build.docs` | Generate stubs + build MkDocs |
 
@@ -70,7 +70,7 @@ Thin wrappers and re-exports from the compiled `_potato_head` native module. Pro
 
 ## Code Style
 
-- **Python**: black (line-length 120), isort (black profile), ruff, mypy
+- **Python**: black (line-length 120), isort (black profile), ruff, pylint, ty
 - **Rust**: cargo fmt, clippy with `-D warnings`
 - Python requires 3.10+; CI tests 3.11, 3.12, 3.13
 

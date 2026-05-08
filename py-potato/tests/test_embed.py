@@ -1,13 +1,16 @@
+from typing import cast
+
 import numpy as np
 from potato_head import Embedder, Provider
-from potato_head.google import GeminiEmbeddingConfig
+from potato_head.google import GeminiEmbeddingConfig, GeminiEmbeddingResponse
 from potato_head.mock import LLMTestServer
+from potato_head.openai import OpenAIEmbeddingResponse
 
 
 def test_openai_embedding():
     with LLMTestServer():
         embedder = Embedder(Provider.OpenAI)
-        response = embedder.embed("Test input")
+        response = cast(OpenAIEmbeddingResponse, embedder.embed("Test input"))
         assert response is not None
 
         # assert data is > 0
@@ -24,7 +27,7 @@ def test_gemini_embedding():
             Provider.Gemini,
             GeminiEmbeddingConfig(model="gemini-embedding-001"),
         )
-        response = embedder.embed("Test input")
+        response = cast(GeminiEmbeddingResponse, embedder.embed("Test input"))
 
         assert len(response.embedding.values) > 0
 

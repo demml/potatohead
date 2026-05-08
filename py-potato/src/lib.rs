@@ -1,5 +1,4 @@
 use ::potato_head::prompt_types::*;
-use ::potato_head::spec_types::*;
 use ::potato_head::PyEmbedder;
 use potato_head::{
     EventDetails, Provider, PyAgent, PyAgentResponse, PyWorkflow, Task, TaskEvent, TaskList,
@@ -19,11 +18,10 @@ pub fn _potato_head(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Role>()?;
     m.add_class::<ModelSettings>()?;
     m.add_class::<Provider>()?;
+    m.add_class::<MediaKind>()?;
+    m.add_class::<MediaRef>()?;
     m.add_class::<Score>()?;
     m.add_class::<ResponseType>()?;
-    m.add_class::<PromptSpec>()?;
-    m.add_class::<AgentSpec>()?;
-    m.add_class::<PortableSpec>()?;
 
     // workflow
     m.add_class::<TaskEvent>()?;
