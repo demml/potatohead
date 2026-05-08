@@ -34,6 +34,16 @@ pub enum TypeError {
     #[error("Invalid media type: {0}")]
     InvalidMediaType(String),
 
+    #[error("Invalid media file: {0}")]
+    InvalidMediaFile(String),
+
+    #[error("Media file '{path}' is too large: {size} bytes exceeds maximum {max_size} bytes")]
+    MediaFileTooLarge {
+        path: String,
+        size: u64,
+        max_size: u64,
+    },
+
     #[error("media placeholder '${{media:{name}}}' not found in any user message")]
     MediaPlaceholderNotFound { name: String },
 

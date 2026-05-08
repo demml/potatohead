@@ -6,11 +6,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::TypeError;
 
+const MAX_MEDIA_FILE_BYTES: u64 = 20 * 1024 * 1024;
+
+/// Type of media content referenced by a prompt.
 #[pyclass(from_py_object, eq, eq_int)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum MediaKind {
+    /// Image media such as PNG, JPEG, GIF, or WebP.
     Image,
+    /// Document media such as PDF or plain text.
     Document,
 }
 
@@ -28,6 +33,12 @@ pub enum MediaSource {
     },
 }
 
+/// Media content that can be bound to a prompt placeholder.
+///
+/// A `MediaRef` is created with one of the static constructors and passed to
+/// `Prompt.bind_media()` or `Prompt.bind_media_mut()` for placeholders written
+/// as `${media:name}`. URL sources are forwarded to providers that support them.
+/// Byte and path sources are base64 encoded eagerly before binding.
 #[pyclass(from_py_object)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct MediaRef {
@@ -57,6 +68,27 @@ impl MediaRef {
     }
 
     pub fn from_path(kind: MediaKind, path: &Path) -> Result<Self, TypeError> {
+        let metadata = std::fs::symlink_metadata(path)?;
+        if metadata.file_type().is_symlink() {
+            return Err(TypeError::InvalidMediaFile(format!(
+                "path '{}' is a symlink; pass bytes explicitly with image_bytes or document_bytes",
+                path.display()
+            )));
+        }
+        if !metadata.file_type().is_file() {
+            return Err(TypeError::InvalidMediaFile(format!(
+                "path '{}' is not a regular file",
+                path.display()
+            )));
+        }
+        let size = metadata.len();
+        if size > MAX_MEDIA_FILE_BYTES {
+            return Err(TypeError::MediaFileTooLarge {
+                path: path.display().to_string(),
+                size,
+                max_size: MAX_MEDIA_FILE_BYTES,
+            });
+        }
         let mime = infer_mime_from_path(path)?;
         let bytes = std::fs::read(path)?;
         Ok(Self::from_bytes(kind, mime, &bytes))
@@ -65,33 +97,66 @@ impl MediaRef {
 
 #[pymethods]
 impl MediaRef {
+    /// Creates an image reference from a provider-accessible URL.
+    ///
+    /// `url` is passed through to providers that support remote image URLs.
+    /// `mime_type` is optional for OpenAI and Anthropic URLs, but required for
+    /// Gemini/Vertex `gs://` file references.
     #[staticmethod]
     #[pyo3(signature = (url, mime_type=None))]
     pub fn image_url(url: String, mime_type: Option<String>) -> Self {
         Self::new_url(MediaKind::Image, url, mime_type)
     }
 
+    /// Creates an image reference from bytes.
+    ///
+    /// `mime_type` must describe the image payload, for example `image/png`.
+    /// `data` is base64 encoded immediately and stored in the returned reference.
     #[staticmethod]
     pub fn image_bytes(mime_type: String, data: &[u8]) -> Self {
         Self::from_bytes(MediaKind::Image, mime_type, data)
     }
 
+    /// Creates an image reference from a trusted local file path.
+    ///
+    /// The file is read eagerly, base64 encoded, and its MIME type is inferred
+    /// from the extension. Symlinks, non-regular files, and files larger than
+    /// 20 MiB are rejected. If the path comes from an untrusted user, validate it
+    /// before calling this method or pass already-authorized bytes to
+    /// `image_bytes`.
     #[staticmethod]
     pub fn image_path(path: PathBuf) -> Result<Self, TypeError> {
         Self::from_path(MediaKind::Image, &path)
     }
 
+    /// Creates a document reference from a provider-accessible URL.
+    ///
+    /// Anthropic supports remote document URLs. Gemini/Vertex accepts `gs://`
+    /// or Gemini file API URIs when `mime_type` is provided. OpenAI document
+    /// URLs are rejected during binding; use `document_bytes` for OpenAI.
     #[staticmethod]
     #[pyo3(signature = (url, mime_type=None))]
     pub fn document_url(url: String, mime_type: Option<String>) -> Self {
         Self::new_url(MediaKind::Document, url, mime_type)
     }
 
+    /// Creates a document reference from bytes.
+    ///
+    /// `mime_type` must describe the document payload, for example
+    /// `application/pdf` or `text/plain`. `data` is base64 encoded immediately
+    /// and stored in the returned reference.
     #[staticmethod]
     pub fn document_bytes(mime_type: String, data: &[u8]) -> Self {
         Self::from_bytes(MediaKind::Document, mime_type, data)
     }
 
+    /// Creates a document reference from a trusted local file path.
+    ///
+    /// The file is read eagerly, base64 encoded, and its MIME type is inferred
+    /// from the extension. Symlinks, non-regular files, and files larger than
+    /// 20 MiB are rejected. If the path comes from an untrusted user, validate it
+    /// before calling this method or pass already-authorized bytes to
+    /// `document_bytes`.
     #[staticmethod]
     pub fn document_path(path: PathBuf) -> Result<Self, TypeError> {
         Self::from_path(MediaKind::Document, &path)
@@ -180,5 +245,58 @@ mod tests {
             Err(TypeError::InvalidMediaType(_))
         ));
         std::fs::remove_file(&p).ok();
+    }
+
+    #[test]
+    fn image_path_rejects_directory() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "potatohead_media_test_dir_{}",
+            potato_util::create_uuid7()
+        ));
+        std::fs::create_dir_all(&tmp_dir).unwrap();
+        assert!(matches!(
+            MediaRef::from_path(MediaKind::Image, &tmp_dir),
+            Err(TypeError::InvalidMediaFile(_))
+        ));
+        std::fs::remove_dir(&tmp_dir).ok();
+    }
+
+    #[test]
+    fn image_path_rejects_file_over_size_limit() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "potatohead_media_test_large_{}",
+            potato_util::create_uuid7()
+        ));
+        std::fs::create_dir_all(&tmp_dir).unwrap();
+        let p = tmp_dir.join("chart.png");
+        let file = std::fs::File::create(&p).unwrap();
+        file.set_len(MAX_MEDIA_FILE_BYTES + 1).unwrap();
+        assert!(matches!(
+            MediaRef::from_path(MediaKind::Image, &p),
+            Err(TypeError::MediaFileTooLarge { .. })
+        ));
+        std::fs::remove_file(&p).ok();
+        std::fs::remove_dir(&tmp_dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn image_path_rejects_symlink() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "potatohead_media_test_symlink_{}",
+            potato_util::create_uuid7()
+        ));
+        std::fs::create_dir_all(&tmp_dir).unwrap();
+        let target = tmp_dir.join("target.png");
+        let link = tmp_dir.join("link.png");
+        std::fs::write(&target, b"FAKEPNG").unwrap();
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        assert!(matches!(
+            MediaRef::from_path(MediaKind::Image, &link),
+            Err(TypeError::InvalidMediaFile(_))
+        ));
+        std::fs::remove_file(&link).ok();
+        std::fs::remove_file(&target).ok();
+        std::fs::remove_dir(&tmp_dir).ok();
     }
 }

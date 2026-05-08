@@ -428,6 +428,16 @@ impl MessageNum {
             MessageNum::OpenAIMessageV1(msg) => msg.extract_media_variables(),
             MessageNum::AnthropicMessageV1(msg) => msg.extract_media_variables(),
             MessageNum::GeminiContentV1(msg) => msg.extract_media_variables(),
+            MessageNum::AnthropicSystemMessageV1(t) => {
+                let mut out = Vec::new();
+                let regex = crate::traits::get_media_regex();
+                for cap in regex.captures_iter(&t.text) {
+                    if let Some(name) = cap.get(1) {
+                        out.push(name.as_str().to_string());
+                    }
+                }
+                out
+            }
             _ => vec![],
         }
     }

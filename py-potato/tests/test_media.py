@@ -86,6 +86,14 @@ def test_openai_document_url_rejected():
         p.bind_media("doc", MediaRef.document_url("https://x/y.pdf"))
 
 
+def test_openai_document_bytes_serializes_file_content():
+    p = make_prompt(Provider.OpenAI, "gpt-4o", "${media:doc}")
+    bound = p.bind_media("doc", MediaRef.document_bytes("application/pdf", b"%PDF"))
+    parts = bound.model_dump()["messages"][0]["content"]
+    assert parts[0]["type"] == "file"
+    assert parts[0]["file"]["file_data"].startswith("data:application/pdf;base64,")
+
+
 def test_gemini_inline_data_from_bytes():
     p = make_prompt(Provider.Gemini, "gemini-2.0-flash", "${media:chart}")
     bound = p.bind_media("chart", MediaRef.image_bytes("image/png", b"X"))
@@ -120,14 +128,35 @@ def test_missing_placeholder_raises():
         p.bind_media("bar", MediaRef.image_bytes("image/png", b"X"))
 
 
-def test_media_in_system_message_rejected():
+@pytest.mark.parametrize(
+    ("provider", "model"),
+    [
+        (Provider.Anthropic, "claude-sonnet-4-5"),
+        (Provider.OpenAI, "gpt-4o"),
+        (Provider.Gemini, "gemini-2.0-flash"),
+    ],
+)
+def test_media_in_system_message_rejected(provider: Provider, model: str):
     with pytest.raises(RuntimeError, match="not allowed in system messages"):
         Prompt(
             messages="hi",
-            provider=Provider.Anthropic,
-            model="claude-sonnet-4-5",
+            provider=provider,
+            model=model,
             system_instructions="system ${media:x}",
         )
+
+
+def test_image_path_rejects_directory(tmp_path: Path):
+    with pytest.raises(RuntimeError, match="not a regular file"):
+        MediaRef.image_path(tmp_path)
+
+
+def test_image_path_rejects_file_over_size_limit(tmp_path: Path):
+    f = tmp_path / "large.png"
+    with f.open("wb") as handle:
+        handle.truncate((20 * 1024 * 1024) + 1)
+    with pytest.raises(RuntimeError, match="too large"):
+        MediaRef.image_path(f)
 
 
 def test_bind_and_bind_media_coexist():

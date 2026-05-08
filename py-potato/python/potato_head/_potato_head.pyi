@@ -91,25 +91,94 @@ class ResponseType:
     """No structured response type"""
 
 class MediaKind:
+    """Type of media content that can be bound to a prompt."""
+
     Image: "MediaKind"
+    """Image media such as PNG, JPEG, GIF, or WebP."""
+
     Document: "MediaKind"
+    """Document media such as PDF or plain text."""
 
 class MediaRef:
+    """Reference to media content used by ``Prompt.bind_media``.
+
+    Create a media reference with one of the static constructors and bind it to
+    a prompt placeholder written as ``${media:name}``.
+    """
+
     @property
-    def kind(self) -> MediaKind: ...
+    def kind(self) -> MediaKind:
+        """The media kind represented by this reference."""
+
     @staticmethod
-    def image_url(url: str, mime_type: Optional[str] = None) -> "MediaRef": ...
+    def image_url(url: str, mime_type: Optional[str] = None) -> "MediaRef":
+        """Create an image reference from a provider-accessible URL.
+
+        Args:
+            url:
+                Remote image URL to pass to the provider.
+            mime_type:
+                Optional MIME type. Gemini/Vertex ``gs://`` file references
+                require this value.
+        """
+
     @staticmethod
-    def image_bytes(mime_type: str, data: bytes) -> "MediaRef": ...
+    def image_bytes(mime_type: str, data: bytes) -> "MediaRef":
+        """Create an image reference from bytes.
+
+        Args:
+            mime_type:
+                Image MIME type such as ``"image/png"``.
+            data:
+                Raw image bytes. The data is base64 encoded eagerly.
+        """
+
     @staticmethod
-    def image_path(path: str | Path) -> "MediaRef": ...
+    def image_path(path: str | Path) -> "MediaRef":
+        """Create an image reference from a trusted local file path.
+
+        Args:
+            path:
+                Local image path. The file is read eagerly, must be a regular
+                non-symlink file, must be no larger than the media file size
+                limit, and must use a recognized image extension.
+        """
+
     @staticmethod
-    def document_url(url: str, mime_type: Optional[str] = None) -> "MediaRef": ...
+    def document_url(url: str, mime_type: Optional[str] = None) -> "MediaRef":
+        """Create a document reference from a provider-accessible URL.
+
+        Args:
+            url:
+                Remote document URL or Gemini/Vertex ``gs://`` file reference.
+            mime_type:
+                Optional MIME type. Gemini/Vertex URL media requires this value.
+        """
+
     @staticmethod
-    def document_bytes(mime_type: str, data: bytes) -> "MediaRef": ...
+    def document_bytes(mime_type: str, data: bytes) -> "MediaRef":
+        """Create a document reference from bytes.
+
+        Args:
+            mime_type:
+                Document MIME type such as ``"application/pdf"``.
+            data:
+                Raw document bytes. The data is base64 encoded eagerly.
+        """
+
     @staticmethod
-    def document_path(path: str | Path) -> "MediaRef": ...
-    def __repr__(self) -> str: ...
+    def document_path(path: str | Path) -> "MediaRef":
+        """Create a document reference from a trusted local file path.
+
+        Args:
+            path:
+                Local document path. The file is read eagerly, must be a regular
+                non-symlink file, must be no larger than the media file size
+                limit, and must use a recognized document extension.
+        """
+
+    def __repr__(self) -> str:
+        """Return a concise representation of the media reference."""
 
 class TaskStatus:
     """Status of a task in a workflow.
@@ -600,10 +669,65 @@ class Prompt(Generic[OutputType]):
         """
 
     def bind_media(self, name: str, media: MediaRef) -> "Prompt":
-        """Bind a media placeholder and return a new prompt."""
+        """Bind a media placeholder and return a new prompt.
+
+        The placeholder must appear as ``${media:name}`` in user message content.
+        Media placeholders are not allowed in system instructions.
+
+        Args:
+            name:
+                Placeholder name without the ``media:`` prefix. For
+                ``${media:chart}``, pass ``"chart"``.
+            media:
+                Media reference created with one of the ``MediaRef``
+                constructors.
+
+        Returns:
+            A new prompt with matching media placeholders replaced by the
+            provider-specific media content part.
+
+        Raises:
+            RuntimeError:
+                If no matching placeholder exists, the placeholder appears in
+                system instructions, the placeholder is embedded inside a larger
+                text block after splitting, or the provider does not support the
+                selected media kind/source.
+
+        Example:
+            ```python
+            prompt = Prompt(
+                messages="Describe ${media:chart}",
+                model="gpt-4o",
+                provider=Provider.OpenAI,
+            )
+            bound = prompt.bind_media(
+                "chart",
+                MediaRef.image_bytes("image/png", chart_bytes),
+            )
+            ```
+        """
 
     def bind_media_mut(self, name: str, media: MediaRef) -> None:
-        """Bind a media placeholder in place."""
+        """Bind a media placeholder in place.
+
+        This mutates the current prompt instead of returning a copy. The
+        placeholder syntax, supported media inputs, and error behavior are the
+        same as ``bind_media``.
+
+        Args:
+            name:
+                Placeholder name without the ``media:`` prefix.
+            media:
+                Media reference created with one of the ``MediaRef``
+                constructors.
+
+        Raises:
+            RuntimeError:
+                If no matching placeholder exists, the placeholder appears in
+                system instructions, the placeholder is embedded inside a larger
+                text block after splitting, or the provider does not support the
+                selected media kind/source.
+        """
 
     @property
     def response_json_schema(self) -> Optional[str]:

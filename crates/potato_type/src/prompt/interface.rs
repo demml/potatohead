@@ -909,6 +909,13 @@ impl Prompt {
             None => ModelSettings::provider_default_settings(&provider),
         };
 
+        if system_instructions
+            .iter()
+            .any(|msg| !msg.extract_media_variables().is_empty())
+        {
+            return Err(TypeError::MediaInSystemMessage);
+        }
+
         for msg in messages.iter_mut() {
             msg.split_media_placeholders()?;
         }
@@ -1840,6 +1847,24 @@ mod media_binding_tests {
         })
     }
 
+    fn make_system_openai(text: &str) -> MessageNum {
+        MessageNum::OpenAIMessageV1(ChatMessage {
+            role: "developer".to_string(),
+            content: vec![ContentPart::Text(TextContentPart::new(text.to_string()))],
+            name: None,
+        })
+    }
+
+    fn make_system_gemini(text: &str) -> MessageNum {
+        MessageNum::GeminiContentV1(GeminiContent {
+            role: "model".to_string(),
+            parts: vec![Part {
+                data: DataNum::Text(text.to_string()),
+                ..Default::default()
+            }],
+        })
+    }
+
     fn build_prompt(provider: Provider, model: &str, msg: MessageNum) -> Prompt {
         Prompt::new_rs(
             vec![msg],
@@ -2088,6 +2113,32 @@ mod media_binding_tests {
     }
 
     #[test]
+    fn openai_document_bytes_becomes_file_content() {
+        let mut p = build_prompt(Provider::OpenAI, "gpt-4o", make_user_openai("${media:doc}"));
+        p.bind_media_mut(
+            "doc",
+            &MediaRef::from_bytes(MediaKind::Document, "application/pdf".into(), b"%PDF"),
+        )
+        .unwrap();
+        let parts = match &p.request.messages()[0] {
+            MessageNum::OpenAIMessageV1(m) => &m.content,
+            _ => panic!(),
+        };
+        match &parts[0] {
+            ContentPart::FileContent(p) => {
+                assert_eq!(p.r#type, "file");
+                assert!(p
+                    .file
+                    .file_data
+                    .as_deref()
+                    .unwrap()
+                    .starts_with("data:application/pdf;base64,"));
+            }
+            _ => panic!("expected file content"),
+        }
+    }
+
+    #[test]
     fn gemini_inline_data_from_bytes() {
         let mut p = build_prompt(
             Provider::Gemini,
@@ -2191,6 +2242,34 @@ mod media_binding_tests {
             "claude-sonnet-4-5",
             Provider::Anthropic,
             vec![sys],
+            None,
+            None,
+            ResponseType::Null,
+        );
+        assert!(matches!(result, Err(TypeError::MediaInSystemMessage)));
+    }
+
+    #[test]
+    fn media_in_openai_system_message_rejected_at_construction() {
+        let result = Prompt::new_rs(
+            vec![make_user_openai("hi")],
+            "gpt-4o",
+            Provider::OpenAI,
+            vec![make_system_openai("system ${media:x}")],
+            None,
+            None,
+            ResponseType::Null,
+        );
+        assert!(matches!(result, Err(TypeError::MediaInSystemMessage)));
+    }
+
+    #[test]
+    fn media_in_gemini_system_message_rejected_at_construction() {
+        let result = Prompt::new_rs(
+            vec![make_user_gemini("hi")],
+            "gemini-2.0-flash",
+            Provider::Gemini,
+            vec![make_system_gemini("system ${media:x}")],
             None,
             None,
             ResponseType::Null,
