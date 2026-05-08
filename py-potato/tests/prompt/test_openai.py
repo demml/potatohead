@@ -30,9 +30,9 @@ def test_string_prompt():
         system_instructions="system_prompt",
     )
 
-    assert prompt.openai_messages[0].content[0].text == "My prompt"
-    assert prompt.openai_message.content[0].text == "My prompt"
-    assert prompt.system_instructions[0].content[0].text == "system_prompt"
+    assert prompt.openai_messages[0].text == "My prompt"
+    assert prompt.openai_message.text == "My prompt"
+    assert cast(ChatMessage, prompt.system_instructions[0]).text == "system_prompt"
 
     # test string message
     prompt = Prompt(
@@ -45,7 +45,7 @@ def test_string_prompt():
         system_instructions="system_prompt",
     )
 
-    assert prompt.openai_messages[0].content[0].text == "My prompt"
+    assert prompt.openai_messages[0].text == "My prompt"
 
     # test list of string messages
     prompt = Prompt(
@@ -60,8 +60,8 @@ def test_string_prompt():
 
     messages = prompt.openai_messages
 
-    assert messages[0].content[0].text == "Foo"
-    assert messages[1].content[0].text == "Bar"
+    assert messages[0].text == "Foo"
+    assert messages[1].text == "Bar"
 
     # test list of strings
     prompt = Prompt(
@@ -76,16 +76,16 @@ def test_string_prompt():
 
     messages = cast(List[ChatMessage], prompt.messages)
 
-    assert messages[0].content[0].text == "Hello ${variable}"
-    assert messages[1].content[0].text == "Bar"
+    assert messages[0].text == "Hello ${variable}"
+    assert messages[1].text == "Bar"
 
     bounded_message = prompt.bind("variable", "world").openai_messages[0]
-    assert bounded_message.content[0].text == "Hello world"
+    assert bounded_message.text == "Hello world"
 
     # test bind mut
     msg = prompt.openai_messages[0]
     msg.bind_mut("variable", "world")
-    assert msg.content[0].text == "Hello world"
+    assert msg.text == "Hello world"
 
 
 def test_bind_prompt():
@@ -106,18 +106,18 @@ def test_bind_prompt():
 
     # testing binding with kwargs
     bound_prompt = prompt.bind(variable1="world")
-    assert bound_prompt.openai_messages[0].content[0].text == "Hello world"
+    assert bound_prompt.openai_messages[0].text == "Hello world"
 
     bound_prompt = prompt.bind(variable1=10)
-    assert bound_prompt.openai_messages[0].content[0].text == "Hello 10"
+    assert bound_prompt.openai_messages[0].text == "Hello 10"
 
     bound_prompt = prompt.bind(variable1={"key": "value"})
-    assert bound_prompt.openai_messages[0].content[0].text == 'Hello {"key":"value"}'
+    assert bound_prompt.openai_messages[0].text == 'Hello {"key":"value"}'
 
     # test bind mut
-    prompt.openai_messages[0].content[0].text == "Hello ${variable1}"
+    prompt.openai_messages[0].text == "Hello ${variable1}"
     prompt.bind_mut("variable1", "world")
-    assert prompt.openai_messages[0].content[0].text == "Hello world"
+    assert prompt.openai_messages[0].text == "Hello world"
 
 
 def test_image_prompt():
@@ -130,15 +130,15 @@ def test_image_prompt():
                 role=Role.User.as_str(),
             ),
             ChatMessage(
-                content=ImageContentPart(url="https://iili.io/3Hs4FMg.png"),
+                content=[ImageContentPart(url="https://iili.io/3Hs4FMg.png")],
                 role=Role.User.as_str(),
             ),
         ],
     )
 
-    messages = prompt.messages
+    messages = prompt.openai_messages
 
-    assert messages[0].content[0].text == "What company is this logo from?"
+    assert messages[0].text == "What company is this logo from?"
 
     # unwrap for image url will convert to expected pydantic dataclass
     assert isinstance(messages[1].content[0], ImageContentPart)
@@ -222,7 +222,7 @@ def test_prompt_no_args():
         system_instructions="system_prompt",
     )
 
-    assert prompt.openai_message.content[0].text == "My prompt"
+    assert prompt.openai_message.text == "My prompt"
 
 
 def test_openai_model_dump():

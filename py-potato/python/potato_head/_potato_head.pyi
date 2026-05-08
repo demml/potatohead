@@ -90,6 +90,27 @@ class ResponseType:
     Null: "ResponseType"
     """No structured response type"""
 
+class MediaKind:
+    Image: "MediaKind"
+    Document: "MediaKind"
+
+class MediaRef:
+    @property
+    def kind(self) -> MediaKind: ...
+    @staticmethod
+    def image_url(url: str, mime_type: Optional[str] = None) -> "MediaRef": ...
+    @staticmethod
+    def image_bytes(mime_type: str, data: bytes) -> "MediaRef": ...
+    @staticmethod
+    def image_path(path: str | Path) -> "MediaRef": ...
+    @staticmethod
+    def document_url(url: str, mime_type: Optional[str] = None) -> "MediaRef": ...
+    @staticmethod
+    def document_bytes(mime_type: str, data: bytes) -> "MediaRef": ...
+    @staticmethod
+    def document_path(path: str | Path) -> "MediaRef": ...
+    def __repr__(self) -> str: ...
+
 class TaskStatus:
     """Status of a task in a workflow.
 
@@ -405,6 +426,10 @@ class Prompt(Generic[OutputType]):
             ```
         """
 
+    @property
+    def media_parameters(self) -> List[str]:
+        """Extracted media placeholder names from the prompt messages."""
+
     def save_prompt(self, path: Optional[Path] = None) -> Path:
         """Save the prompt to a JSON file.
 
@@ -424,7 +449,7 @@ class Prompt(Generic[OutputType]):
         """
 
     @staticmethod
-    def from_path(path: Path) -> "Prompt":
+    def from_path(path: str | Path) -> "Prompt":
         """Load a prompt from a JSON file.
 
         Args:
@@ -573,6 +598,12 @@ class Prompt(Generic[OutputType]):
             print(prompt.parameters)  # []
             ```
         """
+
+    def bind_media(self, name: str, media: MediaRef) -> "Prompt":
+        """Bind a media placeholder and return a new prompt."""
+
+    def bind_media_mut(self, name: str, media: MediaRef) -> None:
+        """Bind a media placeholder in place."""
 
     @property
     def response_json_schema(self) -> Optional[str]:
@@ -869,7 +900,7 @@ class Agent:
 
     def execute_prompt(
         self,
-        prompt: Prompt,
+        prompt: Prompt[Any],
         output_type: type[OutT] | None = None,
     ) -> AgentResponse[OutT, _ResponseType]:
         """Execute a prompt.
@@ -931,7 +962,11 @@ class Workflow:
                 This can either be a Pydantic `BaseModel` class or a supported potato_head response type such as `Score`.
         """
 
-    def add_task(self, task: Task, output_type: Optional[Any]) -> None:
+    def add_task(
+        self,
+        task: Task,
+        output_type: Optional[Any] = None,
+    ) -> None:
         """Add a task to the workflow.
 
         Args:
@@ -1045,7 +1080,7 @@ class Workflow:
 class Embedder:
     """Class for creating embeddings."""
 
-    def __init__(  # type: ignore
+    def __init__(
         self,
         provider: Provider | str,
         config: Optional[OpenAIEmbeddingConfig | GeminiEmbeddingConfig] = None,
@@ -2518,6 +2553,10 @@ class ChatMessage:
         role: str,
         content: Union[
             str,
+            TextContentPart,
+            ImageContentPart,
+            InputAudioContentPart,
+            FileContentPart,
             List[
                 Union[
                     str,

@@ -34,6 +34,21 @@ pub enum TypeError {
     #[error("Invalid media type: {0}")]
     InvalidMediaType(String),
 
+    #[error("media placeholder '${{media:{name}}}' not found in any user message")]
+    MediaPlaceholderNotFound { name: String },
+
+    #[error("media placeholder '${{media:{name}}}' must be the entire content of a text block")]
+    MediaPlaceholderNotIsolated { name: String },
+
+    #[error("provider {provider} does not support media kind {kind:?} with given source")]
+    UnsupportedMediaForProvider {
+        provider: String,
+        kind: crate::prompt::media::MediaKind,
+    },
+
+    #[error("media placeholders are not allowed in system messages")]
+    MediaInSystemMessage,
+
     #[error("Unsupported prompt content type")]
     UnsupportedTypeError,
 

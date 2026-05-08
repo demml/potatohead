@@ -44,7 +44,7 @@ def test_load_simple_openai_prompt_from_path():
     assert prompt.provider == Provider.OpenAI
 
     messages = prompt.openai_messages
-    assert messages[0].content[0].text == "Summarize this: ${text}"
+    assert messages[0].text == "Summarize this: ${text}"
 
 
 def test_load_simple_anthropic_prompt_from_path():
@@ -68,7 +68,7 @@ def test_load_prompt_from_path_without_extension_in_cwd(tmp_path, monkeypatch):
     copyfile(source_path, target_path)
     monkeypatch.chdir(tmp_path)
 
-    prompt = Prompt.from_path("simple_openai")
+    prompt = Prompt.from_path(Path("simple_openai"))
 
     assert prompt.model == "gpt-4"
     assert prompt.provider == Provider.OpenAI

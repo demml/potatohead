@@ -1459,6 +1459,102 @@ impl PromptMessageExt for GeminiContent {
             }],
         })
     }
+
+    fn extract_media_variables(&self) -> Vec<String> {
+        let mut out = HashSet::new();
+        let regex = crate::traits::get_media_regex();
+        for part in &self.parts {
+            if let DataNum::Text(text) = &part.data {
+                for cap in regex.captures_iter(text) {
+                    if let Some(name) = cap.get(1) {
+                        out.insert(name.as_str().to_string());
+                    }
+                }
+            }
+        }
+        out.into_iter().collect()
+    }
+
+    fn split_media_placeholders(&mut self) -> Result<(), TypeError> {
+        let regex = crate::traits::get_media_regex();
+        let mut new_parts: Vec<Part> = Vec::with_capacity(self.parts.len());
+        for part in self.parts.drain(..) {
+            match &part.data {
+                DataNum::Text(text) if regex.is_match(text) => {
+                    let pieces = crate::traits::split_text_on_media(text, regex);
+                    for s in pieces {
+                        if !s.is_empty() {
+                            new_parts.push(Part {
+                                data: DataNum::Text(s),
+                                ..Default::default()
+                            });
+                        }
+                    }
+                }
+                _ => new_parts.push(part),
+            }
+        }
+        self.parts = new_parts;
+        Ok(())
+    }
+
+    fn bind_media_mut(
+        &mut self,
+        token: &str,
+        media: &crate::prompt::media::MediaRef,
+        _provider: &crate::Provider,
+    ) -> Result<bool, TypeError> {
+        use crate::prompt::media::MediaSource;
+
+        let mut replaced = false;
+        let mut new_parts: Vec<Part> = Vec::with_capacity(self.parts.len());
+        for part in self.parts.drain(..) {
+            match &part.data {
+                DataNum::Text(text) if text.trim() == token => {
+                    let new_data = match &media.source {
+                        MediaSource::Base64 { mime_type, data } => DataNum::InlineData(Blob {
+                            mime_type: mime_type.clone(),
+                            data: data.clone(),
+                            display_name: None,
+                        }),
+                        MediaSource::Url { url, mime_type } => {
+                            let scheme_ok = url.starts_with("gs://")
+                                || url.starts_with("https://generativelanguage.googleapis.com/v1");
+                            if !scheme_ok {
+                                return Err(TypeError::UnsupportedMediaForProvider {
+                                    provider: "gemini".into(),
+                                    kind: media.kind,
+                                });
+                            }
+                            let mime = mime_type.clone().ok_or_else(|| {
+                                TypeError::InvalidMediaType(
+                                    "Gemini URL media requires explicit mime_type".into(),
+                                )
+                            })?;
+                            DataNum::FileData(FileData {
+                                mime_type: mime,
+                                file_uri: url.clone(),
+                                display_name: None,
+                            })
+                        }
+                    };
+                    new_parts.push(Part {
+                        data: new_data,
+                        ..Default::default()
+                    });
+                    replaced = true;
+                }
+                DataNum::Text(text) if text.contains(token) => {
+                    return Err(TypeError::MediaPlaceholderNotIsolated {
+                        name: crate::traits::extract_token_name(token),
+                    });
+                }
+                _ => new_parts.push(part),
+            }
+        }
+        self.parts = new_parts;
+        Ok(replaced)
+    }
 }
 
 impl MessageFactory for GeminiContent {

@@ -455,10 +455,7 @@ fn test_vendor_switching() {
     assert!(workflow_result.is_complete());
 
     // Get task references
-    let openai_task = workflow_result
-        .task_list
-        .get_task("openai_task")
-        .unwrap();
+    let openai_task = workflow_result.task_list.get_task("openai_task").unwrap();
     let anthropic_task = workflow_result
         .task_list
         .get_task("anthropic_task")

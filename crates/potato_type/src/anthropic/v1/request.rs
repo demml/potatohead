@@ -1300,6 +1300,125 @@ impl PromptMessageExt for MessageParam {
             }],
         })
     }
+
+    fn extract_media_variables(&self) -> Vec<String> {
+        let mut out = HashSet::new();
+        let regex = crate::traits::get_media_regex();
+        for part in &self.content {
+            if let ContentBlock::Text(t) = &part.inner {
+                for cap in regex.captures_iter(&t.text) {
+                    if let Some(name) = cap.get(1) {
+                        out.insert(name.as_str().to_string());
+                    }
+                }
+            }
+        }
+        out.into_iter().collect()
+    }
+
+    fn split_media_placeholders(&mut self) -> Result<(), TypeError> {
+        let regex = crate::traits::get_media_regex();
+        let mut new_content: Vec<ContentBlockParam> = Vec::with_capacity(self.content.len());
+        for part in self.content.drain(..) {
+            match part.inner {
+                ContentBlock::Text(t) if regex.is_match(&t.text) => {
+                    let cache = t.cache_control.clone();
+                    let citations = t.citations.clone();
+                    let pieces = crate::traits::split_text_on_media(&t.text, regex);
+                    let mut first = true;
+                    for s in pieces {
+                        if s.is_empty() {
+                            continue;
+                        }
+                        let block = TextBlockParam::new_rs(
+                            s,
+                            if first { cache.clone() } else { None },
+                            if first { citations.clone() } else { None },
+                        );
+                        new_content.push(ContentBlockParam {
+                            inner: ContentBlock::Text(block),
+                        });
+                        first = false;
+                    }
+                }
+                other => new_content.push(ContentBlockParam { inner: other }),
+            }
+        }
+        self.content = new_content;
+        Ok(())
+    }
+
+    fn bind_media_mut(
+        &mut self,
+        token: &str,
+        media: &crate::prompt::media::MediaRef,
+        _provider: &crate::Provider,
+    ) -> Result<bool, TypeError> {
+        use crate::prompt::media::{MediaKind, MediaSource};
+
+        let mut replaced = false;
+        let mut new_content: Vec<ContentBlockParam> = Vec::with_capacity(self.content.len());
+        for part in self.content.drain(..) {
+            match &part.inner {
+                ContentBlock::Text(t) if t.text.trim() == token => {
+                    let new_inner = match (media.kind, &media.source) {
+                        (MediaKind::Image, MediaSource::Url { url, .. }) => {
+                            ContentBlock::Image(ImageBlockParam {
+                                source: ImageSource::Url(UrlImageSource::new(url.clone())),
+                                cache_control: None,
+                                r#type: IMAGE_TYPE.to_string(),
+                            })
+                        }
+                        (MediaKind::Image, MediaSource::Base64 { mime_type, data }) => {
+                            ContentBlock::Image(ImageBlockParam {
+                                source: ImageSource::Base64(Base64ImageSource {
+                                    media_type: mime_type.clone(),
+                                    data: data.clone(),
+                                    r#type: BASE64_TYPE.to_string(),
+                                }),
+                                cache_control: None,
+                                r#type: IMAGE_TYPE.to_string(),
+                            })
+                        }
+                        (MediaKind::Document, MediaSource::Url { url, .. }) => {
+                            ContentBlock::Document(DocumentBlockParam {
+                                source: DocumentSource::Url(UrlPDFSource::new(url.clone())),
+                                cache_control: None,
+                                title: None,
+                                context: None,
+                                r#type: DOCUMENT_TYPE.to_string(),
+                                citations: None,
+                            })
+                        }
+                        (MediaKind::Document, MediaSource::Base64 { mime_type, data }) => {
+                            ContentBlock::Document(DocumentBlockParam {
+                                source: DocumentSource::Base64(Base64PDFSource {
+                                    media_type: mime_type.clone(),
+                                    data: data.clone(),
+                                    r#type: BASE64_TYPE.to_string(),
+                                }),
+                                cache_control: None,
+                                title: None,
+                                context: None,
+                                r#type: DOCUMENT_TYPE.to_string(),
+                                citations: None,
+                            })
+                        }
+                    };
+                    new_content.push(ContentBlockParam { inner: new_inner });
+                    replaced = true;
+                }
+                ContentBlock::Text(t) if t.text.contains(token) => {
+                    return Err(TypeError::MediaPlaceholderNotIsolated {
+                        name: crate::traits::extract_token_name(token),
+                    });
+                }
+                _ => new_content.push(part),
+            }
+        }
+        self.content = new_content;
+        Ok(replaced)
+    }
 }
 
 impl MessageParam {

@@ -17,6 +17,35 @@ pub static VAR_REGEX: OnceLock<Regex> = OnceLock::new();
 pub fn get_var_regex() -> &'static Regex {
     VAR_REGEX.get_or_init(|| Regex::new(r"\$?\{([a-zA-Z_][a-zA-Z0-9_]*)\}").unwrap())
 }
+
+pub static MEDIA_REGEX: OnceLock<Regex> = OnceLock::new();
+pub fn get_media_regex() -> &'static Regex {
+    MEDIA_REGEX.get_or_init(|| Regex::new(r"\$\{media:([a-zA-Z_][a-zA-Z0-9_]*)\}").unwrap())
+}
+
+pub(crate) fn split_text_on_media(text: &str, regex: &Regex) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut last = 0usize;
+    for m in regex.find_iter(text) {
+        if m.start() > last {
+            out.push(text[last..m.start()].to_string());
+        }
+        out.push(m.as_str().to_string());
+        last = m.end();
+    }
+    if last < text.len() {
+        out.push(text[last..].to_string());
+    }
+    out
+}
+
+pub(crate) fn extract_token_name(token: &str) -> String {
+    token
+        .strip_prefix("${media:")
+        .and_then(|s| s.strip_suffix('}'))
+        .unwrap_or("")
+        .to_string()
+}
 use crate::prompt::builder::ProviderRequest;
 /// Core trait that all message types must implement
 pub trait PromptMessageExt:
@@ -34,6 +63,23 @@ pub trait PromptMessageExt:
     fn extract_variables(&self) -> Vec<String>;
 
     fn from_text(content: String, role: &str) -> Result<Self, TypeError>;
+
+    fn extract_media_variables(&self) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn split_media_placeholders(&mut self) -> Result<(), TypeError> {
+        Ok(())
+    }
+
+    fn bind_media_mut(
+        &mut self,
+        _token: &str,
+        _media: &crate::prompt::media::MediaRef,
+        _provider: &crate::Provider,
+    ) -> Result<bool, TypeError> {
+        Ok(false)
+    }
 }
 
 /// Core trait that must be implemented for all request types

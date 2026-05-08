@@ -228,6 +228,10 @@ pub struct Prompt {
     #[serde(default)]
     pub parameters: Vec<String>,
 
+    #[pyo3(get)]
+    #[serde(default)]
+    pub media_parameters: Vec<String>,
+
     #[serde(default)]
     pub response_type: ResponseType,
 }
@@ -262,12 +266,14 @@ enum PromptFormat {
 
 #[derive(Debug, Deserialize)]
 struct PromptInternal {
-    request: ProviderRequest,
+    request: Value,
     model: String,
     provider: Provider,
     version: String,
     #[serde(default)]
     parameters: Vec<String>,
+    #[serde(default)]
+    media_parameters: Vec<String>,
     #[serde(default)]
     response_type: ResponseType,
 }
@@ -283,14 +289,30 @@ impl<'de> Deserialize<'de> for Prompt {
             PromptFormat::Generic(config) => Self::from_generic_config(config)
                 .map_err(|e| serde::de::Error::custom(e.to_string())),
             PromptFormat::Full(internal) => Ok(Prompt {
-                request: internal.request,
+                request: provider_request_from_value(internal.provider.clone(), internal.request)
+                    .map_err(|e| serde::de::Error::custom(e.to_string()))?,
                 model: internal.model,
                 provider: internal.provider,
                 version: internal.version,
                 parameters: internal.parameters,
+                media_parameters: internal.media_parameters,
                 response_type: internal.response_type,
             }),
         }
+    }
+}
+
+fn provider_request_from_value(
+    provider: Provider,
+    value: Value,
+) -> Result<ProviderRequest, TypeError> {
+    match provider {
+        Provider::OpenAI => Ok(ProviderRequest::OpenAIV1(serde_json::from_value(value)?)),
+        Provider::Anthropic => Ok(ProviderRequest::AnthropicV1(serde_json::from_value(value)?)),
+        Provider::Gemini | Provider::Google | Provider::Vertex | Provider::GoogleAdk => {
+            Ok(ProviderRequest::GeminiV1(serde_json::from_value(value)?))
+        }
+        Provider::Undefined => Err(TypeError::UnsupportedProviderForRequestCreation),
     }
 }
 
@@ -608,6 +630,36 @@ impl Prompt {
         Ok(())
     }
 
+    pub fn bind_media(
+        &self,
+        name: &str,
+        media: &crate::prompt::media::MediaRef,
+    ) -> Result<Self, TypeError> {
+        let mut new_prompt = self.clone();
+        new_prompt.bind_media_mut(name, media)?;
+        Ok(new_prompt)
+    }
+
+    pub fn bind_media_mut(
+        &mut self,
+        name: &str,
+        media: &crate::prompt::media::MediaRef,
+    ) -> Result<(), TypeError> {
+        let token = format!("${{media:{name}}}");
+        let mut found = false;
+        for message in self.request.messages_mut() {
+            if message.bind_media_mut(&token, media, &self.provider)? {
+                found = true;
+            }
+        }
+        if !found {
+            return Err(TypeError::MediaPlaceholderNotFound {
+                name: name.to_string(),
+            });
+        }
+        Ok(())
+    }
+
     #[getter]
     pub fn response_json_schema_pretty(&self) -> Option<String> {
         Some(PyHelperFuncs::__str__(
@@ -657,6 +709,18 @@ impl Prompt {
             let parameters =
                 Self::extract_variables(prompt.request.messages(), &system_instructions);
             prompt.parameters = parameters;
+        }
+
+        if prompt.media_parameters.is_empty() {
+            let system_instructions: Vec<MessageNum> = prompt
+                .request
+                .system_instructions()
+                .iter()
+                .map(|msg| (*msg).clone())
+                .collect();
+            let media_parameters =
+                Self::extract_media_variables(prompt.request.messages(), &system_instructions);
+            prompt.media_parameters = media_parameters;
         }
 
         Ok(prompt)
@@ -824,10 +888,10 @@ impl Prompt {
     }
 
     pub fn new_rs(
-        messages: Vec<MessageNum>,
+        mut messages: Vec<MessageNum>,
         model: &str,
         provider: Provider,
-        system_instructions: Vec<MessageNum>,
+        mut system_instructions: Vec<MessageNum>,
         model_settings: Option<ModelSettings>,
         response_json_schema: Option<Value>,
         response_type: ResponseType,
@@ -845,8 +909,16 @@ impl Prompt {
             None => ModelSettings::provider_default_settings(&provider),
         };
 
+        for msg in messages.iter_mut() {
+            msg.split_media_placeholders()?;
+        }
+        for msg in system_instructions.iter_mut() {
+            msg.split_media_placeholders()?;
+        }
+
         // extract named parameters in prompt
         let parameters = Self::extract_variables(&messages, &system_instructions);
+        let media_parameters = Self::extract_media_variables(&messages, &system_instructions);
 
         // Build the provider request
         let request = to_provider_request(
@@ -861,6 +933,7 @@ impl Prompt {
             request,
             version,
             parameters,
+            media_parameters,
             response_type,
             model,
             provider,
@@ -892,6 +965,23 @@ impl Prompt {
         // Extract from user messages
         for msg in messages {
             variables.extend(msg.extract_variables());
+        }
+
+        variables.into_iter().collect()
+    }
+
+    pub fn extract_media_variables(
+        messages: &[MessageNum],
+        system_instructions: &[MessageNum],
+    ) -> Vec<String> {
+        let mut variables = BTreeSet::new();
+
+        for msg in system_instructions {
+            variables.extend(msg.extract_media_variables());
+        }
+
+        for msg in messages {
+            variables.extend(msg.extract_media_variables());
         }
 
         variables.into_iter().collect()
@@ -1707,5 +1797,520 @@ mod tests {
         assert_eq!(loaded_prompt.provider, Provider::OpenAI);
 
         fs::remove_dir_all(temp_dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod media_binding_tests {
+    use super::*;
+    use crate::anthropic::v1::request::{
+        ContentBlock, ContentBlockParam, DocumentSource, ImageSource, MessageParam, TextBlockParam,
+    };
+    use crate::google::v1::generate::request::{DataNum, GeminiContent, Part};
+    use crate::openai::v1::chat::request::{ChatMessage, ContentPart, TextContentPart};
+    use crate::prompt::media::{MediaKind, MediaRef};
+    use crate::prompt::types::MessageNum;
+    use crate::Provider;
+    use base64::Engine;
+
+    fn make_user_anthropic(text: &str) -> MessageNum {
+        MessageNum::AnthropicMessageV1(MessageParam {
+            content: vec![ContentBlockParam {
+                inner: ContentBlock::Text(TextBlockParam::new_rs(text.to_string(), None, None)),
+            }],
+            role: "user".to_string(),
+        })
+    }
+
+    fn make_user_openai(text: &str) -> MessageNum {
+        MessageNum::OpenAIMessageV1(ChatMessage {
+            role: "user".to_string(),
+            content: vec![ContentPart::Text(TextContentPart::new(text.to_string()))],
+            name: None,
+        })
+    }
+
+    fn make_user_gemini(text: &str) -> MessageNum {
+        MessageNum::GeminiContentV1(GeminiContent {
+            role: "user".to_string(),
+            parts: vec![Part {
+                data: DataNum::Text(text.to_string()),
+                ..Default::default()
+            }],
+        })
+    }
+
+    fn build_prompt(provider: Provider, model: &str, msg: MessageNum) -> Prompt {
+        Prompt::new_rs(
+            vec![msg],
+            model,
+            provider,
+            vec![],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn anthropic_splitter_isolates_token() {
+        let p = build_prompt(
+            Provider::Anthropic,
+            "claude-sonnet-4-5",
+            make_user_anthropic("hello ${media:chart} world"),
+        );
+        let blocks = match &p.request.messages()[0] {
+            MessageNum::AnthropicMessageV1(m) => &m.content,
+            _ => panic!(),
+        };
+        assert_eq!(blocks.len(), 3);
+        let texts: Vec<String> = blocks
+            .iter()
+            .filter_map(|b| match &b.inner {
+                ContentBlock::Text(t) => Some(t.text.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(texts, vec!["hello ", "${media:chart}", " world"]);
+    }
+
+    #[test]
+    fn openai_splitter_isolates_token() {
+        let p = build_prompt(
+            Provider::OpenAI,
+            "gpt-4o",
+            make_user_openai("a ${media:x} b"),
+        );
+        let parts = match &p.request.messages()[0] {
+            MessageNum::OpenAIMessageV1(m) => &m.content,
+            _ => panic!(),
+        };
+        assert_eq!(parts.len(), 3);
+    }
+
+    #[test]
+    fn gemini_splitter_isolates_token() {
+        let p = build_prompt(
+            Provider::Gemini,
+            "gemini-2.0-flash",
+            make_user_gemini("foo ${media:y}"),
+        );
+        let parts = match &p.request.messages()[0] {
+            MessageNum::GeminiContentV1(m) => &m.parts,
+            _ => panic!(),
+        };
+        assert_eq!(parts.len(), 2);
+    }
+
+    #[test]
+    fn splitter_handles_token_at_start_and_end() {
+        let p = build_prompt(
+            Provider::Anthropic,
+            "claude-sonnet-4-5",
+            make_user_anthropic("${media:a}${media:b}"),
+        );
+        let blocks = match &p.request.messages()[0] {
+            MessageNum::AnthropicMessageV1(m) => &m.content,
+            _ => panic!(),
+        };
+        assert_eq!(blocks.len(), 2);
+    }
+
+    #[test]
+    fn parameters_and_media_parameters_disjoint() {
+        let p = build_prompt(
+            Provider::Anthropic,
+            "claude-sonnet-4-5",
+            make_user_anthropic("${greeting} on ${media:chart} for ${media:doc}"),
+        );
+        assert_eq!(p.parameters, vec!["greeting"]);
+        let mut media = p.media_parameters.clone();
+        media.sort();
+        assert_eq!(media, vec!["chart".to_string(), "doc".to_string()]);
+    }
+
+    #[test]
+    fn duplicate_media_token_dedups() {
+        let p = build_prompt(
+            Provider::Anthropic,
+            "claude-sonnet-4-5",
+            make_user_anthropic("${media:x} foo ${media:x}"),
+        );
+        assert_eq!(p.media_parameters, vec!["x".to_string()]);
+    }
+
+    #[test]
+    fn anthropic_image_url() {
+        let mut p = build_prompt(
+            Provider::Anthropic,
+            "claude-sonnet-4-5",
+            make_user_anthropic("${media:chart}"),
+        );
+        p.bind_media_mut(
+            "chart",
+            &MediaRef::image_url("https://x/y.png".into(), None),
+        )
+        .unwrap();
+        let blocks = match &p.request.messages()[0] {
+            MessageNum::AnthropicMessageV1(m) => &m.content,
+            _ => panic!(),
+        };
+        match &blocks[0].inner {
+            ContentBlock::Image(b) => match &b.source {
+                ImageSource::Url(s) => assert_eq!(s.url, "https://x/y.png"),
+                _ => panic!("expected url source"),
+            },
+            _ => panic!("expected image block"),
+        }
+    }
+
+    #[test]
+    fn anthropic_image_bytes_roundtrip_serde() {
+        let mut p = build_prompt(
+            Provider::Anthropic,
+            "claude-sonnet-4-5",
+            make_user_anthropic("${media:chart}"),
+        );
+        p.bind_media_mut(
+            "chart",
+            &MediaRef::from_bytes(MediaKind::Image, "image/png".into(), b"FAKEPNG"),
+        )
+        .unwrap();
+        let json = serde_json::to_value(&p).unwrap();
+        let restored: Prompt = serde_json::from_value(json).unwrap();
+        assert_eq!(p, restored);
+    }
+
+    #[test]
+    fn anthropic_document_base64() {
+        let mut p = build_prompt(
+            Provider::Anthropic,
+            "claude-sonnet-4-5",
+            make_user_anthropic("${media:doc}"),
+        );
+        p.bind_media_mut(
+            "doc",
+            &MediaRef::from_bytes(MediaKind::Document, "application/pdf".into(), b"%PDF"),
+        )
+        .unwrap();
+        let blocks = match &p.request.messages()[0] {
+            MessageNum::AnthropicMessageV1(m) => &m.content,
+            _ => panic!(),
+        };
+        match &blocks[0].inner {
+            ContentBlock::Document(b) => match &b.source {
+                DocumentSource::Base64(s) => {
+                    assert_eq!(s.media_type, "application/pdf");
+                    assert_eq!(
+                        s.data,
+                        base64::engine::general_purpose::STANDARD.encode(b"%PDF")
+                    );
+                }
+                _ => panic!(),
+            },
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn anthropic_document_url() {
+        let mut p = build_prompt(
+            Provider::Anthropic,
+            "claude-sonnet-4-5",
+            make_user_anthropic("${media:doc}"),
+        );
+        p.bind_media_mut(
+            "doc",
+            &MediaRef::document_url("https://x/y.pdf".into(), None),
+        )
+        .unwrap();
+        let blocks = match &p.request.messages()[0] {
+            MessageNum::AnthropicMessageV1(m) => &m.content,
+            _ => panic!(),
+        };
+        assert!(matches!(
+            &blocks[0].inner,
+            ContentBlock::Document(b)
+                if matches!(&b.source, DocumentSource::Url(s) if s.url == "https://x/y.pdf")
+        ));
+    }
+
+    #[test]
+    fn openai_image_bytes_becomes_data_url() {
+        let mut p = build_prompt(
+            Provider::OpenAI,
+            "gpt-4o",
+            make_user_openai("${media:chart}"),
+        );
+        p.bind_media_mut(
+            "chart",
+            &MediaRef::from_bytes(MediaKind::Image, "image/png".into(), b"FAKE"),
+        )
+        .unwrap();
+        let parts = match &p.request.messages()[0] {
+            MessageNum::OpenAIMessageV1(m) => &m.content,
+            _ => panic!(),
+        };
+        match &parts[0] {
+            ContentPart::ImageUrl(p) => {
+                assert!(p.image_url.url.starts_with("data:image/png;base64,"));
+            }
+            _ => panic!("expected image_url"),
+        }
+    }
+
+    #[test]
+    fn openai_image_url_passthrough() {
+        let mut p = build_prompt(Provider::OpenAI, "gpt-4o", make_user_openai("${media:c}"));
+        p.bind_media_mut("c", &MediaRef::image_url("https://x/y.png".into(), None))
+            .unwrap();
+        let parts = match &p.request.messages()[0] {
+            MessageNum::OpenAIMessageV1(m) => &m.content,
+            _ => panic!(),
+        };
+        assert!(matches!(
+            &parts[0],
+            ContentPart::ImageUrl(p) if p.image_url.url == "https://x/y.png"
+        ));
+    }
+
+    #[test]
+    fn openai_document_url_rejected() {
+        let mut p = build_prompt(Provider::OpenAI, "gpt-4o", make_user_openai("${media:doc}"));
+        let err = p
+            .bind_media_mut(
+                "doc",
+                &MediaRef::document_url("https://x/y.pdf".into(), None),
+            )
+            .unwrap_err();
+        assert!(matches!(err, TypeError::UnsupportedMediaForProvider { .. }));
+    }
+
+    #[test]
+    fn gemini_inline_data_from_bytes() {
+        let mut p = build_prompt(
+            Provider::Gemini,
+            "gemini-2.0-flash",
+            make_user_gemini("${media:chart}"),
+        );
+        p.bind_media_mut(
+            "chart",
+            &MediaRef::from_bytes(MediaKind::Image, "image/png".into(), b"FAKE"),
+        )
+        .unwrap();
+        let parts = match &p.request.messages()[0] {
+            MessageNum::GeminiContentV1(m) => &m.parts,
+            _ => panic!(),
+        };
+        match &parts[0].data {
+            DataNum::InlineData(b) => assert_eq!(b.mime_type, "image/png"),
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn gemini_https_url_rejected() {
+        let mut p = build_prompt(
+            Provider::Gemini,
+            "gemini-2.0-flash",
+            make_user_gemini("${media:c}"),
+        );
+        let err = p
+            .bind_media_mut(
+                "c",
+                &MediaRef::image_url("https://x/y.png".into(), Some("image/png".into())),
+            )
+            .unwrap_err();
+        assert!(matches!(err, TypeError::UnsupportedMediaForProvider { .. }));
+    }
+
+    #[test]
+    fn gemini_gs_url_accepted() {
+        let mut p = build_prompt(
+            Provider::Gemini,
+            "gemini-2.0-flash",
+            make_user_gemini("${media:c}"),
+        );
+        p.bind_media_mut(
+            "c",
+            &MediaRef::image_url("gs://b/c.png".into(), Some("image/png".into())),
+        )
+        .unwrap();
+        let parts = match &p.request.messages()[0] {
+            MessageNum::GeminiContentV1(m) => &m.parts,
+            _ => panic!(),
+        };
+        match &parts[0].data {
+            DataNum::FileData(f) => {
+                assert_eq!(f.file_uri, "gs://b/c.png");
+                assert_eq!(f.mime_type, "image/png");
+            }
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn gemini_url_without_mime_rejected() {
+        let mut p = build_prompt(
+            Provider::Gemini,
+            "gemini-2.0-flash",
+            make_user_gemini("${media:c}"),
+        );
+        let err = p
+            .bind_media_mut("c", &MediaRef::image_url("gs://b/c.png".into(), None))
+            .unwrap_err();
+        assert!(matches!(err, TypeError::InvalidMediaType(_)));
+    }
+
+    #[test]
+    fn missing_placeholder_errors() {
+        let mut p = build_prompt(
+            Provider::Anthropic,
+            "claude-sonnet-4-5",
+            make_user_anthropic("${media:foo}"),
+        );
+        let err = p
+            .bind_media_mut(
+                "bar",
+                &MediaRef::from_bytes(MediaKind::Image, "image/png".into(), b"X"),
+            )
+            .unwrap_err();
+        assert!(matches!(err, TypeError::MediaPlaceholderNotFound { .. }));
+    }
+
+    #[test]
+    fn media_in_system_message_rejected_at_construction() {
+        let sys = MessageNum::AnthropicSystemMessageV1(TextBlockParam::new_rs(
+            "system ${media:x}".to_string(),
+            None,
+            None,
+        ));
+        let result = Prompt::new_rs(
+            vec![make_user_anthropic("hi")],
+            "claude-sonnet-4-5",
+            Provider::Anthropic,
+            vec![sys],
+            None,
+            None,
+            ResponseType::Null,
+        );
+        assert!(matches!(result, Err(TypeError::MediaInSystemMessage)));
+    }
+
+    #[test]
+    fn bind_does_not_touch_media_token() {
+        let mut p = build_prompt(
+            Provider::Anthropic,
+            "claude-sonnet-4-5",
+            make_user_anthropic("${name} and ${media:name}"),
+        );
+        for m in p.request.messages_mut() {
+            m.bind_mut("name", "Steven").unwrap();
+        }
+        let blocks = match &p.request.messages()[0] {
+            MessageNum::AnthropicMessageV1(m) => &m.content,
+            _ => panic!(),
+        };
+        match &blocks.last().unwrap().inner {
+            ContentBlock::Text(t) => assert_eq!(t.text, "${media:name}"),
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn bind_then_bind_media_independent() {
+        let mut p = build_prompt(
+            Provider::Anthropic,
+            "claude-sonnet-4-5",
+            make_user_anthropic("${greeting} ${media:img}"),
+        );
+        for m in p.request.messages_mut() {
+            m.bind_mut("greeting", "Hello").unwrap();
+        }
+        p.bind_media_mut(
+            "img",
+            &MediaRef::from_bytes(MediaKind::Image, "image/png".into(), b"X"),
+        )
+        .unwrap();
+        let blocks = match &p.request.messages()[0] {
+            MessageNum::AnthropicMessageV1(m) => &m.content,
+            _ => panic!(),
+        };
+        let mut saw_text = false;
+        let mut saw_image = false;
+        for b in blocks {
+            match &b.inner {
+                ContentBlock::Text(t) if t.text.contains("Hello") => saw_text = true,
+                ContentBlock::Image(_) => saw_image = true,
+                _ => {}
+            }
+        }
+        assert!(saw_text && saw_image);
+    }
+
+    #[test]
+    fn multiple_media_bindings_in_sequence() {
+        let mut p = build_prompt(
+            Provider::Anthropic,
+            "claude-sonnet-4-5",
+            make_user_anthropic("${media:a} ${media:b}"),
+        );
+        p.bind_media_mut(
+            "a",
+            &MediaRef::from_bytes(MediaKind::Image, "image/png".into(), b"A"),
+        )
+        .unwrap();
+        p.bind_media_mut(
+            "b",
+            &MediaRef::from_bytes(MediaKind::Document, "application/pdf".into(), b"%PDF"),
+        )
+        .unwrap();
+        let blocks = match &p.request.messages()[0] {
+            MessageNum::AnthropicMessageV1(m) => &m.content,
+            _ => panic!(),
+        };
+        let mut saw_image = false;
+        let mut saw_doc = false;
+        for b in blocks {
+            match &b.inner {
+                ContentBlock::Image(_) => saw_image = true,
+                ContentBlock::Document(_) => saw_doc = true,
+                _ => {}
+            }
+        }
+        assert!(saw_image && saw_doc);
+    }
+
+    #[test]
+    fn placeholder_replaced_across_multiple_messages() {
+        let mut p = Prompt::new_rs(
+            vec![
+                make_user_anthropic("${media:x}"),
+                make_user_anthropic("again ${media:x}"),
+            ],
+            "claude-sonnet-4-5",
+            Provider::Anthropic,
+            vec![],
+            None,
+            None,
+            ResponseType::Null,
+        )
+        .unwrap();
+        p.bind_media_mut(
+            "x",
+            &MediaRef::from_bytes(MediaKind::Image, "image/png".into(), b"X"),
+        )
+        .unwrap();
+        for msg in p.request.messages() {
+            let has_image = match msg {
+                MessageNum::AnthropicMessageV1(m) => m
+                    .content
+                    .iter()
+                    .any(|b| matches!(b.inner, ContentBlock::Image(_))),
+                _ => false,
+            };
+            assert!(has_image);
+        }
     }
 }

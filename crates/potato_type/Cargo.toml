@@ -10,6 +10,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+base64 = { workspace = true }
 pyo3 = { workspace = true }
 pythonize = { workspace = true }
 potatohead-macro = { workspace = true }

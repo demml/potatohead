@@ -2,12 +2,7 @@ import os
 from dataclasses import dataclass
 
 import pytest
-from conftest import (  # type: ignore
-    StructuredTaskOutput,
-    anthropic_task,
-    gemini_task,
-    openai_task,
-)
+from conftest import StructuredTaskOutput, anthropic_task, gemini_task, openai_task
 from potato_head import Agent, Prompt, Provider, Score, Task, TaskStatus, Workflow
 from potato_head.logging import LoggingConfig, LogLevel, RustyLogger
 from potato_head.mock import LLMTestServer
@@ -20,7 +15,7 @@ from pydantic_ai.models.test import TestModel
 RustyLogger.setup_logging(LoggingConfig(log_level=LogLevel.Debug))
 
 
-models.ALLOW_MODEL_REQUESTS = False
+setattr(models, "ALLOW_MODEL_REQUESTS", False)
 os.environ["OPENAI_API_KEY"] = "mock_api_key"
 
 
