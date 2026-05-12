@@ -317,8 +317,8 @@ class Prompt(Generic[OutputType]):
             The user message(s) to use in the prompt.
         model (str):
             The model identifier to use (e.g., "gpt-4o", "claude-3-5-sonnet-20241022").
-        provider (Provider | str):
-            The provider to use for the prompt (e.g., "openai", "anthropic", "google").
+        provider (Provider | str | None):
+            Optional. Defaults to POTATO_HEAD_DEFAULT_PROVIDER if unset (e.g., "openai", "anthropic", "google").
         system_instructions (Optional[PromptMessage]):
             Optional system instruction(s).
         model_settings (Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings]):
@@ -337,7 +337,7 @@ class Prompt(Generic[OutputType]):
         cls,
         messages: PromptMessage,
         model: str,
-        provider: Provider | str,
+        provider: Provider | str | None = None,
         system_instructions: Optional[PromptMessage] = ...,
         model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = ...,
         *,
@@ -348,7 +348,7 @@ class Prompt(Generic[OutputType]):
         cls,
         messages: PromptMessage,
         model: str,
-        provider: Provider | str,
+        provider: Provider | str | None = None,
         system_instructions: Optional[PromptMessage] = ...,
         model_settings: Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings] = ...,
         output_type: None = ...,
@@ -987,14 +987,14 @@ class Agent:
 
     def __init__(
         self,
-        provider: Provider | str,
+        provider: Provider | str | None = None,
         system_instruction: Optional[PromptMessage] = None,
     ) -> None:
         """Create an Agent object.
 
         Args:
-            provider (Provider | str):
-                The provider to use for the agent.
+            provider (Provider | str | None):
+                Optional. Defaults to POTATO_HEAD_DEFAULT_PROVIDER if unset.
             system_instruction (Optional[PromptMessage]):
                 The system message to use for the agent.
         """

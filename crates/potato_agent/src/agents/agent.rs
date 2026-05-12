@@ -931,18 +931,17 @@ pub struct PyAgent {
 #[pymethods]
 impl PyAgent {
     #[new]
-    #[pyo3(signature = (provider, system_instruction = None))]
+    #[pyo3(signature = (provider=None, system_instruction = None))]
     /// Creates a new Agent instance.
     ///
     /// # Arguments:
-    /// * `provider` - A Python object representing the provider, expected to be an a variant of Provider or a string
-    /// that can be mapped to a provider variant
+    /// * `provider` - Optional. Defaults to env var POTATO_HEAD_DEFAULT_PROVIDER if unset.
     ///
     pub fn new(
-        provider: &Bound<'_, PyAny>,
+        provider: Option<&Bound<'_, PyAny>>,
         system_instruction: Option<&Bound<'_, PyAny>>,
     ) -> Result<Self, AgentError> {
-        let provider = Provider::extract_provider(provider)?;
+        let provider = Provider::resolve_from_py(provider)?;
         let system_instructions = extract_system_instructions(system_instruction, &provider)?;
         let agent = block_on(async { Agent::new(provider, system_instructions).await })?;
 

@@ -85,6 +85,47 @@ impl Provider {
         }
     }
 
+    pub const DEFAULT_ENV_VAR: &'static str = "POTATO_HEAD_DEFAULT_PROVIDER";
+
+    /// Reads `POTATO_HEAD_DEFAULT_PROVIDER` from the environment.
+    ///
+    /// - Unset, empty, or whitespace-only -> `Ok(None)`
+    /// - Set and parseable -> `Ok(Some(provider))`
+    /// - Set but unparseable -> `Err(TypeError::UnknownProviderError(...))`
+    pub fn from_env_default() -> Result<Option<Provider>, TypeError> {
+        match std::env::var(Self::DEFAULT_ENV_VAR) {
+            Ok(s) => {
+                let trimmed = s.trim();
+                if trimmed.is_empty() {
+                    Ok(None)
+                } else {
+                    Provider::from_string(trimmed).map(Some)
+                }
+            }
+            Err(_) => Ok(None),
+        }
+    }
+
+    /// Resolve a provider from an optional explicit string, falling back to the env var,
+    /// then erroring with `MissingProviderError` if neither is available.
+    pub fn resolve(provided: Option<&str>) -> Result<Provider, TypeError> {
+        if let Some(s) = provided.map(str::trim).filter(|s| !s.is_empty()) {
+            return Provider::from_string(s);
+        }
+
+        Self::from_env_default()?.ok_or(TypeError::MissingProviderError(Self::DEFAULT_ENV_VAR))
+    }
+
+    /// PyO3-friendly resolution: accepts an optional `Bound<'_, PyAny>` (Provider enum or string).
+    /// `None` or `py.None()` triggers env-var fallback.
+    pub fn resolve_from_py(provider: Option<&Bound<'_, PyAny>>) -> Result<Provider, TypeError> {
+        match provider {
+            Some(p) if !p.is_none() => Self::extract_provider(p),
+            _ => Self::from_env_default()?
+                .ok_or(TypeError::MissingProviderError(Self::DEFAULT_ENV_VAR)),
+        }
+    }
+
     /// Extract provider from a PyAny object
     ///
     /// # Arguments
@@ -248,6 +289,23 @@ pub enum SettingsType {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn with_env_var<F: FnOnce()>(value: Option<&str>, f: F) {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var(Provider::DEFAULT_ENV_VAR).ok();
+        match value {
+            Some(v) => std::env::set_var(Provider::DEFAULT_ENV_VAR, v),
+            None => std::env::remove_var(Provider::DEFAULT_ENV_VAR),
+        }
+        f();
+        match prev {
+            Some(v) => std::env::set_var(Provider::DEFAULT_ENV_VAR, v),
+            None => std::env::remove_var(Provider::DEFAULT_ENV_VAR),
+        }
+    }
 
     #[test]
     fn test_provider_google_adk_round_trip() {
@@ -276,5 +334,82 @@ mod tests {
     #[test]
     fn test_provider_unknown_string_errors() {
         assert!(Provider::from_string("not_a_provider").is_err());
+    }
+
+    #[test]
+    fn resolve_explicit_wins_over_env() {
+        with_env_var(Some("anthropic"), || {
+            let p = Provider::resolve(Some("openai")).unwrap();
+            assert_eq!(p, Provider::OpenAI);
+        });
+    }
+
+    #[test]
+    fn resolve_uses_env_when_explicit_missing() {
+        with_env_var(Some("openai"), || {
+            let p = Provider::resolve(None).unwrap();
+            assert_eq!(p, Provider::OpenAI);
+        });
+    }
+
+    #[test]
+    fn resolve_uses_env_when_explicit_empty_string() {
+        with_env_var(Some("openai"), || {
+            let p = Provider::resolve(Some("   ")).unwrap();
+            assert_eq!(p, Provider::OpenAI);
+        });
+    }
+
+    #[test]
+    fn resolve_empty_env_treated_as_unset() {
+        with_env_var(Some("   "), || {
+            let err = Provider::resolve(None).unwrap_err();
+            assert!(matches!(err, TypeError::MissingProviderError(_)));
+        });
+    }
+
+    #[test]
+    fn resolve_invalid_env_is_hard_error() {
+        with_env_var(Some("not_a_provider"), || {
+            let err = Provider::resolve(None).unwrap_err();
+            assert!(matches!(err, TypeError::UnknownProviderError(_)));
+        });
+    }
+
+    #[test]
+    fn resolve_no_explicit_no_env_returns_missing() {
+        with_env_var(None, || {
+            let err = Provider::resolve(None).unwrap_err();
+            match err {
+                TypeError::MissingProviderError(name) => {
+                    assert_eq!(name, "POTATO_HEAD_DEFAULT_PROVIDER");
+                }
+                other => panic!("expected MissingProviderError, got {:?}", other),
+            }
+        });
+    }
+
+    #[test]
+    fn from_env_default_unset_returns_none() {
+        with_env_var(None, || {
+            assert!(Provider::from_env_default().unwrap().is_none());
+        });
+    }
+
+    #[test]
+    fn from_env_default_set_and_parseable() {
+        with_env_var(Some("gemini"), || {
+            assert_eq!(
+                Provider::from_env_default().unwrap(),
+                Some(Provider::Gemini)
+            );
+        });
+    }
+
+    #[test]
+    fn from_env_default_set_but_invalid_errors() {
+        with_env_var(Some("garbage"), || {
+            assert!(Provider::from_env_default().is_err());
+        });
     }
 }

@@ -46,7 +46,8 @@ pub struct PotatoSpec {
 #[derive(Debug, Deserialize, Clone)]
 pub struct AgentSpec {
     pub id: String,
-    pub provider: String,
+    #[serde(default)]
+    pub provider: Option<String>,
     pub model: Option<String>,
     pub system_prompt: Option<String>,
     pub max_iterations: Option<u32>,

@@ -10,7 +10,7 @@ fn test_parse_simple_yaml() {
     let spec: PotatoSpec = serde_yaml::from_str(SIMPLE_YAML).unwrap();
     assert_eq!(spec.agents.len(), 1);
     assert_eq!(spec.agents[0].id, "summarizer");
-    assert_eq!(spec.agents[0].provider, "anthropic");
+    assert_eq!(spec.agents[0].provider.as_deref(), Some("anthropic"));
     assert_eq!(spec.agents[0].model.as_deref(), Some("claude-haiku-4-5"));
     assert_eq!(spec.agents[0].max_iterations, Some(3));
     assert_eq!(spec.workflows.len(), 1);
