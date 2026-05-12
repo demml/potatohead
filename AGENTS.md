@@ -50,6 +50,7 @@ make test.integration.vertex
 | `GEMINI_API_KEY` | Google Gemini |
 | `ANTHROPIC_API_KEY` | Anthropic |
 | `GOOGLE_ACCOUNT_JSON_BASE64` | Vertex AI (base64 service account JSON) |
+| `POTATO_HEAD_DEFAULT_PROVIDER` | Default provider when YAML/JSON/`Prompt(...)`/`Agent(...)` omits `provider`. Values: `openai`, `gemini`, `google`, `vertex`, `anthropic`, `google_adk`. |
 
 Unit tests and mock-based tests require no credentials.
 

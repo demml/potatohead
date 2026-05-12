@@ -44,23 +44,20 @@ where
 }
 
 /// Generic prompt configuration structure for user-friendly YAML/JSON format.
-/// This format allows users to write prompts in a more intuitive way:
+///
+/// Example:
 /// ```yaml
 /// model: gemini-1.5-pro
-/// provider: Google
+/// provider: Google         # optional; falls back to POTATO_HEAD_DEFAULT_PROVIDER
 /// messages:
 ///   - "Hello ${variable1}"
-///   - "This is ${variable2}"
-/// settings:
-///   generation_config:
-///     max_output_tokens: 1024
-///     temperature: 0.7
 /// ```
 /// `messages` also accepts a single block-scalar string (YAML `|`).
 #[derive(Debug, Deserialize)]
 pub struct GenericPromptConfig {
     model: String,
-    provider: String,
+    #[serde(default)]
+    provider: Option<String>,
     #[serde(deserialize_with = "deserialize_string_or_vec")]
     messages: Vec<String>,
     #[serde(default)]
@@ -329,17 +326,17 @@ impl Prompt {
     /// # Arguments:
     /// * `message`: A single message or list of messages representing user input.
     /// * `model`: The model identifier to use for the prompt.
-    /// * `provider`: The provider to use for the prompt.
+    /// * `provider`: Optional. Defaults to env var POTATO_HEAD_DEFAULT_PROVIDER if unset.
     /// * `system_instruction`: Optional system instruction message or list of messages.
     /// * `model_settings`: Optional model settings to use for the prompt.
     /// * `output_type`: Optional output type to enforce structured output.
     #[new]
-    #[pyo3(signature = (messages, model, provider, system_instructions=None, model_settings=None, output_type=None))]
+    #[pyo3(signature = (messages, model, provider=None, system_instructions=None, model_settings=None, output_type=None))]
     pub fn new(
         py: Python<'_>,
         messages: &Bound<'_, PyAny>,
         model: &str,
-        provider: &Bound<'_, PyAny>,
+        provider: Option<&Bound<'_, PyAny>>,
         system_instructions: Option<&Bound<'_, PyAny>>,
         model_settings: Option<&Bound<'_, PyAny>>,
         output_type: Option<&Bound<'_, PyAny>>, // can be a pydantic model or one of Opsml's predefined outputs
@@ -351,7 +348,7 @@ impl Prompt {
             .transpose()?;
 
         // 2. extract provider
-        let provider = Provider::extract_provider(provider)?;
+        let provider = Provider::resolve_from_py(provider)?;
 
         // 3. Parse user messages with "user" role
         // We'll use this to figure out the type of request struct to create
@@ -822,7 +819,7 @@ impl Prompt {
         }
 
         // Parse provider string to Provider enum
-        let provider = Provider::from_string(&config.provider)?;
+        let provider = Provider::resolve(config.provider.as_deref())?;
 
         // Convert message strings to MessageNum based on provider
         let messages: Vec<MessageNum> = config

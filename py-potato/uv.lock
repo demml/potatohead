@@ -3351,7 +3351,7 @@ wheels = [
 
 [[package]]
 name = "potato-head"
-version = "0.24.0"
+version = "0.26.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]

@@ -10,12 +10,14 @@ Prompts are standardized objects for interacting with language models in Potato 
 |---------------------|--------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|
 | `messages` | `Union[str | ChatMessage | MessageParam | GeminiContent]`<br>`List[Union[str | ChatMessage | MessageParam | GeminiContent]]` | The main prompt content. Can be a string, a sequence of string or be provider-specific message formats. | **Required** |
 | `model`             | `str`                                                                                        | The model to use for the prompt |**Required** |
-| `provider`          | `str`                                                                                        | The provider to use for the prompt | **Required** |
+| `provider`          | `str`                                                                                        | The provider to use for the prompt. If omitted, Potato Head reads `POTATO_HEAD_DEFAULT_PROVIDER`. | `POTATO_HEAD_DEFAULT_PROVIDER` |
 | `system_instructions`| `Optional[str | List[str]]`                                                                           | System-level instructions to include in the prompt. Can be a string or a list of strings.                                                                                                             | `None`       |
 | `model_settings`    | `Optional[ModelSettings | OpenAIChatSettings | GeminiSettings | AnthropicSettings]`                                                                              | Model settings for the prompt. If not provided, no additional model settings are used.                                                                         | `None`       |
 | `output_type`   | `Optional[Any]`                                                                                        | Specifies the output type for structured outputs. Supports Pydantic `BaseModel` classes and the PotatoHead `Score` class. The format will be parsed into a JSON schema for the LLM API.           | `None`       |
 
 ## Binding Parameters
+
+`provider` can be passed explicitly on each `Prompt`, or omitted when `POTATO_HEAD_DEFAULT_PROVIDER` is set to one of `openai`, `gemini`, `google`, `vertex`, `anthropic`, or `google_adk`. If neither an explicit provider nor that environment variable is present, prompt construction fails.
 
 One of the benefits of using the `Prompt` class is that is allows you to parameterize your messages and bind them at runtime. This is useful for creating dynamic prompts that can change based on user input or other factors.
 

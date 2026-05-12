@@ -150,11 +150,12 @@ impl SpecLoader {
     }
 
     async fn build_agent(&self, spec: &AgentSpec) -> Result<Arc<Agent>, SpecError> {
-        let provider =
-            Provider::from_string(&spec.provider).map_err(|_| SpecError::InvalidProvider {
-                value: spec.provider.clone(),
-                reason: "unknown provider name".into(),
-            })?;
+        let provider = Provider::resolve(spec.provider.as_deref()).map_err(|e| {
+            SpecError::InvalidProvider {
+                value: spec.provider.clone().unwrap_or_default(),
+                reason: e.to_string(),
+            }
+        })?;
 
         let mut builder = AgentBuilder::new().provider(provider);
 
@@ -419,7 +420,24 @@ impl LoadedSpec {
 mod tests {
     use super::*;
     use std::fs;
+    use std::sync::Mutex;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn with_env_var<F: FnOnce()>(value: Option<&str>, f: F) {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var(Provider::DEFAULT_ENV_VAR).ok();
+        match value {
+            Some(v) => std::env::set_var(Provider::DEFAULT_ENV_VAR, v),
+            None => std::env::remove_var(Provider::DEFAULT_ENV_VAR),
+        }
+        f();
+        match prev {
+            Some(v) => std::env::set_var(Provider::DEFAULT_ENV_VAR, v),
+            None => std::env::remove_var(Provider::DEFAULT_ENV_VAR),
+        }
+    }
 
     fn create_temp_spec_dir() -> PathBuf {
         let nanos = SystemTime::now()
@@ -507,6 +525,61 @@ workflows:
         assert!(loaded.workflow("dag").is_some());
 
         fs::remove_dir_all(temp_dir).unwrap();
+    }
+
+    #[test]
+    fn agent_spec_without_provider_uses_env_default() {
+        with_env_var(Some("openai"), || {
+            let runtime = tokio::runtime::Runtime::new().unwrap();
+            let spec = AgentSpec {
+                id: "worker".to_string(),
+                provider: None,
+                model: Some("gpt-4o".to_string()),
+                system_prompt: None,
+                max_iterations: Some(1),
+                memory: None,
+                criteria: Vec::new(),
+                callbacks: Vec::new(),
+                tools: Vec::new(),
+            };
+            let loader = SpecLoader::new();
+
+            let agent = runtime
+                .block_on(async { loader.build_agent(&spec).await })
+                .unwrap();
+
+            assert_eq!(agent.client_provider(), &Provider::OpenAI);
+        });
+    }
+
+    #[test]
+    fn agent_spec_without_provider_no_env_errors() {
+        with_env_var(None, || {
+            let runtime = tokio::runtime::Runtime::new().unwrap();
+            let spec = AgentSpec {
+                id: "worker".to_string(),
+                provider: None,
+                model: Some("gpt-4o".to_string()),
+                system_prompt: None,
+                max_iterations: Some(1),
+                memory: None,
+                criteria: Vec::new(),
+                callbacks: Vec::new(),
+                tools: Vec::new(),
+            };
+            let loader = SpecLoader::new();
+
+            let err = runtime
+                .block_on(async { loader.build_agent(&spec).await })
+                .unwrap_err();
+
+            match err {
+                SpecError::InvalidProvider { reason, .. } => {
+                    assert!(reason.contains(Provider::DEFAULT_ENV_VAR));
+                }
+                other => panic!("expected InvalidProvider, got {:?}", other),
+            }
+        });
     }
 
     #[test]

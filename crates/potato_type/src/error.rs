@@ -13,6 +13,9 @@ pub enum TypeError {
     #[error("Unknown provider: {0}")]
     UnknownProviderError(String),
 
+    #[error("No provider specified. Pass `provider=` explicitly or set the {0} env var.")]
+    MissingProviderError(&'static str),
+
     #[error("Unknown model: {0}")]
     UnknownModelError(String),
 
